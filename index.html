@@ -107,6 +107,12 @@
   #importPreviewTable th{position:sticky;top:0;text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:0.05em;color:var(--muted);padding:8px 12px;background:var(--paper2);}
   #importPreviewTable td{padding:8px 12px;border-top:1px solid var(--paper3);}
   #importPreviewTable tr.vencido{background:var(--rust-bg);}
+  .fixas-totais{display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap;}
+  .fixas-totais .chip{flex:1;min-width:150px;background:var(--paper2);border:1px solid var(--paper3);border-radius:8px;padding:10px 14px;}
+  .fixas-totais .chip .lbl{font-size:10px;text-transform:uppercase;letter-spacing:0.06em;color:var(--muted);margin-bottom:3px;}
+  .fixas-totais .chip .val{font-family:var(--font-mono);font-size:16px;font-weight:500;}
+  .fixas-totais .chip.pagar .val{color:var(--rust);}
+  .fixas-totais .chip.receber .val{color:var(--green);}
   #fixasTable{width:100%;border-collapse:collapse;font-size:12.5px;}
   #fixaImportPreviewTable{width:100%;border-collapse:collapse;font-size:12px;}
   #fixaImportPreviewTable th{position:sticky;top:0;text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:0.05em;color:var(--muted);padding:8px 12px;background:var(--paper2);}
@@ -178,6 +184,10 @@
   .iconbtn.edit:hover{border-color:var(--gold);color:var(--gold);background:#fbf3e0;}
   .iconbtn.del:hover{border-color:var(--rust);color:var(--rust);background:var(--rust-bg);}
   .empty{padding:36px 20px;text-align:center;color:var(--muted);font-size:13px;font-style:italic;font-family:var(--font-voice);}
+  .painel-total{display:flex;justify-content:space-between;align-items:center;padding:14px 20px;border-top:2px solid var(--ink);background:var(--paper2);font-family:var(--font-sans);font-size:13px;font-weight:600;}
+  .painel-total .valor-total{font-family:var(--font-mono);font-size:16px;}
+  .painel-total.pagar .valor-total{color:var(--rust);}
+  .painel-total.receber .valor-total{color:var(--green);}
 
   @media (max-width:900px){
     .shell.on{grid-template-columns:1fr;}
@@ -292,6 +302,7 @@
           </table>
         </div>
         <div class="empty" id="emptyPagar" style="display:none;">Nenhuma conta a pagar por aqui.</div>
+        <div class="painel-total pagar" id="totalPagarPainel"></div>
       </div>
 
       <div class="panel">
@@ -349,6 +360,8 @@
     <button class="modal-close" onclick="fecharFixas()">✕</button>
     <h2>Despesas fixas — <span id="fixasLojaNome"></span></h2>
     <p class="modal-sub">Cadastre aqui contas que se repetem todo mês (aluguel, internet, salário, etc). Elas entram sozinhas na lista de lançamentos a cada mês novo, sempre com o valor mais atual daqui.</p>
+
+    <div class="fixas-totais" id="fixasTotais"></div>
 
     <div class="preview-scroll" id="fixasWrap">
       <table id="fixasTable">
@@ -833,11 +846,18 @@ function escapeHtml(s){
 function renderTabela(tipo, filtro){
   const body = document.getElementById(tipo==='pagar' ? 'bodyPagar' : 'bodyReceber');
   const empty = document.getElementById(tipo==='pagar' ? 'emptyPagar' : 'emptyReceber');
+  const totalEl = document.getElementById(tipo==='pagar' ? 'totalPagarPainel' : 'totalReceberPainel');
   let itens = lancamentosDaLoja().filter(x=>x.tipo===tipo);
   if(filtro !== 'todos') itens = itens.filter(x=>statusEfetivo(x)===filtro);
   if(buscaTexto) itens = itens.filter(x=>itemCorresponde(x, buscaTexto));
   if(mesAtual !== 'todos') itens = itens.filter(x=>x.vencimento.slice(0,7)===mesAtual);
   itens.sort((a,b)=> a.vencimento.localeCompare(b.vencimento));
+
+  const somaTotal = itens.reduce((s,x)=>s+Number(x.valor),0);
+  const rotuloFiltro = filtro==='todos' ? 'Total' : ('Total (' + filtro + ')');
+  if(totalEl){
+    totalEl.innerHTML = `<span>${rotuloFiltro} · ${itens.length} ${itens.length===1?'lançamento':'lançamentos'}</span><span class="valor-total">${brl(somaTotal)}</span>`;
+  }
 
   if(itens.length===0){ body.innerHTML=''; empty.style.display='block'; return; }
   empty.style.display = 'none';
@@ -913,6 +933,7 @@ async function carregarFixas(){
 function renderFixasTable(){
   const body = document.getElementById('fixasBody');
   const empty = document.getElementById('fixasEmpty');
+  atualizarTotaisFixas();
   if(fixasCache.length===0){
     body.innerHTML = '';
     empty.textContent = 'Nenhuma despesa fixa cadastrada ainda.';
@@ -929,6 +950,15 @@ function renderFixasTable(){
       <td><button class="iconbtn del" title="Remover" onclick="excluirFixa('${f.id}')">✕</button></td>
     </tr>
   `).join('');
+}
+
+function atualizarTotaisFixas(){
+  const totalPagar = fixasCache.filter(f=>f.tipo==='pagar').reduce((s,f)=>s+Number(f.valor),0);
+  const totalReceber = fixasCache.filter(f=>f.tipo==='receber').reduce((s,f)=>s+Number(f.valor),0);
+  document.getElementById('fixasTotais').innerHTML = `
+    <div class="chip pagar"><div class="lbl">Total fixo a pagar/mês</div><div class="val">${brl(totalPagar)}</div></div>
+    <div class="chip receber"><div class="lbl">Total fixo a receber/mês</div><div class="val">${brl(totalReceber)}</div></div>
+  `;
 }
 
 async function adicionarFixa(){
