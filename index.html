@@ -483,6 +483,7 @@
         <input id="func_horas" type="number" min="0" max="23" placeholder="Horas">
         <input id="func_minutos" type="number" min="0" max="59" placeholder="Minutos">
       </div>
+      <p id="escalaDica" style="font-size:11px;color:var(--muted);margin:6px 0 0;"></p>
     </div>
     <button class="addbtn" onclick="salvarFuncionario()">Salvar</button>
     <div class="formerr" id="funcErr">Preencha o nome do funcionário.</div>
@@ -1536,12 +1537,15 @@ let escalaSelecionada = 'normal';
 function setEscala(e){
   escalaSelecionada = e;
   document.querySelectorAll('#escalaToggle .tipo-btn').forEach(b=>b.classList.toggle('active', b.dataset.escala===e));
+  const dica = document.getElementById('escalaDica');
   if(e==='12x36'){
-    document.getElementById('func_horas').value = 12;
+    document.getElementById('func_horas').value = 11;
     document.getElementById('func_minutos').value = 0;
+    dica.textContent = 'Use as horas efetivas (já sem o intervalo) — geralmente 11h, não as 12h de plantão.';
   }else{
     document.getElementById('func_horas').value = 8;
     document.getElementById('func_minutos').value = 0;
+    dica.textContent = '';
   }
 }
 
@@ -1593,6 +1597,7 @@ function abrirEditarFuncionario(){
   document.querySelectorAll('#escalaToggle .tipo-btn').forEach(b=>b.classList.toggle('active', b.dataset.escala===escalaSelecionada));
   document.getElementById('func_horas').value = Math.floor(f.carga_horaria_diaria_min/60);
   document.getElementById('func_minutos').value = f.carga_horaria_diaria_min%60;
+  document.getElementById('escalaDica').textContent = escalaSelecionada==='12x36' ? 'Use as horas efetivas (já sem o intervalo) — geralmente 11h, não as 12h de plantão.' : '';
   document.getElementById('funcErr').style.display = 'none';
   document.getElementById('funcModal').style.display = 'flex';
 }
