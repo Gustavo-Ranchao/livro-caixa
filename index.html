@@ -430,7 +430,11 @@
             <div class="val" id="bhSaldoTotal">0h00</div>
           </div>
           <div class="metric">
-            <div class="lbl">Jornada diária esperada</div>
+            <div class="lbl">Escala</div>
+            <div class="val" id="bhEscala" style="font-size:15px;">Normal</div>
+          </div>
+          <div class="metric">
+            <div class="lbl">Jornada esperada por dia trabalhado</div>
             <div class="val" id="bhCargaHoraria">8h00</div>
           </div>
           <button type="button" class="importbtn" id="bhEditarBtn" style="width:auto;margin-top:0;" onclick="abrirEditarFuncionario()">✎ Editar funcionário</button>
@@ -468,7 +472,13 @@
     <button class="modal-close" onclick="fecharFuncModal()">✕</button>
     <h2 id="funcModalTitulo">Novo funcionário</h2>
     <div class="fld"><label>Nome</label><input id="func_nome" placeholder="Nome do funcionário"></div>
-    <div class="fld"><label>Jornada diária esperada</label>
+    <div class="fld"><label>Escala de trabalho</label>
+      <div class="tipo-toggle" id="escalaToggle">
+        <button type="button" class="tipo-btn active" data-escala="normal" onclick="setEscala('normal')">Normal</button>
+        <button type="button" class="tipo-btn" data-escala="12x36" onclick="setEscala('12x36')">12x36</button>
+      </div>
+    </div>
+    <div class="fld"><label>Jornada esperada por dia trabalhado</label>
       <div class="fld-row">
         <input id="func_horas" type="number" min="0" max="23" placeholder="Horas">
         <input id="func_minutos" type="number" min="0" max="59" placeholder="Minutos">
@@ -1521,6 +1531,19 @@ let bhFuncionarios = [];
 let bhFuncionarioAtualId = null;
 let bhRegistros = [];
 let editandoFuncId = null;
+let escalaSelecionada = 'normal';
+
+function setEscala(e){
+  escalaSelecionada = e;
+  document.querySelectorAll('#escalaToggle .tipo-btn').forEach(b=>b.classList.toggle('active', b.dataset.escala===e));
+  if(e==='12x36'){
+    document.getElementById('func_horas').value = 12;
+    document.getElementById('func_minutos').value = 0;
+  }else{
+    document.getElementById('func_horas').value = 8;
+    document.getElementById('func_minutos').value = 0;
+  }
+}
 
 function mudarView(v){
   viewAtual = v;
@@ -1547,7 +1570,7 @@ function renderFuncionarioSelect(){
   const sel = document.getElementById('bhFuncionarioSelect');
   const atual = bhFuncionarioAtualId || '';
   sel.innerHTML = '<option value="">Selecione um funcionário</option>' +
-    bhFuncionarios.map(f=>`<option value="${f.id}">${escapeHtml(f.nome)}</option>`).join('');
+    bhFuncionarios.map(f=>`<option value="${f.id}">${escapeHtml(f.nome)} — ${f.tipo_escala==='12x36' ? '12x36' : 'Normal'}</option>`).join('');
   sel.value = atual;
 }
 
@@ -1555,8 +1578,7 @@ function abrirNovoFuncionario(){
   editandoFuncId = null;
   document.getElementById('funcModalTitulo').textContent = 'Novo funcionário';
   document.getElementById('func_nome').value = '';
-  document.getElementById('func_horas').value = 8;
-  document.getElementById('func_minutos').value = 0;
+  setEscala('normal');
   document.getElementById('funcErr').style.display = 'none';
   document.getElementById('funcModal').style.display = 'flex';
 }
@@ -1567,6 +1589,8 @@ function abrirEditarFuncionario(){
   editandoFuncId = f.id;
   document.getElementById('funcModalTitulo').textContent = 'Editar funcionário';
   document.getElementById('func_nome').value = f.nome;
+  escalaSelecionada = f.tipo_escala || 'normal';
+  document.querySelectorAll('#escalaToggle .tipo-btn').forEach(b=>b.classList.toggle('active', b.dataset.escala===escalaSelecionada));
   document.getElementById('func_horas').value = Math.floor(f.carga_horaria_diaria_min/60);
   document.getElementById('func_minutos').value = f.carga_horaria_diaria_min%60;
   document.getElementById('funcErr').style.display = 'none';
@@ -1591,7 +1615,7 @@ async function salvarFuncionario(){
 
   if(editandoFuncId){
     const { data, error } = await sb.from('bh_funcionarios')
-      .update({ nome: nome, carga_horaria_diaria_min: cargaMin })
+      .update({ nome: nome, carga_horaria_diaria_min: cargaMin, tipo_escala: escalaSelecionada })
       .eq('id', editandoFuncId).select().single();
     if(error){
       err.textContent = 'Erro ao salvar: ' + error.message;
@@ -1604,7 +1628,7 @@ async function salvarFuncionario(){
     renderBancoHoras();
   }else{
     const { data, error } = await sb.from('bh_funcionarios')
-      .insert({ loja: lojaAtual, nome: nome, carga_horaria_diaria_min: cargaMin })
+      .insert({ loja: lojaAtual, nome: nome, carga_horaria_diaria_min: cargaMin, tipo_escala: escalaSelecionada })
       .select().single();
     if(error){
       err.textContent = 'Erro ao salvar: ' + error.message;
@@ -1678,6 +1702,7 @@ function renderBancoHoras(){
   const f = bhFuncionarios.find(x=>x.id===bhFuncionarioAtualId);
   if(!f) return;
   document.getElementById('bhCargaHoraria').textContent = fmtMinutos(f.carga_horaria_diaria_min);
+  document.getElementById('bhEscala').textContent = f.tipo_escala==='12x36' ? '12x36' : 'Normal';
 
   const ordenados = [...bhRegistros].sort((a,b)=> a.data.localeCompare(b.data));
   let acumulado = 0;
