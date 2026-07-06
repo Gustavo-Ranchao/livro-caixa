@@ -457,7 +457,7 @@
           <div class="panel-head"><h2>Histórico</h2></div>
           <div class="tablewrap">
             <table class="ledger">
-              <thead><tr><th>Data</th><th>Entr. 1</th><th>Saí. 1</th><th>Entr. 2</th><th>Saí. 2</th><th>Trabalhado</th><th>Saldo dia</th><th>Acumulado</th><th></th></tr></thead>
+              <thead><tr><th>Data</th><th>Entr. 1</th><th>Saí. 1</th><th>Entr. 2</th><th>Saí. 2</th><th>Trabalhado</th><th>Noturno</th><th>Saldo dia</th><th>Acumulado</th><th></th></tr></thead>
               <tbody id="bhBody"></tbody>
             </table>
           </div>
@@ -1692,14 +1692,38 @@ function fmtMinutosSinal(min){
   return sinal + fmtMinutos(Math.abs(min));
 }
 
+function minutosIntervalo(entradaStr, saidaStr){
+  const e = paraMinutos(entradaStr);
+  let s = paraMinutos(saidaStr);
+  if(e===null || s===null) return 0;
+  if(s <= e) s += 1440; // o turno passou da meia-noite
+  return s - e;
+}
+
+const JANELA_NOTURNA_INICIO = 22*60;      // 22:00
+const JANELA_NOTURNA_FIM = 24*60 + 5*60;  // 05:00 do dia seguinte
+
+function minutosNoturnosIntervalo(entradaStr, saidaStr){
+  const e = paraMinutos(entradaStr);
+  let s = paraMinutos(saidaStr);
+  if(e===null || s===null) return 0;
+  if(s <= e) s += 1440;
+  const inicioSobreposto = Math.max(e, JANELA_NOTURNA_INICIO);
+  const fimSobreposto = Math.min(s, JANELA_NOTURNA_FIM);
+  return Math.max(0, fimSobreposto - inicioSobreposto);
+}
+
 function calcularMinutosTrabalhados(reg){
-  const e1 = paraMinutos(reg.entrada1);
-  const s1 = paraMinutos(reg.saida1);
-  const e2 = paraMinutos(reg.entrada2);
-  const s2 = paraMinutos(reg.saida2);
   let total = 0;
-  if(e1!==null && s1!==null) total += Math.max(0, s1 - e1);
-  if(e2!==null && s2!==null) total += Math.max(0, s2 - e2);
+  if(reg.entrada1 && reg.saida1) total += minutosIntervalo(reg.entrada1, reg.saida1);
+  if(reg.entrada2 && reg.saida2) total += minutosIntervalo(reg.entrada2, reg.saida2);
+  return total;
+}
+
+function calcularMinutosNoturnos(reg){
+  let total = 0;
+  if(reg.entrada1 && reg.saida1) total += minutosNoturnosIntervalo(reg.entrada1, reg.saida1);
+  if(reg.entrada2 && reg.saida2) total += minutosNoturnosIntervalo(reg.entrada2, reg.saida2);
   return total;
 }
 
@@ -1713,16 +1737,17 @@ function renderBancoHoras(){
   let acumulado = 0;
   const linhas = ordenados.map(reg=>{
     const trabalhado = calcularMinutosTrabalhados(reg);
+    const noturno = calcularMinutosNoturnos(reg);
     const saldoDia = trabalhado - f.carga_horaria_diaria_min;
     acumulado += saldoDia;
-    return { reg, trabalhado, saldoDia, acumuladoAteAqui: acumulado };
+    return { reg, trabalhado, noturno, saldoDia, acumuladoAteAqui: acumulado };
   });
 
   document.getElementById('bhSaldoTotal').textContent = fmtMinutosSinal(acumulado);
 
   const body = document.getElementById('bhBody');
   if(linhas.length===0){
-    body.innerHTML = '<tr><td colspan="9" style="text-align:center;color:var(--muted);font-style:italic;padding:24px;">Nenhum registro ainda.</td></tr>';
+    body.innerHTML = '<tr><td colspan="10" style="text-align:center;color:var(--muted);font-style:italic;padding:24px;">Nenhum registro ainda.</td></tr>';
     return;
   }
   const horaOuTraco = v => v ? v.slice(0,5) : '—';
@@ -1734,6 +1759,7 @@ function renderBancoHoras(){
       <td class="data">${horaOuTraco(l.reg.entrada2)}</td>
       <td class="data">${horaOuTraco(l.reg.saida2)}</td>
       <td class="valor">${fmtMinutos(l.trabalhado)}</td>
+      <td class="valor" ${l.noturno>0?'style="color:var(--gold);font-weight:600;"':''}>${l.noturno>0 ? fmtMinutos(l.noturno) : '—'}</td>
       <td class="valor" style="color:${l.saldoDia<0?'var(--rust)':'var(--green)'};">${fmtMinutosSinal(l.saldoDia)}</td>
       <td class="valor" style="font-weight:600;color:${l.acumuladoAteAqui<0?'var(--rust)':'var(--green)'};">${fmtMinutosSinal(l.acumuladoAteAqui)}</td>
       <td><button class="iconbtn del" title="Excluir" onclick="excluirRegistroHoras('${l.reg.id}')">✕</button></td>
