@@ -634,7 +634,6 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 let sb = null;
 let lancamentos = [];
 let tipoAtual = 'pagar';
-let filtroPagar = 'todos';
 let filtroReceber = 'todos';
 let lojaAtual = localStorage.getItem('lojaAtual') || 'loja1';
 let buscaTexto = '';
@@ -716,13 +715,23 @@ async function exportarImagem(painelId, rotulo){
   const dataHora = fmtData(agora.toISOString().slice(0,10)) + ' ' + agora.toTimeString().slice(0,5);
   el.setAttribute('data-gerado-em', dataHora + ' — ' + (NOMES_LOJA[lojaAtual] || ''));
   el.classList.add('capturando');
-  await new Promise(r=>setTimeout(r, 60));
   try{
-    const canvas = await html2canvas(el, { backgroundColor: '#ffffff', scale: 2 });
+    if(document.fonts && document.fonts.ready){
+      await document.fonts.ready;
+    }
+  }catch(e){}
+  await new Promise(r=>setTimeout(r, 120));
+  try{
+    const canvas = await html2canvas(el, {
+      backgroundColor: '#ffffff',
+      scale: Math.max(3, window.devicePixelRatio || 1),
+      useCORS: true,
+      imageTimeout: 15000
+    });
     const link = document.createElement('a');
     const dataArquivo = agora.toISOString().slice(0,10);
     link.download = 'contas-' + rotulo + '-' + (NOMES_LOJA[lojaAtual]||'').toLowerCase().replace(' ','') + '-' + dataArquivo + '.png';
-    link.href = canvas.toDataURL('image/png');
+    link.href = canvas.toDataURL('image/png', 1.0);
     link.click();
   }catch(e){
     alert('Não foi possível gerar a imagem: ' + (e && e.message ? e.message : e));
@@ -850,10 +859,29 @@ function setTipo(t){
   document.getElementById('f_contato').placeholder = t==='pagar' ? 'Nome do fornecedor' : 'Nome do cliente';
 }
 
+let filtrosPagarAtivos = new Set();
+
+function atualizarBotoesFiltroPagar(){
+  document.querySelectorAll('#filtPagar .filter-btn:not(.foto-btn)').forEach(btn=>{
+    const f = btn.dataset.f;
+    if(f==='todos'){
+      btn.classList.toggle('active', filtrosPagarAtivos.size===0);
+    }else{
+      btn.classList.toggle('active', filtrosPagarAtivos.has(f));
+    }
+  });
+}
+
 document.querySelectorAll('#filtPagar .filter-btn:not(.foto-btn)').forEach(b=>{
   b.addEventListener('click', ()=>{
-    filtroPagar = b.dataset.f;
-    document.querySelectorAll('#filtPagar .filter-btn:not(.foto-btn)').forEach(x=>x.classList.toggle('active', x===b));
+    const f = b.dataset.f;
+    if(f==='todos'){
+      filtrosPagarAtivos.clear();
+    }else{
+      if(filtrosPagarAtivos.has(f)) filtrosPagarAtivos.delete(f);
+      else filtrosPagarAtivos.add(f);
+    }
+    atualizarBotoesFiltroPagar();
     render();
   });
 });
@@ -1059,18 +1087,18 @@ function escapeHtml(s){
   return s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 }
 
-function renderTabela(tipo, filtro){
+function renderTabela(tipo, filtros){
   const body = document.getElementById(tipo==='pagar' ? 'bodyPagar' : 'bodyReceber');
   const empty = document.getElementById(tipo==='pagar' ? 'emptyPagar' : 'emptyReceber');
   const totalEl = document.getElementById(tipo==='pagar' ? 'totalPagarPainel' : 'totalReceberPainel');
   let itens = lancamentosDaLoja().filter(x=>x.tipo===tipo);
-  if(filtro !== 'todos') itens = itens.filter(x=>statusEfetivo(x)===filtro);
+  if(filtros && filtros.size>0) itens = itens.filter(x=>filtros.has(statusEfetivo(x)));
   if(buscaTexto) itens = itens.filter(x=>itemCorresponde(x, buscaTexto));
   if(mesAtual !== 'todos') itens = itens.filter(x=>x.vencimento.slice(0,7)===mesAtual);
   itens.sort((a,b)=> a.vencimento.localeCompare(b.vencimento));
 
   const somaTotal = itens.reduce((s,x)=>s+Number(x.valor),0);
-  const rotuloFiltro = filtro==='todos' ? 'Total' : ('Total (' + filtro + ')');
+  const rotuloFiltro = (!filtros || filtros.size===0) ? 'Total' : ('Total (' + Array.from(filtros).join(' + ') + ')');
   if(totalEl){
     totalEl.innerHTML = `<span>${rotuloFiltro} · ${itens.length} ${itens.length===1?'lançamento':'lançamentos'}</span><span class="valor-total">${brl(somaTotal)}</span>`;
   }
@@ -1107,7 +1135,7 @@ function render(){
   const totPagar = pendPagar.reduce((s,x)=>s+Number(x.valor),0);
   document.getElementById('totalPagar').textContent = brl(totPagar);
   document.getElementById('subPagar').textContent = pendPagar.length + (pendPagar.length===1?' lançamento':' lançamentos');
-  renderTabela('pagar', filtroPagar);
+  renderTabela('pagar', filtrosPagarAtivos);
   renderCaixaDoDia();
 }
 
@@ -2029,6 +2057,27 @@ async function confirmarExclusaoFuncionario(){
 
 /* =============== FIM BANCO DE HORAS =============== */
 
+async function aplicarSessao(session, opts){
+  opts = opts || {};
+  if(session){
+    document.getElementById('loginScreen').style.display = 'none';
+    document.getElementById('app').classList.add('on');
+    const nomeUsuario = (session.user.user_metadata && (session.user.user_metadata.nome || session.user.user_metadata.name)) || session.user.email;
+    document.getElementById('perfilNome').textContent = nomeUsuario;
+    document.getElementById('perfilEmail').textContent = session.user.email;
+    usuarioEmailAtual = session.user.email;
+    document.getElementById('perfilBarNome').textContent = nomeUsuario;
+    document.getElementById('avatarCircle').textContent = nomeUsuario.trim().charAt(0).toUpperCase();
+    document.querySelectorAll('.loja-btn').forEach(b=>b.classList.toggle('active', b.dataset.loja===lojaAtual));
+    if(opts.carregarDados){
+      await carregarDados();
+    }
+  }else{
+    document.getElementById('app').classList.remove('on');
+    document.getElementById('loginScreen').style.display = 'flex';
+  }
+}
+
 async function iniciar(){
   if(!initSupabase()) return;
 
@@ -2038,23 +2087,21 @@ async function iniciar(){
     }
   }, 9000);
 
+  let sessaoInicial = null;
+  try{
+    const resultado = await sb.auth.getSession();
+    sessaoInicial = resultado.data ? resultado.data.session : null;
+  }catch(e){
+    console.error('Erro ao validar sessão:', e);
+  }
+
+  clearTimeout(watchdog);
+  document.getElementById('loadingScreen').style.display = 'none';
+  await aplicarSessao(sessaoInicial, { carregarDados: true });
+
   sb.auth.onAuthStateChange(async (event, session) => {
-    clearTimeout(watchdog);
-    document.getElementById('loadingScreen').style.display = 'none';
-    if(session){
-      document.getElementById('loginScreen').style.display = 'none';
-      document.getElementById('app').classList.add('on');
-      const nomeUsuario = (session.user.user_metadata && (session.user.user_metadata.nome || session.user.user_metadata.name)) || session.user.email;
-      document.getElementById('perfilNome').textContent = nomeUsuario;
-      document.getElementById('perfilEmail').textContent = session.user.email;
-      usuarioEmailAtual = session.user.email;
-      document.getElementById('perfilBarNome').textContent = nomeUsuario;
-      document.getElementById('avatarCircle').textContent = nomeUsuario.trim().charAt(0).toUpperCase();
-      document.querySelectorAll('.loja-btn').forEach(b=>b.classList.toggle('active', b.dataset.loja===lojaAtual));
-      await carregarDados();
-    }else{
-      document.getElementById('app').classList.remove('on');
-      document.getElementById('loginScreen').style.display = 'flex';
+    if(event === 'SIGNED_IN' || event === 'SIGNED_OUT'){
+      await aplicarSessao(session, { carregarDados: event === 'SIGNED_IN' });
     }
   });
 }
