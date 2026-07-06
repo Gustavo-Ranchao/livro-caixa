@@ -438,6 +438,7 @@
             <div class="val" id="bhCargaHoraria">8h00</div>
           </div>
           <button type="button" class="importbtn" id="bhEditarBtn" style="width:auto;margin-top:0;" onclick="abrirEditarFuncionario()">✎ Editar funcionário</button>
+          <button type="button" class="importbtn" id="bhExcluirBtn" style="width:auto;margin-top:0;border-color:var(--rust);color:var(--rust);" onclick="abrirExcluirFuncionario()">🗑 Excluir funcionário</button>
         </div>
 
         <div class="panel">
@@ -487,6 +488,31 @@
     </div>
     <button class="addbtn" onclick="salvarFuncionario()">Salvar</button>
     <div class="formerr" id="funcErr">Preencha o nome do funcionário.</div>
+  </div>
+</div>
+
+<div id="excluirFuncModal" class="modal-overlay">
+  <div class="modal-box" style="max-width:420px;">
+    <button class="modal-close" onclick="fecharExcluirFuncModal()">✕</button>
+    <h2>Excluir funcionário?</h2>
+    <p class="modal-sub">Isso apaga <strong id="excluirFuncNome">este funcionário</strong> e <strong>todos os registros de horas dele</strong>, sem volta. Digite sua senha de login para confirmar.</p>
+    <div class="fld"><label>Sua senha</label><input id="excluirFunc_senha" type="password" placeholder="••••••••"></div>
+    <div class="modal-actions" style="margin-top:16px;">
+      <button class="addbtn" id="excluirFuncConfirmBtn" style="background:var(--rust);" onclick="confirmarExclusaoFuncionario()">Excluir definitivamente</button>
+      <button class="cancelbtn" onclick="fecharExcluirFuncModal()">Cancelar</button>
+    </div>
+    <div class="formerr" id="excluirFuncErr">Senha incorreta.</div>
+  </div>
+</div>
+
+<div id="confirmHorasModal" class="modal-overlay">
+  <div class="modal-box" style="max-width:380px;">
+    <h2>Excluir registro do dia?</h2>
+    <p class="modal-sub">Essa ação não pode ser desfeita.</p>
+    <div class="modal-actions">
+      <button class="addbtn" style="background:var(--rust);" onclick="confirmarExclusaoRegistroHorasOk()">Excluir</button>
+      <button class="cancelbtn" onclick="fecharConfirmacaoHoras()">Cancelar</button>
+    </div>
   </div>
 </div>
 
@@ -1527,6 +1553,7 @@ async function confirmarImport(){
 /* ================= BANCO DE HORAS ================= */
 
 let viewAtual = 'financeiro';
+let usuarioEmailAtual = null;
 let bhCarregado = false;
 let bhFuncionarios = [];
 let bhFuncionarioAtualId = null;
@@ -1762,7 +1789,7 @@ function renderBancoHoras(){
       <td class="valor" ${l.noturno>0?'style="color:var(--gold);font-weight:600;"':''}>${l.noturno>0 ? fmtMinutos(l.noturno) : '—'}</td>
       <td class="valor" style="color:${l.saldoDia<0?'var(--rust)':'var(--green)'};">${fmtMinutosSinal(l.saldoDia)}</td>
       <td class="valor" style="font-weight:600;color:${l.acumuladoAteAqui<0?'var(--rust)':'var(--green)'};">${fmtMinutosSinal(l.acumuladoAteAqui)}</td>
-      <td><button class="iconbtn del" title="Excluir" onclick="excluirRegistroHoras('${l.reg.id}')">✕</button></td>
+      <td><button class="iconbtn del" title="Excluir" onclick="confirmarExclusaoRegistroHoras('${l.reg.id}')">✕</button></td>
     </tr>
   `).join('');
 }
@@ -1825,6 +1852,87 @@ async function excluirRegistroHoras(id){
   }
 }
 
+let excluindoRegistroHorasId = null;
+
+function confirmarExclusaoRegistroHoras(id){
+  excluindoRegistroHorasId = id;
+  document.getElementById('confirmHorasModal').style.display = 'flex';
+}
+
+function fecharConfirmacaoHoras(){
+  document.getElementById('confirmHorasModal').style.display = 'none';
+  excluindoRegistroHorasId = null;
+}
+
+async function confirmarExclusaoRegistroHorasOk(){
+  if(!excluindoRegistroHorasId) return;
+  await excluirRegistroHoras(excluindoRegistroHorasId);
+  fecharConfirmacaoHoras();
+}
+
+function abrirExcluirFuncionario(){
+  const f = bhFuncionarios.find(x=>x.id===bhFuncionarioAtualId);
+  if(!f) return;
+  document.getElementById('excluirFuncNome').textContent = f.nome;
+  document.getElementById('excluirFunc_senha').value = '';
+  document.getElementById('excluirFuncErr').style.display = 'none';
+  document.getElementById('excluirFuncModal').style.display = 'flex';
+}
+
+function fecharExcluirFuncModal(){
+  document.getElementById('excluirFuncModal').style.display = 'none';
+}
+
+async function confirmarExclusaoFuncionario(){
+  const senha = document.getElementById('excluirFunc_senha').value;
+  const err = document.getElementById('excluirFuncErr');
+  const btn = document.getElementById('excluirFuncConfirmBtn');
+
+  if(!senha){
+    err.textContent = 'Digite sua senha.';
+    err.style.display = 'block';
+    return;
+  }
+  if(!usuarioEmailAtual){
+    err.textContent = 'Não foi possível confirmar sua conta. Recarregue a página e tente de novo.';
+    err.style.display = 'block';
+    return;
+  }
+
+  btn.disabled = true;
+  btn.textContent = 'Verificando…';
+
+  try{
+    const { error: erroSenha } = await sb.auth.signInWithPassword({ email: usuarioEmailAtual, password: senha });
+    if(erroSenha){
+      err.textContent = 'Senha incorreta.';
+      err.style.display = 'block';
+      return;
+    }
+
+    const { error } = await sb.from('bh_funcionarios').delete().eq('id', bhFuncionarioAtualId);
+    if(error){
+      err.textContent = 'Erro ao excluir: ' + error.message;
+      err.style.display = 'block';
+      return;
+    }
+
+    bhFuncionarios = bhFuncionarios.filter(f=>f.id!==bhFuncionarioAtualId);
+    bhFuncionarioAtualId = null;
+    bhRegistros = [];
+    renderFuncionarioSelect();
+    document.getElementById('bhSemFuncionario').style.display = 'block';
+    document.getElementById('bhConteudo').style.display = 'none';
+    fecharExcluirFuncModal();
+  }catch(e){
+    err.textContent = 'Não foi possível confirmar. Verifique sua internet e tente de novo.';
+    err.style.display = 'block';
+  }finally{
+    btn.disabled = false;
+    btn.textContent = 'Excluir definitivamente';
+  }
+}
+
 /* =============== FIM BANCO DE HORAS =============== */
 
 async function iniciar(){
@@ -1845,6 +1953,7 @@ async function iniciar(){
       const nomeUsuario = (session.user.user_metadata && (session.user.user_metadata.nome || session.user.user_metadata.name)) || session.user.email;
       document.getElementById('perfilNome').textContent = nomeUsuario;
       document.getElementById('perfilEmail').textContent = session.user.email;
+      usuarioEmailAtual = session.user.email;
       document.getElementById('perfilBarNome').textContent = nomeUsuario;
       document.getElementById('avatarCircle').textContent = nomeUsuario.trim().charAt(0).toUpperCase();
       document.querySelectorAll('.loja-btn').forEach(b=>b.classList.toggle('active', b.dataset.loja===lojaAtual));
