@@ -177,7 +177,7 @@
   .foto-btn:hover{background:var(--gold);color:#fff;}
 
   .panel.capturando{box-shadow:none;}
-  .panel.capturando .filters, .panel.capturando .rowactions{display:none !important;}
+  .panel.capturando .filters, .panel.capturando .rowactions, .panel.capturando .no-print{display:none !important;}
   .panel.capturando .tablewrap{overflow:visible;}
   .panel.capturando .panel-head{padding-bottom:14px;}
   .panel.capturando::after{
@@ -286,15 +286,10 @@
 
       <div class="metrics">
         <div class="metric pagar"><div class="lbl">A pagar (pendente)</div><div class="val" id="totalPagar">R$ 0,00</div><div class="sub" id="subPagar">0 lançamentos</div></div>
-        <div class="metric receber"><div class="lbl">A receber (pendente)</div><div class="val" id="totalReceber">R$ 0,00</div><div class="sub" id="subReceber">0 lançamentos</div></div>
       </div>
 
       <div class="formcard">
         <h2>Novo lançamento</h2>
-        <div class="tipo-toggle">
-          <button type="button" class="tipo-btn active" data-tipo="pagar" onclick="setTipo('pagar')">A pagar</button>
-          <button type="button" class="tipo-btn" data-tipo="receber" onclick="setTipo('receber')">A receber</button>
-        </div>
         <div class="fld"><label id="f_contato_label">Fornecedor</label><input id="f_contato" placeholder="Nome"></div>
         <div class="fld-row">
           <div class="fld"><label>Valor (R$)</label><input id="f_valor" type="number" step="0.01" min="0" placeholder="0,00"></div>
@@ -337,7 +332,7 @@
         <option value="todos">Todos os meses</option>
       </select>
     </div>
-    <div class="cols">
+    <div class="cols" style="grid-template-columns:1fr;">
       <div class="panel" id="painelPagar">
         <div class="panel-head">
           <h2><span class="dot pagar"></span>Contas a pagar</h2>
@@ -358,25 +353,6 @@
         <div class="empty" id="emptyPagar" style="display:none;">Nenhuma conta a pagar por aqui.</div>
         <div class="painel-total pagar" id="totalPagarPainel"></div>
       </div>
-
-      <div class="panel">
-        <div class="panel-head">
-          <h2><span class="dot receber"></span>Contas a receber</h2>
-          <div class="filters" id="filtReceber">
-            <button class="filter-btn active" data-f="todos">todos</button>
-            <button class="filter-btn" data-f="pendente">pendentes</button>
-            <button class="filter-btn" data-f="vencido">vencidos</button>
-            <button class="filter-btn" data-f="pago">pagos</button>
-          </div>
-        </div>
-        <div class="tablewrap">
-          <table class="ledger">
-            <thead><tr><th>Cliente</th><th>Vencimento</th><th style="text-align:right">Valor</th><th>Status</th><th></th></tr></thead>
-            <tbody id="bodyReceber"></tbody>
-          </table>
-        </div>
-        <div class="empty" id="emptyReceber" style="display:none;">Nenhuma conta a receber por aqui.</div>
-      </div>
     </div>
 
     <div class="panel" id="painelCaixa" style="margin-top:28px;">
@@ -391,7 +367,7 @@
           <div class="caixa-col-head">💵 Pagamento em Dinheiro</div>
           <div class="caixa-inicial">
             <label>Dinheiro em caixa hoje</label>
-            <input id="caixaInicial" type="number" step="0.01" min="0" placeholder="0,00" onchange="salvarCaixaInicial(this.value)">
+            <input id="caixaInicial" type="text" inputmode="numeric" placeholder="R$ 0,00" oninput="onInputCaixaInicial(this)">
           </div>
           <div class="tablewrap">
             <table class="ledger">
@@ -401,6 +377,7 @@
           </div>
           <div class="empty" id="emptyCaixaDinheiro" style="display:none;">Nenhuma conta marcada para pagar em dinheiro.</div>
           <div class="painel-total pagar" id="totalCaixaDinheiro"></div>
+          <button type="button" class="addbtn no-print" style="margin:0;border-radius:0;" onclick="confirmarPagamentoCaixa('dinheiro')">✓ Já paguei essas contas</button>
           <div class="caixa-saldo" id="saldoCaixaDinheiro"></div>
         </div>
         <div class="caixa-col">
@@ -413,6 +390,7 @@
           </div>
           <div class="empty" id="emptyCaixaCartao" style="display:none;">Nenhuma conta marcada para pagar em cartão.</div>
           <div class="painel-total pagar" id="totalCaixaCartao"></div>
+          <button type="button" class="addbtn no-print" style="margin:0;border-radius:0;" onclick="confirmarPagamentoCaixa('cartao')">✓ Já paguei essas contas</button>
         </div>
       </div>
     </div>
@@ -529,6 +507,17 @@
   </div>
 </div>
 
+<div id="confirmPagamentoCaixaModal" class="modal-overlay">
+  <div class="modal-box" style="max-width:380px;">
+    <h2>Confirmar pagamento?</h2>
+    <p class="modal-sub" id="confirmPagamentoCaixaTexto">Isso vai marcar essas contas como pagas.</p>
+    <div class="modal-actions">
+      <button class="addbtn" onclick="confirmarPagamentoCaixaOk()">Confirmar</button>
+      <button class="cancelbtn" onclick="fecharConfirmacaoPagamentoCaixa()">Cancelar</button>
+    </div>
+  </div>
+</div>
+
 <div id="confirmHorasModal" class="modal-overlay">
   <div class="modal-box" style="max-width:380px;">
     <h2>Excluir registro do dia?</h2>
@@ -585,10 +574,6 @@
     <div class="empty" id="fixasEmpty" style="display:none;padding:16px 4px;">Nenhuma despesa fixa cadastrada ainda.</div>
 
     <h2 style="font-size:14px;margin-top:22px;margin-bottom:12px;">Nova despesa fixa</h2>
-    <div class="tipo-toggle" id="fixaTipoToggle">
-      <button type="button" class="tipo-btn active" data-tipo="pagar" onclick="setFixaTipo('pagar')">A pagar</button>
-      <button type="button" class="tipo-btn" data-tipo="receber" onclick="setFixaTipo('receber')">A receber</button>
-    </div>
     <div class="fld"><label id="fixaContatoLabel">Fornecedor</label><input id="fixa_contato" placeholder="Ex: Aluguel"></div>
     <div class="fld-row">
       <div class="fld"><label>Valor (R$)</label><input id="fixa_valor" type="number" step="0.01" min="0" placeholder="0,00"></div>
@@ -599,7 +584,7 @@
 
     <button type="button" class="importbtn" onclick="toggleFixaImport()" style="margin-top:14px;">📋 Colar de planilha (várias de uma vez)</button>
     <div id="fixaImportArea" style="display:none;margin-top:12px;">
-      <p class="modal-sub" style="margin-bottom:10px;">Copie 3 colunas do Excel/Sheets nessa ordem: <strong>Nome, Valor, Dia do vencimento</strong>. O tipo (a pagar/a receber) selecionado acima vale para todas as linhas coladas.</p>
+      <p class="modal-sub" style="margin-bottom:10px;">Copie 3 colunas do Excel/Sheets nessa ordem: <strong>Nome, Valor, Dia do vencimento</strong>.</p>
       <textarea id="fixaImportText" rows="5" placeholder="Aluguel	1500,00	10&#10;Internet	120,00	15&#10;Contador	400,00	5"></textarea>
       <button class="addbtn" onclick="analisarFixaImport()">Analisar</button>
       <div id="fixaImportPreviewWrap" style="display:none;">
@@ -623,11 +608,7 @@
   <div class="modal-box">
     <button class="modal-close" onclick="fecharImport()">✕</button>
     <h2>Importar de planilha</h2>
-    <p class="modal-sub">Copie as células no Excel ou Google Sheets (nessa ordem: <strong>Fornecedor/Cliente, Valor, Data</strong>) e cole no campo abaixo.</p>
-    <div class="tipo-toggle" id="importTipoToggle">
-      <button type="button" class="tipo-btn active" data-tipo="pagar" onclick="setImportTipo('pagar')">Contas a pagar</button>
-      <button type="button" class="tipo-btn" data-tipo="receber" onclick="setImportTipo('receber')">Contas a receber</button>
-    </div>
+    <p class="modal-sub">Copie as células no Excel ou Google Sheets (nessa ordem: <strong>Fornecedor, Valor, Data</strong>) e cole no campo abaixo.</p>
     <textarea id="importText" rows="6" placeholder="Aluguel	1500,00	05/07/2026&#10;Energia	320,50	10/07/2026&#10;Internet	120,00	15/07/2026"></textarea>
     <button class="addbtn" onclick="analisarImport()">Analisar</button>
     <div id="importPreviewWrap" style="display:none;">
@@ -706,7 +687,7 @@ function trocarLoja(l){
   lojaAtual = l;
   try{ localStorage.setItem('lojaAtual', l); }catch(e){}
   document.querySelectorAll('.loja-btn').forEach(b=>b.classList.toggle('active', b.dataset.loja===l));
-  document.getElementById('caixaInicial').value = caixaIniciais[l] || '';
+  document.getElementById('caixaInicial').value = formatarCampoMoeda(caixaIniciais[l] || 0);
   render();
 
   bhCarregado = false;
@@ -876,13 +857,6 @@ document.querySelectorAll('#filtPagar .filter-btn:not(.foto-btn)').forEach(b=>{
     render();
   });
 });
-document.querySelectorAll('#filtReceber .filter-btn:not(.foto-btn)').forEach(b=>{
-  b.addEventListener('click', ()=>{
-    filtroReceber = b.dataset.f;
-    document.querySelectorAll('#filtReceber .filter-btn:not(.foto-btn)').forEach(x=>x.classList.toggle('active', x===b));
-    render();
-  });
-});
 
 document.getElementById('buscaGlobal').addEventListener('input', (e)=>{
   buscaTexto = e.target.value.trim().toLowerCase();
@@ -925,7 +899,7 @@ async function carregarDados(){
       if(c.chave === 'caixa_dinheiro_loja2') caixaIniciais.loja2 = parseFloat(c.valor) || 0;
     });
   }
-  document.getElementById('caixaInicial').value = caixaIniciais[lojaAtual] || '';
+  document.getElementById('caixaInicial').value = formatarCampoMoeda(caixaIniciais[lojaAtual] || 0);
 
   render();
 }
@@ -935,9 +909,6 @@ function mostrarErroCarregamento(msg){
   document.getElementById('emptyPagar').innerHTML = html;
   document.getElementById('emptyPagar').style.display = 'block';
   document.getElementById('bodyPagar').innerHTML = '';
-  document.getElementById('emptyReceber').innerHTML = html;
-  document.getElementById('emptyReceber').style.display = 'block';
-  document.getElementById('bodyReceber').innerHTML = '';
 }
 
 document.getElementById('empresaNome').addEventListener('change', async (e)=>{
@@ -1133,16 +1104,25 @@ function render(){
   popularFiltroMes();
   const dados = lancamentosDaLoja();
   const pendPagar = dados.filter(x=>x.tipo==='pagar' && x.status!=='pago');
-  const pendReceber = dados.filter(x=>x.tipo==='receber' && x.status!=='pago');
   const totPagar = pendPagar.reduce((s,x)=>s+Number(x.valor),0);
-  const totReceber = pendReceber.reduce((s,x)=>s+Number(x.valor),0);
   document.getElementById('totalPagar').textContent = brl(totPagar);
-  document.getElementById('totalReceber').textContent = brl(totReceber);
   document.getElementById('subPagar').textContent = pendPagar.length + (pendPagar.length===1?' lançamento':' lançamentos');
-  document.getElementById('subReceber').textContent = pendReceber.length + (pendReceber.length===1?' lançamento':' lançamentos');
   renderTabela('pagar', filtroPagar);
-  renderTabela('receber', filtroReceber);
   renderCaixaDoDia();
+}
+
+function formatarCampoMoeda(valor){
+  return 'R$ ' + Number(valor).toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2});
+}
+
+let _caixaInicialTimeout = null;
+
+function onInputCaixaInicial(el){
+  const digitos = el.value.replace(/\D/g,'');
+  const valor = digitos ? (parseInt(digitos,10)/100) : 0;
+  el.value = formatarCampoMoeda(valor);
+  clearTimeout(_caixaInicialTimeout);
+  _caixaInicialTimeout = setTimeout(()=>{ salvarCaixaInicial(valor); }, 500);
 }
 
 async function salvarCaixaInicial(valor){
@@ -1150,6 +1130,47 @@ async function salvarCaixaInicial(valor){
   caixaIniciais[lojaAtual] = v;
   await sb.from('configuracoes').upsert({ chave: 'caixa_dinheiro_' + lojaAtual, valor: String(v) });
   renderCaixaDoDia();
+}
+
+let formaPagamentoCaixaPendente = null;
+
+function confirmarPagamentoCaixa(forma){
+  const dados = lancamentosDaLoja().filter(x=>x.tipo==='pagar' && x.status!=='pago' && x.forma_pagamento===forma);
+  if(dados.length===0) return;
+  formaPagamentoCaixaPendente = forma;
+  const total = dados.reduce((s,x)=>s+Number(x.valor),0);
+  const rotulo = forma==='dinheiro' ? 'dinheiro' : 'cartão';
+  document.getElementById('confirmPagamentoCaixaTexto').textContent =
+    `Isso vai marcar ${dados.length} ${dados.length===1?'conta':'contas'} (${brl(total)}) como paga${dados.length===1?'':'s'} em ${rotulo}, dando baixa em "Contas a pagar".`;
+  document.getElementById('confirmPagamentoCaixaModal').style.display = 'flex';
+}
+
+function fecharConfirmacaoPagamentoCaixa(){
+  document.getElementById('confirmPagamentoCaixaModal').style.display = 'none';
+  formaPagamentoCaixaPendente = null;
+}
+
+async function confirmarPagamentoCaixaOk(){
+  const forma = formaPagamentoCaixaPendente;
+  if(!forma) return;
+  const dados = lancamentosDaLoja().filter(x=>x.tipo==='pagar' && x.status!=='pago' && x.forma_pagamento===forma);
+  const ids = dados.map(x=>x.id);
+  if(ids.length===0){ fecharConfirmacaoPagamentoCaixa(); return; }
+
+  const hoje = todayStr();
+  const { data: atualizados, error } = await sb.from('lancamentos')
+    .update({ status: 'pago', data_pagamento: hoje })
+    .in('id', ids)
+    .select();
+
+  if(!error && atualizados){
+    atualizados.forEach(upd=>{
+      const idx = lancamentos.findIndex(l=>l.id===upd.id);
+      if(idx>-1) lancamentos[idx] = upd;
+    });
+    render();
+  }
+  fecharConfirmacaoPagamentoCaixa();
 }
 
 function renderCaixaDoDia(){
@@ -1172,7 +1193,7 @@ function renderCaixaDoDia(){
       <tr><td class="contato">${escapeHtml(it.contato) || escapeHtml(it.descricao) || '—'}</td><td class="valor">${brl(it.valor)}</td></tr>
     `).join('');
   }
-  document.getElementById('totalCaixaDinheiro').innerHTML = `<span>Total a pagar em dinheiro · ${itensDinheiro.length}</span><span class="valor-total">${brl(somaDinheiro)}</span>`;
+  document.getElementById('totalCaixaDinheiro').innerHTML = `<span>Total pago em dinheiro · ${itensDinheiro.length}</span><span class="valor-total">${brl(somaDinheiro)}</span>`;
 
   const bodyCartao = document.getElementById('bodyCaixaCartao');
   const emptyCartao = document.getElementById('emptyCaixaCartao');
@@ -1185,7 +1206,7 @@ function renderCaixaDoDia(){
       <tr><td class="contato">${escapeHtml(it.contato) || escapeHtml(it.descricao) || '—'}</td><td class="valor">${brl(it.valor)}</td></tr>
     `).join('');
   }
-  document.getElementById('totalCaixaCartao').innerHTML = `<span>Total a pagar em cartão · ${itensCartao.length}</span><span class="valor-total">${brl(somaCartao)}</span>`;
+  document.getElementById('totalCaixaCartao').innerHTML = `<span>Total pago em cartão · ${itensCartao.length}</span><span class="valor-total">${brl(somaCartao)}</span>`;
 
   const caixaHoje = caixaIniciais[lojaAtual] || 0;
   const saldo = caixaHoje - somaDinheiro;
@@ -1254,10 +1275,8 @@ function renderFixasTable(){
 
 function atualizarTotaisFixas(){
   const totalPagar = fixasCache.filter(f=>f.tipo==='pagar').reduce((s,f)=>s+Number(f.valor),0);
-  const totalReceber = fixasCache.filter(f=>f.tipo==='receber').reduce((s,f)=>s+Number(f.valor),0);
   document.getElementById('fixasTotais').innerHTML = `
     <div class="chip pagar"><div class="lbl">Total fixo a pagar/mês</div><div class="val">${brl(totalPagar)}</div></div>
-    <div class="chip receber"><div class="lbl">Total fixo a receber/mês</div><div class="val">${brl(totalReceber)}</div></div>
   `;
 }
 
