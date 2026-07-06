@@ -143,6 +143,11 @@
   .bh-resumo .metric .lbl{font-size:10px;text-transform:uppercase;letter-spacing:0.08em;color:var(--muted);margin-bottom:5px;}
   .bh-resumo .metric .val{font-family:var(--font-mono);font-size:20px;font-weight:600;}
 
+  .bh-filtro-data{display:flex;gap:8px;align-items:center;flex-wrap:wrap;}
+  .bh-filtro-data label{font-size:11px;text-transform:uppercase;letter-spacing:0.05em;color:var(--muted);}
+  .bh-filtro-data input{font-family:var(--font-sans);font-size:12.5px;padding:6px 9px;border:1px solid var(--line);border-radius:5px;background:var(--paper);color:var(--ink);}
+  .bh-filtro-data input:focus{outline:none;border-color:var(--gold);}
+
   .bh-form{display:grid;grid-template-columns:1.4fr 1fr 1fr 1fr 1fr auto;gap:10px;padding:18px 20px;align-items:end;}
   .bh-form .fld input{width:100%;font-family:var(--font-sans);font-size:13px;padding:9px 10px;border:1px solid var(--line);border-radius:5px;background:var(--paper);color:var(--ink);}
   .bh-form .fld input:focus{outline:none;border-color:var(--gold);}
@@ -463,13 +468,24 @@
         </div>
 
         <div class="panel" style="margin-top:20px;">
-          <div class="panel-head"><h2>Histórico</h2></div>
+          <div class="panel-head" style="flex-wrap:wrap;">
+            <h2>Histórico</h2>
+            <div class="bh-filtro-data">
+              <label>De</label>
+              <input id="bhFiltroDe" type="date" onchange="aplicarFiltroDataHoras()">
+              <label>Até</label>
+              <input id="bhFiltroAte" type="date" onchange="aplicarFiltroDataHoras()">
+              <button type="button" class="filter-btn" onclick="limparFiltroDataHoras()">limpar</button>
+            </div>
+          </div>
+          <div class="painel-total pagar" id="bhResumoPeriodo" style="display:none;"></div>
           <div class="tablewrap">
             <table class="ledger">
               <thead><tr><th>Data</th><th>Entr. 1</th><th>Saí. 1</th><th>Entr. 2</th><th>Saí. 2</th><th>Trabalhado</th><th>Noturno</th><th>Saldo dia</th><th>Acumulado</th><th></th></tr></thead>
               <tbody id="bhBody"></tbody>
             </table>
           </div>
+          <div class="empty" id="bhSemRegistrosPeriodo" style="display:none;">Nenhum registro nesse período.</div>
         </div>
       </div>
     </div>
@@ -1693,6 +1709,10 @@ async function selecionarFuncionario(id){
   document.getElementById('bhSemFuncionario').style.display = 'none';
   document.getElementById('bhConteudo').style.display = 'block';
   document.getElementById('bhFuncionarioSelect').value = id;
+  bhFiltroDe = '';
+  bhFiltroAte = '';
+  document.getElementById('bhFiltroDe').value = '';
+  document.getElementById('bhFiltroAte').value = '';
   await carregarRegistrosHoras(id);
 }
 
@@ -1762,6 +1782,23 @@ function calcularMinutosNoturnos(reg){
   return total;
 }
 
+let bhFiltroDe = '';
+let bhFiltroAte = '';
+
+function aplicarFiltroDataHoras(){
+  bhFiltroDe = document.getElementById('bhFiltroDe').value || '';
+  bhFiltroAte = document.getElementById('bhFiltroAte').value || '';
+  renderBancoHoras();
+}
+
+function limparFiltroDataHoras(){
+  bhFiltroDe = '';
+  bhFiltroAte = '';
+  document.getElementById('bhFiltroDe').value = '';
+  document.getElementById('bhFiltroAte').value = '';
+  renderBancoHoras();
+}
+
 function renderBancoHoras(){
   const f = bhFuncionarios.find(x=>x.id===bhFuncionarioAtualId);
   if(!f) return;
@@ -1780,18 +1817,43 @@ function renderBancoHoras(){
 
   document.getElementById('bhSaldoTotal').textContent = fmtMinutosSinal(acumulado);
 
-  const totalTrabalhado = linhas.reduce((s,l)=>s+l.trabalhado, 0);
-  const totalNoturno = linhas.reduce((s,l)=>s+l.noturno, 0);
-  document.getElementById('bhTotalTrabalhado').textContent = fmtMinutos(totalTrabalhado);
-  document.getElementById('bhTotalNoturno').textContent = fmtMinutos(totalNoturno);
+  const totalTrabalhadoGeral = linhas.reduce((s,l)=>s+l.trabalhado, 0);
+  const totalNoturnoGeral = linhas.reduce((s,l)=>s+l.noturno, 0);
+  document.getElementById('bhTotalTrabalhado').textContent = fmtMinutos(totalTrabalhadoGeral);
+  document.getElementById('bhTotalNoturno').textContent = fmtMinutos(totalNoturnoGeral);
+
+  const filtroAtivo = !!(bhFiltroDe || bhFiltroAte);
+  let linhasExibidas = linhas;
+  if(filtroAtivo){
+    linhasExibidas = linhas.filter(l=>{
+      if(bhFiltroDe && l.reg.data < bhFiltroDe) return false;
+      if(bhFiltroAte && l.reg.data > bhFiltroAte) return false;
+      return true;
+    });
+  }
+
+  const resumoPeriodo = document.getElementById('bhResumoPeriodo');
+  if(filtroAtivo){
+    const trabalhadoPeriodo = linhasExibidas.reduce((s,l)=>s+l.trabalhado, 0);
+    const noturnoPeriodo = linhasExibidas.reduce((s,l)=>s+l.noturno, 0);
+    resumoPeriodo.style.display = 'flex';
+    resumoPeriodo.innerHTML = `<span>Período · ${linhasExibidas.length} ${linhasExibidas.length===1?'dia':'dias'} · Trabalhado ${fmtMinutos(trabalhadoPeriodo)} · Noturno ${fmtMinutos(noturnoPeriodo)}</span>`;
+  }else{
+    resumoPeriodo.style.display = 'none';
+  }
 
   const body = document.getElementById('bhBody');
-  if(linhas.length===0){
-    body.innerHTML = '<tr><td colspan="10" style="text-align:center;color:var(--muted);font-style:italic;padding:24px;">Nenhum registro ainda.</td></tr>';
+  const semRegistros = document.getElementById('bhSemRegistrosPeriodo');
+  if(linhasExibidas.length===0){
+    body.innerHTML = '';
+    semRegistros.textContent = filtroAtivo ? 'Nenhum registro nesse período.' : 'Nenhum registro ainda.';
+    semRegistros.style.display = 'block';
     return;
   }
+  semRegistros.style.display = 'none';
+
   const horaOuTraco = v => v ? v.slice(0,5) : '—';
-  body.innerHTML = linhas.slice().reverse().map(l=>`
+  body.innerHTML = linhasExibidas.slice().reverse().map(l=>`
     <tr>
       <td class="data">${fmtData(l.reg.data)}</td>
       <td class="data">${horaOuTraco(l.reg.entrada1)}</td>
