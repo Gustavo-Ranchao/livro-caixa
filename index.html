@@ -430,6 +430,14 @@
             <div class="val" id="bhSaldoTotal">0h00</div>
           </div>
           <div class="metric">
+            <div class="lbl">Total trabalhado</div>
+            <div class="val" id="bhTotalTrabalhado">0h00</div>
+          </div>
+          <div class="metric">
+            <div class="lbl">Total noturno</div>
+            <div class="val" id="bhTotalNoturno" style="color:var(--gold);">0h00</div>
+          </div>
+          <div class="metric">
             <div class="lbl">Escala</div>
             <div class="val" id="bhEscala" style="font-size:15px;">Normal</div>
           </div>
@@ -1771,6 +1779,11 @@ function renderBancoHoras(){
   });
 
   document.getElementById('bhSaldoTotal').textContent = fmtMinutosSinal(acumulado);
+
+  const totalTrabalhado = linhas.reduce((s,l)=>s+l.trabalhado, 0);
+  const totalNoturno = linhas.reduce((s,l)=>s+l.noturno, 0);
+  document.getElementById('bhTotalTrabalhado').textContent = fmtMinutos(totalTrabalhado);
+  document.getElementById('bhTotalNoturno').textContent = fmtMinutos(totalNoturno);
 
   const body = document.getElementById('bhBody');
   if(linhas.length===0){
