@@ -426,6 +426,10 @@
             <div class="val" id="bhTotalNoturno" style="color:var(--gold);">0h00</div>
           </div>
           <div class="metric">
+            <div class="lbl">Total noturno convertido</div>
+            <div class="val" id="bhTotalNoturnoConvertido" style="color:var(--gold);">0h00</div>
+          </div>
+          <div class="metric">
             <div class="lbl">Escala</div>
             <div class="val" id="bhEscala" style="font-size:15px;">Normal</div>
           </div>
@@ -484,7 +488,7 @@
           <div class="painel-total pagar" id="bhResumoPeriodo" style="display:none;"></div>
           <div class="tablewrap">
             <table class="ledger">
-              <thead><tr><th>Data</th><th>Entr. 1</th><th>Saí. 1</th><th>Entr. 2</th><th>Saí. 2</th><th>Trabalhado</th><th>Noturno</th><th>Saldo dia</th><th>Acumulado</th><th></th></tr></thead>
+              <thead><tr><th>Data</th><th>Entr. 1</th><th>Saí. 1</th><th>Entr. 2</th><th>Saí. 2</th><th>Trabalhado</th><th>Noturno</th><th>Not. Convertido</th><th>Saldo dia</th><th></th></tr></thead>
               <tbody id="bhBody"></tbody>
             </table>
           </div>
@@ -1855,6 +1859,14 @@ function calcularMinutosNoturnos(reg){
   return total;
 }
 
+// Hora noturna reduzida (CLT): cada "hora noturna" paga equivale a 52,5 minutos
+// trabalhados de fato. Convertemos os minutos noturnos reais em minutos
+// "equivalentes" para pagamento, usando essa proporção.
+function calcularMinutosNoturnosConvertidos(minutosNoturnos){
+  if(!minutosNoturnos) return 0;
+  return Math.round((minutosNoturnos / 52.5) * 60);
+}
+
 let bhFiltroDe = '';
 let bhFiltroAte = '';
 
@@ -1883,17 +1895,20 @@ function renderBancoHoras(){
   const linhas = ordenados.map(reg=>{
     const trabalhado = calcularMinutosTrabalhados(reg);
     const noturno = calcularMinutosNoturnos(reg);
+    const noturnoConvertido = calcularMinutosNoturnosConvertidos(noturno);
     const saldoDia = trabalhado - f.carga_horaria_diaria_min;
     acumulado += saldoDia;
-    return { reg, trabalhado, noturno, saldoDia, acumuladoAteAqui: acumulado };
+    return { reg, trabalhado, noturno, noturnoConvertido, saldoDia, acumuladoAteAqui: acumulado };
   });
 
   document.getElementById('bhSaldoTotal').textContent = fmtMinutosSinal(acumulado);
 
   const totalTrabalhadoGeral = linhas.reduce((s,l)=>s+l.trabalhado, 0);
   const totalNoturnoGeral = linhas.reduce((s,l)=>s+l.noturno, 0);
+  const totalNoturnoConvertidoGeral = linhas.reduce((s,l)=>s+l.noturnoConvertido, 0);
   document.getElementById('bhTotalTrabalhado').textContent = fmtMinutos(totalTrabalhadoGeral);
   document.getElementById('bhTotalNoturno').textContent = fmtMinutos(totalNoturnoGeral);
+  document.getElementById('bhTotalNoturnoConvertido').textContent = fmtMinutos(totalNoturnoConvertidoGeral);
 
   const filtroAtivo = !!(bhFiltroDe || bhFiltroAte);
   let linhasExibidas = linhas;
@@ -1935,8 +1950,8 @@ function renderBancoHoras(){
       <td class="data">${horaOuTraco(l.reg.saida2)}</td>
       <td class="valor">${fmtMinutos(l.trabalhado)}</td>
       <td class="valor" ${l.noturno>0?'style="color:var(--gold);font-weight:600;"':''}>${l.noturno>0 ? fmtMinutos(l.noturno) : '—'}</td>
+      <td class="valor" ${l.noturnoConvertido>0?'style="color:var(--gold);font-weight:600;"':''}>${l.noturnoConvertido>0 ? fmtMinutos(l.noturnoConvertido) : '—'}</td>
       <td class="valor" style="color:${l.saldoDia<0?'var(--rust)':'var(--green)'};">${fmtMinutosSinal(l.saldoDia)}</td>
-      <td class="valor" style="font-weight:600;color:${l.acumuladoAteAqui<0?'var(--rust)':'var(--green)'};">${fmtMinutosSinal(l.acumuladoAteAqui)}</td>
       <td><button class="iconbtn del" title="Excluir" onclick="confirmarExclusaoRegistroHoras('${l.reg.id}')">✕</button></td>
     </tr>
   `).join('');
