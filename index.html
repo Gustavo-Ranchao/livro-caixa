@@ -101,6 +101,11 @@
   .modal-close{position:absolute;top:18px;right:18px;background:none;border:none;font-size:16px;color:var(--muted);cursor:pointer;}
   .modal-close:hover{color:var(--ink);}
   #importText{width:100%;font-family:var(--font-mono);font-size:12px;padding:12px;border:1px solid var(--line);border-radius:6px;background:var(--paper);color:var(--ink);resize:vertical;margin-bottom:14px;}
+  #bhImportText{width:100%;font-family:var(--font-mono);font-size:12px;padding:12px;border:1px solid var(--line);border-radius:6px;background:var(--paper);color:var(--ink);resize:vertical;margin-bottom:14px;}
+  #bhImportPreviewTable{width:100%;border-collapse:collapse;font-size:12px;}
+  #bhImportPreviewTable th{position:sticky;top:0;text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:0.05em;color:var(--muted);padding:8px 12px;background:var(--paper2);}
+  #bhImportPreviewTable td{padding:8px 12px;border-top:1px solid var(--paper3);}
+  #bhImportPreviewTable tr.vencido{background:var(--rust-bg);}
   #importText:focus{outline:none;border-color:var(--gold);}
   .preview-scroll{max-height:260px;overflow-y:auto;border:1px solid var(--paper3);border-radius:6px;margin:14px 0 10px;}
   #importPreviewTable{width:100%;border-collapse:collapse;font-size:12px;}
@@ -443,6 +448,26 @@
             <button class="addbtn" onclick="salvarRegistroHoras()">Salvar dia</button>
           </div>
           <div class="formerr" id="bhFormErr">Preencha ao menos data, Entrada 1 e Saída 1.</div>
+
+          <button type="button" class="importbtn" onclick="toggleBhImport()" style="margin:0 20px 18px;width:calc(100% - 40px);">📋 Colar de planilha (vários dias de uma vez)</button>
+          <div id="bhImportArea" style="display:none;padding:0 20px 20px;">
+            <p class="modal-sub" style="margin-bottom:10px;">Copie 5 colunas do Excel/Sheets nessa ordem: <strong>Data, Entrada 1, Saída 1, Entrada 2, Saída 2</strong>. Vale para o funcionário selecionado acima.</p>
+            <textarea id="bhImportText" rows="6" placeholder="01/07/2026	07:00	12:00	13:00	19:00&#10;02/07/2026	07:00	12:00	13:00	19:00"></textarea>
+            <button class="addbtn" onclick="analisarBhImport()">Analisar</button>
+            <div id="bhImportPreviewWrap" style="display:none;">
+              <div class="preview-scroll">
+                <table id="bhImportPreviewTable">
+                  <thead><tr><th>Data</th><th>Entr. 1</th><th>Saí. 1</th><th>Entr. 2</th><th>Saí. 2</th></tr></thead>
+                  <tbody id="bhImportPreviewBody"></tbody>
+                </table>
+              </div>
+              <div id="bhImportSummary" style="font-size:12px;color:var(--muted);margin:10px 0;"></div>
+              <div class="modal-actions">
+                <button class="addbtn" id="bhImportConfirmBtn" onclick="confirmarBhImport()">Importar</button>
+                <button class="cancelbtn" onclick="cancelarBhImport()">Cancelar</button>
+              </div>
+            </div>
+          </div>
         </div>
 
         <div class="panel" style="margin-top:20px;">
@@ -1204,8 +1229,9 @@ async function confirmarPagamentoCaixaOk(){
 function renderCaixaDoDia(){
   const dados = lancamentosDaLoja().filter(x=>x.tipo==='pagar' && x.status!=='pago');
 
-  const itensDinheiro = dados.filter(x=>x.forma_pagamento==='dinheiro');
-  const itensCartao = dados.filter(x=>x.forma_pagamento==='cartao');
+  const porMaisRecente = (a,b) => (b.criado_em||'').localeCompare(a.criado_em||'');
+  const itensDinheiro = dados.filter(x=>x.forma_pagamento==='dinheiro').sort(porMaisRecente);
+  const itensCartao = dados.filter(x=>x.forma_pagamento==='cartao').sort(porMaisRecente);
 
   const somaDinheiro = itensDinheiro.reduce((s,x)=>s+Number(x.valor),0);
   const somaCartao = itensCartao.reduce((s,x)=>s+Number(x.valor),0);
@@ -1914,6 +1940,111 @@ function renderBancoHoras(){
       <td><button class="iconbtn del" title="Excluir" onclick="confirmarExclusaoRegistroHoras('${l.reg.id}')">✕</button></td>
     </tr>
   `).join('');
+}
+
+function parseHoraCampo(s){
+  s = (s||'').trim();
+  if(!s) return null;
+  const m = s.match(/^(\d{1,2}):(\d{2})/);
+  if(!m) return null;
+  const h = parseInt(m[1],10);
+  const mi = parseInt(m[2],10);
+  if(h<0||h>23||mi<0||mi>59) return null;
+  return String(h).padStart(2,'0') + ':' + String(mi).padStart(2,'0');
+}
+
+let bhImportParsed = [];
+
+function toggleBhImport(){
+  if(!bhFuncionarioAtualId){
+    alert('Selecione um funcionário primeiro.');
+    return;
+  }
+  const area = document.getElementById('bhImportArea');
+  area.style.display = (area.style.display==='none') ? 'block' : 'none';
+}
+
+function cancelarBhImport(){
+  document.getElementById('bhImportArea').style.display = 'none';
+  document.getElementById('bhImportText').value = '';
+  document.getElementById('bhImportPreviewWrap').style.display = 'none';
+  bhImportParsed = [];
+}
+
+function analisarBhImport(){
+  const raw = document.getElementById('bhImportText').value;
+  const linhas = raw.split('\n').map(l=>l.trim()).filter(l=>l.length>0);
+  bhImportParsed = linhas.map(linha=>{
+    const partes = splitColunas(linha);
+    const dataTexto = (partes[0]||'').trim();
+    const e1Texto = (partes[1]||'').trim();
+    const s1Texto = (partes[2]||'').trim();
+    const e2Texto = (partes[3]||'').trim();
+    const s2Texto = (partes[4]||'').trim();
+    const data = parseDataBR(dataTexto);
+    const e1 = parseHoraCampo(e1Texto);
+    const s1 = parseHoraCampo(s1Texto);
+    const e2 = e2Texto ? parseHoraCampo(e2Texto) : null;
+    const s2 = s2Texto ? parseHoraCampo(s2Texto) : null;
+    const valido = !!data && !!e1 && !!s1 && (!e2Texto || !!e2) && (!s2Texto || !!s2);
+    return { dataTexto, data, e1Texto, e1, s1Texto, s1, e2Texto, e2, s2Texto, s2, valido };
+  });
+  renderBhImportPreview();
+}
+
+function renderBhImportPreview(){
+  const body = document.getElementById('bhImportPreviewBody');
+  body.innerHTML = bhImportParsed.map(r=>{
+    return `<tr class="${r.valido?'':'vencido'}">
+      <td>${r.data ? fmtData(r.data) : (escapeHtml(r.dataTexto) + ' ⚠️')}</td>
+      <td>${r.e1 || (r.e1Texto ? escapeHtml(r.e1Texto) + ' ⚠️' : '—')}</td>
+      <td>${r.s1 || (r.s1Texto ? escapeHtml(r.s1Texto) + ' ⚠️' : '—')}</td>
+      <td>${r.e2 || (r.e2Texto ? escapeHtml(r.e2Texto) + ' ⚠️' : '—')}</td>
+      <td>${r.s2 || (r.s2Texto ? escapeHtml(r.s2Texto) + ' ⚠️' : '—')}</td>
+    </tr>`;
+  }).join('');
+  const validos = bhImportParsed.filter(r=>r.valido).length;
+  const invalidos = bhImportParsed.length - validos;
+  document.getElementById('bhImportSummary').textContent =
+    validos + (validos===1 ? ' dia pronto para importar' : ' dias prontos para importar') +
+    (invalidos>0 ? ' — ' + invalidos + ' linha(s) com erro serão ignoradas' : '');
+  document.getElementById('bhImportPreviewWrap').style.display = 'block';
+}
+
+async function confirmarBhImport(){
+  const validos = bhImportParsed.filter(r=>r.valido);
+  if(validos.length===0) return;
+  const btn = document.getElementById('bhImportConfirmBtn');
+  btn.disabled = true;
+  btn.textContent = 'Importando…';
+  const registros = validos.map(r=>({
+    funcionario_id: bhFuncionarioAtualId,
+    data: r.data,
+    entrada1: r.e1,
+    saida1: r.s1,
+    entrada2: r.e2 || null,
+    saida2: r.s2 || null
+  }));
+  try{
+    const { data, error } = await sb.from('bh_registros')
+      .upsert(registros, { onConflict: 'funcionario_id,data' })
+      .select();
+    if(error){
+      alert('Erro ao importar: ' + error.message);
+      return;
+    }
+    data.forEach(salvo=>{
+      const idx = bhRegistros.findIndex(r=>r.id===salvo.id || (r.funcionario_id===salvo.funcionario_id && r.data===salvo.data));
+      if(idx>-1) bhRegistros[idx] = salvo; else bhRegistros.push(salvo);
+    });
+    renderBancoHoras();
+    cancelarBhImport();
+  }catch(e){
+    alert('Não foi possível importar. Detalhe: ' + (e && e.message ? e.message : e));
+  }finally{
+    btn.disabled = false;
+    btn.textContent = 'Importar';
+  }
 }
 
 async function salvarRegistroHoras(){
