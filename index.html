@@ -1926,7 +1926,7 @@ function renderBancoHoras(){
   semRegistros.style.display = 'none';
 
   const horaOuTraco = v => v ? v.slice(0,5) : '—';
-  body.innerHTML = linhasExibidas.slice().reverse().map(l=>`
+  body.innerHTML = linhasExibidas.map(l=>`
     <tr>
       <td class="data">${fmtData(l.reg.data)}</td>
       <td class="data">${horaOuTraco(l.reg.entrada1)}</td>
