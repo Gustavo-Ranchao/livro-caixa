@@ -9,6 +9,9 @@
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.23/jspdf.plugin.autotable.min.js"></script>
 <style>
   :root{
     --ink:#26332b; --paper:#f3eee0; --paper2:#e9e1cb; --paper3:#ded4b8;
@@ -347,6 +350,8 @@
             <button class="filter-btn" data-f="vencido">vencidos</button>
             <button class="filter-btn" data-f="pago">pagos</button>
             <button class="filter-btn foto-btn" onclick="exportarImagem('painelPagar','pagar')" title="Baixar imagem para compartilhar">📷 Print</button>
+            <button class="filter-btn foto-btn" onclick="exportarExcelPagar()" title="Baixar como Excel">📊 Excel</button>
+            <button class="filter-btn foto-btn" onclick="exportarPdfPagar()" title="Baixar como PDF">📄 PDF</button>
           </div>
         </div>
         <div class="tablewrap">
@@ -483,6 +488,8 @@
               <label>Até</label>
               <input id="bhFiltroAte" type="date" onchange="aplicarFiltroDataHoras()">
               <button type="button" class="filter-btn" onclick="limparFiltroDataHoras()">limpar</button>
+              <button type="button" class="filter-btn foto-btn" onclick="exportarExcelHoras()" title="Baixar como Excel">📊 Excel</button>
+              <button type="button" class="filter-btn foto-btn" onclick="exportarPdfHoras()" title="Baixar como PDF">📄 PDF</button>
             </div>
           </div>
           <div class="painel-total pagar" id="bhResumoPeriodo" style="display:none;"></div>
@@ -733,6 +740,83 @@ const todayStr = () => new Date().toISOString().slice(0,10);
 const fmtData = d => { const [y,m,day] = d.split('-'); return day+'/'+m+'/'+y; };
 
 const NOMES_LOJA = { loja1: 'Loja 01', loja2: 'Loja 02' };
+
+function exportarExcelPagar(){
+  if(!window.XLSX){
+    alert('Não foi possível carregar o recurso de Excel. Recarregue a página e tente de novo.');
+    return;
+  }
+  const itens = obterItensPagarFiltrados();
+  if(itens.length===0){
+    alert('Não há lançamentos para exportar com os filtros atuais.');
+    return;
+  }
+  const linhas = itens.map(it=>({
+    'Fornecedor': it.contato || it.descricao || '',
+    'Vencimento': fmtData(it.vencimento),
+    'Valor': Number(it.valor),
+    'Forma de pagamento': it.forma_pagamento==='dinheiro' ? 'Dinheiro' : (it.forma_pagamento==='cartao' ? 'Cartão' : ''),
+    'Status': statusEfetivo(it)
+  }));
+  const somaTotal = itens.reduce((s,x)=>s+Number(x.valor),0);
+  linhas.push({ 'Fornecedor': '', 'Vencimento': '', 'Valor': '', 'Forma de pagamento': '', 'Status': '' });
+  linhas.push({ 'Fornecedor': 'TOTAL', 'Vencimento': '', 'Valor': somaTotal, 'Forma de pagamento': '', 'Status': '' });
+
+  const planilha = XLSX.utils.json_to_sheet(linhas);
+  planilha['!cols'] = [{wch:26},{wch:14},{wch:14},{wch:18},{wch:12}];
+  const livro = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(livro, planilha, 'Contas a pagar');
+
+  const dataArquivo = new Date().toISOString().slice(0,10);
+  const nomeLoja = (NOMES_LOJA[lojaAtual]||'').toLowerCase().replace(' ','');
+  XLSX.writeFile(livro, 'contas-a-pagar-' + nomeLoja + '-' + dataArquivo + '.xlsx');
+}
+
+function exportarPdfPagar(){
+  if(!window.jspdf || !window.jspdf.jsPDF){
+    alert('Não foi possível carregar o recurso de PDF. Recarregue a página e tente de novo.');
+    return;
+  }
+  const itens = obterItensPagarFiltrados();
+  if(itens.length===0){
+    alert('Não há lançamentos para exportar com os filtros atuais.');
+    return;
+  }
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF();
+
+  const nomeLoja = NOMES_LOJA[lojaAtual] || '';
+  const agora = new Date();
+  const dataHora = fmtData(agora.toISOString().slice(0,10)) + ' ' + agora.toTimeString().slice(0,5);
+
+  doc.setFontSize(16);
+  doc.text('Contas a pagar — ' + nomeLoja, 14, 18);
+  doc.setFontSize(10);
+  doc.setTextColor(120);
+  doc.text('Gerado em ' + dataHora, 14, 25);
+
+  const linhas = itens.map(it=>[
+    it.contato || it.descricao || '',
+    fmtData(it.vencimento),
+    brl(it.valor),
+    it.forma_pagamento==='dinheiro' ? 'Dinheiro' : (it.forma_pagamento==='cartao' ? 'Cartão' : '—'),
+    statusEfetivo(it)
+  ]);
+  const somaTotal = itens.reduce((s,x)=>s+Number(x.valor),0);
+
+  doc.autoTable({
+    startY: 32,
+    head: [['Fornecedor', 'Vencimento', 'Valor', 'Pagto', 'Status']],
+    body: linhas,
+    foot: [['TOTAL', '', brl(somaTotal), '', '']],
+    styles: { fontSize: 9, cellPadding: 3 },
+    headStyles: { fillColor: [38, 51, 43] },
+    footStyles: { fillColor: [233, 225, 203], textColor: 20, fontStyle: 'bold' }
+  });
+
+  const dataArquivo = agora.toISOString().slice(0,10);
+  doc.save('contas-a-pagar-' + nomeLoja.toLowerCase().replace(' ','') + '-' + dataArquivo + '.pdf');
+}
 
 async function exportarImagem(painelId, rotulo){
   const el = document.getElementById(painelId);
@@ -1116,15 +1200,20 @@ function escapeHtml(s){
   return s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 }
 
+function obterItensPagarFiltrados(){
+  let itens = lancamentosDaLoja().filter(x=>x.tipo==='pagar');
+  if(filtrosPagarAtivos && filtrosPagarAtivos.size>0) itens = itens.filter(x=>filtrosPagarAtivos.has(statusEfetivo(x)));
+  if(buscaTexto) itens = itens.filter(x=>itemCorresponde(x, buscaTexto));
+  if(mesAtual !== 'todos') itens = itens.filter(x=>x.vencimento.slice(0,7)===mesAtual);
+  itens.sort((a,b)=> a.vencimento.localeCompare(b.vencimento));
+  return itens;
+}
+
 function renderTabela(tipo, filtros){
   const body = document.getElementById(tipo==='pagar' ? 'bodyPagar' : 'bodyReceber');
   const empty = document.getElementById(tipo==='pagar' ? 'emptyPagar' : 'emptyReceber');
   const totalEl = document.getElementById(tipo==='pagar' ? 'totalPagarPainel' : 'totalReceberPainel');
-  let itens = lancamentosDaLoja().filter(x=>x.tipo===tipo);
-  if(filtros && filtros.size>0) itens = itens.filter(x=>filtros.has(statusEfetivo(x)));
-  if(buscaTexto) itens = itens.filter(x=>itemCorresponde(x, buscaTexto));
-  if(mesAtual !== 'todos') itens = itens.filter(x=>x.vencimento.slice(0,7)===mesAtual);
-  itens.sort((a,b)=> a.vencimento.localeCompare(b.vencimento));
+  const itens = obterItensPagarFiltrados();
 
   const somaTotal = itens.reduce((s,x)=>s+Number(x.valor),0);
   const rotuloFiltro = (!filtros || filtros.size===0) ? 'Total' : ('Total (' + Array.from(filtros).join(' + ') + ')');
@@ -1869,6 +1958,7 @@ function calcularMinutosNoturnosConvertidos(minutosNoturnos){
 
 let bhFiltroDe = '';
 let bhFiltroAte = '';
+let bhLinhasExibidasAtuais = [];
 
 function aplicarFiltroDataHoras(){
   bhFiltroDe = document.getElementById('bhFiltroDe').value || '';
@@ -1882,6 +1972,101 @@ function limparFiltroDataHoras(){
   document.getElementById('bhFiltroDe').value = '';
   document.getElementById('bhFiltroAte').value = '';
   renderBancoHoras();
+}
+
+function exportarExcelHoras(){
+  if(!window.XLSX){
+    alert('Não foi possível carregar o recurso de Excel. Recarregue a página e tente de novo.');
+    return;
+  }
+  const f = bhFuncionarios.find(x=>x.id===bhFuncionarioAtualId);
+  if(!f){
+    alert('Selecione um funcionário primeiro.');
+    return;
+  }
+  if(bhLinhasExibidasAtuais.length===0){
+    alert('Não há registros para exportar com o período atual.');
+    return;
+  }
+  const horaOuTraco = v => v ? v.slice(0,5) : '';
+  const linhas = bhLinhasExibidasAtuais.map(l=>({
+    'Data': fmtData(l.reg.data),
+    'Entrada 1': horaOuTraco(l.reg.entrada1),
+    'Saída 1': horaOuTraco(l.reg.saida1),
+    'Entrada 2': horaOuTraco(l.reg.entrada2),
+    'Saída 2': horaOuTraco(l.reg.saida2),
+    'Trabalhado': fmtMinutos(l.trabalhado),
+    'Noturno': l.noturno>0 ? fmtMinutos(l.noturno) : '',
+    'Not. Convertido': l.noturnoConvertido>0 ? fmtMinutos(l.noturnoConvertido) : '',
+    'Saldo dia': fmtMinutosSinal(l.saldoDia)
+  }));
+
+  const planilha = XLSX.utils.json_to_sheet(linhas);
+  planilha['!cols'] = [{wch:12},{wch:10},{wch:10},{wch:10},{wch:10},{wch:12},{wch:10},{wch:14},{wch:10}];
+  const livro = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(livro, planilha, 'Banco de Horas');
+
+  const dataArquivo = new Date().toISOString().slice(0,10);
+  const nomeArquivo = f.nome.toLowerCase().replace(/\s+/g,'-');
+  XLSX.writeFile(livro, 'banco-de-horas-' + nomeArquivo + '-' + dataArquivo + '.xlsx');
+}
+
+function exportarPdfHoras(){
+  if(!window.jspdf || !window.jspdf.jsPDF){
+    alert('Não foi possível carregar o recurso de PDF. Recarregue a página e tente de novo.');
+    return;
+  }
+  const f = bhFuncionarios.find(x=>x.id===bhFuncionarioAtualId);
+  if(!f){
+    alert('Selecione um funcionário primeiro.');
+    return;
+  }
+  if(bhLinhasExibidasAtuais.length===0){
+    alert('Não há registros para exportar com o período atual.');
+    return;
+  }
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF();
+
+  const agora = new Date();
+  const dataHora = fmtData(agora.toISOString().slice(0,10)) + ' ' + agora.toTimeString().slice(0,5);
+
+  doc.setFontSize(16);
+  doc.text('Banco de Horas — ' + f.nome, 14, 18);
+  doc.setFontSize(10);
+  doc.setTextColor(120);
+  doc.text('Escala: ' + (f.tipo_escala==='12x36' ? '12x36' : 'Normal') + '   ·   Gerado em ' + dataHora, 14, 25);
+
+  const horaOuTraco = v => v ? v.slice(0,5) : '—';
+  const linhas = bhLinhasExibidasAtuais.map(l=>[
+    fmtData(l.reg.data),
+    horaOuTraco(l.reg.entrada1),
+    horaOuTraco(l.reg.saida1),
+    horaOuTraco(l.reg.entrada2),
+    horaOuTraco(l.reg.saida2),
+    fmtMinutos(l.trabalhado),
+    l.noturno>0 ? fmtMinutos(l.noturno) : '—',
+    l.noturnoConvertido>0 ? fmtMinutos(l.noturnoConvertido) : '—',
+    fmtMinutosSinal(l.saldoDia)
+  ]);
+
+  const totalTrabalhado = bhLinhasExibidasAtuais.reduce((s,l)=>s+l.trabalhado,0);
+  const totalNoturno = bhLinhasExibidasAtuais.reduce((s,l)=>s+l.noturno,0);
+  const totalNoturnoConvertido = bhLinhasExibidasAtuais.reduce((s,l)=>s+l.noturnoConvertido,0);
+
+  doc.autoTable({
+    startY: 32,
+    head: [['Data', 'Entr. 1', 'Saí. 1', 'Entr. 2', 'Saí. 2', 'Trabalhado', 'Noturno', 'Not. Conv.', 'Saldo dia']],
+    body: linhas,
+    foot: [['TOTAL', '', '', '', '', fmtMinutos(totalTrabalhado), fmtMinutos(totalNoturno), fmtMinutos(totalNoturnoConvertido), '']],
+    styles: { fontSize: 8.5, cellPadding: 3 },
+    headStyles: { fillColor: [38, 51, 43] },
+    footStyles: { fillColor: [233, 225, 203], textColor: 20, fontStyle: 'bold' }
+  });
+
+  const dataArquivo = agora.toISOString().slice(0,10);
+  const nomeArquivo = f.nome.toLowerCase().replace(/\s+/g,'-');
+  doc.save('banco-de-horas-' + nomeArquivo + '-' + dataArquivo + '.pdf');
 }
 
 function renderBancoHoras(){
@@ -1919,6 +2104,7 @@ function renderBancoHoras(){
       return true;
     });
   }
+  bhLinhasExibidasAtuais = linhasExibidas;
 
   const resumoPeriodo = document.getElementById('bhResumoPeriodo');
   if(filtroAtivo){
