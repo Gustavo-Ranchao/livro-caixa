@@ -488,8 +488,10 @@
               <label>Até</label>
               <input id="bhFiltroAte" type="date" onchange="aplicarFiltroDataHoras()">
               <button type="button" class="filter-btn" onclick="limparFiltroDataHoras()">limpar</button>
-              <button type="button" class="filter-btn foto-btn" onclick="exportarExcelHoras()" title="Baixar como Excel">📊 Excel</button>
-              <button type="button" class="filter-btn foto-btn" onclick="exportarPdfHoras()" title="Baixar como PDF">📄 PDF</button>
+              <button type="button" class="filter-btn foto-btn" onclick="exportarExcelHoras()" title="Baixar como Excel, com todos os registros">📊 Excel completo</button>
+              <button type="button" class="filter-btn foto-btn" onclick="exportarPdfHoras()" title="Baixar como PDF, com todos os registros">📄 PDF completo</button>
+              <button type="button" class="filter-btn foto-btn" onclick="exportarExcelHorasResumo()" title="Só nome, período e horas noturnas — sem os registros de ponto">📊 Excel resumo</button>
+              <button type="button" class="filter-btn foto-btn" onclick="exportarPdfHorasResumo()" title="Só nome, período e horas noturnas — sem os registros de ponto">📄 PDF resumo</button>
             </div>
           </div>
           <div class="painel-total pagar" id="bhResumoPeriodo" style="display:none;"></div>
@@ -2009,6 +2011,98 @@ function exportarExcelHoras(){
   const dataArquivo = new Date().toISOString().slice(0,10);
   const nomeArquivo = f.nome.toLowerCase().replace(/\s+/g,'-');
   XLSX.writeFile(livro, 'banco-de-horas-' + nomeArquivo + '-' + dataArquivo + '.xlsx');
+}
+
+function textoPeriodoHoras(){
+  if(bhFiltroDe || bhFiltroAte){
+    const de = bhFiltroDe ? fmtData(bhFiltroDe) : 'início';
+    const ate = bhFiltroAte ? fmtData(bhFiltroAte) : 'hoje';
+    return de + ' a ' + ate;
+  }
+  if(bhLinhasExibidasAtuais.length===0) return '—';
+  const datas = bhLinhasExibidasAtuais.map(l=>l.reg.data).sort();
+  return fmtData(datas[0]) + ' a ' + fmtData(datas[datas.length-1]);
+}
+
+function exportarExcelHorasResumo(){
+  if(!window.XLSX){
+    alert('Não foi possível carregar o recurso de Excel. Recarregue a página e tente de novo.');
+    return;
+  }
+  const f = bhFuncionarios.find(x=>x.id===bhFuncionarioAtualId);
+  if(!f){
+    alert('Selecione um funcionário primeiro.');
+    return;
+  }
+  if(bhLinhasExibidasAtuais.length===0){
+    alert('Não há registros para exportar com o período atual.');
+    return;
+  }
+  const totalNoturno = bhLinhasExibidasAtuais.reduce((s,l)=>s+l.noturno,0);
+  const totalNoturnoConvertido = bhLinhasExibidasAtuais.reduce((s,l)=>s+l.noturnoConvertido,0);
+
+  const linhas = [{
+    'Colaborador': f.nome,
+    'Período': textoPeriodoHoras(),
+    'Total noturno': fmtMinutos(totalNoturno),
+    'Total noturno convertido': fmtMinutos(totalNoturnoConvertido)
+  }];
+
+  const planilha = XLSX.utils.json_to_sheet(linhas);
+  planilha['!cols'] = [{wch:22},{wch:24},{wch:16},{wch:20}];
+  const livro = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(livro, planilha, 'Resumo');
+
+  const dataArquivo = new Date().toISOString().slice(0,10);
+  const nomeArquivo = f.nome.toLowerCase().replace(/\s+/g,'-');
+  XLSX.writeFile(livro, 'resumo-noturno-' + nomeArquivo + '-' + dataArquivo + '.xlsx');
+}
+
+function exportarPdfHorasResumo(){
+  if(!window.jspdf || !window.jspdf.jsPDF){
+    alert('Não foi possível carregar o recurso de PDF. Recarregue a página e tente de novo.');
+    return;
+  }
+  const f = bhFuncionarios.find(x=>x.id===bhFuncionarioAtualId);
+  if(!f){
+    alert('Selecione um funcionário primeiro.');
+    return;
+  }
+  if(bhLinhasExibidasAtuais.length===0){
+    alert('Não há registros para exportar com o período atual.');
+    return;
+  }
+  const totalNoturno = bhLinhasExibidasAtuais.reduce((s,l)=>s+l.noturno,0);
+  const totalNoturnoConvertido = bhLinhasExibidasAtuais.reduce((s,l)=>s+l.noturnoConvertido,0);
+
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF();
+
+  const agora = new Date();
+  const dataHora = fmtData(agora.toISOString().slice(0,10)) + ' ' + agora.toTimeString().slice(0,5);
+
+  doc.setFontSize(16);
+  doc.text('Resumo de Horas Noturnas', 14, 18);
+  doc.setFontSize(10);
+  doc.setTextColor(120);
+  doc.text('Gerado em ' + dataHora, 14, 25);
+
+  doc.autoTable({
+    startY: 34,
+    body: [
+      ['Colaborador', f.nome],
+      ['Período', textoPeriodoHoras()],
+      ['Total noturno', fmtMinutos(totalNoturno)],
+      ['Total noturno convertido', fmtMinutos(totalNoturnoConvertido)]
+    ],
+    styles: { fontSize: 11, cellPadding: 5 },
+    columnStyles: { 0: { fontStyle: 'bold', fillColor: [233, 225, 203], cellWidth: 60 } },
+    theme: 'grid'
+  });
+
+  const dataArquivo = agora.toISOString().slice(0,10);
+  const nomeArquivo = f.nome.toLowerCase().replace(/\s+/g,'-');
+  doc.save('resumo-noturno-' + nomeArquivo + '-' + dataArquivo + '.pdf');
 }
 
 function exportarPdfHoras(){
