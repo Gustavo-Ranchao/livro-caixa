@@ -12,6 +12,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.23/jspdf.plugin.autotable.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <style>
   :root{
     --ink:#26332b; --paper:#f3eee0; --paper2:#e9e1cb; --paper3:#ded4b8;
@@ -144,6 +145,21 @@
   #colabTable1 th, #colabTable2 th{text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:0.05em;color:var(--muted);font-weight:500;padding:8px 16px;background:var(--paper2);}
   #colabTable1 td, #colabTable2 td{padding:10px 16px;border-top:1px solid var(--paper3);}
   @media (max-width:900px){ .colab-body{grid-template-columns:1fr;} }
+
+  .comp-toolbar{display:flex;gap:12px;align-items:center;margin-bottom:20px;flex-wrap:wrap;}
+  .comp-toolbar input[type="month"]{font-family:var(--font-sans);font-size:13px;padding:9px 12px;border:1px solid var(--paper3);border-radius:8px;background:#fff;color:var(--ink);}
+  .comp-upload{border:2px dashed var(--line);border-radius:10px;padding:24px;text-align:center;color:var(--muted);font-size:13px;cursor:pointer;background:#fff;transition:.15s;margin-bottom:20px;}
+  .comp-upload:hover, .comp-upload.arrastando{border-color:var(--gold);color:var(--gold);background:#fbf3e0;}
+  .comp-upload input{display:none;}
+  .comp-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:16px;}
+  .comp-card{background:#fff;border:1px solid var(--paper3);border-radius:10px;overflow:hidden;position:relative;}
+  .comp-card .comp-thumb{width:100%;height:120px;object-fit:cover;display:block;background:var(--paper2);}
+  .comp-card .comp-thumb-pdf{width:100%;height:120px;display:flex;align-items:center;justify-content:center;font-size:40px;background:var(--paper2);}
+  .comp-card .comp-nome{font-size:11px;padding:8px 10px 4px;color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .comp-card .comp-data{font-size:10px;padding:0 10px 10px;color:var(--muted);font-family:var(--font-mono);}
+  .comp-card .comp-del{position:absolute;top:6px;right:6px;width:24px;height:24px;border-radius:5px;border:1px solid var(--paper3);background:rgba(255,255,255,0.9);cursor:pointer;color:var(--muted);font-size:12px;}
+  .comp-card .comp-del:hover{border-color:var(--rust);color:var(--rust);background:#fff;}
+  .comp-card a{text-decoration:none;color:inherit;}
   #fixaImportPreviewTable{width:100%;border-collapse:collapse;font-size:12px;}
   #fixaImportPreviewTable th{position:sticky;top:0;text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:0.05em;color:var(--muted);padding:8px 12px;background:var(--paper2);}
   #fixaImportPreviewTable td{padding:8px 12px;border-top:1px solid var(--paper3);}
@@ -320,6 +336,7 @@
           <div class="nav-sub aberto" id="navGroupFinanceiro">
             <button class="nav-sub-item active" data-view="contasPagar" onclick="mudarViewPrincipal('contasPagar')">Contas a pagar</button>
             <button class="nav-sub-item" data-view="despesasFixas" onclick="mudarViewPrincipal('despesasFixas')">Despesas fixas</button>
+            <button class="nav-sub-item" data-view="comprovantes" onclick="mudarViewPrincipal('comprovantes')">Comprovantes</button>
           </div>
         </div>
         <div class="nav-group">
@@ -616,6 +633,22 @@
         </div>
       </div>
     </div>
+
+    <div id="viewComprovantes" style="display:none;">
+      <div class="comp-toolbar">
+        <label style="font-size:11px;text-transform:uppercase;letter-spacing:0.05em;color:var(--muted);">Mês</label>
+        <input id="compMes" type="month" onchange="mudarMesComprovantes(this.value)">
+        <button type="button" class="filter-btn foto-btn" onclick="baixarTodosComprovantes()" title="Baixar todos os comprovantes desse mês em um .zip">🗜️ Baixar tudo (.zip)</button>
+      </div>
+
+      <label class="comp-upload" id="compUploadArea">
+        <input id="compFileInput" type="file" accept="image/*,.pdf" multiple onchange="onSelecionarComprovantes(this.files)">
+        📎 Clique aqui ou arraste fotos/PDFs de comprovantes para enviar
+      </label>
+
+      <div class="empty" id="compEmpty" style="display:none;">Nenhum comprovante enviado nesse mês ainda.</div>
+      <div class="comp-grid" id="compGrid"></div>
+    </div>
   </div>
 </div>
 
@@ -672,6 +705,17 @@
     <div class="modal-actions">
       <button class="addbtn" onclick="confirmarPagamentoCaixaOk()">Confirmar</button>
       <button class="cancelbtn" onclick="fecharConfirmacaoPagamentoCaixa()">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<div id="confirmComprovanteModal" class="modal-overlay">
+  <div class="modal-box" style="max-width:380px;">
+    <h2>Excluir comprovante?</h2>
+    <p class="modal-sub">Essa ação não pode ser desfeita.</p>
+    <div class="modal-actions">
+      <button class="addbtn" style="background:var(--rust);" onclick="confirmarExclusaoComprovanteOk()">Excluir</button>
+      <button class="cancelbtn" onclick="fecharConfirmacaoComprovante()">Cancelar</button>
     </div>
   </div>
 </div>
@@ -810,6 +854,9 @@ function trocarLoja(l){
   }
   if(viewAtual === 'despesasFixas'){
     abrirFixas();
+  }
+  if(viewAtual === 'comprovantes'){
+    carregarComprovantes();
   }
 }
 
@@ -1834,7 +1881,7 @@ function setEscala(e){
   }
 }
 
-const VIEWS = ['contasPagar','despesasFixas','bancoHoras','colaboradores'];
+const VIEWS = ['contasPagar','despesasFixas','comprovantes','bancoHoras','colaboradores'];
 let colabCarregado = false;
 
 function toggleNavGroup(grupo){
@@ -1849,7 +1896,7 @@ async function mudarViewPrincipal(view){
   viewAtual = view;
 
   VIEWS.forEach(v=>{
-    const idMap = { contasPagar:'viewContasPagar', despesasFixas:'viewDespesasFixas', bancoHoras:'viewBancoHoras', colaboradores:'viewColaboradores' };
+    const idMap = { contasPagar:'viewContasPagar', despesasFixas:'viewDespesasFixas', comprovantes:'viewComprovantes', bancoHoras:'viewBancoHoras', colaboradores:'viewColaboradores' };
     document.getElementById(idMap[v]).style.display = (v===view) ? '' : 'none';
   });
 
@@ -1861,6 +1908,10 @@ async function mudarViewPrincipal(view){
     document.getElementById('navGroupFinanceiro').classList.add('aberto');
     document.getElementById('navHeaderFinanceiro').classList.add('aberto');
     await abrirFixas();
+  }else if(view==='comprovantes'){
+    document.getElementById('navGroupFinanceiro').classList.add('aberto');
+    document.getElementById('navHeaderFinanceiro').classList.add('aberto');
+    await abrirComprovantes();
   }else if(view==='contasPagar'){
     document.getElementById('navGroupFinanceiro').classList.add('aberto');
     document.getElementById('navHeaderFinanceiro').classList.add('aberto');
@@ -2014,6 +2065,157 @@ function renderColabTabela(numero, lista){
       </div></td>
     </tr>
   `).join('');
+}
+
+/* ================= COMPROVANTES ================= */
+
+let compMesAtual = new Date().toISOString().slice(0,7);
+let compCache = [];
+
+function mesAtualPadrao(){
+  return new Date().toISOString().slice(0,7);
+}
+
+async function abrirComprovantes(){
+  if(!compMesAtual) compMesAtual = mesAtualPadrao();
+  document.getElementById('compMes').value = compMesAtual;
+  await carregarComprovantes();
+}
+
+function mudarMesComprovantes(valor){
+  compMesAtual = valor || mesAtualPadrao();
+  carregarComprovantes();
+}
+
+async function carregarComprovantes(){
+  const { data, error } = await sb.from('comprovantes')
+    .select('*')
+    .eq('loja', lojaAtual)
+    .eq('mes', compMesAtual)
+    .order('criado_em', { ascending: false });
+  if(error){
+    console.error('Erro ao carregar comprovantes:', error);
+    compCache = [];
+  }else{
+    compCache = data || [];
+  }
+  await renderComprovantesGrid();
+}
+
+function ehImagem(tipo){
+  return tipo && tipo.startsWith('image/');
+}
+
+async function renderComprovantesGrid(){
+  const grid = document.getElementById('compGrid');
+  const empty = document.getElementById('compEmpty');
+  if(compCache.length===0){
+    grid.innerHTML = '';
+    empty.style.display = 'block';
+    return;
+  }
+  empty.style.display = 'none';
+
+  const cartoes = await Promise.all(compCache.map(async c=>{
+    const { data: urlData } = await sb.storage.from('comprovantes').createSignedUrl(c.caminho_storage, 3600);
+    const url = urlData ? urlData.signedUrl : '#';
+    const dataFmt = new Date(c.criado_em).toLocaleDateString('pt-BR');
+    const miolo = ehImagem(c.tipo_arquivo)
+      ? `<img class="comp-thumb" src="${url}" loading="lazy">`
+      : `<div class="comp-thumb-pdf">📄</div>`;
+    return `<div class="comp-card">
+      <a href="${url}" target="_blank" rel="noopener">
+        ${miolo}
+        <div class="comp-nome" title="${escapeHtml(c.nome_arquivo)}">${escapeHtml(c.nome_arquivo)}</div>
+        <div class="comp-data">${dataFmt}</div>
+      </a>
+      <button class="comp-del" title="Excluir" onclick="confirmarExclusaoComprovante('${c.id}')">✕</button>
+    </div>`;
+  }));
+
+  grid.innerHTML = cartoes.join('');
+}
+
+async function onSelecionarComprovantes(fileList){
+  const arquivos = Array.from(fileList || []);
+  if(arquivos.length===0) return;
+
+  const area = document.getElementById('compUploadArea');
+  const textoOriginal = area.lastChild.textContent;
+  area.lastChild.textContent = ' Enviando ' + arquivos.length + ' arquivo(s)…';
+
+  for(const arquivo of arquivos){
+    const caminho = lojaAtual + '/' + compMesAtual + '/' + Date.now() + '_' + Math.random().toString(36).slice(2,8) + '_' + arquivo.name;
+    const { error: erroUpload } = await sb.storage.from('comprovantes').upload(caminho, arquivo);
+    if(erroUpload){
+      alert('Erro ao enviar "' + arquivo.name + '": ' + erroUpload.message);
+      continue;
+    }
+    const { error: erroInsert } = await sb.from('comprovantes').insert({
+      loja: lojaAtual,
+      mes: compMesAtual,
+      nome_arquivo: arquivo.name,
+      caminho_storage: caminho,
+      tipo_arquivo: arquivo.type,
+      tamanho_bytes: arquivo.size
+    });
+    if(erroInsert){
+      alert('Erro ao salvar informações de "' + arquivo.name + '": ' + erroInsert.message);
+    }
+  }
+
+  area.lastChild.textContent = textoOriginal;
+  document.getElementById('compFileInput').value = '';
+  await carregarComprovantes();
+}
+
+let excluindoComprovanteId = null;
+
+function confirmarExclusaoComprovante(id){
+  excluindoComprovanteId = id;
+  document.getElementById('confirmComprovanteModal').style.display = 'flex';
+}
+
+function fecharConfirmacaoComprovante(){
+  document.getElementById('confirmComprovanteModal').style.display = 'none';
+  excluindoComprovanteId = null;
+}
+
+async function confirmarExclusaoComprovanteOk(){
+  if(!excluindoComprovanteId) return;
+  const c = compCache.find(x=>x.id===excluindoComprovanteId);
+  if(c){
+    await sb.storage.from('comprovantes').remove([c.caminho_storage]);
+    await sb.from('comprovantes').delete().eq('id', c.id);
+    compCache = compCache.filter(x=>x.id!==c.id);
+    await renderComprovantesGrid();
+  }
+  fecharConfirmacaoComprovante();
+}
+
+async function baixarTodosComprovantes(){
+  if(!window.JSZip){
+    alert('Não foi possível carregar o recurso de .zip. Recarregue a página e tente de novo.');
+    return;
+  }
+  if(compCache.length===0){
+    alert('Não há comprovantes nesse mês para baixar.');
+    return;
+  }
+  const zip = new JSZip();
+  for(const c of compCache){
+    const { data: urlData } = await sb.storage.from('comprovantes').createSignedUrl(c.caminho_storage, 3600);
+    if(!urlData) continue;
+    const resp = await fetch(urlData.signedUrl);
+    const blob = await resp.blob();
+    zip.file(c.nome_arquivo, blob);
+  }
+  const conteudo = await zip.generateAsync({ type: 'blob' });
+  const link = document.createElement('a');
+  link.href = URL.createObjectURL(conteudo);
+  link.download = 'comprovantes-' + (NOMES_LOJA[lojaAtual]||'').toLowerCase().replace(' ','') + '-' + compMesAtual + '.zip';
+  link.click();
+  URL.revokeObjectURL(link.href);
 }
 
 async function selecionarFuncionario(id){
@@ -2670,6 +2872,22 @@ async function aplicarSessao(session, opts){
     document.getElementById('loginScreen').style.display = 'flex';
   }
 }
+
+const compUploadAreaEl = document.getElementById('compUploadArea');
+compUploadAreaEl.addEventListener('dragover', (e)=>{
+  e.preventDefault();
+  compUploadAreaEl.classList.add('arrastando');
+});
+compUploadAreaEl.addEventListener('dragleave', ()=>{
+  compUploadAreaEl.classList.remove('arrastando');
+});
+compUploadAreaEl.addEventListener('drop', (e)=>{
+  e.preventDefault();
+  compUploadAreaEl.classList.remove('arrastando');
+  if(e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length>0){
+    onSelecionarComprovantes(e.dataTransfer.files);
+  }
+});
 
 async function iniciar(){
   if(!initSupabase()) return;
