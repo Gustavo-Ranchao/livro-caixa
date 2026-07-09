@@ -58,6 +58,18 @@
   .loja-btn{flex:1;font-family:var(--font-sans);font-size:12px;font-weight:500;padding:8px 6px;border:none;background:transparent;color:var(--muted);cursor:pointer;border-radius:6px;transition:.15s;}
   .loja-btn.active{background:var(--ink);color:var(--paper);}
 
+  .app-nav{display:flex;flex-direction:column;gap:4px;}
+  .nav-group-header{width:100%;text-align:left;display:flex;align-items:center;justify-content:space-between;font-family:var(--font-sans);font-size:13.5px;font-weight:600;padding:11px 12px;border:none;background:transparent;color:var(--ink);cursor:pointer;border-radius:7px;transition:background .15s;}
+  .nav-group-header:hover{background:#fff;}
+  .nav-group-header.active-topo{background:#fff;color:var(--ink);}
+  .nav-group-header .chevron{font-size:10px;color:var(--muted);transition:transform .15s;}
+  .nav-group-header.aberto .chevron{transform:rotate(180deg);}
+  .nav-sub{display:none;flex-direction:column;gap:2px;padding:2px 0 8px 14px;}
+  .nav-sub.aberto{display:flex;}
+  .nav-sub-item{width:100%;text-align:left;font-family:var(--font-sans);font-size:13px;padding:9px 12px;border:none;border-left:2px solid var(--paper3);background:transparent;color:var(--muted);cursor:pointer;border-radius:0 6px 6px 0;transition:.15s;}
+  .nav-sub-item:hover{color:var(--ink);background:#fff;}
+  .nav-sub-item.active{color:var(--ink);font-weight:600;border-left-color:var(--gold);background:#fff;}
+
   .perfil{position:relative;border-top:1px solid var(--paper3);padding:10px 16px;flex-shrink:0;background:var(--paper2);}
   .perfil-bar{width:100%;display:flex;align-items:center;gap:10px;background:none;border:none;padding:8px 6px;cursor:pointer;border-radius:8px;transition:background .15s;}
   .perfil-bar:hover{background:#fff;}
@@ -122,6 +134,14 @@
   .fixas-totais .chip.pagar .val{color:var(--rust);}
   .fixas-totais .chip.receber .val{color:var(--green);}
   #fixasTable{width:100%;border-collapse:collapse;font-size:12.5px;}
+
+  .colab-body{display:grid;grid-template-columns:1fr 1fr;gap:24px;}
+  .colab-col{background:#fff;border:1px solid var(--paper3);border-radius:10px;overflow:hidden;}
+  .colab-col-head{padding:16px 20px;font-family:var(--font-voice);font-size:16px;font-weight:600;border-bottom:1px solid var(--paper3);background:var(--paper2);display:flex;justify-content:space-between;align-items:center;}
+  #colabTable1, #colabTable2{width:100%;border-collapse:collapse;font-size:12.5px;}
+  #colabTable1 th, #colabTable2 th{text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:0.05em;color:var(--muted);font-weight:500;padding:8px 16px;background:var(--paper2);}
+  #colabTable1 td, #colabTable2 td{padding:10px 16px;border-top:1px solid var(--paper3);}
+  @media (max-width:900px){ .colab-body{grid-template-columns:1fr;} }
   #fixaImportPreviewTable{width:100%;border-collapse:collapse;font-size:12px;}
   #fixaImportPreviewTable th{position:sticky;top:0;text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:0.05em;color:var(--muted);padding:8px 12px;background:var(--paper2);}
   #fixaImportPreviewTable td{padding:8px 12px;border-top:1px solid var(--paper3);}
@@ -292,21 +312,23 @@
         <button type="button" class="loja-btn" data-loja="loja2" onclick="trocarLoja('loja2')">Loja 02</button>
       </div>
 
-      <div class="metrics">
-        <div class="metric pagar"><div class="lbl">A pagar (pendente)</div><div class="val" id="totalPagar">R$ 0,00</div><div class="sub" id="subPagar">0 lançamentos</div></div>
-      </div>
-
-      <div class="formcard">
-        <h2>Novo lançamento</h2>
-        <div class="fld"><label id="f_contato_label">Fornecedor</label><input id="f_contato" placeholder="Nome"></div>
-        <div class="fld-row">
-          <div class="fld"><label>Valor (R$)</label><input id="f_valor" type="number" step="0.01" min="0" placeholder="0,00"></div>
-          <div class="fld"><label>Vencimento</label><input id="f_venc" type="date"></div>
+      <div class="app-nav">
+        <div class="nav-group">
+          <button class="nav-group-header aberto" id="navHeaderFinanceiro" onclick="toggleNavGroup('financeiro')">💰 Financeiro <span class="chevron">▾</span></button>
+          <div class="nav-sub aberto" id="navGroupFinanceiro">
+            <button class="nav-sub-item active" data-view="contasPagar" onclick="mudarViewPrincipal('contasPagar')">Contas a pagar</button>
+            <button class="nav-sub-item" data-view="despesasFixas" onclick="mudarViewPrincipal('despesasFixas')">Despesas fixas</button>
+          </div>
         </div>
-        <button class="addbtn" id="addbtn" onclick="addLancamento()">Adicionar</button>
-        <button type="button" class="importbtn" onclick="abrirImport()">📋 Colar de planilha</button>
-        <button type="button" class="importbtn" onclick="abrirFixas()">📌 Despesas fixas</button>
-        <div class="formerr" id="formerr">Preencha descrição, valor e vencimento.</div>
+        <div class="nav-group">
+          <button class="nav-group-header" id="navHeaderBancoHoras" onclick="mudarViewPrincipal('bancoHoras')">🕐 Banco de Horas</button>
+        </div>
+        <div class="nav-group">
+          <button class="nav-group-header" id="navHeaderConfig" onclick="toggleNavGroup('config')">⚙️ Configurações <span class="chevron">▾</span></button>
+          <div class="nav-sub" id="navGroupConfig">
+            <button class="nav-sub-item" data-view="colaboradores" onclick="mudarViewPrincipal('colaboradores')">Colaboradores</button>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -326,12 +348,21 @@
   </div>
 
   <div class="main">
-    <div class="app-tabs">
-      <button class="app-tab active" data-view="financeiro" onclick="mudarView('financeiro')">💰 Financeiro</button>
-      <button class="app-tab" data-view="horas" onclick="mudarView('horas')">🕐 Banco de Horas</button>
+    <div id="viewContasPagar">
+    <div class="metrics" style="flex-direction:row;margin-bottom:20px;">
+      <div class="metric pagar" style="flex:0 0 220px;"><div class="lbl">A pagar (pendente)</div><div class="val" id="totalPagar">R$ 0,00</div><div class="sub" id="subPagar">0 lançamentos</div></div>
+      <div class="panel" style="flex:1;padding:16px 20px;">
+        <h2 style="font-family:var(--font-voice);font-size:15px;font-weight:600;margin:0 0 12px;">Novo lançamento</h2>
+        <div class="bh-form" style="grid-template-columns:2fr 1fr 1fr auto;padding:0;">
+          <div class="fld"><label id="f_contato_label">Fornecedor</label><input id="f_contato" placeholder="Nome"></div>
+          <div class="fld"><label>Valor (R$)</label><input id="f_valor" type="number" step="0.01" min="0" placeholder="0,00"></div>
+          <div class="fld"><label>Vencimento</label><input id="f_venc" type="date"></div>
+          <button class="addbtn" id="addbtn" onclick="addLancamento()" style="width:auto;">Adicionar</button>
+        </div>
+        <div class="formerr" id="formerr" style="padding:0 0 0;">Preencha descrição, valor e vencimento.</div>
+        <button type="button" class="importbtn" onclick="abrirImport()" style="width:auto;margin-top:10px;">📋 Colar de planilha</button>
+      </div>
     </div>
-
-    <div id="viewFinanceiro">
     <div class="searchrow">
       <div class="searchbar">
         <input id="buscaGlobal" placeholder="🔍 Buscar por fornecedor/cliente, valor ou data...">
@@ -406,15 +437,14 @@
     </div>
     </div>
 
-    <div id="viewHoras" style="display:none;">
+    <div id="viewBancoHoras" style="display:none;">
       <div class="bh-toolbar">
         <select id="bhFuncionarioSelect" onchange="selecionarFuncionario(this.value)">
           <option value="">Selecione um funcionário</option>
         </select>
-        <button type="button" class="importbtn" onclick="abrirNovoFuncionario()" style="width:auto;margin-top:0;">+ Novo funcionário</button>
       </div>
 
-      <div class="empty" id="bhSemFuncionario" style="padding:60px 20px;">Cadastre ou selecione um funcionário para ver o banco de horas.</div>
+      <div class="empty" id="bhSemFuncionario" style="padding:60px 20px;">Cadastre um colaborador em Configurações → Colaboradores, depois selecione ele aqui.</div>
 
       <div id="bhConteudo" style="display:none;">
         <div class="bh-resumo">
@@ -442,8 +472,6 @@
             <div class="lbl">Jornada esperada por dia trabalhado</div>
             <div class="val" id="bhCargaHoraria">8h00</div>
           </div>
-          <button type="button" class="importbtn" id="bhEditarBtn" style="width:auto;margin-top:0;" onclick="abrirEditarFuncionario()">✎ Editar funcionário</button>
-          <button type="button" class="importbtn" id="bhExcluirBtn" style="width:auto;margin-top:0;border-color:var(--rust);color:var(--rust);" onclick="abrirExcluirFuncionario()">🗑 Excluir funcionário</button>
         </div>
 
         <div class="panel">
@@ -502,6 +530,83 @@
             </table>
           </div>
           <div class="empty" id="bhSemRegistrosPeriodo" style="display:none;">Nenhum registro nesse período.</div>
+        </div>
+      </div>
+    </div>
+
+    <div id="viewDespesasFixas" style="display:none;">
+      <div class="panel">
+        <div style="padding:24px 24px 4px;">
+          <h2 style="font-family:var(--font-voice);font-size:19px;font-weight:600;margin:0 0 6px;">Despesas fixas — <span id="fixasLojaNome"></span></h2>
+          <p class="modal-sub">Cadastre aqui contas que se repetem todo mês (aluguel, internet, salário, etc). Elas entram sozinhas na lista de "Contas a pagar" a cada mês novo, sempre com o valor mais atual daqui.</p>
+        </div>
+
+        <div class="fixas-totais" id="fixasTotais" style="padding:0 24px;"></div>
+
+        <div class="preview-scroll" id="fixasWrap" style="margin:0 24px;">
+          <table id="fixasTable">
+            <thead><tr><th>Nome</th><th>Valor</th><th>Dia</th><th>Tipo</th><th></th></tr></thead>
+            <tbody id="fixasBody"></tbody>
+          </table>
+        </div>
+        <div class="empty" id="fixasEmpty" style="display:none;padding:16px 24px;">Nenhuma despesa fixa cadastrada ainda.</div>
+
+        <div style="padding:22px 24px 24px;">
+          <h2 style="font-size:14px;margin:0 0 12px;">Nova despesa fixa</h2>
+          <div class="fld"><label id="fixaContatoLabel">Fornecedor</label><input id="fixa_contato" placeholder="Ex: Aluguel"></div>
+          <div class="fld-row">
+            <div class="fld"><label>Valor (R$)</label><input id="fixa_valor" type="number" step="0.01" min="0" placeholder="0,00"></div>
+            <div class="fld"><label>Dia do vencimento</label><input id="fixa_dia" type="number" min="1" max="31" placeholder="Ex: 10"></div>
+          </div>
+          <button class="addbtn" style="width:auto;" onclick="adicionarFixa()">Adicionar despesa fixa</button>
+          <div class="formerr" id="fixaErr">Preencha nome, valor e um dia entre 1 e 31.</div>
+
+          <button type="button" class="importbtn" onclick="toggleFixaImport()" style="width:auto;margin-top:14px;">📋 Colar de planilha (várias de uma vez)</button>
+          <div id="fixaImportArea" style="display:none;margin-top:12px;">
+            <p class="modal-sub" style="margin-bottom:10px;">Copie 3 colunas do Excel/Sheets nessa ordem: <strong>Nome, Valor, Dia do vencimento</strong>.</p>
+            <textarea id="fixaImportText" rows="5" placeholder="Aluguel	1500,00	10&#10;Internet	120,00	15&#10;Contador	400,00	5"></textarea>
+            <button class="addbtn" style="width:auto;" onclick="analisarFixaImport()">Analisar</button>
+            <div id="fixaImportPreviewWrap" style="display:none;">
+              <div class="preview-scroll">
+                <table id="fixaImportPreviewTable">
+                  <thead><tr><th>Nome</th><th>Valor</th><th>Dia</th></tr></thead>
+                  <tbody id="fixaImportPreviewBody"></tbody>
+                </table>
+              </div>
+              <div id="fixaImportSummary" style="font-size:12px;color:var(--muted);margin:10px 0;"></div>
+              <div class="modal-actions">
+                <button class="addbtn" id="fixaImportConfirmBtn" onclick="confirmarFixaImport()">Importar</button>
+                <button class="cancelbtn" onclick="cancelarFixaImport()">Cancelar</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="viewColaboradores" style="display:none;">
+      <div class="colab-body">
+        <div class="colab-col">
+          <div class="colab-col-head">
+            <span>Loja 01</span>
+            <button type="button" class="importbtn" style="width:auto;margin:0;" onclick="abrirNovoColaborador('loja1')">+ Novo colaborador</button>
+          </div>
+          <table id="colabTable1">
+            <thead><tr><th>Nome</th><th>Escala</th><th>Jornada</th><th></th></tr></thead>
+            <tbody id="colabBody1"></tbody>
+          </table>
+          <div class="empty" id="colabEmpty1" style="display:none;">Nenhum colaborador cadastrado na Loja 01.</div>
+        </div>
+        <div class="colab-col">
+          <div class="colab-col-head">
+            <span>Loja 02</span>
+            <button type="button" class="importbtn" style="width:auto;margin:0;" onclick="abrirNovoColaborador('loja2')">+ Novo colaborador</button>
+          </div>
+          <table id="colabTable2">
+            <thead><tr><th>Nome</th><th>Escala</th><th>Jornada</th><th></th></tr></thead>
+            <tbody id="colabBody2"></tbody>
+          </table>
+          <div class="empty" id="colabEmpty2" style="display:none;">Nenhum colaborador cadastrado na Loja 02.</div>
         </div>
       </div>
     </div>
@@ -591,53 +696,6 @@
     <div class="modal-actions" style="margin-top:16px;">
       <button class="addbtn" id="editSalvarBtn" onclick="salvarEdicao()">Salvar</button>
       <button class="cancelbtn" onclick="fecharEditar()">Cancelar</button>
-    </div>
-  </div>
-</div>
-
-<div id="fixasModal" class="modal-overlay">
-  <div class="modal-box" style="max-width:560px;">
-    <button class="modal-close" onclick="fecharFixas()">✕</button>
-    <h2>Despesas fixas — <span id="fixasLojaNome"></span></h2>
-    <p class="modal-sub">Cadastre aqui contas que se repetem todo mês (aluguel, internet, salário, etc). Elas entram sozinhas na lista de lançamentos a cada mês novo, sempre com o valor mais atual daqui.</p>
-
-    <div class="fixas-totais" id="fixasTotais"></div>
-
-    <div class="preview-scroll" id="fixasWrap">
-      <table id="fixasTable">
-        <thead><tr><th>Nome</th><th>Valor</th><th>Dia</th><th>Tipo</th><th></th></tr></thead>
-        <tbody id="fixasBody"></tbody>
-      </table>
-    </div>
-    <div class="empty" id="fixasEmpty" style="display:none;padding:16px 4px;">Nenhuma despesa fixa cadastrada ainda.</div>
-
-    <h2 style="font-size:14px;margin-top:22px;margin-bottom:12px;">Nova despesa fixa</h2>
-    <div class="fld"><label id="fixaContatoLabel">Fornecedor</label><input id="fixa_contato" placeholder="Ex: Aluguel"></div>
-    <div class="fld-row">
-      <div class="fld"><label>Valor (R$)</label><input id="fixa_valor" type="number" step="0.01" min="0" placeholder="0,00"></div>
-      <div class="fld"><label>Dia do vencimento</label><input id="fixa_dia" type="number" min="1" max="31" placeholder="Ex: 10"></div>
-    </div>
-    <button class="addbtn" onclick="adicionarFixa()">Adicionar despesa fixa</button>
-    <div class="formerr" id="fixaErr">Preencha nome, valor e um dia entre 1 e 31.</div>
-
-    <button type="button" class="importbtn" onclick="toggleFixaImport()" style="margin-top:14px;">📋 Colar de planilha (várias de uma vez)</button>
-    <div id="fixaImportArea" style="display:none;margin-top:12px;">
-      <p class="modal-sub" style="margin-bottom:10px;">Copie 3 colunas do Excel/Sheets nessa ordem: <strong>Nome, Valor, Dia do vencimento</strong>.</p>
-      <textarea id="fixaImportText" rows="5" placeholder="Aluguel	1500,00	10&#10;Internet	120,00	15&#10;Contador	400,00	5"></textarea>
-      <button class="addbtn" onclick="analisarFixaImport()">Analisar</button>
-      <div id="fixaImportPreviewWrap" style="display:none;">
-        <div class="preview-scroll">
-          <table id="fixaImportPreviewTable">
-            <thead><tr><th>Nome</th><th>Valor</th><th>Dia</th></tr></thead>
-            <tbody id="fixaImportPreviewBody"></tbody>
-          </table>
-        </div>
-        <div id="fixaImportSummary" style="font-size:12px;color:var(--muted);margin:10px 0;"></div>
-        <div class="modal-actions">
-          <button class="addbtn" id="fixaImportConfirmBtn" onclick="confirmarFixaImport()">Importar</button>
-          <button class="cancelbtn" onclick="cancelarFixaImport()">Cancelar</button>
-        </div>
-      </div>
     </div>
   </div>
 </div>
@@ -732,8 +790,11 @@ function trocarLoja(l){
   bhRegistros = [];
   document.getElementById('bhSemFuncionario').style.display = 'block';
   document.getElementById('bhConteudo').style.display = 'none';
-  if(viewAtual === 'horas'){
+  if(viewAtual === 'bancoHoras'){
     carregarFuncionarios();
+  }
+  if(viewAtual === 'despesasFixas'){
+    abrirFixas();
   }
 }
 
@@ -1376,16 +1437,7 @@ function setFixaTipo(t){
 
 async function abrirFixas(){
   document.getElementById('fixasLojaNome').textContent = NOMES_LOJA[lojaAtual] || '';
-  document.getElementById('fixasModal').style.display = 'flex';
   await carregarFixas();
-}
-
-function fecharFixas(){
-  document.getElementById('fixasModal').style.display = 'none';
-  document.getElementById('fixa_contato').value = '';
-  document.getElementById('fixa_valor').value = '';
-  document.getElementById('fixa_dia').value = '';
-  document.getElementById('fixaErr').style.display = 'none';
 }
 
 async function carregarFixas(){
@@ -1744,13 +1796,12 @@ async function confirmarImport(){
 
 /* ================= BANCO DE HORAS ================= */
 
-let viewAtual = 'financeiro';
+let viewAtual = 'contasPagar';
 let usuarioEmailAtual = null;
 let bhCarregado = false;
 let bhFuncionarios = [];
 let bhFuncionarioAtualId = null;
 let bhRegistros = [];
-let editandoFuncId = null;
 let escalaSelecionada = 'normal';
 
 function setEscala(e){
@@ -1768,13 +1819,42 @@ function setEscala(e){
   }
 }
 
-function mudarView(v){
-  viewAtual = v;
-  document.querySelectorAll('.app-tab').forEach(b=>b.classList.toggle('active', b.dataset.view===v));
-  document.getElementById('viewFinanceiro').style.display = v==='financeiro' ? '' : 'none';
-  document.getElementById('viewHoras').style.display = v==='horas' ? '' : 'none';
-  if(v==='horas' && !bhCarregado){
-    carregarFuncionarios();
+const VIEWS = ['contasPagar','despesasFixas','bancoHoras','colaboradores'];
+let colabCarregado = false;
+
+function toggleNavGroup(grupo){
+  const header = document.getElementById(grupo==='financeiro' ? 'navHeaderFinanceiro' : 'navHeaderConfig');
+  const sub = document.getElementById(grupo==='financeiro' ? 'navGroupFinanceiro' : 'navGroupConfig');
+  const abrir = !sub.classList.contains('aberto');
+  sub.classList.toggle('aberto', abrir);
+  header.classList.toggle('aberto', abrir);
+}
+
+async function mudarViewPrincipal(view){
+  viewAtual = view;
+
+  VIEWS.forEach(v=>{
+    const idMap = { contasPagar:'viewContasPagar', despesasFixas:'viewDespesasFixas', bancoHoras:'viewBancoHoras', colaboradores:'viewColaboradores' };
+    document.getElementById(idMap[v]).style.display = (v===view) ? '' : 'none';
+  });
+
+  document.querySelectorAll('.nav-sub-item').forEach(b=>b.classList.toggle('active', b.dataset.view===view));
+
+  document.getElementById('navHeaderBancoHoras').classList.toggle('active-topo', view==='bancoHoras');
+
+  if(view==='despesasFixas'){
+    document.getElementById('navGroupFinanceiro').classList.add('aberto');
+    document.getElementById('navHeaderFinanceiro').classList.add('aberto');
+    await abrirFixas();
+  }else if(view==='contasPagar'){
+    document.getElementById('navGroupFinanceiro').classList.add('aberto');
+    document.getElementById('navHeaderFinanceiro').classList.add('aberto');
+  }else if(view==='bancoHoras'){
+    if(!bhCarregado) await carregarFuncionarios();
+  }else if(view==='colaboradores'){
+    document.getElementById('navGroupConfig').classList.add('aberto');
+    document.getElementById('navHeaderConfig').classList.add('aberto');
+    await carregarColaboradores();
   }
 }
 
@@ -1797,20 +1877,28 @@ function renderFuncionarioSelect(){
   sel.value = atual;
 }
 
-function abrirNovoFuncionario(){
-  editandoFuncId = null;
-  document.getElementById('funcModalTitulo').textContent = 'Novo funcionário';
+let colabEditandoId = null;
+let colabLojaAtual = 'loja1';
+let colaboradoresLoja1 = [];
+let colaboradoresLoja2 = [];
+
+function abrirNovoColaborador(loja){
+  colabEditandoId = null;
+  colabLojaAtual = loja;
+  document.getElementById('funcModalTitulo').textContent = 'Novo colaborador — ' + (NOMES_LOJA[loja]||'');
   document.getElementById('func_nome').value = '';
   setEscala('normal');
   document.getElementById('funcErr').style.display = 'none';
   document.getElementById('funcModal').style.display = 'flex';
 }
 
-function abrirEditarFuncionario(){
-  const f = bhFuncionarios.find(x=>x.id===bhFuncionarioAtualId);
+function abrirEditarColaborador(id, loja){
+  const lista = loja==='loja1' ? colaboradoresLoja1 : colaboradoresLoja2;
+  const f = lista.find(x=>x.id===id);
   if(!f) return;
-  editandoFuncId = f.id;
-  document.getElementById('funcModalTitulo').textContent = 'Editar funcionário';
+  colabEditandoId = f.id;
+  colabLojaAtual = loja;
+  document.getElementById('funcModalTitulo').textContent = 'Editar colaborador';
   document.getElementById('func_nome').value = f.nome;
   escalaSelecionada = f.tipo_escala || 'normal';
   document.querySelectorAll('#escalaToggle .tipo-btn').forEach(b=>b.classList.toggle('active', b.dataset.escala===escalaSelecionada));
@@ -1837,34 +1925,76 @@ async function salvarFuncionario(){
   err.style.display = 'none';
   const cargaMin = (horas*60) + minutos;
 
-  if(editandoFuncId){
+  if(colabEditandoId){
     const { data, error } = await sb.from('bh_funcionarios')
       .update({ nome: nome, carga_horaria_diaria_min: cargaMin, tipo_escala: escalaSelecionada })
-      .eq('id', editandoFuncId).select().single();
+      .eq('id', colabEditandoId).select().single();
     if(error){
       err.textContent = 'Erro ao salvar: ' + error.message;
       err.style.display = 'block';
       return;
     }
-    const idx = bhFuncionarios.findIndex(f=>f.id===editandoFuncId);
-    if(idx>-1) bhFuncionarios[idx] = data;
-    renderFuncionarioSelect();
-    renderBancoHoras();
+    if(data.loja==='loja1'){
+      const idx = colaboradoresLoja1.findIndex(f=>f.id===data.id);
+      if(idx>-1) colaboradoresLoja1[idx] = data;
+    }else{
+      const idx = colaboradoresLoja2.findIndex(f=>f.id===data.id);
+      if(idx>-1) colaboradoresLoja2[idx] = data;
+    }
   }else{
     const { data, error } = await sb.from('bh_funcionarios')
-      .insert({ loja: lojaAtual, nome: nome, carga_horaria_diaria_min: cargaMin, tipo_escala: escalaSelecionada })
+      .insert({ loja: colabLojaAtual, nome: nome, carga_horaria_diaria_min: cargaMin, tipo_escala: escalaSelecionada })
       .select().single();
     if(error){
       err.textContent = 'Erro ao salvar: ' + error.message;
       err.style.display = 'block';
       return;
     }
-    bhFuncionarios.push(data);
-    bhFuncionarioAtualId = data.id;
-    renderFuncionarioSelect();
-    await selecionarFuncionario(data.id);
+    if(data.loja==='loja1') colaboradoresLoja1.push(data); else colaboradoresLoja2.push(data);
   }
+  renderColabTables();
+  bhCarregado = false;
   fecharFuncModal();
+}
+
+async function carregarColaboradores(){
+  const { data, error } = await sb.from('bh_funcionarios').select('*').eq('ativo', true).order('nome');
+  if(error){
+    console.error('Erro ao carregar colaboradores:', error);
+    return;
+  }
+  colaboradoresLoja1 = (data||[]).filter(f=>f.loja==='loja1');
+  colaboradoresLoja2 = (data||[]).filter(f=>f.loja==='loja2');
+  colabCarregado = true;
+  renderColabTables();
+}
+
+function renderColabTables(){
+  renderColabTabela(1, colaboradoresLoja1);
+  renderColabTabela(2, colaboradoresLoja2);
+}
+
+function renderColabTabela(numero, lista){
+  const body = document.getElementById('colabBody'+numero);
+  const empty = document.getElementById('colabEmpty'+numero);
+  if(lista.length===0){
+    body.innerHTML = '';
+    empty.style.display = 'block';
+    return;
+  }
+  empty.style.display = 'none';
+  const loja = 'loja'+numero;
+  body.innerHTML = lista.map(f=>`
+    <tr>
+      <td>${escapeHtml(f.nome)}</td>
+      <td>${f.tipo_escala==='12x36' ? '12x36' : 'Normal'}</td>
+      <td>${fmtMinutos(f.carga_horaria_diaria_min)}</td>
+      <td><div class="rowactions">
+        <button class="iconbtn edit" title="Editar" onclick="abrirEditarColaborador('${f.id}','${loja}')">✎</button>
+        <button class="iconbtn del" title="Excluir" onclick="abrirExcluirFuncionario('${f.id}','${loja}')">✕</button>
+      </div></td>
+    </tr>
+  `).join('');
 }
 
 async function selecionarFuncionario(id){
@@ -2204,8 +2334,9 @@ function renderBancoHoras(){
   if(filtroAtivo){
     const trabalhadoPeriodo = linhasExibidas.reduce((s,l)=>s+l.trabalhado, 0);
     const noturnoPeriodo = linhasExibidas.reduce((s,l)=>s+l.noturno, 0);
+    const noturnoConvertidoPeriodo = linhasExibidas.reduce((s,l)=>s+l.noturnoConvertido, 0);
     resumoPeriodo.style.display = 'flex';
-    resumoPeriodo.innerHTML = `<span>Período · ${linhasExibidas.length} ${linhasExibidas.length===1?'dia':'dias'} · Trabalhado ${fmtMinutos(trabalhadoPeriodo)} · Noturno ${fmtMinutos(noturnoPeriodo)}</span>`;
+    resumoPeriodo.innerHTML = `<span>Período · ${linhasExibidas.length} ${linhasExibidas.length===1?'dia':'dias'} · Trabalhado ${fmtMinutos(trabalhadoPeriodo)} · Noturno ${fmtMinutos(noturnoPeriodo)} · Not. Convertido ${fmtMinutos(noturnoConvertidoPeriodo)}</span>`;
   }else{
     resumoPeriodo.style.display = 'none';
   }
@@ -2418,9 +2549,15 @@ async function confirmarExclusaoRegistroHorasOk(){
   fecharConfirmacaoHoras();
 }
 
-function abrirExcluirFuncionario(){
-  const f = bhFuncionarios.find(x=>x.id===bhFuncionarioAtualId);
+let excluindoColabId = null;
+let excluindoColabLoja = null;
+
+function abrirExcluirFuncionario(id, loja){
+  const lista = loja==='loja1' ? colaboradoresLoja1 : colaboradoresLoja2;
+  const f = lista.find(x=>x.id===id);
   if(!f) return;
+  excluindoColabId = id;
+  excluindoColabLoja = loja;
   document.getElementById('excluirFuncNome').textContent = f.nome;
   document.getElementById('excluirFunc_senha').value = '';
   document.getElementById('excluirFuncErr').style.display = 'none';
@@ -2458,19 +2595,20 @@ async function confirmarExclusaoFuncionario(){
       return;
     }
 
-    const { error } = await sb.from('bh_funcionarios').delete().eq('id', bhFuncionarioAtualId);
+    const { error } = await sb.from('bh_funcionarios').delete().eq('id', excluindoColabId);
     if(error){
       err.textContent = 'Erro ao excluir: ' + error.message;
       err.style.display = 'block';
       return;
     }
 
-    bhFuncionarios = bhFuncionarios.filter(f=>f.id!==bhFuncionarioAtualId);
-    bhFuncionarioAtualId = null;
-    bhRegistros = [];
-    renderFuncionarioSelect();
-    document.getElementById('bhSemFuncionario').style.display = 'block';
-    document.getElementById('bhConteudo').style.display = 'none';
+    if(excluindoColabLoja==='loja1'){
+      colaboradoresLoja1 = colaboradoresLoja1.filter(f=>f.id!==excluindoColabId);
+    }else{
+      colaboradoresLoja2 = colaboradoresLoja2.filter(f=>f.id!==excluindoColabId);
+    }
+    renderColabTables();
+    bhCarregado = false;
     fecharExcluirFuncModal();
   }catch(e){
     err.textContent = 'Não foi possível confirmar. Verifique sua internet e tente de novo.';
