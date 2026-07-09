@@ -100,6 +100,8 @@
   .fld{margin-bottom:12px;}
   .fld label{display:block;font-size:10px;text-transform:uppercase;letter-spacing:0.05em;color:var(--muted);margin-bottom:4px;}
   .fld input{width:100%;font-family:var(--font-sans);font-size:13px;padding:9px 10px;border:1px solid var(--line);border-radius:5px;background:var(--paper);color:var(--ink);}
+  .fld select{width:100%;font-family:var(--font-sans);font-size:13px;padding:9px 10px;border:1px solid var(--line);border-radius:5px;background:var(--paper);color:var(--ink);cursor:pointer;}
+  .fld select:focus{outline:none;border-color:var(--gold);}
   .fld input:focus{outline:none;border-color:var(--gold);}
   .fld-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
   .addbtn{width:100%;font-family:var(--font-sans);font-size:13px;font-weight:500;padding:11px;border:none;background:var(--ink);color:var(--paper);border-radius:6px;cursor:pointer;transition:opacity .15s;}
@@ -465,6 +467,10 @@
             <div class="val" id="bhTotalNoturnoConvertido" style="color:var(--gold);">0h00</div>
           </div>
           <div class="metric">
+            <div class="lbl">Cargo</div>
+            <div class="val" id="bhCargo" style="font-size:15px;">—</div>
+          </div>
+          <div class="metric">
             <div class="lbl">Escala</div>
             <div class="val" id="bhEscala" style="font-size:15px;">Normal</div>
           </div>
@@ -592,7 +598,7 @@
             <button type="button" class="importbtn" style="width:auto;margin:0;" onclick="abrirNovoColaborador('loja1')">+ Novo colaborador</button>
           </div>
           <table id="colabTable1">
-            <thead><tr><th>Nome</th><th>Escala</th><th>Jornada</th><th></th></tr></thead>
+            <thead><tr><th>Nome</th><th>Cargo</th><th>Escala</th><th>Jornada</th><th></th></tr></thead>
             <tbody id="colabBody1"></tbody>
           </table>
           <div class="empty" id="colabEmpty1" style="display:none;">Nenhum colaborador cadastrado na Loja 01.</div>
@@ -603,7 +609,7 @@
             <button type="button" class="importbtn" style="width:auto;margin:0;" onclick="abrirNovoColaborador('loja2')">+ Novo colaborador</button>
           </div>
           <table id="colabTable2">
-            <thead><tr><th>Nome</th><th>Escala</th><th>Jornada</th><th></th></tr></thead>
+            <thead><tr><th>Nome</th><th>Cargo</th><th>Escala</th><th>Jornada</th><th></th></tr></thead>
             <tbody id="colabBody2"></tbody>
           </table>
           <div class="empty" id="colabEmpty2" style="display:none;">Nenhum colaborador cadastrado na Loja 02.</div>
@@ -618,6 +624,15 @@
     <button class="modal-close" onclick="fecharFuncModal()">✕</button>
     <h2 id="funcModalTitulo">Novo funcionário</h2>
     <div class="fld"><label>Nome</label><input id="func_nome" placeholder="Nome do funcionário"></div>
+    <div class="fld"><label>Cargo</label>
+      <select id="func_cargo">
+        <option value="">Selecione o cargo</option>
+        <option value="Gerente administrativo">Gerente administrativo</option>
+        <option value="Entregador Motorizado">Entregador Motorizado</option>
+        <option value="Subgerente">Subgerente</option>
+        <option value="Operador (a) de Caixa">Operador (a) de Caixa</option>
+      </select>
+    </div>
     <div class="fld"><label>Escala de trabalho</label>
       <div class="tipo-toggle" id="escalaToggle">
         <button type="button" class="tipo-btn active" data-escala="normal" onclick="setEscala('normal')">Normal</button>
@@ -1887,6 +1902,7 @@ function abrirNovoColaborador(loja){
   colabLojaAtual = loja;
   document.getElementById('funcModalTitulo').textContent = 'Novo colaborador — ' + (NOMES_LOJA[loja]||'');
   document.getElementById('func_nome').value = '';
+  document.getElementById('func_cargo').value = '';
   setEscala('normal');
   document.getElementById('funcErr').style.display = 'none';
   document.getElementById('funcModal').style.display = 'flex';
@@ -1900,6 +1916,7 @@ function abrirEditarColaborador(id, loja){
   colabLojaAtual = loja;
   document.getElementById('funcModalTitulo').textContent = 'Editar colaborador';
   document.getElementById('func_nome').value = f.nome;
+  document.getElementById('func_cargo').value = f.cargo || '';
   escalaSelecionada = f.tipo_escala || 'normal';
   document.querySelectorAll('#escalaToggle .tipo-btn').forEach(b=>b.classList.toggle('active', b.dataset.escala===escalaSelecionada));
   document.getElementById('func_horas').value = Math.floor(f.carga_horaria_diaria_min/60);
@@ -1915,6 +1932,7 @@ function fecharFuncModal(){
 
 async function salvarFuncionario(){
   const nome = document.getElementById('func_nome').value.trim();
+  const cargo = document.getElementById('func_cargo').value.trim();
   const horas = parseInt(document.getElementById('func_horas').value, 10) || 0;
   const minutos = parseInt(document.getElementById('func_minutos').value, 10) || 0;
   const err = document.getElementById('funcErr');
@@ -1927,7 +1945,7 @@ async function salvarFuncionario(){
 
   if(colabEditandoId){
     const { data, error } = await sb.from('bh_funcionarios')
-      .update({ nome: nome, carga_horaria_diaria_min: cargaMin, tipo_escala: escalaSelecionada })
+      .update({ nome: nome, cargo: cargo || null, carga_horaria_diaria_min: cargaMin, tipo_escala: escalaSelecionada })
       .eq('id', colabEditandoId).select().single();
     if(error){
       err.textContent = 'Erro ao salvar: ' + error.message;
@@ -1943,7 +1961,7 @@ async function salvarFuncionario(){
     }
   }else{
     const { data, error } = await sb.from('bh_funcionarios')
-      .insert({ loja: colabLojaAtual, nome: nome, carga_horaria_diaria_min: cargaMin, tipo_escala: escalaSelecionada })
+      .insert({ loja: colabLojaAtual, nome: nome, cargo: cargo || null, carga_horaria_diaria_min: cargaMin, tipo_escala: escalaSelecionada })
       .select().single();
     if(error){
       err.textContent = 'Erro ao salvar: ' + error.message;
@@ -1987,6 +2005,7 @@ function renderColabTabela(numero, lista){
   body.innerHTML = lista.map(f=>`
     <tr>
       <td>${escapeHtml(f.nome)}</td>
+      <td>${f.cargo ? escapeHtml(f.cargo) : '—'}</td>
       <td>${f.tipo_escala==='12x36' ? '12x36' : 'Normal'}</td>
       <td>${fmtMinutos(f.carga_horaria_diaria_min)}</td>
       <td><div class="rowactions">
@@ -2121,19 +2140,26 @@ function exportarExcelHoras(){
     return;
   }
   const horaOuTraco = v => v ? v.slice(0,5) : '';
-  const linhas = bhLinhasExibidasAtuais.map(l=>({
-    'Data': fmtData(l.reg.data),
-    'Entrada 1': horaOuTraco(l.reg.entrada1),
-    'Saída 1': horaOuTraco(l.reg.saida1),
-    'Entrada 2': horaOuTraco(l.reg.entrada2),
-    'Saída 2': horaOuTraco(l.reg.saida2),
-    'Trabalhado': fmtMinutos(l.trabalhado),
-    'Noturno': l.noturno>0 ? fmtMinutos(l.noturno) : '',
-    'Not. Convertido': l.noturnoConvertido>0 ? fmtMinutos(l.noturnoConvertido) : '',
-    'Saldo dia': fmtMinutosSinal(l.saldoDia)
-  }));
+  const cabecalho = [
+    ['Colaborador', f.nome],
+    ['Cargo', f.cargo || '—'],
+    ['Escala', f.tipo_escala==='12x36' ? '12x36' : 'Normal'],
+    []
+  ];
+  const colunas = ['Data','Entrada 1','Saída 1','Entrada 2','Saída 2','Trabalhado','Noturno','Not. Convertido','Saldo dia'];
+  const linhas = bhLinhasExibidasAtuais.map(l=>[
+    fmtData(l.reg.data),
+    horaOuTraco(l.reg.entrada1),
+    horaOuTraco(l.reg.saida1),
+    horaOuTraco(l.reg.entrada2),
+    horaOuTraco(l.reg.saida2),
+    fmtMinutos(l.trabalhado),
+    l.noturno>0 ? fmtMinutos(l.noturno) : '',
+    l.noturnoConvertido>0 ? fmtMinutos(l.noturnoConvertido) : '',
+    fmtMinutosSinal(l.saldoDia)
+  ]);
 
-  const planilha = XLSX.utils.json_to_sheet(linhas);
+  const planilha = XLSX.utils.aoa_to_sheet([...cabecalho, colunas, ...linhas]);
   planilha['!cols'] = [{wch:12},{wch:10},{wch:10},{wch:10},{wch:10},{wch:12},{wch:10},{wch:14},{wch:10}];
   const livro = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(livro, planilha, 'Banco de Horas');
@@ -2173,13 +2199,14 @@ function exportarExcelHorasResumo(){
 
   const linhas = [{
     'Colaborador': f.nome,
+    'Cargo': f.cargo || '—',
     'Período': textoPeriodoHoras(),
     'Total noturno': fmtMinutos(totalNoturno),
     'Total noturno convertido': fmtMinutos(totalNoturnoConvertido)
   }];
 
   const planilha = XLSX.utils.json_to_sheet(linhas);
-  planilha['!cols'] = [{wch:22},{wch:24},{wch:16},{wch:20}];
+  planilha['!cols'] = [{wch:22},{wch:18},{wch:24},{wch:16},{wch:20}];
   const livro = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(livro, planilha, 'Resumo');
 
@@ -2221,6 +2248,7 @@ function exportarPdfHorasResumo(){
     startY: 34,
     body: [
       ['Colaborador', f.nome],
+      ['Cargo', f.cargo || '—'],
       ['Período', textoPeriodoHoras()],
       ['Total noturno', fmtMinutos(totalNoturno)],
       ['Total noturno convertido', fmtMinutos(totalNoturnoConvertido)]
@@ -2259,7 +2287,7 @@ function exportarPdfHoras(){
   doc.text('Banco de Horas — ' + f.nome, 14, 18);
   doc.setFontSize(10);
   doc.setTextColor(120);
-  doc.text('Escala: ' + (f.tipo_escala==='12x36' ? '12x36' : 'Normal') + '   ·   Gerado em ' + dataHora, 14, 25);
+  doc.text((f.cargo ? 'Cargo: ' + f.cargo + '   ·   ' : '') + 'Escala: ' + (f.tipo_escala==='12x36' ? '12x36' : 'Normal') + '   ·   Gerado em ' + dataHora, 14, 25);
 
   const horaOuTraco = v => v ? v.slice(0,5) : '—';
   const linhas = bhLinhasExibidasAtuais.map(l=>[
@@ -2298,6 +2326,7 @@ function renderBancoHoras(){
   if(!f) return;
   document.getElementById('bhCargaHoraria').textContent = fmtMinutos(f.carga_horaria_diaria_min);
   document.getElementById('bhEscala').textContent = f.tipo_escala==='12x36' ? '12x36' : 'Normal';
+  document.getElementById('bhCargo').textContent = f.cargo || '—';
 
   const ordenados = [...bhRegistros].sort((a,b)=> a.data.localeCompare(b.data));
   let acumulado = 0;
