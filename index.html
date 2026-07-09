@@ -96,8 +96,11 @@
   .formcard h2{font-family:var(--font-voice);font-size:15px;font-weight:600;margin:0 0 14px;}
   .tipo-toggle{display:flex;gap:6px;margin-bottom:14px;}
   .tipo-btn{flex:1;font-family:var(--font-sans);font-size:12px;padding:8px 6px;border:1px solid var(--line);background:var(--paper);color:var(--muted);cursor:pointer;border-radius:5px;transition:.15s;}
+  .tipo-btn.active{background:var(--paper2);border-color:var(--gold);color:var(--ink);font-weight:600;}
   .tipo-btn.active[data-tipo="pagar"]{background:var(--rust-bg);color:var(--rust);border-color:var(--rust);}
   .tipo-btn.active[data-tipo="receber"]{background:var(--green-bg);color:var(--green);border-color:var(--green);}
+  .tipo-btn.active[data-tipo="falta"]{background:var(--rust-bg);color:var(--rust);border-color:var(--rust);}
+  .tipo-btn.active[data-tipo="sobra"]{background:var(--green-bg);color:var(--green);border-color:var(--green);}
   .fld{margin-bottom:12px;}
   .fld label{display:block;font-size:10px;text-transform:uppercase;letter-spacing:0.05em;color:var(--muted);margin-bottom:4px;}
   .fld input{width:100%;font-family:var(--font-sans);font-size:13px;padding:9px 10px;border:1px solid var(--line);border-radius:5px;background:var(--paper);color:var(--ink);}
@@ -687,7 +690,15 @@
       </div>
 
       <div class="panel" style="margin-top:20px;">
-        <div class="panel-head"><h2>Histórico</h2></div>
+        <div class="panel-head" style="flex-wrap:wrap;">
+          <h2>Histórico</h2>
+          <div class="bh-filtro-data">
+            <label>Colaborador(a)</label>
+            <select id="difFiltroColaborador" onchange="mudarFiltroDifColaborador(this.value)">
+              <option value="">Todos</option>
+            </select>
+          </div>
+        </div>
         <div class="tablewrap">
           <table class="ledger">
             <thead><tr><th>Data</th><th>Colaborador(a)</th><th>Tipo</th><th style="text-align:right">Valor</th><th></th></tr></thead>
@@ -753,6 +764,29 @@
     <div class="modal-actions">
       <button class="addbtn" onclick="confirmarPagamentoCaixaOk()">Confirmar</button>
       <button class="cancelbtn" onclick="fecharConfirmacaoPagamentoCaixa()">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<div id="editDifModal" class="modal-overlay">
+  <div class="modal-box" style="max-width:420px;">
+    <button class="modal-close" onclick="fecharEditarDiferenca()">✕</button>
+    <h2>Editar registro</h2>
+    <div class="fld"><label>Colaborador(a)</label>
+      <select id="edif_colaborador"><option value="">Selecione</option></select>
+    </div>
+    <div class="fld"><label>Data</label><input id="edif_data" type="date"></div>
+    <div class="fld"><label>Tipo</label>
+      <div class="tipo-toggle" id="edifTipoToggle">
+        <button type="button" class="tipo-btn active" data-tipo="falta" onclick="setEdifTipo('falta')">Faltou</button>
+        <button type="button" class="tipo-btn" data-tipo="sobra" onclick="setEdifTipo('sobra')">Sobrou</button>
+      </div>
+    </div>
+    <div class="fld"><label>Valor (R$)</label><input id="edif_valor" type="number" step="0.01" min="0" placeholder="0,00"></div>
+    <div class="formerr" id="edifErr">Selecione a colaboradora, a data e um valor maior que zero.</div>
+    <div class="modal-actions" style="margin-top:16px;">
+      <button class="addbtn" id="edifSalvarBtn" onclick="salvarEdicaoDiferenca()">Salvar</button>
+      <button class="cancelbtn" onclick="fecharEditarDiferenca()">Cancelar</button>
     </div>
   </div>
 </div>
@@ -2306,11 +2340,27 @@ async function carregarDifColaboradores(){
   }else{
     difColaboradores = data || [];
   }
+  const opcoes = difColaboradores.map(f=>`<option value="${f.id}">${escapeHtml(f.nome)}</option>`).join('');
+
   const sel = document.getElementById('dif_colaborador');
   const atual = sel.value;
-  sel.innerHTML = '<option value="">Selecione</option>' +
-    difColaboradores.map(f=>`<option value="${f.id}">${escapeHtml(f.nome)}</option>`).join('');
+  sel.innerHTML = '<option value="">Selecione</option>' + opcoes;
   sel.value = atual;
+
+  const selEdit = document.getElementById('edif_colaborador');
+  selEdit.innerHTML = '<option value="">Selecione</option>' + opcoes;
+
+  const selFiltro = document.getElementById('difFiltroColaborador');
+  const atualFiltro = selFiltro.value;
+  selFiltro.innerHTML = '<option value="">Todos</option>' + opcoes;
+  selFiltro.value = atualFiltro;
+}
+
+let difFiltroColaboradorId = '';
+
+function mudarFiltroDifColaborador(id){
+  difFiltroColaboradorId = id || '';
+  renderDiferencasCaixa();
 }
 
 function setDifTipo(t){
@@ -2363,11 +2413,15 @@ async function salvarDiferencaCaixa(){
 }
 
 function renderDiferencasCaixa(){
-  const ordenado = [...difCache].sort((a,b)=>{
+  let ordenado = [...difCache].sort((a,b)=>{
     const chaveA = a.data + (a.criado_em||'');
     const chaveB = b.data + (b.criado_em||'');
     return chaveA.localeCompare(chaveB);
   });
+
+  if(difFiltroColaboradorId){
+    ordenado = ordenado.filter(d=>d.funcionario_id===difFiltroColaboradorId);
+  }
 
   const totalFalta = ordenado.filter(d=>d.tipo==='falta').reduce((s,d)=>s+Number(d.valor),0);
   const totalSobra = ordenado.filter(d=>d.tipo==='sobra').reduce((s,d)=>s+Number(d.valor),0);
@@ -2390,9 +2444,77 @@ function renderDiferencasCaixa(){
       <td class="contato">${escapeHtml(d.nome_colaborador)}</td>
       <td style="color:${d.tipo==='falta'?'var(--rust)':'var(--green)'};font-weight:600;">${d.tipo==='falta'?'Faltou':'Sobrou'}</td>
       <td class="valor">${brl(d.valor)}</td>
-      <td><button class="iconbtn del" title="Excluir" onclick="confirmarExclusaoDiferenca('${d.id}')">✕</button></td>
+      <td><div class="rowactions">
+        <button class="iconbtn edit" title="Editar" onclick="abrirEditarDiferenca('${d.id}')">✎</button>
+        <button class="iconbtn del" title="Excluir" onclick="confirmarExclusaoDiferenca('${d.id}')">✕</button>
+      </div></td>
     </tr>
   `).join('');
+}
+
+let editandoDiferencaId = null;
+let edifTipoAtual = 'falta';
+
+function setEdifTipo(t){
+  edifTipoAtual = t;
+  document.querySelectorAll('#edifTipoToggle .tipo-btn').forEach(b=>b.classList.toggle('active', b.dataset.tipo===t));
+}
+
+function abrirEditarDiferenca(id){
+  const d = difCache.find(x=>x.id===id);
+  if(!d) return;
+  editandoDiferencaId = id;
+  document.getElementById('edif_colaborador').value = d.funcionario_id || '';
+  document.getElementById('edif_data').value = d.data;
+  document.getElementById('edif_valor').value = d.valor;
+  setEdifTipo(d.tipo);
+  document.getElementById('edifErr').style.display = 'none';
+  document.getElementById('editDifModal').style.display = 'flex';
+}
+
+function fecharEditarDiferenca(){
+  document.getElementById('editDifModal').style.display = 'none';
+  editandoDiferencaId = null;
+}
+
+async function salvarEdicaoDiferenca(){
+  const colabId = document.getElementById('edif_colaborador').value;
+  const data = document.getElementById('edif_data').value;
+  const valor = parseFloat(document.getElementById('edif_valor').value);
+  const err = document.getElementById('edifErr');
+
+  if(!colabId || !data || isNaN(valor) || valor<=0){
+    err.style.display = 'block';
+    return;
+  }
+  err.style.display = 'none';
+
+  const colaborador = difColaboradores.find(f=>f.id===colabId);
+  const btn = document.getElementById('edifSalvarBtn');
+  btn.disabled = true;
+  btn.textContent = 'Salvando…';
+
+  const { data: atualizado, error } = await sb.from('caixa_diferencas').update({
+    funcionario_id: colabId,
+    nome_colaborador: colaborador ? colaborador.nome : '—',
+    data: data,
+    tipo: edifTipoAtual,
+    valor: valor
+  }).eq('id', editandoDiferencaId).select().single();
+
+  btn.disabled = false;
+  btn.textContent = 'Salvar';
+
+  if(error){
+    err.textContent = 'Erro ao salvar: ' + error.message;
+    err.style.display = 'block';
+    return;
+  }
+
+  const idx = difCache.findIndex(d=>d.id===editandoDiferencaId);
+  if(idx>-1) difCache[idx] = atualizado;
+  renderDiferencasCaixa();
+  fecharEditarDiferenca();
 }
 
 let excluindoDiferencaId = null;
