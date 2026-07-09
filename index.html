@@ -337,6 +337,7 @@
             <button class="nav-sub-item active" data-view="contasPagar" onclick="mudarViewPrincipal('contasPagar')">Contas a pagar</button>
             <button class="nav-sub-item" data-view="despesasFixas" onclick="mudarViewPrincipal('despesasFixas')">Despesas fixas</button>
             <button class="nav-sub-item" data-view="comprovantes" onclick="mudarViewPrincipal('comprovantes')">Comprovantes</button>
+            <button class="nav-sub-item" data-view="diferencaCaixa" onclick="mudarViewPrincipal('diferencaCaixa')">Diferença de Caixa</button>
           </div>
         </div>
         <div class="nav-group">
@@ -649,6 +650,53 @@
       <div class="empty" id="compEmpty" style="display:none;">Nenhum comprovante enviado nesse mês ainda.</div>
       <div class="comp-grid" id="compGrid"></div>
     </div>
+
+    <div id="viewDiferencaCaixa" style="display:none;">
+      <div class="bh-resumo">
+        <div class="metric">
+          <div class="lbl">Total faltou</div>
+          <div class="val" id="difTotalFalta" style="color:var(--rust);">R$ 0,00</div>
+        </div>
+        <div class="metric">
+          <div class="lbl">Total sobrou</div>
+          <div class="val" id="difTotalSobra" style="color:var(--green);">R$ 0,00</div>
+        </div>
+        <div class="metric">
+          <div class="lbl">Diferença líquida</div>
+          <div class="val" id="difLiquida">R$ 0,00</div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-head"><h2>Novo registro</h2></div>
+        <div class="bh-form" style="grid-template-columns:1.3fr 1fr 1.2fr 1fr auto;">
+          <div class="fld"><label>Colaborador(a)</label>
+            <select id="dif_colaborador"><option value="">Selecione</option></select>
+          </div>
+          <div class="fld"><label>Data</label><input id="dif_data" type="date"></div>
+          <div class="fld"><label>Tipo</label>
+            <div class="tipo-toggle" id="difTipoToggle" style="margin:0;">
+              <button type="button" class="tipo-btn active" data-tipo="falta" onclick="setDifTipo('falta')">Faltou</button>
+              <button type="button" class="tipo-btn" data-tipo="sobra" onclick="setDifTipo('sobra')">Sobrou</button>
+            </div>
+          </div>
+          <div class="fld"><label>Valor (R$)</label><input id="dif_valor" type="number" step="0.01" min="0" placeholder="0,00"></div>
+          <button class="addbtn" style="width:auto;" onclick="salvarDiferencaCaixa()">Adicionar</button>
+        </div>
+        <div class="formerr" id="difErr">Selecione a colaboradora, a data e um valor maior que zero.</div>
+      </div>
+
+      <div class="panel" style="margin-top:20px;">
+        <div class="panel-head"><h2>Histórico</h2></div>
+        <div class="tablewrap">
+          <table class="ledger">
+            <thead><tr><th>Data</th><th>Colaborador(a)</th><th>Tipo</th><th style="text-align:right">Valor</th><th></th></tr></thead>
+            <tbody id="difBody"></tbody>
+          </table>
+        </div>
+        <div class="empty" id="difEmpty" style="display:none;">Nenhum registro ainda.</div>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -705,6 +753,17 @@
     <div class="modal-actions">
       <button class="addbtn" onclick="confirmarPagamentoCaixaOk()">Confirmar</button>
       <button class="cancelbtn" onclick="fecharConfirmacaoPagamentoCaixa()">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<div id="confirmDiferencaModal" class="modal-overlay">
+  <div class="modal-box" style="max-width:380px;">
+    <h2>Excluir registro?</h2>
+    <p class="modal-sub">Essa ação não pode ser desfeita.</p>
+    <div class="modal-actions">
+      <button class="addbtn" style="background:var(--rust);" onclick="confirmarExclusaoDiferencaOk()">Excluir</button>
+      <button class="cancelbtn" onclick="fecharConfirmacaoDiferenca()">Cancelar</button>
     </div>
   </div>
 </div>
@@ -857,6 +916,9 @@ function trocarLoja(l){
   }
   if(viewAtual === 'comprovantes'){
     carregarComprovantes();
+  }
+  if(viewAtual === 'diferencaCaixa'){
+    abrirDiferencaCaixa();
   }
 }
 
@@ -1881,7 +1943,7 @@ function setEscala(e){
   }
 }
 
-const VIEWS = ['contasPagar','despesasFixas','comprovantes','bancoHoras','colaboradores'];
+const VIEWS = ['contasPagar','despesasFixas','comprovantes','diferencaCaixa','bancoHoras','colaboradores'];
 let colabCarregado = false;
 
 function toggleNavGroup(grupo){
@@ -1896,7 +1958,7 @@ async function mudarViewPrincipal(view){
   viewAtual = view;
 
   VIEWS.forEach(v=>{
-    const idMap = { contasPagar:'viewContasPagar', despesasFixas:'viewDespesasFixas', comprovantes:'viewComprovantes', bancoHoras:'viewBancoHoras', colaboradores:'viewColaboradores' };
+    const idMap = { contasPagar:'viewContasPagar', despesasFixas:'viewDespesasFixas', comprovantes:'viewComprovantes', diferencaCaixa:'viewDiferencaCaixa', bancoHoras:'viewBancoHoras', colaboradores:'viewColaboradores' };
     document.getElementById(idMap[v]).style.display = (v===view) ? '' : 'none';
   });
 
@@ -1912,6 +1974,10 @@ async function mudarViewPrincipal(view){
     document.getElementById('navGroupFinanceiro').classList.add('aberto');
     document.getElementById('navHeaderFinanceiro').classList.add('aberto');
     await abrirComprovantes();
+  }else if(view==='diferencaCaixa'){
+    document.getElementById('navGroupFinanceiro').classList.add('aberto');
+    document.getElementById('navHeaderFinanceiro').classList.add('aberto');
+    await abrirDiferencaCaixa();
   }else if(view==='contasPagar'){
     document.getElementById('navGroupFinanceiro').classList.add('aberto');
     document.getElementById('navHeaderFinanceiro').classList.add('aberto');
@@ -2216,6 +2282,139 @@ async function baixarTodosComprovantes(){
   link.download = 'comprovantes-' + (NOMES_LOJA[lojaAtual]||'').toLowerCase().replace(' ','') + '-' + compMesAtual + '.zip';
   link.click();
   URL.revokeObjectURL(link.href);
+}
+
+/* ================= DIFERENÇA DE CAIXA ================= */
+
+let difColaboradores = [];
+let difTipoAtual = 'falta';
+let difCache = [];
+
+async function abrirDiferencaCaixa(){
+  await carregarDifColaboradores();
+  if(!document.getElementById('dif_data').value){
+    document.getElementById('dif_data').value = todayStr();
+  }
+  await carregarDiferencasCaixa();
+}
+
+async function carregarDifColaboradores(){
+  const { data, error } = await sb.from('bh_funcionarios').select('*').eq('loja', lojaAtual).eq('ativo', true).order('nome');
+  if(error){
+    console.error('Erro ao carregar colaboradores:', error);
+    difColaboradores = [];
+  }else{
+    difColaboradores = data || [];
+  }
+  const sel = document.getElementById('dif_colaborador');
+  const atual = sel.value;
+  sel.innerHTML = '<option value="">Selecione</option>' +
+    difColaboradores.map(f=>`<option value="${f.id}">${escapeHtml(f.nome)}</option>`).join('');
+  sel.value = atual;
+}
+
+function setDifTipo(t){
+  difTipoAtual = t;
+  document.querySelectorAll('#difTipoToggle .tipo-btn').forEach(b=>b.classList.toggle('active', b.dataset.tipo===t));
+}
+
+async function carregarDiferencasCaixa(){
+  const { data, error } = await sb.from('caixa_diferencas').select('*').eq('loja', lojaAtual).order('data');
+  if(error){
+    console.error('Erro ao carregar diferenças de caixa:', error);
+    difCache = [];
+  }else{
+    difCache = data || [];
+  }
+  renderDiferencasCaixa();
+}
+
+async function salvarDiferencaCaixa(){
+  const colabId = document.getElementById('dif_colaborador').value;
+  const data = document.getElementById('dif_data').value;
+  const valor = parseFloat(document.getElementById('dif_valor').value);
+  const err = document.getElementById('difErr');
+
+  if(!colabId || !data || isNaN(valor) || valor<=0){
+    err.style.display = 'block';
+    return;
+  }
+  err.style.display = 'none';
+
+  const colaborador = difColaboradores.find(f=>f.id===colabId);
+  const { data: salvo, error } = await sb.from('caixa_diferencas').insert({
+    loja: lojaAtual,
+    funcionario_id: colabId,
+    nome_colaborador: colaborador ? colaborador.nome : '—',
+    data: data,
+    tipo: difTipoAtual,
+    valor: valor
+  }).select().single();
+
+  if(error){
+    err.textContent = 'Erro ao salvar: ' + error.message;
+    err.style.display = 'block';
+    return;
+  }
+
+  difCache.push(salvo);
+  document.getElementById('dif_valor').value = '';
+  renderDiferencasCaixa();
+}
+
+function renderDiferencasCaixa(){
+  const ordenado = [...difCache].sort((a,b)=>{
+    const chaveA = a.data + (a.criado_em||'');
+    const chaveB = b.data + (b.criado_em||'');
+    return chaveA.localeCompare(chaveB);
+  });
+
+  const totalFalta = ordenado.filter(d=>d.tipo==='falta').reduce((s,d)=>s+Number(d.valor),0);
+  const totalSobra = ordenado.filter(d=>d.tipo==='sobra').reduce((s,d)=>s+Number(d.valor),0);
+  document.getElementById('difTotalFalta').textContent = brl(totalFalta);
+  document.getElementById('difTotalSobra').textContent = brl(totalSobra);
+  document.getElementById('difLiquida').textContent = brl(totalSobra - totalFalta);
+
+  const body = document.getElementById('difBody');
+  const empty = document.getElementById('difEmpty');
+  if(ordenado.length===0){
+    body.innerHTML = '';
+    empty.style.display = 'block';
+    return;
+  }
+  empty.style.display = 'none';
+
+  body.innerHTML = ordenado.map(d=>`
+    <tr>
+      <td class="data">${fmtData(d.data)}</td>
+      <td class="contato">${escapeHtml(d.nome_colaborador)}</td>
+      <td style="color:${d.tipo==='falta'?'var(--rust)':'var(--green)'};font-weight:600;">${d.tipo==='falta'?'Faltou':'Sobrou'}</td>
+      <td class="valor">${brl(d.valor)}</td>
+      <td><button class="iconbtn del" title="Excluir" onclick="confirmarExclusaoDiferenca('${d.id}')">✕</button></td>
+    </tr>
+  `).join('');
+}
+
+let excluindoDiferencaId = null;
+
+function confirmarExclusaoDiferenca(id){
+  excluindoDiferencaId = id;
+  document.getElementById('confirmDiferencaModal').style.display = 'flex';
+}
+
+function fecharConfirmacaoDiferenca(){
+  document.getElementById('confirmDiferencaModal').style.display = 'none';
+  excluindoDiferencaId = null;
+}
+
+async function confirmarExclusaoDiferencaOk(){
+  if(!excluindoDiferencaId) return;
+  const { error } = await sb.from('caixa_diferencas').delete().eq('id', excluindoDiferencaId);
+  if(!error){
+    difCache = difCache.filter(d=>d.id!==excluindoDiferencaId);
+    renderDiferencasCaixa();
+  }
+  fecharConfirmacaoDiferenca();
 }
 
 async function selecionarFuncionario(id){
