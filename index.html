@@ -864,14 +864,30 @@
       </div>
 
       <div class="panel" style="margin-top:20px;">
-        <div class="panel-head"><h2>Todos os lançamentos</h2></div>
+        <div class="panel-head">
+          <h2>Lançamentos do extrato</h2>
+          <div class="filters">
+            <button class="filter-btn" style="border-color:var(--rust);color:var(--rust);" onclick="confirmarLimpezaExtrato()">🗑 Apagar lançamentos importados (período)</button>
+          </div>
+        </div>
         <div class="tablewrap">
           <table class="ledger">
             <thead><tr><th>Data</th><th>Tipo</th><th>Descrição</th><th style="text-align:right">Valor</th><th></th></tr></thead>
-            <tbody id="fluxoTudoBody"></tbody>
+            <tbody id="fluxoExtratoBody"></tbody>
           </table>
         </div>
-        <div class="empty" id="fluxoTudoEmpty" style="display:none;">Nenhum lançamento importado ainda.</div>
+        <div class="empty" id="fluxoExtratoEmpty" style="display:none;">Nenhum lançamento do extrato importado ainda.</div>
+      </div>
+
+      <div class="panel" style="margin-top:20px;">
+        <div class="panel-head"><h2>Lançamentos em dinheiro</h2></div>
+        <div class="tablewrap">
+          <table class="ledger">
+            <thead><tr><th>Data</th><th>Descrição</th><th style="text-align:right">Valor</th><th></th></tr></thead>
+            <tbody id="fluxoDinheiroBody"></tbody>
+          </table>
+        </div>
+        <div class="empty" id="fluxoDinheiroEmpty" style="display:none;">Nenhum lançamento em dinheiro ainda.</div>
       </div>
     </div>
   </div>
@@ -953,6 +969,17 @@
     <div class="modal-actions" style="margin-top:16px;">
       <button class="addbtn" id="edifSalvarBtn" onclick="salvarEdicaoDiferenca()">Salvar</button>
       <button class="cancelbtn" onclick="fecharEditarDiferenca()">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<div id="confirmLimpezaExtratoModal" class="modal-overlay">
+  <div class="modal-box" style="max-width:440px;">
+    <h2>Apagar lançamentos importados?</h2>
+    <p class="modal-sub">Isso apaga todos os lançamentos vindos do extrato bancário (Vendas, Pagamentos, Pix, etc.) do período filtrado atualmente: <strong id="limpezaExtratoPeriodo"></strong>. Os lançamentos em dinheiro <strong>não</strong> são afetados. Essa ação não pode ser desfeita.</p>
+    <div class="modal-actions">
+      <button class="addbtn" style="background:var(--rust);" onclick="confirmarLimpezaExtratoOk()">Apagar</button>
+      <button class="cancelbtn" onclick="fecharConfirmacaoLimpezaExtrato()">Cancelar</button>
     </div>
   </div>
 </div>
@@ -3479,14 +3506,15 @@ function renderFluxoCaixa(){
     `).join('');
   }
 
-  const bodyTudo = document.getElementById('fluxoTudoBody');
-  const emptyTudo = document.getElementById('fluxoTudoEmpty');
-  if(fluxoCache.length===0){
-    bodyTudo.innerHTML = '';
-    emptyTudo.style.display = 'block';
+  const extrato = fluxoCache.filter(l=>l.tipo!=='Dinheiro');
+  const bodyExtrato = document.getElementById('fluxoExtratoBody');
+  const emptyExtrato = document.getElementById('fluxoExtratoEmpty');
+  if(extrato.length===0){
+    bodyExtrato.innerHTML = '';
+    emptyExtrato.style.display = 'block';
   }else{
-    emptyTudo.style.display = 'none';
-    bodyTudo.innerHTML = fluxoCache.map(l=>`
+    emptyExtrato.style.display = 'none';
+    bodyExtrato.innerHTML = extrato.map(l=>`
       <tr>
         <td class="data">${fmtData(l.data)}</td>
         <td>${escapeHtml(l.tipo)}</td>
@@ -3496,6 +3524,67 @@ function renderFluxoCaixa(){
       </tr>
     `).join('');
   }
+
+  const dinheiro = fluxoCache.filter(l=>l.tipo==='Dinheiro');
+  const bodyDinheiro = document.getElementById('fluxoDinheiroBody');
+  const emptyDinheiro = document.getElementById('fluxoDinheiroEmpty');
+  if(dinheiro.length===0){
+    bodyDinheiro.innerHTML = '';
+    emptyDinheiro.style.display = 'block';
+  }else{
+    emptyDinheiro.style.display = 'none';
+    bodyDinheiro.innerHTML = dinheiro.map(l=>`
+      <tr>
+        <td class="data">${fmtData(l.data)}</td>
+        <td class="contato">${escapeHtml(l.descricao || '—')}</td>
+        <td class="valor" style="color:${Number(l.valor)<0?'var(--rust)':'var(--green)'};">${brl(l.valor)}</td>
+        <td><button class="iconbtn del" title="Excluir" onclick="confirmarExclusaoFluxo('${l.id}')">✕</button></td>
+      </tr>
+    `).join('');
+  }
+}
+
+function textoPeriodoFluxo(){
+  const de = document.getElementById('fluxoFiltroDe').value;
+  const ate = document.getElementById('fluxoFiltroAte').value;
+  if(de || ate){
+    return (de ? fmtData(de) : 'início') + ' a ' + (ate ? fmtData(ate) : 'hoje');
+  }
+  return 'Todos os períodos';
+}
+
+function confirmarLimpezaExtrato(){
+  document.getElementById('limpezaExtratoPeriodo').textContent = textoPeriodoFluxo();
+  document.getElementById('confirmLimpezaExtratoModal').style.display = 'flex';
+}
+
+function fecharConfirmacaoLimpezaExtrato(){
+  document.getElementById('confirmLimpezaExtratoModal').style.display = 'none';
+}
+
+async function confirmarLimpezaExtratoOk(){
+  const de = document.getElementById('fluxoFiltroDe').value;
+  const ate = document.getElementById('fluxoFiltroAte').value;
+
+  let query = sb.from('fluxo_caixa_lancamentos').delete().eq('loja', lojaAtual).neq('tipo', 'Dinheiro');
+  if(de) query = query.gte('data', de);
+  if(ate) query = query.lte('data', ate);
+  const { error } = await query;
+
+  let query2 = sb.from('fluxo_caixa_saldos').delete().eq('loja', lojaAtual);
+  if(de) query2 = query2.gte('data', de);
+  if(ate) query2 = query2.lte('data', ate);
+  await query2;
+
+  fecharConfirmacaoLimpezaExtrato();
+
+  if(error){
+    alert('Erro ao apagar: ' + error.message);
+    return;
+  }
+
+  await popularFiltroMesFluxo();
+  await carregarFluxoCaixa();
 }
 
 let excluindoFluxoId = null;
