@@ -2800,7 +2800,7 @@ async function onSelecionarArquivosVendas(fileList){
     const buffer = await file.arrayBuffer();
     const wb = XLSX.read(buffer, { type: 'array' });
     const primeiraAba = wb.SheetNames[0];
-    const linhas = XLSX.utils.sheet_to_json(wb.Sheets[primeiraAba], { header: 1, raw: true });
+    const linhas = XLSX.utils.sheet_to_json(wb.Sheets[primeiraAba], { header: 1, raw: true, defval: '' });
     if(!linhas || linhas.length < 2) continue;
 
     const cabecalho = linhas[0].map(h => String(h||'').trim().toUpperCase());
@@ -3145,7 +3145,7 @@ async function onSelecionarArquivosFluxo(fileList){
       const buffer = await file.arrayBuffer();
       const wb = XLSX.read(buffer, { type: 'array' });
       const primeiraAba = wb.SheetNames[0];
-      const linhas = XLSX.utils.sheet_to_json(wb.Sheets[primeiraAba], { header: 1, raw: true });
+      const linhas = XLSX.utils.sheet_to_json(wb.Sheets[primeiraAba], { header: 1, raw: true, defval: '' });
       if(!linhas || linhas.length===0) continue;
 
       let idxCabecalho = -1, idxData=-1, idxTipo=-1, idxDescricao=-1, idxEntradas=-1, idxSaidas=-1;
@@ -3157,9 +3157,9 @@ async function onSelecionarArquivosFluxo(fileList){
           idxCabecalho = i;
           idxData = dIdx;
           idxTipo = tIdx;
-          idxDescricao = linha.findIndex(h=>h.includes('DESCRI'));
-          idxEntradas = linha.findIndex(h=>h.includes('ENTRADA'));
-          idxSaidas = linha.findIndex(h=>h.includes('SAIDA') || h.includes('SAÍDA'));
+          idxDescricao = linha.findIndex(h=>(h||'').includes('DESCRI'));
+          idxEntradas = linha.findIndex(h=>(h||'').includes('ENTRADA'));
+          idxSaidas = linha.findIndex(h=>(h||'').includes('SAIDA') || (h||'').includes('SAÍDA'));
           break;
         }
       }
