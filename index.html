@@ -760,7 +760,13 @@
       </div>
 
       <div class="panel">
-        <div class="panel-head"><h2>Por categoria</h2></div>
+        <div class="panel-head">
+          <h2>Por categoria</h2>
+          <div class="filters">
+            <button class="filter-btn foto-btn" onclick="exportarExcelVendasCategoria()" title="Baixar como Excel">📊 Excel</button>
+            <button class="filter-btn foto-btn" onclick="exportarPdfVendasCategoria()" title="Baixar como PDF">📄 PDF</button>
+          </div>
+        </div>
         <div class="tablewrap">
           <table class="ledger">
             <thead id="vendasCategoriaHead"></thead>
@@ -1026,8 +1032,11 @@ function trocarLoja(l){
     abrirDiferencaCaixa();
   }
   if(viewAtual === 'vendasComCusto'){
-    popularFiltroMesVendas();
-    carregarVendas();
+    popularFiltroMesVendas().then(()=>{
+      const mesAtual = new Date().toISOString().slice(0,7);
+      document.getElementById('vendasFiltroMes').value = mesAtual;
+      mudarMesVendas(mesAtual);
+    });
   }
 }
 
@@ -2632,7 +2641,9 @@ let vendasArquivosParsed = [];
 
 async function abrirVendas(){
   await popularFiltroMesVendas();
-  await carregarVendas();
+  const mesAtual = new Date().toISOString().slice(0,7);
+  document.getElementById('vendasFiltroMes').value = mesAtual;
+  mudarMesVendas(mesAtual);
 }
 
 async function popularFiltroMesVendas(){
@@ -2841,6 +2852,87 @@ function limparFiltroVendas(){
 
 let vendasCatOrdenarPor = 'vendido';
 let vendasCatOrdemAsc = false;
+let vendasCategoriaAtual = [];
+
+function textoPeriodoVendas(){
+  const de = document.getElementById('vendasFiltroDe').value;
+  const ate = document.getElementById('vendasFiltroAte').value;
+  if(de || ate){
+    return (de ? fmtData(de) : 'início') + ' a ' + (ate ? fmtData(ate) : 'hoje');
+  }
+  return 'Todos os períodos';
+}
+
+function exportarExcelVendasCategoria(){
+  if(!window.XLSX){
+    alert('Não foi possível carregar o recurso de Excel. Recarregue a página e tente de novo.');
+    return;
+  }
+  if(vendasCategoriaAtual.length===0){
+    alert('Não há dados para exportar com o período atual.');
+    return;
+  }
+  const linhas = vendasCategoriaAtual.map(c=>({
+    'Categoria': c.nome,
+    'Vendido': brl(c.vendido),
+    'Custo': brl(c.custo),
+    'Lucro': brl(c.lucro),
+    'Margem': c.margem.toFixed(1) + '%'
+  }));
+  const planilha = XLSX.utils.json_to_sheet(linhas);
+  planilha['!cols'] = [{wch:24},{wch:14},{wch:14},{wch:14},{wch:10}];
+  const livro = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(livro, planilha, 'Vendas por Categoria');
+
+  const dataArquivo = new Date().toISOString().slice(0,10);
+  const nomeLoja = (NOMES_LOJA[lojaAtual]||'').toLowerCase().replace(' ','');
+  XLSX.writeFile(livro, 'vendas-por-categoria-' + nomeLoja + '-' + dataArquivo + '.xlsx');
+}
+
+function exportarPdfVendasCategoria(){
+  if(!window.jspdf || !window.jspdf.jsPDF){
+    alert('Não foi possível carregar o recurso de PDF. Recarregue a página e tente de novo.');
+    return;
+  }
+  if(vendasCategoriaAtual.length===0){
+    alert('Não há dados para exportar com o período atual.');
+    return;
+  }
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF();
+
+  const agora = new Date();
+  const dataHora = fmtData(agora.toISOString().slice(0,10)) + ' ' + agora.toTimeString().slice(0,5);
+  const nomeLoja = NOMES_LOJA[lojaAtual] || '';
+
+  doc.setFontSize(16);
+  doc.text('Vendas por Categoria — ' + nomeLoja, 14, 18);
+  doc.setFontSize(10);
+  doc.setTextColor(120);
+  doc.text('Período: ' + textoPeriodoVendas() + '   ·   Gerado em ' + dataHora, 14, 25);
+
+  const linhas = vendasCategoriaAtual.map(c=>[
+    c.nome, brl(c.vendido), brl(c.custo), brl(c.lucro), c.margem.toFixed(1) + '%'
+  ]);
+  const totalVendido = vendasCategoriaAtual.reduce((s,c)=>s+c.vendido, 0);
+  const totalCusto = vendasCategoriaAtual.reduce((s,c)=>s+c.custo, 0);
+  const totalLucro = totalVendido - totalCusto;
+  const margemGeral = totalVendido>0 ? (totalLucro/totalVendido*100) : 0;
+
+  doc.autoTable({
+    startY: 32,
+    head: [['Categoria','Vendido','Custo','Lucro','Margem']],
+    body: linhas,
+    foot: [['TOTAL', brl(totalVendido), brl(totalCusto), brl(totalLucro), margemGeral.toFixed(1) + '%']],
+    styles: { fontSize: 9, cellPadding: 3 },
+    headStyles: { fillColor: [38, 51, 43] },
+    footStyles: { fillColor: [233, 225, 203], textColor: 20, fontStyle: 'bold' }
+  });
+
+  const dataArquivo = agora.toISOString().slice(0,10);
+  const nomeArquivo = nomeLoja.toLowerCase().replace(' ','');
+  doc.save('vendas-por-categoria-' + nomeArquivo + '-' + dataArquivo + '.pdf');
+}
 
 const CAMPOS_VENDAS_CAT = [
   { chave:'nome', label:'Categoria', align:'left' },
@@ -2900,6 +2992,7 @@ function renderVendasDashboard(){
     return vendasCatOrdemAsc ? va-vb : vb-va;
   });
 
+  vendasCategoriaAtual = listaCategorias;
   renderVendasCategoriaHead();
 
   const bodyCat = document.getElementById('vendasCategoriaBody');
