@@ -3138,62 +3138,71 @@ async function onSelecionarArquivosFluxo(fileList){
     return;
   }
 
-  let todasLinhas = [];
+  try{
+    let todasLinhas = [];
 
-  for(const file of arquivos){
-    const buffer = await file.arrayBuffer();
-    const wb = XLSX.read(buffer, { type: 'array' });
-    const primeiraAba = wb.SheetNames[0];
-    const linhas = XLSX.utils.sheet_to_json(wb.Sheets[primeiraAba], { header: 1, raw: true });
-    if(!linhas || linhas.length===0) continue;
+    for(const file of arquivos){
+      const buffer = await file.arrayBuffer();
+      const wb = XLSX.read(buffer, { type: 'array' });
+      const primeiraAba = wb.SheetNames[0];
+      const linhas = XLSX.utils.sheet_to_json(wb.Sheets[primeiraAba], { header: 1, raw: true });
+      if(!linhas || linhas.length===0) continue;
 
-    let idxCabecalho = -1, idxData=-1, idxTipo=-1, idxDescricao=-1, idxEntradas=-1, idxSaidas=-1;
-    for(let i=0; i<Math.min(linhas.length,15); i++){
-      const linha = (linhas[i]||[]).map(c=>String(c||'').trim().toUpperCase());
-      const dIdx = linha.indexOf('DATA');
-      const tIdx = linha.indexOf('TIPO');
-      if(dIdx>-1 && tIdx>-1){
-        idxCabecalho = i;
-        idxData = dIdx;
-        idxTipo = tIdx;
-        idxDescricao = linha.findIndex(h=>h.includes('DESCRI'));
-        idxEntradas = linha.findIndex(h=>h.includes('ENTRADA'));
-        idxSaidas = linha.findIndex(h=>h.includes('SAIDA') || h.includes('SAÍDA'));
-        break;
+      let idxCabecalho = -1, idxData=-1, idxTipo=-1, idxDescricao=-1, idxEntradas=-1, idxSaidas=-1;
+      for(let i=0; i<Math.min(linhas.length,15); i++){
+        const linha = (linhas[i]||[]).map(c=>String(c||'').trim().toUpperCase());
+        const dIdx = linha.indexOf('DATA');
+        const tIdx = linha.indexOf('TIPO');
+        if(dIdx>-1 && tIdx>-1){
+          idxCabecalho = i;
+          idxData = dIdx;
+          idxTipo = tIdx;
+          idxDescricao = linha.findIndex(h=>h.includes('DESCRI'));
+          idxEntradas = linha.findIndex(h=>h.includes('ENTRADA'));
+          idxSaidas = linha.findIndex(h=>h.includes('SAIDA') || h.includes('SAÍDA'));
+          break;
+        }
+      }
+      if(idxCabecalho===-1){
+        console.warn('Não achei cabeçalho (Data + Tipo) no arquivo:', file.name);
+        continue;
+      }
+
+      for(let i=idxCabecalho+1; i<linhas.length; i++){
+        const linha = linhas[i];
+        if(!linha || linha.length===0) continue;
+        const tipo = String(linha[idxTipo]||'').trim();
+        if(!tipo || tipo.toUpperCase().includes('SALDO DO DIA')) continue;
+        const dataTexto = String(linha[idxData]||'').trim();
+        const data = parseDataBR(dataTexto);
+        if(!data) continue;
+        const descricao = idxDescricao>-1 ? String(linha[idxDescricao]||'').trim() : '';
+        const entradaVal = idxEntradas>-1 ? parseNumeroVenda(linha[idxEntradas]) : null;
+        const saidaVal = idxSaidas>-1 ? parseNumeroVenda(linha[idxSaidas]) : null;
+        let valor = null;
+        if(entradaVal!==null && entradaVal!==0) valor = Math.abs(entradaVal);
+        else if(saidaVal!==null && saidaVal!==0) valor = -Math.abs(saidaVal);
+        if(valor===null) continue;
+        todasLinhas.push({ data, tipo, descricao, valor });
       }
     }
-    if(idxCabecalho===-1) continue;
 
-    for(let i=idxCabecalho+1; i<linhas.length; i++){
-      const linha = linhas[i];
-      if(!linha || linha.length===0) continue;
-      const tipo = String(linha[idxTipo]||'').trim();
-      if(!tipo || tipo.toUpperCase().includes('SALDO DO DIA')) continue;
-      const dataTexto = String(linha[idxData]||'').trim();
-      const data = parseDataBR(dataTexto);
-      if(!data) continue;
-      const descricao = idxDescricao>-1 ? String(linha[idxDescricao]||'').trim() : '';
-      const entradaVal = idxEntradas>-1 ? parseNumeroVenda(linha[idxEntradas]) : null;
-      const saidaVal = idxSaidas>-1 ? parseNumeroVenda(linha[idxSaidas]) : null;
-      let valor = null;
-      if(entradaVal!==null && entradaVal!==0) valor = Math.abs(entradaVal);
-      else if(saidaVal!==null && saidaVal!==0) valor = -Math.abs(saidaVal);
-      if(valor===null) continue;
-      todasLinhas.push({ data, tipo, descricao, valor });
+    if(todasLinhas.length===0){
+      alert('Não encontrei lançamentos válidos nos arquivos selecionados (esperava colunas Data, Tipo, Descrição, Entradas, Saídas).');
+      document.getElementById('fluxoFileInput').value = '';
+      return;
     }
-  }
 
-  if(todasLinhas.length===0){
-    alert('Não encontrei lançamentos válidos nos arquivos selecionados (esperava colunas Data, Tipo, Descrição, Entradas, Saídas).');
+    fluxoImportParsed = todasLinhas;
+    const datas = todasLinhas.map(l=>l.data).sort();
+    document.getElementById('fluxoPreviewResumo').textContent =
+      todasLinhas.length + ' lançamentos encontrados, de ' + fmtData(datas[0]) + ' até ' + fmtData(datas[datas.length-1]) + '.';
+    document.getElementById('fluxoPreviewWrap').style.display = 'block';
+  }catch(e){
+    console.error('Erro ao processar arquivo(s) de fluxo de caixa:', e);
+    alert('Não foi possível ler o(s) arquivo(s). Detalhe: ' + (e && e.message ? e.message : e));
     document.getElementById('fluxoFileInput').value = '';
-    return;
   }
-
-  fluxoImportParsed = todasLinhas;
-  const datas = todasLinhas.map(l=>l.data).sort();
-  document.getElementById('fluxoPreviewResumo').textContent =
-    todasLinhas.length + ' lançamentos encontrados, de ' + fmtData(datas[0]) + ' até ' + fmtData(datas[datas.length-1]) + '.';
-  document.getElementById('fluxoPreviewWrap').style.display = 'block';
 }
 
 function cancelarImportFluxo(){
