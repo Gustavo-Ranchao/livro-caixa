@@ -794,9 +794,18 @@
     </div>
 
     <div id="viewFluxoCaixa" style="display:none;">
-      <div class="app-tabs" style="margin-bottom:20px;">
-        <button class="app-tab active" id="fluxoSubTabExtrato" onclick="mudarSubAbaFluxo('extrato')">📊 Extrato Bancário</button>
-        <button class="app-tab" id="fluxoSubTabDinheiro" onclick="mudarSubAbaFluxo('dinheiro')">💵 Lançamentos em Dinheiro</button>
+      <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;margin-bottom:20px;">
+        <div class="metric" style="flex:0 0 auto;padding:10px 16px;margin-bottom:0;">
+          <div class="lbl">Total de entradas e saídas</div>
+          <div style="display:flex;gap:14px;margin-top:2px;">
+            <span style="color:var(--green);font-family:var(--font-mono);font-weight:600;font-size:15px;" id="fluxoCombinadoEntradas">R$ 0,00</span>
+            <span style="color:var(--rust);font-family:var(--font-mono);font-weight:600;font-size:15px;" id="fluxoCombinadoSaidas">R$ 0,00</span>
+          </div>
+        </div>
+        <div class="app-tabs" style="margin-bottom:0;">
+          <button class="app-tab active" id="fluxoSubTabExtrato" onclick="mudarSubAbaFluxo('extrato')">📊 Extrato Bancário</button>
+          <button class="app-tab" id="fluxoSubTabDinheiro" onclick="mudarSubAbaFluxo('dinheiro')">💵 Lançamentos em Dinheiro</button>
+        </div>
       </div>
 
       <div id="fluxoSubExtrato">
@@ -3561,8 +3570,9 @@ function classificarFormaPagamentoVenda(descricao){
 }
 
 function renderFluxoCaixa(){
-  const totalEntradas = fluxoCache.filter(l=>Number(l.valor)>0).reduce((s,l)=>s+Number(l.valor), 0);
-  const totalSaidas = fluxoCache.filter(l=>Number(l.valor)<0).reduce((s,l)=>s+Math.abs(Number(l.valor)), 0);
+  const somenteExtrato = fluxoCache.filter(l=>l.tipo!=='Dinheiro');
+  const totalEntradas = somenteExtrato.filter(l=>Number(l.valor)>0).reduce((s,l)=>s+Number(l.valor), 0);
+  const totalSaidas = somenteExtrato.filter(l=>Number(l.valor)<0).reduce((s,l)=>s+Math.abs(Number(l.valor)), 0);
   const saldo = totalEntradas - totalSaidas;
 
   document.getElementById('fluxoTotalEntradas').textContent = brl(totalEntradas);
@@ -3638,6 +3648,9 @@ function renderFluxoCaixa(){
   document.getElementById('dinheiroTotalEntradas').textContent = brl(dinheiroEntradas);
   document.getElementById('dinheiroTotalSaidas').textContent = brl(dinheiroSaidas);
   document.getElementById('dinheiroSaldoLiquido').textContent = brl(dinheiroEntradas - dinheiroSaidas);
+
+  document.getElementById('fluxoCombinadoEntradas').textContent = brl(totalEntradas + dinheiroEntradas);
+  document.getElementById('fluxoCombinadoSaidas').textContent = brl(totalSaidas + dinheiroSaidas);
 
   const bodyDinheiro = document.getElementById('fluxoDinheiroBody');
   const emptyDinheiro = document.getElementById('fluxoDinheiroEmpty');
