@@ -886,7 +886,12 @@
         </div>
 
         <div class="panel" style="margin-bottom:20px;">
-          <div class="panel-head"><h2>Novo lançamento em dinheiro</h2></div>
+          <div class="panel-head">
+            <h2>Novo lançamento em dinheiro</h2>
+            <div class="filters">
+              <button class="filter-btn" onclick="sincronizarHistoricoContasDinheiro()" title="Traz contas de Contas a Pagar já pagas em dinheiro que ainda não estão aqui">🔄 Sincronizar contas pagas em dinheiro</button>
+            </div>
+          </div>
           <div class="bh-form" style="grid-template-columns:1fr 1.6fr 1fr 1fr auto;">
             <div class="fld"><label>Tipo</label>
               <div class="tipo-toggle" id="dinheiroTipoToggle" style="margin:0;">
@@ -1579,7 +1584,25 @@ async function togglePago(id){
     it.status = novoStatus;
     it.data_pagamento = novaData;
     render();
+    if(novoStatus==='pago' && it.forma_pagamento==='dinheiro'){
+      await sincronizarPagamentoDinheiro(it);
+    }else if(novoStatus==='pendente'){
+      await sb.from('fluxo_caixa_lancamentos').delete().eq('lancamento_origem_id', id);
+    }
   }
+}
+
+async function sincronizarPagamentoDinheiro(item){
+  const { data: existente } = await sb.from('fluxo_caixa_lancamentos').select('id').eq('lancamento_origem_id', item.id).maybeSingle();
+  if(existente) return;
+  await sb.from('fluxo_caixa_lancamentos').insert({
+    loja: item.loja,
+    data: item.data_pagamento || todayStr(),
+    tipo: 'Dinheiro',
+    descricao: item.contato || item.descricao,
+    valor: -Math.abs(Number(item.valor)),
+    lancamento_origem_id: item.id
+  });
 }
 
 async function setFormaPagamento(id, forma){
@@ -1799,6 +1822,11 @@ async function confirmarPagamentoCaixaOk(){
       if(idx>-1) lancamentos[idx] = upd;
     });
     render();
+    if(forma==='dinheiro'){
+      for(const item of atualizados){
+        await sincronizarPagamentoDinheiro(item);
+      }
+    }
   }
   fecharConfirmacaoPagamentoCaixa();
 }
@@ -3251,6 +3279,43 @@ let dinheiroTipoAtual = 'entrada';
 function setDinheiroTipo(t){
   dinheiroTipoAtual = t;
   document.querySelectorAll('#dinheiroTipoToggle .tipo-btn').forEach(b=>b.classList.toggle('active', b.dataset.tipo===t));
+}
+
+async function sincronizarHistoricoContasDinheiro(){
+  const { data: pagas, error } = await sb.from('lancamentos')
+    .select('*')
+    .eq('loja', lojaAtual)
+    .eq('tipo', 'pagar')
+    .eq('status', 'pago')
+    .eq('forma_pagamento', 'dinheiro');
+
+  if(error){
+    alert('Erro ao buscar contas pagas em dinheiro: ' + error.message);
+    return;
+  }
+  if(!pagas || pagas.length===0){
+    alert('Nenhuma conta paga em dinheiro encontrada em Contas a Pagar.');
+    return;
+  }
+
+  let sincronizadas = 0;
+  for(const item of pagas){
+    const { data: existente } = await sb.from('fluxo_caixa_lancamentos').select('id').eq('lancamento_origem_id', item.id).maybeSingle();
+    if(existente) continue;
+    const { error: erroInsert } = await sb.from('fluxo_caixa_lancamentos').insert({
+      loja: item.loja,
+      data: item.data_pagamento || item.vencimento,
+      tipo: 'Dinheiro',
+      descricao: item.contato || item.descricao,
+      valor: -Math.abs(Number(item.valor)),
+      lancamento_origem_id: item.id
+    });
+    if(!erroInsert) sincronizadas++;
+  }
+
+  alert(sincronizadas + ' conta(s) sincronizada(s) com sucesso.' + (sincronizadas < pagas.length ? ' (as demais já estavam sincronizadas)' : ''));
+  await popularFiltroMesFluxo();
+  await carregarFluxoCaixa();
 }
 
 async function salvarLancamentoDinheiro(){
