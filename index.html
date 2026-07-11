@@ -152,6 +152,12 @@
   .comp-toolbar{display:flex;gap:12px;align-items:center;margin-bottom:20px;flex-wrap:wrap;}
   .comp-toolbar input[type="month"]{font-family:var(--font-sans);font-size:13px;padding:9px 12px;border:1px solid var(--paper3);border-radius:8px;background:#fff;color:var(--ink);}
   .comp-upload{display:block;border:2px dashed var(--line);border-radius:10px;padding:24px;text-align:center;color:var(--muted);font-size:13px;cursor:pointer;background:#fff;transition:.15s;margin-bottom:20px;}
+
+  .vendas-toolbar{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:20px;background:#fff;border:1px solid var(--paper3);border-radius:10px;padding:16px 20px;}
+  .vendas-toolbar label{font-size:11px;text-transform:uppercase;letter-spacing:0.05em;color:var(--muted);}
+  .vendas-toolbar input[type="date"]{font-family:var(--font-sans);font-size:13px;padding:8px 10px;border:1px solid var(--line);border-radius:6px;background:var(--paper);color:var(--ink);}
+  .vendas-file-label{display:inline-flex;align-items:center;gap:6px;font-family:var(--font-sans);font-size:13px;font-weight:500;padding:9px 16px;border-radius:6px;background:var(--ink);color:var(--paper);cursor:pointer;}
+  .vendas-file-label:hover{opacity:0.9;}
   .comp-upload:hover, .comp-upload.arrastando{border-color:var(--gold);color:var(--gold);background:#fbf3e0;}
   .comp-upload input{display:none;}
   .comp-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:16px;}
@@ -341,6 +347,12 @@
             <button class="nav-sub-item" data-view="despesasFixas" onclick="mudarViewPrincipal('despesasFixas')">Despesas fixas</button>
             <button class="nav-sub-item" data-view="comprovantes" onclick="mudarViewPrincipal('comprovantes')">Comprovantes</button>
             <button class="nav-sub-item" data-view="diferencaCaixa" onclick="mudarViewPrincipal('diferencaCaixa')">Diferença de Caixa</button>
+          </div>
+        </div>
+        <div class="nav-group">
+          <button class="nav-group-header" id="navHeaderVendas" onclick="toggleNavGroup('vendas')">📊 Vendas <span class="chevron">▾</span></button>
+          <div class="nav-sub" id="navGroupVendas">
+            <button class="nav-sub-item" data-view="vendasComCusto" onclick="mudarViewPrincipal('vendasComCusto')">Vendas com Custo</button>
           </div>
         </div>
         <div class="nav-group">
@@ -708,6 +720,60 @@
         <div class="empty" id="difEmpty" style="display:none;">Nenhum registro ainda.</div>
       </div>
     </div>
+
+    <div id="viewVendasComCusto" style="display:none;">
+      <div class="vendas-toolbar">
+        <label>Data das vendas</label>
+        <input id="vendasDataImport" type="date">
+        <label class="vendas-file-label">
+          📁 Selecionar arquivo .xlsx
+          <input id="vendasFileInput" type="file" accept=".xlsx,.xls" style="display:none;" onchange="onSelecionarArquivoVendas(this.files[0])">
+        </label>
+      </div>
+
+      <div id="vendasPreviewWrap" class="panel" style="display:none;margin-bottom:20px;padding:18px 20px;">
+        <p id="vendasPreviewResumo" style="font-size:13px;color:var(--muted);margin:0 0 12px;"></p>
+        <div class="modal-actions">
+          <button class="addbtn" id="vendasImportConfirmBtn" style="width:auto;" onclick="confirmarImportVendas()">Confirmar importação</button>
+          <button class="cancelbtn" onclick="cancelarImportVendas()">Cancelar</button>
+        </div>
+      </div>
+
+      <div class="bh-filtro-data" style="margin-bottom:20px;">
+        <label>De</label>
+        <input id="vendasFiltroDe" type="date" onchange="carregarVendas()">
+        <label>Até</label>
+        <input id="vendasFiltroAte" type="date" onchange="carregarVendas()">
+        <button type="button" class="filter-btn" onclick="limparFiltroVendas()">limpar</button>
+      </div>
+
+      <div class="bh-resumo">
+        <div class="metric"><div class="lbl">Total vendido</div><div class="val" id="vendasTotalVendido">R$ 0,00</div></div>
+        <div class="metric"><div class="lbl">Total custo</div><div class="val" id="vendasTotalCusto">R$ 0,00</div></div>
+        <div class="metric"><div class="lbl">Lucro total</div><div class="val" id="vendasLucroTotal" style="color:var(--green);">R$ 0,00</div></div>
+        <div class="metric"><div class="lbl">Margem média</div><div class="val" id="vendasMargemMedia">0%</div></div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-head"><h2>Por categoria</h2></div>
+        <div class="tablewrap">
+          <table class="ledger">
+            <thead><tr><th>Categoria</th><th style="text-align:right">Vendido</th><th style="text-align:right">Custo</th><th style="text-align:right">Lucro</th><th style="text-align:right">Margem</th></tr></thead>
+            <tbody id="vendasCategoriaBody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="panel" style="margin-top:20px;">
+        <div class="panel-head"><h2>Por produto</h2></div>
+        <div class="tablewrap">
+          <table class="ledger">
+            <thead><tr><th>Produto</th><th>Categoria</th><th style="text-align:right">Vendido</th><th style="text-align:right">Custo</th><th style="text-align:right">Lucro</th><th style="text-align:right">Margem</th></tr></thead>
+            <tbody id="vendasProdutoBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -953,6 +1019,9 @@ function trocarLoja(l){
   }
   if(viewAtual === 'diferencaCaixa'){
     abrirDiferencaCaixa();
+  }
+  if(viewAtual === 'vendasComCusto'){
+    carregarVendas();
   }
 }
 
@@ -1977,22 +2046,35 @@ function setEscala(e){
   }
 }
 
-const VIEWS = ['contasPagar','despesasFixas','comprovantes','diferencaCaixa','bancoHoras','colaboradores'];
+const VIEWS = ['contasPagar','despesasFixas','comprovantes','diferencaCaixa','vendasComCusto','bancoHoras','colaboradores'];
 let colabCarregado = false;
 
+const NAV_GROUPS = {
+  financeiro: { header: 'navHeaderFinanceiro', sub: 'navGroupFinanceiro' },
+  vendas: { header: 'navHeaderVendas', sub: 'navGroupVendas' },
+  config: { header: 'navHeaderConfig', sub: 'navGroupConfig' }
+};
+
 function toggleNavGroup(grupo){
-  const header = document.getElementById(grupo==='financeiro' ? 'navHeaderFinanceiro' : 'navHeaderConfig');
-  const sub = document.getElementById(grupo==='financeiro' ? 'navGroupFinanceiro' : 'navGroupConfig');
+  const g = NAV_GROUPS[grupo];
+  const sub = document.getElementById(g.sub);
+  const header = document.getElementById(g.header);
   const abrir = !sub.classList.contains('aberto');
   sub.classList.toggle('aberto', abrir);
   header.classList.toggle('aberto', abrir);
+}
+
+function abrirGrupoNav(grupo){
+  const g = NAV_GROUPS[grupo];
+  document.getElementById(g.sub).classList.add('aberto');
+  document.getElementById(g.header).classList.add('aberto');
 }
 
 async function mudarViewPrincipal(view){
   viewAtual = view;
 
   VIEWS.forEach(v=>{
-    const idMap = { contasPagar:'viewContasPagar', despesasFixas:'viewDespesasFixas', comprovantes:'viewComprovantes', diferencaCaixa:'viewDiferencaCaixa', bancoHoras:'viewBancoHoras', colaboradores:'viewColaboradores' };
+    const idMap = { contasPagar:'viewContasPagar', despesasFixas:'viewDespesasFixas', comprovantes:'viewComprovantes', diferencaCaixa:'viewDiferencaCaixa', vendasComCusto:'viewVendasComCusto', bancoHoras:'viewBancoHoras', colaboradores:'viewColaboradores' };
     document.getElementById(idMap[v]).style.display = (v===view) ? '' : 'none';
   });
 
@@ -2001,25 +2083,23 @@ async function mudarViewPrincipal(view){
   document.getElementById('navHeaderBancoHoras').classList.toggle('active-topo', view==='bancoHoras');
 
   if(view==='despesasFixas'){
-    document.getElementById('navGroupFinanceiro').classList.add('aberto');
-    document.getElementById('navHeaderFinanceiro').classList.add('aberto');
+    abrirGrupoNav('financeiro');
     await abrirFixas();
   }else if(view==='comprovantes'){
-    document.getElementById('navGroupFinanceiro').classList.add('aberto');
-    document.getElementById('navHeaderFinanceiro').classList.add('aberto');
+    abrirGrupoNav('financeiro');
     await abrirComprovantes();
   }else if(view==='diferencaCaixa'){
-    document.getElementById('navGroupFinanceiro').classList.add('aberto');
-    document.getElementById('navHeaderFinanceiro').classList.add('aberto');
+    abrirGrupoNav('financeiro');
     await abrirDiferencaCaixa();
   }else if(view==='contasPagar'){
-    document.getElementById('navGroupFinanceiro').classList.add('aberto');
-    document.getElementById('navHeaderFinanceiro').classList.add('aberto');
+    abrirGrupoNav('financeiro');
+  }else if(view==='vendasComCusto'){
+    abrirGrupoNav('vendas');
+    await abrirVendas();
   }else if(view==='bancoHoras'){
     if(!bhCarregado) await carregarFuncionarios();
   }else if(view==='colaboradores'){
-    document.getElementById('navGroupConfig').classList.add('aberto');
-    document.getElementById('navHeaderConfig').classList.add('aberto');
+    abrirGrupoNav('config');
     await carregarColaboradores();
   }
 }
@@ -2537,6 +2617,224 @@ async function confirmarExclusaoDiferencaOk(){
     renderDiferencasCaixa();
   }
   fecharConfirmacaoDiferenca();
+}
+
+/* ================= VENDAS COM CUSTO ================= */
+
+let vendasCache = [];
+let vendasImportParsed = [];
+
+async function abrirVendas(){
+  if(!document.getElementById('vendasDataImport').value){
+    document.getElementById('vendasDataImport').value = todayStr();
+  }
+  await carregarVendas();
+}
+
+function parseNumeroVenda(v){
+  if(typeof v === 'number') return v;
+  if(v===null || v===undefined || v==='') return null;
+  let s = String(v).trim();
+  s = s.replace(/[^\d,.\-]/g, '');
+  if(!s) return null;
+  if(s.includes(',') && s.includes('.')){
+    s = s.replace(/\./g,'').replace(',', '.');
+  }else if(s.includes(',')){
+    s = s.replace(',', '.');
+  }
+  const n = parseFloat(s);
+  return isNaN(n) ? null : n;
+}
+
+async function onSelecionarArquivoVendas(file){
+  if(!file) return;
+  if(!window.XLSX){
+    alert('Não foi possível carregar o leitor de planilhas. Recarregue a página e tente de novo.');
+    return;
+  }
+  const dataImport = document.getElementById('vendasDataImport').value;
+  if(!dataImport){
+    alert('Escolha a data das vendas antes de selecionar o arquivo.');
+    document.getElementById('vendasFileInput').value = '';
+    return;
+  }
+
+  const buffer = await file.arrayBuffer();
+  const wb = XLSX.read(buffer, { type: 'array' });
+  const primeiraAba = wb.SheetNames[0];
+  const linhas = XLSX.utils.sheet_to_json(wb.Sheets[primeiraAba], { header: 1, raw: true });
+
+  if(!linhas || linhas.length < 2){
+    alert('Não encontrei dados nessa planilha.');
+    document.getElementById('vendasFileInput').value = '';
+    return;
+  }
+
+  const cabecalho = linhas[0].map(h => String(h||'').trim().toUpperCase());
+  const idxProduto = cabecalho.indexOf('PRODUTO');
+  const idxGrupo = cabecalho.indexOf('GRUPO');
+  const idxValor = cabecalho.indexOf('VALOR VENDAS');
+  const idxCusto = cabecalho.indexOf('CUSTO');
+
+  if(idxProduto===-1 || idxValor===-1 || idxCusto===-1){
+    alert('Não encontrei as colunas esperadas (Produto, Valor Vendas, Custo) nessa planilha.');
+    document.getElementById('vendasFileInput').value = '';
+    return;
+  }
+
+  vendasImportParsed = [];
+  for(let i=1; i<linhas.length; i++){
+    const linha = linhas[i];
+    if(!linha || linha.length===0) continue;
+    const produto = String(linha[idxProduto]||'').trim();
+    const categoria = idxGrupo>-1 ? String(linha[idxGrupo]||'').trim() : '';
+    const valor = parseNumeroVenda(linha[idxValor]);
+    const custo = parseNumeroVenda(linha[idxCusto]);
+    if(!produto || valor===null || custo===null) continue;
+    vendasImportParsed.push({ produto, categoria, valor, custo });
+  }
+
+  if(vendasImportParsed.length===0){
+    alert('Nenhuma linha válida encontrada nessa planilha.');
+    document.getElementById('vendasFileInput').value = '';
+    return;
+  }
+
+  document.getElementById('vendasPreviewResumo').textContent =
+    vendasImportParsed.length + ' itens de venda encontrados para o dia ' + fmtData(dataImport) + '.';
+  document.getElementById('vendasPreviewWrap').style.display = 'block';
+}
+
+function cancelarImportVendas(){
+  document.getElementById('vendasPreviewWrap').style.display = 'none';
+  document.getElementById('vendasFileInput').value = '';
+  vendasImportParsed = [];
+}
+
+async function confirmarImportVendas(){
+  const dataImport = document.getElementById('vendasDataImport').value;
+  if(vendasImportParsed.length===0) return;
+
+  const btn = document.getElementById('vendasImportConfirmBtn');
+  btn.disabled = true;
+  btn.textContent = 'Importando…';
+
+  const registros = vendasImportParsed.map(v=>({
+    loja: lojaAtual,
+    data: dataImport,
+    produto: v.produto,
+    categoria: v.categoria || null,
+    valor_venda: v.valor,
+    custo: v.custo
+  }));
+
+  const tamanhoLote = 500;
+  let erroGeral = null;
+  for(let i=0; i<registros.length; i+=tamanhoLote){
+    const lote = registros.slice(i, i+tamanhoLote);
+    const { error } = await sb.from('vendas_itens').insert(lote);
+    if(error){ erroGeral = error; break; }
+  }
+
+  btn.disabled = false;
+  btn.textContent = 'Confirmar importação';
+
+  if(erroGeral){
+    alert('Erro ao importar: ' + erroGeral.message);
+    return;
+  }
+
+  cancelarImportVendas();
+  await carregarVendas();
+}
+
+async function carregarVendas(){
+  const de = document.getElementById('vendasFiltroDe').value;
+  const ate = document.getElementById('vendasFiltroAte').value;
+  let query = sb.from('vendas_itens').select('*').eq('loja', lojaAtual);
+  if(de) query = query.gte('data', de);
+  if(ate) query = query.lte('data', ate);
+  const { data, error } = await query.order('data');
+  if(error){
+    console.error('Erro ao carregar vendas:', error);
+    vendasCache = [];
+  }else{
+    vendasCache = data || [];
+  }
+  renderVendasDashboard();
+}
+
+function limparFiltroVendas(){
+  document.getElementById('vendasFiltroDe').value = '';
+  document.getElementById('vendasFiltroAte').value = '';
+  carregarVendas();
+}
+
+function renderVendasDashboard(){
+  const totalVendido = vendasCache.reduce((s,v)=>s+Number(v.valor_venda), 0);
+  const totalCusto = vendasCache.reduce((s,v)=>s+Number(v.custo), 0);
+  const lucro = totalVendido - totalCusto;
+  const margem = totalVendido>0 ? (lucro/totalVendido*100) : 0;
+
+  document.getElementById('vendasTotalVendido').textContent = brl(totalVendido);
+  document.getElementById('vendasTotalCusto').textContent = brl(totalCusto);
+  document.getElementById('vendasLucroTotal').textContent = brl(lucro);
+  document.getElementById('vendasMargemMedia').textContent = margem.toFixed(1) + '%';
+
+  const porCategoria = {};
+  vendasCache.forEach(v=>{
+    const cat = v.categoria || 'Sem categoria';
+    if(!porCategoria[cat]) porCategoria[cat] = { vendido:0, custo:0 };
+    porCategoria[cat].vendido += Number(v.valor_venda);
+    porCategoria[cat].custo += Number(v.custo);
+  });
+  const listaCategorias = Object.entries(porCategoria).map(([nome, d])=>({
+    nome, vendido: d.vendido, custo: d.custo, lucro: d.vendido-d.custo,
+    margem: d.vendido>0 ? ((d.vendido-d.custo)/d.vendido*100) : 0
+  })).sort((a,b)=>b.vendido-a.vendido);
+
+  const bodyCat = document.getElementById('vendasCategoriaBody');
+  if(listaCategorias.length===0){
+    bodyCat.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--muted);font-style:italic;padding:20px;">Nenhuma venda no período.</td></tr>';
+  }else{
+    bodyCat.innerHTML = listaCategorias.map(c=>`
+      <tr>
+        <td>${escapeHtml(c.nome)}</td>
+        <td class="valor">${brl(c.vendido)}</td>
+        <td class="valor">${brl(c.custo)}</td>
+        <td class="valor" style="color:var(--green);">${brl(c.lucro)}</td>
+        <td class="valor">${c.margem.toFixed(1)}%</td>
+      </tr>
+    `).join('');
+  }
+
+  const porProduto = {};
+  vendasCache.forEach(v=>{
+    const chave = v.produto;
+    if(!porProduto[chave]) porProduto[chave] = { categoria: v.categoria, vendido:0, custo:0 };
+    porProduto[chave].vendido += Number(v.valor_venda);
+    porProduto[chave].custo += Number(v.custo);
+  });
+  const listaProdutos = Object.entries(porProduto).map(([nome, d])=>({
+    nome, categoria: d.categoria, vendido: d.vendido, custo: d.custo, lucro: d.vendido-d.custo,
+    margem: d.vendido>0 ? ((d.vendido-d.custo)/d.vendido*100) : 0
+  })).sort((a,b)=>b.lucro-a.lucro);
+
+  const bodyProd = document.getElementById('vendasProdutoBody');
+  if(listaProdutos.length===0){
+    bodyProd.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--muted);font-style:italic;padding:20px;">Nenhuma venda no período.</td></tr>';
+  }else{
+    bodyProd.innerHTML = listaProdutos.map(p=>`
+      <tr>
+        <td>${escapeHtml(p.nome)}</td>
+        <td class="contato">${escapeHtml(p.categoria || '—')}</td>
+        <td class="valor">${brl(p.vendido)}</td>
+        <td class="valor">${brl(p.custo)}</td>
+        <td class="valor" style="color:var(--green);">${brl(p.lucro)}</td>
+        <td class="valor">${p.margem.toFixed(1)}%</td>
+      </tr>
+    `).join('');
+  }
 }
 
 async function selecionarFuncionario(id){
