@@ -794,100 +794,109 @@
     </div>
 
     <div id="viewFluxoCaixa" style="display:none;">
-      <div class="vendas-toolbar">
-        <label class="vendas-file-label">
-          📁 Selecionar extrato(s) .xlsx
-          <input id="fluxoFileInput" type="file" accept=".xlsx,.xls" multiple style="display:none;" onchange="onSelecionarArquivosFluxo(this.files)">
-        </label>
-        <span style="font-size:12px;color:var(--muted);">A data já vem dentro do próprio extrato, não precisa escolher nada</span>
+      <div class="app-tabs" style="margin-bottom:20px;">
+        <button class="app-tab active" id="fluxoSubTabExtrato" onclick="mudarSubAbaFluxo('extrato')">📊 Extrato Bancário</button>
+        <button class="app-tab" id="fluxoSubTabDinheiro" onclick="mudarSubAbaFluxo('dinheiro')">💵 Lançamentos em Dinheiro</button>
       </div>
 
-      <div id="fluxoPreviewWrap" class="panel" style="display:none;margin-bottom:20px;padding:18px 20px;">
-        <p id="fluxoPreviewResumo" style="font-size:13px;color:var(--muted);margin:0 0 12px;"></p>
-        <div class="modal-actions">
-          <button class="addbtn" id="fluxoImportConfirmBtn" style="width:auto;" onclick="confirmarImportFluxo()">Confirmar importação</button>
-          <button class="cancelbtn" onclick="cancelarImportFluxo()">Cancelar</button>
+      <div id="fluxoSubExtrato">
+        <div class="vendas-toolbar">
+          <label class="vendas-file-label">
+            📁 Selecionar extrato(s) .xlsx
+            <input id="fluxoFileInput" type="file" accept=".xlsx,.xls" multiple style="display:none;" onchange="onSelecionarArquivosFluxo(this.files)">
+          </label>
+          <span style="font-size:12px;color:var(--muted);">A data já vem dentro do próprio extrato, não precisa escolher nada</span>
         </div>
-      </div>
 
-      <div class="panel" style="margin-bottom:20px;">
-        <div class="panel-head"><h2>Lançamento em dinheiro</h2></div>
-        <div class="bh-form" style="grid-template-columns:1fr 1.6fr 1fr 1fr auto;">
-          <div class="fld"><label>Tipo</label>
-            <div class="tipo-toggle" id="dinheiroTipoToggle" style="margin:0;">
-              <button type="button" class="tipo-btn active" data-tipo="entrada" onclick="setDinheiroTipo('entrada')">Entrada</button>
-              <button type="button" class="tipo-btn" data-tipo="saida" onclick="setDinheiroTipo('saida')">Saída</button>
+        <div id="fluxoPreviewWrap" class="panel" style="display:none;margin-bottom:20px;padding:18px 20px;">
+          <p id="fluxoPreviewResumo" style="font-size:13px;color:var(--muted);margin:0 0 12px;"></p>
+          <div class="modal-actions">
+            <button class="addbtn" id="fluxoImportConfirmBtn" style="width:auto;" onclick="confirmarImportFluxo()">Confirmar importação</button>
+            <button class="cancelbtn" onclick="cancelarImportFluxo()">Cancelar</button>
+          </div>
+        </div>
+
+        <div class="bh-filtro-data" style="margin-bottom:20px;">
+          <label>Mês</label>
+          <select id="fluxoFiltroMes" onchange="mudarMesFluxo(this.value)">
+            <option value="todos">Todos os meses</option>
+          </select>
+          <label>De</label>
+          <input id="fluxoFiltroDe" type="date" onchange="carregarFluxoCaixa()">
+          <label>Até</label>
+          <input id="fluxoFiltroAte" type="date" onchange="carregarFluxoCaixa()">
+          <button type="button" class="filter-btn" onclick="limparFiltroFluxo()">limpar</button>
+        </div>
+
+        <div class="bh-resumo">
+          <div class="metric"><div class="lbl">Total entradas</div><div class="val" id="fluxoTotalEntradas" style="color:var(--green);">R$ 0,00</div></div>
+          <div class="metric"><div class="lbl">Total saídas</div><div class="val" id="fluxoTotalSaidas" style="color:var(--rust);">R$ 0,00</div></div>
+          <div class="metric"><div class="lbl">Saldo líquido</div><div class="val" id="fluxoSaldoLiquido">R$ 0,00</div></div>
+          <div class="metric"><div class="lbl">Saldo (extrato)</div><div class="val" id="fluxoSaldoExtrato">—</div><div class="sub" id="fluxoSaldoExtratoData"></div></div>
+        </div>
+
+        <div class="colab-body">
+          <div class="colab-col">
+            <div class="colab-col-head"><span>Entradas por forma de pagamento</span></div>
+            <table id="fluxoFormaTable">
+              <thead><tr><th>Forma</th><th style="text-align:right">Valor</th></tr></thead>
+              <tbody id="fluxoFormaBody"></tbody>
+            </table>
+          </div>
+          <div class="colab-col">
+            <div class="colab-col-head"><span>Pagamentos por fornecedor</span></div>
+            <table id="fluxoFornecedorTable">
+              <thead><tr><th>Fornecedor</th><th style="text-align:right">Valor</th></tr></thead>
+              <tbody id="fluxoFornecedorBody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="panel" style="margin-top:20px;">
+          <div class="panel-head">
+            <h2>Lançamentos do extrato</h2>
+            <div class="filters">
+              <button class="filter-btn" style="border-color:var(--rust);color:var(--rust);" onclick="confirmarLimpezaExtrato()">🗑 Apagar lançamentos importados (período)</button>
             </div>
           </div>
-          <div class="fld"><label>Descrição</label><input id="dinheiro_descricao" placeholder="Ex: Venda balcão, Troco motoboy"></div>
-          <div class="fld"><label>Data</label><input id="dinheiro_data" type="date"></div>
-          <div class="fld"><label>Valor (R$)</label><input id="dinheiro_valor" type="number" step="0.01" min="0" placeholder="0,00"></div>
-          <button class="addbtn" style="width:auto;" onclick="salvarLancamentoDinheiro()">Adicionar</button>
-        </div>
-        <div class="formerr" id="dinheiroErr">Preencha descrição, data e um valor maior que zero.</div>
-      </div>
-
-      <div class="bh-filtro-data" style="margin-bottom:20px;">
-        <label>Mês</label>
-        <select id="fluxoFiltroMes" onchange="mudarMesFluxo(this.value)">
-          <option value="todos">Todos os meses</option>
-        </select>
-        <label>De</label>
-        <input id="fluxoFiltroDe" type="date" onchange="carregarFluxoCaixa()">
-        <label>Até</label>
-        <input id="fluxoFiltroAte" type="date" onchange="carregarFluxoCaixa()">
-        <button type="button" class="filter-btn" onclick="limparFiltroFluxo()">limpar</button>
-      </div>
-
-      <div class="bh-resumo">
-        <div class="metric"><div class="lbl">Total entradas</div><div class="val" id="fluxoTotalEntradas" style="color:var(--green);">R$ 0,00</div></div>
-        <div class="metric"><div class="lbl">Total saídas</div><div class="val" id="fluxoTotalSaidas" style="color:var(--rust);">R$ 0,00</div></div>
-        <div class="metric"><div class="lbl">Saldo líquido</div><div class="val" id="fluxoSaldoLiquido">R$ 0,00</div></div>
-        <div class="metric"><div class="lbl">Saldo (extrato)</div><div class="val" id="fluxoSaldoExtrato">—</div><div class="sub" id="fluxoSaldoExtratoData"></div></div>
-      </div>
-
-      <div class="colab-body">
-        <div class="colab-col">
-          <div class="colab-col-head"><span>Entradas por forma de pagamento</span></div>
-          <table id="fluxoFormaTable">
-            <thead><tr><th>Forma</th><th style="text-align:right">Valor</th></tr></thead>
-            <tbody id="fluxoFormaBody"></tbody>
-          </table>
-        </div>
-        <div class="colab-col">
-          <div class="colab-col-head"><span>Pagamentos por fornecedor</span></div>
-          <table id="fluxoFornecedorTable">
-            <thead><tr><th>Fornecedor</th><th style="text-align:right">Valor</th></tr></thead>
-            <tbody id="fluxoFornecedorBody"></tbody>
-          </table>
-        </div>
-      </div>
-
-      <div class="panel" style="margin-top:20px;">
-        <div class="panel-head">
-          <h2>Lançamentos do extrato</h2>
-          <div class="filters">
-            <button class="filter-btn" style="border-color:var(--rust);color:var(--rust);" onclick="confirmarLimpezaExtrato()">🗑 Apagar lançamentos importados (período)</button>
+          <div class="tablewrap">
+            <table class="ledger">
+              <thead><tr><th>Data</th><th>Tipo</th><th>Descrição</th><th style="text-align:right">Valor</th><th></th></tr></thead>
+              <tbody id="fluxoExtratoBody"></tbody>
+            </table>
           </div>
+          <div class="empty" id="fluxoExtratoEmpty" style="display:none;">Nenhum lançamento do extrato importado ainda.</div>
         </div>
-        <div class="tablewrap">
-          <table class="ledger">
-            <thead><tr><th>Data</th><th>Tipo</th><th>Descrição</th><th style="text-align:right">Valor</th><th></th></tr></thead>
-            <tbody id="fluxoExtratoBody"></tbody>
-          </table>
-        </div>
-        <div class="empty" id="fluxoExtratoEmpty" style="display:none;">Nenhum lançamento do extrato importado ainda.</div>
       </div>
 
-      <div class="panel" style="margin-top:20px;">
-        <div class="panel-head"><h2>Lançamentos em dinheiro</h2></div>
-        <div class="tablewrap">
-          <table class="ledger">
-            <thead><tr><th>Data</th><th>Descrição</th><th style="text-align:right">Valor</th><th></th></tr></thead>
-            <tbody id="fluxoDinheiroBody"></tbody>
-          </table>
+      <div id="fluxoSubDinheiro" style="display:none;">
+        <div class="panel" style="margin-bottom:20px;">
+          <div class="panel-head"><h2>Novo lançamento em dinheiro</h2></div>
+          <div class="bh-form" style="grid-template-columns:1fr 1.6fr 1fr 1fr auto;">
+            <div class="fld"><label>Tipo</label>
+              <div class="tipo-toggle" id="dinheiroTipoToggle" style="margin:0;">
+                <button type="button" class="tipo-btn active" data-tipo="entrada" onclick="setDinheiroTipo('entrada')">Entrada</button>
+                <button type="button" class="tipo-btn" data-tipo="saida" onclick="setDinheiroTipo('saida')">Saída</button>
+              </div>
+            </div>
+            <div class="fld"><label>Descrição</label><input id="dinheiro_descricao" placeholder="Ex: Venda balcão, Troco motoboy"></div>
+            <div class="fld"><label>Data</label><input id="dinheiro_data" type="date"></div>
+            <div class="fld"><label>Valor (R$)</label><input id="dinheiro_valor" type="number" step="0.01" min="0" placeholder="0,00"></div>
+            <button class="addbtn" style="width:auto;" onclick="salvarLancamentoDinheiro()">Adicionar</button>
+          </div>
+          <div class="formerr" id="dinheiroErr">Preencha descrição, data e um valor maior que zero.</div>
         </div>
-        <div class="empty" id="fluxoDinheiroEmpty" style="display:none;">Nenhum lançamento em dinheiro ainda.</div>
+
+        <div class="panel">
+          <div class="panel-head"><h2>Lançamentos em dinheiro</h2></div>
+          <div class="tablewrap">
+            <table class="ledger">
+              <thead><tr><th>Data</th><th>Descrição</th><th style="text-align:right">Valor</th><th></th></tr></thead>
+              <tbody id="fluxoDinheiroBody"></tbody>
+            </table>
+          </div>
+          <div class="empty" id="fluxoDinheiroEmpty" style="display:none;">Nenhum lançamento em dinheiro ainda.</div>
+        </div>
       </div>
     </div>
   </div>
@@ -3181,6 +3190,13 @@ function renderVendasDashboard(){
 let fluxoCache = [];
 let fluxoImportParsed = [];
 let fluxoImportSaldos = [];
+
+function mudarSubAbaFluxo(aba){
+  document.getElementById('fluxoSubExtrato').style.display = (aba==='extrato') ? '' : 'none';
+  document.getElementById('fluxoSubDinheiro').style.display = (aba==='dinheiro') ? '' : 'none';
+  document.getElementById('fluxoSubTabExtrato').classList.toggle('active', aba==='extrato');
+  document.getElementById('fluxoSubTabDinheiro').classList.toggle('active', aba==='dinheiro');
+}
 
 async function abrirFluxoCaixa(){
   if(!document.getElementById('dinheiro_data').value){
