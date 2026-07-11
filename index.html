@@ -808,6 +808,23 @@
         </div>
       </div>
 
+      <div class="colab-body" style="margin-bottom:20px;">
+        <div class="colab-col">
+          <div class="colab-col-head"><span>Entradas por forma de pagamento</span></div>
+          <table id="fluxoFormaTable">
+            <thead><tr><th>Forma</th><th style="text-align:right">Valor</th></tr></thead>
+            <tbody id="fluxoFormaBody"></tbody>
+          </table>
+        </div>
+        <div class="colab-col">
+          <div class="colab-col-head"><span>Pagamentos por fornecedor</span></div>
+          <table id="fluxoFornecedorTable">
+            <thead><tr><th>Fornecedor</th><th style="text-align:right">Valor</th></tr></thead>
+            <tbody id="fluxoFornecedorBody"></tbody>
+          </table>
+        </div>
+      </div>
+
       <div id="fluxoSubExtrato">
         <div class="vendas-toolbar">
           <label class="vendas-file-label">
@@ -842,23 +859,6 @@
           <div class="metric"><div class="lbl">Total saídas</div><div class="val" id="fluxoTotalSaidas" style="color:var(--rust);">R$ 0,00</div></div>
           <div class="metric"><div class="lbl">Saldo líquido</div><div class="val" id="fluxoSaldoLiquido">R$ 0,00</div></div>
           <div class="metric"><div class="lbl">Saldo (extrato)</div><div class="val" id="fluxoSaldoExtrato">—</div><div class="sub" id="fluxoSaldoExtratoData"></div></div>
-        </div>
-
-        <div class="colab-body">
-          <div class="colab-col">
-            <div class="colab-col-head"><span>Entradas por forma de pagamento</span></div>
-            <table id="fluxoFormaTable">
-              <thead><tr><th>Forma</th><th style="text-align:right">Valor</th></tr></thead>
-              <tbody id="fluxoFormaBody"></tbody>
-            </table>
-          </div>
-          <div class="colab-col">
-            <div class="colab-col-head"><span>Pagamentos por fornecedor</span></div>
-            <table id="fluxoFornecedorTable">
-              <thead><tr><th>Fornecedor</th><th style="text-align:right">Valor</th></tr></thead>
-              <tbody id="fluxoFornecedorBody"></tbody>
-            </table>
-          </div>
         </div>
 
         <div class="panel" style="margin-top:20px;">
