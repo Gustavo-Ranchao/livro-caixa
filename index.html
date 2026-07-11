@@ -101,6 +101,8 @@
   .tipo-btn.active[data-tipo="receber"]{background:var(--green-bg);color:var(--green);border-color:var(--green);}
   .tipo-btn.active[data-tipo="falta"]{background:var(--rust-bg);color:var(--rust);border-color:var(--rust);}
   .tipo-btn.active[data-tipo="sobra"]{background:var(--green-bg);color:var(--green);border-color:var(--green);}
+  .tipo-btn.active[data-tipo="entrada"]{background:var(--green-bg);color:var(--green);border-color:var(--green);}
+  .tipo-btn.active[data-tipo="saida"]{background:var(--rust-bg);color:var(--rust);border-color:var(--rust);}
   .fld{margin-bottom:12px;}
   .fld label{display:block;font-size:10px;text-transform:uppercase;letter-spacing:0.05em;color:var(--muted);margin-bottom:4px;}
   .fld input{width:100%;font-family:var(--font-sans);font-size:13px;padding:9px 10px;border:1px solid var(--line);border-radius:5px;background:var(--paper);color:var(--ink);}
@@ -808,6 +810,23 @@
         </div>
       </div>
 
+      <div class="panel" style="margin-bottom:20px;">
+        <div class="panel-head"><h2>Lançamento em dinheiro</h2></div>
+        <div class="bh-form" style="grid-template-columns:1fr 1.6fr 1fr 1fr auto;">
+          <div class="fld"><label>Tipo</label>
+            <div class="tipo-toggle" id="dinheiroTipoToggle" style="margin:0;">
+              <button type="button" class="tipo-btn active" data-tipo="entrada" onclick="setDinheiroTipo('entrada')">Entrada</button>
+              <button type="button" class="tipo-btn" data-tipo="saida" onclick="setDinheiroTipo('saida')">Saída</button>
+            </div>
+          </div>
+          <div class="fld"><label>Descrição</label><input id="dinheiro_descricao" placeholder="Ex: Venda balcão, Troco motoboy"></div>
+          <div class="fld"><label>Data</label><input id="dinheiro_data" type="date"></div>
+          <div class="fld"><label>Valor (R$)</label><input id="dinheiro_valor" type="number" step="0.01" min="0" placeholder="0,00"></div>
+          <button class="addbtn" style="width:auto;" onclick="salvarLancamentoDinheiro()">Adicionar</button>
+        </div>
+        <div class="formerr" id="dinheiroErr">Preencha descrição, data e um valor maior que zero.</div>
+      </div>
+
       <div class="bh-filtro-data" style="margin-bottom:20px;">
         <label>Mês</label>
         <select id="fluxoFiltroMes" onchange="mudarMesFluxo(this.value)">
@@ -824,6 +843,7 @@
         <div class="metric"><div class="lbl">Total entradas</div><div class="val" id="fluxoTotalEntradas" style="color:var(--green);">R$ 0,00</div></div>
         <div class="metric"><div class="lbl">Total saídas</div><div class="val" id="fluxoTotalSaidas" style="color:var(--rust);">R$ 0,00</div></div>
         <div class="metric"><div class="lbl">Saldo líquido</div><div class="val" id="fluxoSaldoLiquido">R$ 0,00</div></div>
+        <div class="metric"><div class="lbl">Saldo (extrato)</div><div class="val" id="fluxoSaldoExtrato">—</div><div class="sub" id="fluxoSaldoExtratoData"></div></div>
       </div>
 
       <div class="colab-body">
@@ -3133,12 +3153,58 @@ function renderVendasDashboard(){
 
 let fluxoCache = [];
 let fluxoImportParsed = [];
+let fluxoImportSaldos = [];
 
 async function abrirFluxoCaixa(){
+  if(!document.getElementById('dinheiro_data').value){
+    document.getElementById('dinheiro_data').value = todayStr();
+  }
   await popularFiltroMesFluxo();
   const mesAtual = new Date().toISOString().slice(0,7);
   document.getElementById('fluxoFiltroMes').value = mesAtual;
   mudarMesFluxo(mesAtual);
+}
+
+let dinheiroTipoAtual = 'entrada';
+
+function setDinheiroTipo(t){
+  dinheiroTipoAtual = t;
+  document.querySelectorAll('#dinheiroTipoToggle .tipo-btn').forEach(b=>b.classList.toggle('active', b.dataset.tipo===t));
+}
+
+async function salvarLancamentoDinheiro(){
+  const descricao = document.getElementById('dinheiro_descricao').value.trim();
+  const data = document.getElementById('dinheiro_data').value;
+  const valorBruto = parseFloat(document.getElementById('dinheiro_valor').value);
+  const err = document.getElementById('dinheiroErr');
+
+  if(!descricao || !data || isNaN(valorBruto) || valorBruto<=0){
+    err.style.display = 'block';
+    return;
+  }
+  err.style.display = 'none';
+
+  const valor = dinheiroTipoAtual==='entrada' ? valorBruto : -valorBruto;
+
+  const { data: salvo, error } = await sb.from('fluxo_caixa_lancamentos').insert({
+    loja: lojaAtual,
+    data: data,
+    tipo: 'Dinheiro',
+    descricao: descricao,
+    valor: valor
+  }).select().single();
+
+  if(error){
+    err.textContent = 'Erro ao salvar: ' + error.message;
+    err.style.display = 'block';
+    return;
+  }
+
+  fluxoCache.push(salvo);
+  document.getElementById('dinheiro_descricao').value = '';
+  document.getElementById('dinheiro_valor').value = '';
+  renderFluxoCaixa();
+  await popularFiltroMesFluxo();
 }
 
 async function popularFiltroMesFluxo(){
@@ -3181,6 +3247,7 @@ async function onSelecionarArquivosFluxo(fileList){
 
   try{
     let todasLinhas = [];
+    let todosSaldos = [];
 
     for(const file of arquivos){
       const buffer = await file.arrayBuffer();
@@ -3189,7 +3256,7 @@ async function onSelecionarArquivosFluxo(fileList){
       const linhas = XLSX.utils.sheet_to_json(wb.Sheets[primeiraAba], { header: 1, raw: true, defval: '' });
       if(!linhas || linhas.length===0) continue;
 
-      let idxCabecalho = -1, idxData=-1, idxTipo=-1, idxDescricao=-1, idxEntradas=-1, idxSaidas=-1;
+      let idxCabecalho = -1, idxData=-1, idxTipo=-1, idxDescricao=-1, idxEntradas=-1, idxSaidas=-1, idxSaldo=-1;
       for(let i=0; i<Math.min(linhas.length,15); i++){
         const linha = (linhas[i]||[]).map(c=>String(c||'').trim().toUpperCase());
         const dIdx = linha.indexOf('DATA');
@@ -3201,6 +3268,7 @@ async function onSelecionarArquivosFluxo(fileList){
           idxDescricao = linha.findIndex(h=>(h||'').includes('DESCRI'));
           idxEntradas = linha.findIndex(h=>(h||'').includes('ENTRADA'));
           idxSaidas = linha.findIndex(h=>(h||'').includes('SAIDA') || (h||'').includes('SAÍDA'));
+          idxSaldo = linha.findIndex(h=>(h||'').includes('SALDO'));
           break;
         }
       }
@@ -3213,10 +3281,19 @@ async function onSelecionarArquivosFluxo(fileList){
         const linha = linhas[i];
         if(!linha || linha.length===0) continue;
         const tipo = String(linha[idxTipo]||'').trim();
-        if(!tipo || tipo.toUpperCase().includes('SALDO DO DIA')) continue;
+        if(!tipo) continue;
         const dataTexto = String(linha[idxData]||'').trim();
         const data = parseDataBR(dataTexto);
         if(!data) continue;
+
+        if(tipo.toUpperCase().includes('SALDO DO DIA')){
+          const saldoVal = idxSaldo>-1 ? parseNumeroVenda(linha[idxSaldo]) : null;
+          if(saldoVal!==null){
+            todosSaldos.push({ data, saldo: saldoVal });
+          }
+          continue;
+        }
+
         const descricao = idxDescricao>-1 ? String(linha[idxDescricao]||'').trim() : '';
         const entradaVal = idxEntradas>-1 ? parseNumeroVenda(linha[idxEntradas]) : null;
         const saidaVal = idxSaidas>-1 ? parseNumeroVenda(linha[idxSaidas]) : null;
@@ -3235,6 +3312,7 @@ async function onSelecionarArquivosFluxo(fileList){
     }
 
     fluxoImportParsed = todasLinhas;
+    fluxoImportSaldos = todosSaldos;
     const datas = todasLinhas.map(l=>l.data).sort();
     document.getElementById('fluxoPreviewResumo').textContent =
       todasLinhas.length + ' lançamentos encontrados, de ' + fmtData(datas[0]) + ' até ' + fmtData(datas[datas.length-1]) + '.';
@@ -3250,6 +3328,7 @@ function cancelarImportFluxo(){
   document.getElementById('fluxoPreviewWrap').style.display = 'none';
   document.getElementById('fluxoFileInput').value = '';
   fluxoImportParsed = [];
+  fluxoImportSaldos = [];
 }
 
 async function confirmarImportFluxo(){
@@ -3273,6 +3352,14 @@ async function confirmarImportFluxo(){
     const lote = registros.slice(i, i+tamanhoLote);
     const { error } = await sb.from('fluxo_caixa_lancamentos').insert(lote);
     if(error){ erroGeral = error; break; }
+  }
+
+  if(!erroGeral && fluxoImportSaldos.length>0){
+    const saldosRegistros = fluxoImportSaldos.map(s=>({
+      loja: lojaAtual, data: s.data, saldo: s.saldo
+    }));
+    const { error: erroSaldo } = await sb.from('fluxo_caixa_saldos').upsert(saldosRegistros, { onConflict: 'loja,data' });
+    if(erroSaldo) console.error('Erro ao salvar saldos do extrato:', erroSaldo);
   }
 
   btn.disabled = false;
@@ -3302,6 +3389,25 @@ async function carregarFluxoCaixa(){
     fluxoCache = data || [];
   }
   renderFluxoCaixa();
+  await carregarSaldoExtrato();
+}
+
+async function carregarSaldoExtrato(){
+  const de = document.getElementById('fluxoFiltroDe').value;
+  const ate = document.getElementById('fluxoFiltroAte').value;
+  let query = sb.from('fluxo_caixa_saldos').select('*').eq('loja', lojaAtual);
+  if(de) query = query.gte('data', de);
+  if(ate) query = query.lte('data', ate);
+  const { data, error } = await query.order('data', { ascending: false }).limit(1);
+  const elValor = document.getElementById('fluxoSaldoExtrato');
+  const elData = document.getElementById('fluxoSaldoExtratoData');
+  if(error || !data || data.length===0){
+    elValor.textContent = '—';
+    elData.textContent = '';
+    return;
+  }
+  elValor.textContent = brl(data[0].saldo);
+  elData.textContent = 'em ' + fmtData(data[0].data);
 }
 
 function limparFiltroFluxo(){
@@ -3330,14 +3436,25 @@ function renderFluxoCaixa(){
   document.getElementById('fluxoTotalSaidas').textContent = brl(totalSaidas);
   document.getElementById('fluxoSaldoLiquido').textContent = brl(saldo);
 
-  const entradasClassificaveis = fluxoCache.filter(l=>(l.tipo==='Vendas' || l.tipo==='Rendimento da conta') && Number(l.valor)>0);
+  const entradasClassificaveis = fluxoCache.filter(l=>(l.tipo==='Vendas' || l.tipo==='Rendimento da conta' || l.tipo==='Dinheiro') && Number(l.valor)>0);
   const porForma = {};
   entradasClassificaveis.forEach(v=>{
-    const forma = v.tipo==='Rendimento da conta' ? 'Rendimento da conta' : classificarFormaPagamentoVenda(v.descricao);
+    let forma;
+    if(v.tipo==='Rendimento da conta') forma = 'Rendimento da conta';
+    else if(v.tipo==='Dinheiro') forma = 'Dinheiro';
+    else forma = classificarFormaPagamentoVenda(v.descricao);
     porForma[forma] = (porForma[forma]||0) + Number(v.valor);
   });
   const bodyForma = document.getElementById('fluxoFormaBody');
-  const formas = Object.entries(porForma).sort((a,b)=>b[1]-a[1]);
+  const ORDEM_FORMAS_ENTRADA = ['Cartão Débito', 'Cartão Crédito', 'Pix', 'Boleto', 'Rendimento da conta', 'Dinheiro'];
+  const formas = Object.entries(porForma).sort((a,b)=>{
+    const ia = ORDEM_FORMAS_ENTRADA.indexOf(a[0]);
+    const ib = ORDEM_FORMAS_ENTRADA.indexOf(b[0]);
+    if(ia===-1 && ib===-1) return b[1]-a[1];
+    if(ia===-1) return 1;
+    if(ib===-1) return -1;
+    return ia-ib;
+  });
   if(formas.length===0){
     bodyForma.innerHTML = '<tr><td colspan="2" style="text-align:center;color:var(--muted);font-style:italic;padding:16px;">Nenhuma venda no período.</td></tr>';
   }else{
