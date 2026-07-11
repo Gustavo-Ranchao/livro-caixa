@@ -794,34 +794,34 @@
     </div>
 
     <div id="viewFluxoCaixa" style="display:none;">
-      <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;margin-bottom:20px;">
-        <div class="metric" style="flex:0 0 auto;padding:10px 16px;margin-bottom:0;">
-          <div class="lbl">Total de entradas e saídas</div>
-          <div style="display:flex;gap:14px;margin-top:2px;">
-            <span style="color:var(--green);font-family:var(--font-mono);font-weight:600;font-size:15px;" id="fluxoCombinadoEntradas">R$ 0,00</span>
-            <span style="color:var(--rust);font-family:var(--font-mono);font-weight:600;font-size:15px;" id="fluxoCombinadoSaidas">R$ 0,00</span>
-          </div>
-        </div>
-        <div class="app-tabs" style="margin-bottom:0;">
-          <button class="app-tab active" id="fluxoSubTabExtrato" onclick="mudarSubAbaFluxo('extrato')">📊 Extrato Bancário</button>
-          <button class="app-tab" id="fluxoSubTabDinheiro" onclick="mudarSubAbaFluxo('dinheiro')">💵 Lançamentos em Dinheiro</button>
-        </div>
+      <div class="app-tabs" style="margin-bottom:20px;">
+        <button class="app-tab active" id="fluxoSubTabExtrato" onclick="mudarSubAbaFluxo('extrato')">📊 Extrato Bancário</button>
+        <button class="app-tab" id="fluxoSubTabDinheiro" onclick="mudarSubAbaFluxo('dinheiro')">💵 Lançamentos em Dinheiro</button>
+        <button class="app-tab" id="fluxoSubTabTotal" onclick="mudarSubAbaFluxo('total')">📈 Total de Entradas e Saídas</button>
       </div>
 
-      <div class="colab-body" style="margin-bottom:20px;">
-        <div class="colab-col">
-          <div class="colab-col-head"><span>Entradas por forma de pagamento</span></div>
-          <table id="fluxoFormaTable">
-            <thead><tr><th>Forma</th><th style="text-align:right">Valor</th></tr></thead>
-            <tbody id="fluxoFormaBody"></tbody>
-          </table>
+      <div id="fluxoSubTotal" style="display:none;">
+        <div class="bh-resumo">
+          <div class="metric"><div class="lbl">Total entradas</div><div class="val" id="fluxoCombinadoEntradas" style="color:var(--green);">R$ 0,00</div></div>
+          <div class="metric"><div class="lbl">Total saídas</div><div class="val" id="fluxoCombinadoSaidas" style="color:var(--rust);">R$ 0,00</div></div>
+          <div class="metric"><div class="lbl">Saldo líquido</div><div class="val" id="fluxoCombinadoSaldo">R$ 0,00</div></div>
         </div>
-        <div class="colab-col">
-          <div class="colab-col-head"><span>Pagamentos por fornecedor</span></div>
-          <table id="fluxoFornecedorTable">
-            <thead><tr><th>Fornecedor</th><th style="text-align:right">Valor</th></tr></thead>
-            <tbody id="fluxoFornecedorBody"></tbody>
-          </table>
+
+        <div class="colab-body">
+          <div class="colab-col">
+            <div class="colab-col-head"><span>Entradas por forma de pagamento</span></div>
+            <table id="fluxoFormaTable">
+              <thead><tr><th>Forma</th><th style="text-align:right">Valor</th></tr></thead>
+              <tbody id="fluxoFormaBody"></tbody>
+            </table>
+          </div>
+          <div class="colab-col">
+            <div class="colab-col-head"><span>Pagamentos por fornecedor</span></div>
+            <table id="fluxoFornecedorTable">
+              <thead><tr><th>Fornecedor</th><th style="text-align:right">Valor</th></tr></thead>
+              <tbody id="fluxoFornecedorBody"></tbody>
+            </table>
+          </div>
         </div>
       </div>
 
@@ -3230,8 +3230,10 @@ let fluxoImportSaldos = [];
 function mudarSubAbaFluxo(aba){
   document.getElementById('fluxoSubExtrato').style.display = (aba==='extrato') ? '' : 'none';
   document.getElementById('fluxoSubDinheiro').style.display = (aba==='dinheiro') ? '' : 'none';
+  document.getElementById('fluxoSubTotal').style.display = (aba==='total') ? '' : 'none';
   document.getElementById('fluxoSubTabExtrato').classList.toggle('active', aba==='extrato');
   document.getElementById('fluxoSubTabDinheiro').classList.toggle('active', aba==='dinheiro');
+  document.getElementById('fluxoSubTabTotal').classList.toggle('active', aba==='total');
 }
 
 async function abrirFluxoCaixa(){
@@ -3651,6 +3653,7 @@ function renderFluxoCaixa(){
 
   document.getElementById('fluxoCombinadoEntradas').textContent = brl(totalEntradas + dinheiroEntradas);
   document.getElementById('fluxoCombinadoSaidas').textContent = brl(totalSaidas + dinheiroSaidas);
+  document.getElementById('fluxoCombinadoSaldo').textContent = brl((totalEntradas + dinheiroEntradas) - (totalSaidas + dinheiroSaidas));
 
   const bodyDinheiro = document.getElementById('fluxoDinheiroBody');
   const emptyDinheiro = document.getElementById('fluxoDinheiroEmpty');
