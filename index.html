@@ -741,6 +741,10 @@
       </div>
 
       <div class="bh-filtro-data" style="margin-bottom:20px;">
+        <label>Mês</label>
+        <select id="vendasFiltroMes" onchange="mudarMesVendas(this.value)">
+          <option value="todos">Todos os meses</option>
+        </select>
         <label>De</label>
         <input id="vendasFiltroDe" type="date" onchange="carregarVendas()">
         <label>Até</label>
@@ -759,7 +763,7 @@
         <div class="panel-head"><h2>Por categoria</h2></div>
         <div class="tablewrap">
           <table class="ledger">
-            <thead><tr><th>Categoria</th><th style="text-align:right">Vendido</th><th style="text-align:right">Custo</th><th style="text-align:right">Lucro</th><th style="text-align:right">Margem</th></tr></thead>
+            <thead id="vendasCategoriaHead"></thead>
             <tbody id="vendasCategoriaBody"></tbody>
           </table>
         </div>
@@ -1022,6 +1026,7 @@ function trocarLoja(l){
     abrirDiferencaCaixa();
   }
   if(viewAtual === 'vendasComCusto'){
+    popularFiltroMesVendas();
     carregarVendas();
   }
 }
@@ -2626,7 +2631,38 @@ let vendasCache = [];
 let vendasArquivosParsed = [];
 
 async function abrirVendas(){
+  await popularFiltroMesVendas();
   await carregarVendas();
+}
+
+async function popularFiltroMesVendas(){
+  const { data, error } = await sb.from('vendas_itens').select('data').eq('loja', lojaAtual);
+  if(error){ console.error('Erro ao carregar meses de vendas:', error); return; }
+  const mesesSet = new Set((data||[]).map(d=>d.data.slice(0,7)));
+  const hoje = new Date();
+  mesesSet.add(hoje.getFullYear() + '-' + String(hoje.getMonth()+1).padStart(2,'0'));
+  const lista = Array.from(mesesSet).sort().reverse();
+  const sel = document.getElementById('vendasFiltroMes');
+  const atual = sel.value || 'todos';
+  sel.innerHTML = '<option value="todos">Todos os meses</option>' + lista.map(chave=>{
+    const [ano, mes] = chave.split('-');
+    const rotulo = NOMES_MES[parseInt(mes,10)-1] + ' ' + ano;
+    return `<option value="${chave}">${rotulo}</option>`;
+  }).join('');
+  sel.value = lista.includes(atual) || atual==='todos' ? atual : 'todos';
+}
+
+function mudarMesVendas(valor){
+  if(valor==='todos'){
+    document.getElementById('vendasFiltroDe').value = '';
+    document.getElementById('vendasFiltroAte').value = '';
+  }else{
+    const [ano, mes] = valor.split('-');
+    const ultimoDia = new Date(parseInt(ano,10), parseInt(mes,10), 0).getDate();
+    document.getElementById('vendasFiltroDe').value = valor + '-01';
+    document.getElementById('vendasFiltroAte').value = valor + '-' + String(ultimoDia).padStart(2,'0');
+  }
+  carregarVendas();
 }
 
 function parseNumeroVenda(v){
@@ -2776,6 +2812,7 @@ async function confirmarImportVendas(){
   }
 
   cancelarImportVendas();
+  await popularFiltroMesVendas();
   await carregarVendas();
 }
 
@@ -2798,7 +2835,38 @@ async function carregarVendas(){
 function limparFiltroVendas(){
   document.getElementById('vendasFiltroDe').value = '';
   document.getElementById('vendasFiltroAte').value = '';
+  document.getElementById('vendasFiltroMes').value = 'todos';
   carregarVendas();
+}
+
+let vendasCatOrdenarPor = 'vendido';
+let vendasCatOrdemAsc = false;
+
+const CAMPOS_VENDAS_CAT = [
+  { chave:'nome', label:'Categoria', align:'left' },
+  { chave:'vendido', label:'Vendido', align:'right' },
+  { chave:'custo', label:'Custo', align:'right' },
+  { chave:'lucro', label:'Lucro', align:'right' },
+  { chave:'margem', label:'Margem', align:'right' }
+];
+
+function ordenarVendasCategoria(campo){
+  if(vendasCatOrdenarPor === campo){
+    vendasCatOrdemAsc = !vendasCatOrdemAsc;
+  }else{
+    vendasCatOrdenarPor = campo;
+    vendasCatOrdemAsc = (campo === 'nome');
+  }
+  renderVendasDashboard();
+}
+
+function renderVendasCategoriaHead(){
+  const thead = document.getElementById('vendasCategoriaHead');
+  thead.innerHTML = '<tr>' + CAMPOS_VENDAS_CAT.map(c=>{
+    const seta = vendasCatOrdenarPor===c.chave ? (vendasCatOrdemAsc ? ' ▲' : ' ▼') : '';
+    const alinhar = c.align==='right' ? 'text-align:right;' : '';
+    return `<th style="cursor:pointer;user-select:none;${alinhar}" onclick="ordenarVendasCategoria('${c.chave}')">${c.label}${seta}</th>`;
+  }).join('') + '</tr>';
 }
 
 function renderVendasDashboard(){
@@ -2819,10 +2887,20 @@ function renderVendasDashboard(){
     porCategoria[cat].vendido += Number(v.valor_venda);
     porCategoria[cat].custo += Number(v.custo);
   });
-  const listaCategorias = Object.entries(porCategoria).map(([nome, d])=>({
+  let listaCategorias = Object.entries(porCategoria).map(([nome, d])=>({
     nome, vendido: d.vendido, custo: d.custo, lucro: d.vendido-d.custo,
     margem: d.vendido>0 ? ((d.vendido-d.custo)/d.vendido*100) : 0
-  })).sort((a,b)=>b.vendido-a.vendido);
+  }));
+
+  listaCategorias.sort((a,b)=>{
+    const va = a[vendasCatOrdenarPor], vb = b[vendasCatOrdenarPor];
+    if(typeof va === 'string'){
+      return vendasCatOrdemAsc ? va.localeCompare(vb) : vb.localeCompare(va);
+    }
+    return vendasCatOrdemAsc ? va-vb : vb-va;
+  });
+
+  renderVendasCategoriaHead();
 
   const bodyCat = document.getElementById('vendasCategoriaBody');
   if(listaCategorias.length===0){
