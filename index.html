@@ -724,17 +724,17 @@
 
     <div id="viewVendasComCusto" style="display:none;">
       <div class="vendas-toolbar">
-        <label>Data das vendas</label>
-        <input id="vendasDataImport" type="date">
         <label class="vendas-file-label">
-          📁 Selecionar arquivo .xlsx
-          <input id="vendasFileInput" type="file" accept=".xlsx,.xls" style="display:none;" onchange="onSelecionarArquivoVendas(this.files[0])">
+          📁 Selecionar arquivo(s) .xlsx
+          <input id="vendasFileInput" type="file" accept=".xlsx,.xls" multiple style="display:none;" onchange="onSelecionarArquivosVendas(this.files)">
         </label>
+        <span style="font-size:12px;color:var(--muted);">Pode selecionar vários arquivos de uma vez, um por dia</span>
       </div>
 
       <div id="vendasPreviewWrap" class="panel" style="display:none;margin-bottom:20px;padding:18px 20px;">
-        <p id="vendasPreviewResumo" style="font-size:13px;color:var(--muted);margin:0 0 12px;"></p>
-        <div class="modal-actions">
+        <p class="modal-sub" style="margin-bottom:6px;">Confira a data de cada arquivo antes de importar:</p>
+        <div id="vendasPreviewLista"></div>
+        <div class="modal-actions" style="margin-top:14px;">
           <button class="addbtn" id="vendasImportConfirmBtn" style="width:auto;" onclick="confirmarImportVendas()">Confirmar importação</button>
           <button class="cancelbtn" onclick="cancelarImportVendas()">Cancelar</button>
         </div>
@@ -2623,12 +2623,9 @@ async function confirmarExclusaoDiferencaOk(){
 /* ================= VENDAS COM CUSTO ================= */
 
 let vendasCache = [];
-let vendasImportParsed = [];
+let vendasArquivosParsed = [];
 
 async function abrirVendas(){
-  if(!document.getElementById('vendasDataImport').value){
-    document.getElementById('vendasDataImport').value = todayStr();
-  }
   await carregarVendas();
 }
 
@@ -2647,87 +2644,120 @@ function parseNumeroVenda(v){
   return isNaN(n) ? null : n;
 }
 
-async function onSelecionarArquivoVendas(file){
-  if(!file) return;
+function extrairDataDoNomeArquivo(nome){
+  const m = nome.match(/(\d{1,2})[-_](\d{1,2})[-_](\d{2,4})/);
+  if(!m) return null;
+  let [, d, mo, y] = m;
+  const diaNum = parseInt(d, 10);
+  const mesNum = parseInt(mo, 10);
+  if(mesNum < 1 || mesNum > 12) return null;
+  if(diaNum < 1 || diaNum > 31) return null;
+  if(y.length === 2) y = '20' + y;
+  return y + '-' + mo.padStart(2,'0') + '-' + d.padStart(2,'0');
+}
+
+async function onSelecionarArquivosVendas(fileList){
+  const arquivos = Array.from(fileList || []);
+  if(arquivos.length===0) return;
   if(!window.XLSX){
     alert('Não foi possível carregar o leitor de planilhas. Recarregue a página e tente de novo.');
     return;
   }
-  const dataImport = document.getElementById('vendasDataImport').value;
-  if(!dataImport){
-    alert('Escolha a data das vendas antes de selecionar o arquivo.');
+
+  vendasArquivosParsed = [];
+  const dataPadrao = todayStr();
+
+  for(const file of arquivos){
+    const buffer = await file.arrayBuffer();
+    const wb = XLSX.read(buffer, { type: 'array' });
+    const primeiraAba = wb.SheetNames[0];
+    const linhas = XLSX.utils.sheet_to_json(wb.Sheets[primeiraAba], { header: 1, raw: true });
+    if(!linhas || linhas.length < 2) continue;
+
+    const cabecalho = linhas[0].map(h => String(h||'').trim().toUpperCase());
+    const idxProduto = cabecalho.indexOf('PRODUTO');
+    const idxGrupo = cabecalho.indexOf('GRUPO');
+    const idxValor = cabecalho.indexOf('VALOR VENDAS');
+    const idxCusto = cabecalho.indexOf('CUSTO');
+    if(idxProduto===-1 || idxValor===-1 || idxCusto===-1) continue;
+
+    const itens = [];
+    for(let i=1; i<linhas.length; i++){
+      const linha = linhas[i];
+      if(!linha || linha.length===0) continue;
+      const produto = String(linha[idxProduto]||'').trim();
+      const categoria = idxGrupo>-1 ? String(linha[idxGrupo]||'').trim() : '';
+      const valor = parseNumeroVenda(linha[idxValor]);
+      const custo = parseNumeroVenda(linha[idxCusto]);
+      if(!produto || valor===null || custo===null) continue;
+      itens.push({ produto, categoria, valor, custo });
+    }
+    if(itens.length===0) continue;
+
+    const dataDetectada = extrairDataDoNomeArquivo(file.name);
+    vendasArquivosParsed.push({ nomeArquivo: file.name, itens: itens, data: dataDetectada || dataPadrao, dataDetectadaAutomaticamente: !!dataDetectada });
+  }
+
+  if(vendasArquivosParsed.length===0){
+    alert('Não encontrei dados válidos (colunas Produto, Valor Vendas, Custo) em nenhum dos arquivos selecionados.');
     document.getElementById('vendasFileInput').value = '';
     return;
   }
 
-  const buffer = await file.arrayBuffer();
-  const wb = XLSX.read(buffer, { type: 'array' });
-  const primeiraAba = wb.SheetNames[0];
-  const linhas = XLSX.utils.sheet_to_json(wb.Sheets[primeiraAba], { header: 1, raw: true });
+  renderVendasPreviewLista();
+}
 
-  if(!linhas || linhas.length < 2){
-    alert('Não encontrei dados nessa planilha.');
-    document.getElementById('vendasFileInput').value = '';
-    return;
-  }
+function atualizarDataArquivoVendas(idx, valor){
+  vendasArquivosParsed[idx].data = valor;
+}
 
-  const cabecalho = linhas[0].map(h => String(h||'').trim().toUpperCase());
-  const idxProduto = cabecalho.indexOf('PRODUTO');
-  const idxGrupo = cabecalho.indexOf('GRUPO');
-  const idxValor = cabecalho.indexOf('VALOR VENDAS');
-  const idxCusto = cabecalho.indexOf('CUSTO');
-
-  if(idxProduto===-1 || idxValor===-1 || idxCusto===-1){
-    alert('Não encontrei as colunas esperadas (Produto, Valor Vendas, Custo) nessa planilha.');
-    document.getElementById('vendasFileInput').value = '';
-    return;
-  }
-
-  vendasImportParsed = [];
-  for(let i=1; i<linhas.length; i++){
-    const linha = linhas[i];
-    if(!linha || linha.length===0) continue;
-    const produto = String(linha[idxProduto]||'').trim();
-    const categoria = idxGrupo>-1 ? String(linha[idxGrupo]||'').trim() : '';
-    const valor = parseNumeroVenda(linha[idxValor]);
-    const custo = parseNumeroVenda(linha[idxCusto]);
-    if(!produto || valor===null || custo===null) continue;
-    vendasImportParsed.push({ produto, categoria, valor, custo });
-  }
-
-  if(vendasImportParsed.length===0){
-    alert('Nenhuma linha válida encontrada nessa planilha.');
-    document.getElementById('vendasFileInput').value = '';
-    return;
-  }
-
-  document.getElementById('vendasPreviewResumo').textContent =
-    vendasImportParsed.length + ' itens de venda encontrados para o dia ' + fmtData(dataImport) + '.';
+function renderVendasPreviewLista(){
+  const lista = document.getElementById('vendasPreviewLista');
+  lista.innerHTML = vendasArquivosParsed.map((a, idx)=>`
+    <div style="display:flex;align-items:center;gap:12px;padding:10px 0;${idx>0 ? 'border-top:1px solid var(--paper3);' : ''}">
+      <div style="flex:1;min-width:0;">
+        <div style="font-size:13px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHtml(a.nomeArquivo)}</div>
+        <div style="font-size:12px;color:var(--muted);">${a.itens.length} itens encontrados${a.dataDetectadaAutomaticamente ? ' · <span style="color:var(--green);">data reconhecida no nome do arquivo ✓</span>' : ''}</div>
+      </div>
+      <label style="font-size:11px;color:var(--muted);white-space:nowrap;">Data</label>
+      <input type="date" value="${a.data}" onchange="atualizarDataArquivoVendas(${idx}, this.value)">
+    </div>
+  `).join('');
   document.getElementById('vendasPreviewWrap').style.display = 'block';
 }
 
 function cancelarImportVendas(){
   document.getElementById('vendasPreviewWrap').style.display = 'none';
   document.getElementById('vendasFileInput').value = '';
-  vendasImportParsed = [];
+  vendasArquivosParsed = [];
 }
 
 async function confirmarImportVendas(){
-  const dataImport = document.getElementById('vendasDataImport').value;
-  if(vendasImportParsed.length===0) return;
+  if(vendasArquivosParsed.length===0) return;
+  for(const a of vendasArquivosParsed){
+    if(!a.data){
+      alert('Preencha a data de todos os arquivos antes de importar.');
+      return;
+    }
+  }
 
   const btn = document.getElementById('vendasImportConfirmBtn');
   btn.disabled = true;
   btn.textContent = 'Importando…';
 
-  const registros = vendasImportParsed.map(v=>({
-    loja: lojaAtual,
-    data: dataImport,
-    produto: v.produto,
-    categoria: v.categoria || null,
-    valor_venda: v.valor,
-    custo: v.custo
-  }));
+  const registros = [];
+  vendasArquivosParsed.forEach(a=>{
+    a.itens.forEach(v=>{
+      registros.push({
+        loja: lojaAtual,
+        data: a.data,
+        produto: v.produto,
+        categoria: v.categoria || null,
+        valor_venda: v.valor,
+        custo: v.custo
+      });
+    });
+  });
 
   const tamanhoLote = 500;
   let erroGeral = null;
