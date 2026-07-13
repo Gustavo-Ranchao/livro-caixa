@@ -159,6 +159,9 @@
   @media (max-width:900px){ .colab-body{grid-template-columns:1fr;} }
 
   #fluxoFormaTable, #fluxoFornecedorTable{width:100%;border-collapse:collapse;font-size:12.5px;}
+  input.comprar-input{width:80px;font-family:var(--font-mono);font-size:12px;padding:5px 7px;border:1px solid var(--line);border-radius:4px;background:#fff;}
+  input.comprar-input:focus{outline:none;border-color:var(--gold);}
+  input.comprar-input.tem-falta{border-color:var(--rust);color:var(--rust);font-weight:600;}
   #fluxoFormaTable th, #fluxoFornecedorTable th{text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:0.05em;color:var(--muted);font-weight:500;padding:8px 16px;background:var(--paper2);}
   #fluxoFormaTable td, #fluxoFornecedorTable td{padding:10px 16px;border-top:1px solid var(--paper3);}
 
@@ -372,6 +375,9 @@
         </div>
         <div class="nav-group">
           <button class="nav-group-header" id="navHeaderBancoHoras" onclick="mudarViewPrincipal('bancoHoras')">🕐 Banco de Horas</button>
+        </div>
+        <div class="nav-group">
+          <button class="nav-group-header" id="navHeaderCompras" onclick="mudarViewPrincipal('compras')">🛒 Compras</button>
         </div>
         <div class="nav-group">
           <button class="nav-group-header" id="navHeaderConfig" onclick="toggleNavGroup('config')">⚙️ Configurações <span class="chevron">▾</span></button>
@@ -665,6 +671,25 @@
       </div>
     </div>
 
+    <div id="viewCompras" style="display:none;">
+      <div class="searchrow">
+        <div class="searchbar">
+          <input id="comprasBusca" placeholder="🔍 Buscar por produto, marca ou empresa..." oninput="filtrarCompras()">
+        </div>
+        <button type="button" class="importbtn" style="width:auto;margin:0;" onclick="abrirNovoProduto()">+ Novo produto</button>
+      </div>
+
+      <div class="panel">
+        <div class="tablewrap">
+          <table class="ledger">
+            <thead><tr><th>Empresa</th><th>Marca</th><th>Produto</th><th>Descrição</th><th>Mín. (un)</th><th>Mín. (cx/fardo)</th><th>Comprar</th><th></th></tr></thead>
+            <tbody id="comprasBody"></tbody>
+          </table>
+        </div>
+        <div class="empty" id="comprasEmpty" style="display:none;">Nenhum produto cadastrado ainda.</div>
+      </div>
+    </div>
+
     <div id="viewComprovantes" style="display:none;">
       <div class="comp-toolbar">
         <label style="font-size:11px;text-transform:uppercase;letter-spacing:0.05em;color:var(--muted);">Mês</label>
@@ -922,6 +947,52 @@
           <div class="empty" id="fluxoDinheiroEmpty" style="display:none;">Nenhum lançamento em dinheiro ainda.</div>
         </div>
       </div>
+    </div>
+  </div>
+</div>
+
+<div id="produtoModal" class="modal-overlay">
+  <div class="modal-box" style="max-width:480px;">
+    <button class="modal-close" onclick="fecharProdutoModal()">✕</button>
+    <h2 id="produtoModalTitulo">Novo produto</h2>
+
+    <div class="fld"><label>Empresa</label>
+      <select id="produto_empresa" onchange="onMudarEmpresaProduto()">
+        <option value="">Selecione</option>
+        <option value="__nova__">+ Nova empresa</option>
+      </select>
+      <input id="produto_empresa_nova" placeholder="Nome da nova empresa" style="display:none;margin-top:6px;">
+    </div>
+
+    <div class="fld"><label>Marca</label>
+      <select id="produto_marca" onchange="onMudarMarcaProduto()">
+        <option value="">Selecione a empresa primeiro</option>
+      </select>
+      <input id="produto_marca_nova" placeholder="Nome da nova marca" style="display:none;margin-top:6px;">
+    </div>
+
+    <div class="fld"><label>Produto</label><input id="produto_nome" placeholder="Nome do produto"></div>
+    <div class="fld"><label>Descrição</label><input id="produto_descricao" placeholder="Ex: Lata 350ml"></div>
+
+    <div class="fld-row">
+      <div class="fld"><label>Estoque mínimo (unidades)</label><input id="produto_min_unidades" type="number" min="0" step="1" placeholder="0"></div>
+      <div class="fld"><label>Estoque mínimo (caixas/fardos)</label><input id="produto_min_caixas" type="number" min="0" step="1" placeholder="0"></div>
+    </div>
+
+    <div class="fld"><label>Quantidade a comprar</label><input id="produto_qtd_comprar" type="number" min="0" step="1" placeholder="0"></div>
+
+    <button class="addbtn" onclick="salvarProduto()">Salvar</button>
+    <div class="formerr" id="produtoErr">Preencha empresa, marca e nome do produto.</div>
+  </div>
+</div>
+
+<div id="confirmProdutoModal" class="modal-overlay">
+  <div class="modal-box" style="max-width:380px;">
+    <h2>Excluir produto?</h2>
+    <p class="modal-sub">Essa ação não pode ser desfeita.</p>
+    <div class="modal-actions">
+      <button class="addbtn" style="background:var(--rust);" onclick="confirmarExclusaoProdutoOk()">Excluir</button>
+      <button class="cancelbtn" onclick="fecharConfirmacaoProduto()">Cancelar</button>
     </div>
   </div>
 </div>
@@ -1225,6 +1296,9 @@ function trocarLoja(l){
       document.getElementById('fluxoFiltroMes').value = mesAtual;
       mudarMesFluxo(mesAtual);
     });
+  }
+  if(viewAtual === 'compras'){
+    carregarCompras();
   }
 }
 
@@ -2283,7 +2357,7 @@ function setEscala(e){
   }
 }
 
-const VIEWS = ['contasPagar','despesasFixas','comprovantes','diferencaCaixa','fluxoCaixa','vendasComCusto','bancoHoras','colaboradores'];
+const VIEWS = ['contasPagar','despesasFixas','comprovantes','diferencaCaixa','fluxoCaixa','vendasComCusto','bancoHoras','compras','colaboradores'];
 let colabCarregado = false;
 
 const NAV_GROUPS = {
@@ -2311,13 +2385,14 @@ async function mudarViewPrincipal(view){
   viewAtual = view;
 
   VIEWS.forEach(v=>{
-    const idMap = { contasPagar:'viewContasPagar', despesasFixas:'viewDespesasFixas', comprovantes:'viewComprovantes', diferencaCaixa:'viewDiferencaCaixa', fluxoCaixa:'viewFluxoCaixa', vendasComCusto:'viewVendasComCusto', bancoHoras:'viewBancoHoras', colaboradores:'viewColaboradores' };
+    const idMap = { contasPagar:'viewContasPagar', despesasFixas:'viewDespesasFixas', comprovantes:'viewComprovantes', diferencaCaixa:'viewDiferencaCaixa', fluxoCaixa:'viewFluxoCaixa', vendasComCusto:'viewVendasComCusto', bancoHoras:'viewBancoHoras', compras:'viewCompras', colaboradores:'viewColaboradores' };
     document.getElementById(idMap[v]).style.display = (v===view) ? '' : 'none';
   });
 
   document.querySelectorAll('.nav-sub-item').forEach(b=>b.classList.toggle('active', b.dataset.view===view));
 
   document.getElementById('navHeaderBancoHoras').classList.toggle('active-topo', view==='bancoHoras');
+  document.getElementById('navHeaderCompras').classList.toggle('active-topo', view==='compras');
 
   if(view==='despesasFixas'){
     abrirGrupoNav('financeiro');
@@ -2338,6 +2413,8 @@ async function mudarViewPrincipal(view){
     await abrirVendas();
   }else if(view==='bancoHoras'){
     if(!bhCarregado) await carregarFuncionarios();
+  }else if(view==='compras'){
+    await carregarCompras();
   }else if(view==='colaboradores'){
     abrirGrupoNav('config');
     await carregarColaboradores();
@@ -3538,8 +3615,45 @@ async function onSelecionarArquivosFluxo(fileList){
     fluxoImportParsed = todasLinhas;
     fluxoImportSaldos = todosSaldos;
     const datas = todasLinhas.map(l=>l.data).sort();
-    document.getElementById('fluxoPreviewResumo').textContent =
-      todasLinhas.length + ' lançamentos encontrados, de ' + fmtData(datas[0]) + ' até ' + fmtData(datas[datas.length-1]) + '.';
+    const dataMin = datas[0];
+    const dataMax = datas[datas.length-1];
+
+    const { data: existentes } = await sb.from('fluxo_caixa_lancamentos')
+      .select('data,tipo,descricao,valor')
+      .eq('loja', lojaAtual)
+      .gte('data', dataMin)
+      .lte('data', dataMax);
+
+    const chaveDe = l => [l.data, (l.tipo||'').trim(), (l.descricao||'').trim(), Number(l.valor).toFixed(2)].join('|');
+    const jaExistentes = new Set((existentes||[]).map(chaveDe));
+
+    const novos = [];
+    let duplicados = 0;
+    for(const linha of todasLinhas){
+      const chave = chaveDe(linha);
+      if(jaExistentes.has(chave)){
+        duplicados++;
+      }else{
+        novos.push(linha);
+        jaExistentes.add(chave); // evita duplicar entre si, se dois arquivos selecionados juntos tiverem a mesma linha
+      }
+    }
+
+    fluxoImportParsed = novos;
+
+    const btnConfirmar = document.getElementById('fluxoImportConfirmBtn');
+    if(novos.length===0){
+      document.getElementById('fluxoPreviewResumo').textContent =
+        'Todos os ' + duplicados + ' lançamento(s) desse arquivo já estavam importados (mesma data, tipo, descrição e valor). Nada novo para adicionar.';
+      btnConfirmar.style.display = 'none';
+    }else{
+      let resumo = novos.length + ' lançamento(s) novo(s) encontrado(s), de ' + fmtData(dataMin) + ' até ' + fmtData(dataMax) + '.';
+      if(duplicados>0){
+        resumo += ' ' + duplicados + ' já estavam importados e serão ignorados automaticamente.';
+      }
+      document.getElementById('fluxoPreviewResumo').textContent = resumo;
+      btnConfirmar.style.display = '';
+    }
     document.getElementById('fluxoPreviewWrap').style.display = 'block';
   }catch(e){
     console.error('Erro ao processar arquivo(s) de fluxo de caixa:', e);
@@ -3551,6 +3665,7 @@ async function onSelecionarArquivosFluxo(fileList){
 function cancelarImportFluxo(){
   document.getElementById('fluxoPreviewWrap').style.display = 'none';
   document.getElementById('fluxoFileInput').value = '';
+  document.getElementById('fluxoImportConfirmBtn').style.display = '';
   fluxoImportParsed = [];
   fluxoImportSaldos = [];
 }
@@ -3819,6 +3934,259 @@ async function confirmarExclusaoFluxoOk(){
     renderFluxoCaixa();
   }
   fecharConfirmacaoFluxo();
+}
+
+/* ================= COMPRAS ================= */
+
+let comprasEmpresas = [];
+let comprasMarcas = [];
+let comprasProdutos = [];
+let comprasBuscaTexto = '';
+let produtoEditandoId = null;
+
+async function carregarCompras(){
+  const [rEmpresas, rMarcas, rProdutos] = await Promise.all([
+    sb.from('compras_empresas').select('*').eq('loja', lojaAtual).order('nome'),
+    sb.from('compras_marcas').select('*').eq('loja', lojaAtual).order('nome'),
+    sb.from('compras_produtos').select('*').eq('loja', lojaAtual).order('nome')
+  ]);
+  if(rEmpresas.error || rMarcas.error || rProdutos.error){
+    console.error('Erro ao carregar compras:', rEmpresas.error || rMarcas.error || rProdutos.error);
+  }
+  comprasEmpresas = rEmpresas.data || [];
+  comprasMarcas = rMarcas.data || [];
+  comprasProdutos = rProdutos.data || [];
+  renderCompras();
+}
+
+function filtrarCompras(){
+  comprasBuscaTexto = document.getElementById('comprasBusca').value.trim().toLowerCase();
+  renderCompras();
+}
+
+function renderCompras(){
+  let linhas = comprasProdutos.map(p=>{
+    const marca = comprasMarcas.find(m=>m.id===p.marca_id);
+    const empresa = marca ? comprasEmpresas.find(e=>e.id===marca.empresa_id) : null;
+    return { produto: p, marcaNome: marca ? marca.nome : '—', empresaNome: empresa ? empresa.nome : '—' };
+  });
+
+  if(comprasBuscaTexto){
+    linhas = linhas.filter(l=>
+      l.produto.nome.toLowerCase().includes(comprasBuscaTexto) ||
+      (l.produto.descricao||'').toLowerCase().includes(comprasBuscaTexto) ||
+      l.marcaNome.toLowerCase().includes(comprasBuscaTexto) ||
+      l.empresaNome.toLowerCase().includes(comprasBuscaTexto)
+    );
+  }
+
+  linhas.sort((a,b)=> a.empresaNome.localeCompare(b.empresaNome) || a.marcaNome.localeCompare(b.marcaNome) || a.produto.nome.localeCompare(b.produto.nome));
+
+  const body = document.getElementById('comprasBody');
+  const empty = document.getElementById('comprasEmpty');
+  if(linhas.length===0){
+    body.innerHTML = '';
+    empty.style.display = 'block';
+    return;
+  }
+  empty.style.display = 'none';
+
+  body.innerHTML = linhas.map(l=>{
+    const p = l.produto;
+    const temFalta = Number(p.quantidade_comprar) > 0;
+    return `<tr>
+      <td>${escapeHtml(l.empresaNome)}</td>
+      <td>${escapeHtml(l.marcaNome)}</td>
+      <td>${escapeHtml(p.nome)}</td>
+      <td class="contato">${escapeHtml(p.descricao || '—')}</td>
+      <td class="valor">${p.estoque_min_unidades ?? 0}</td>
+      <td class="valor">${p.estoque_min_caixas ?? 0}</td>
+      <td><input class="comprar-input ${temFalta?'tem-falta':''}" type="number" min="0" step="1" value="${p.quantidade_comprar ?? 0}" onchange="atualizarQuantidadeComprar('${p.id}', this.value)"></td>
+      <td><div class="rowactions">
+        <button class="iconbtn edit" title="Editar" onclick="abrirEditarProduto('${p.id}')">✎</button>
+        <button class="iconbtn del" title="Excluir" onclick="confirmarExclusaoProduto('${p.id}')">✕</button>
+      </div></td>
+    </tr>`;
+  }).join('');
+}
+
+async function atualizarQuantidadeComprar(id, valor){
+  const num = parseFloat(valor);
+  const v = isNaN(num) || num<0 ? 0 : num;
+  const { error } = await sb.from('compras_produtos').update({ quantidade_comprar: v }).eq('id', id);
+  if(!error){
+    const p = comprasProdutos.find(x=>x.id===id);
+    if(p) p.quantidade_comprar = v;
+    renderCompras();
+  }
+}
+
+function popularSelectEmpresaProduto(selecionarId){
+  const sel = document.getElementById('produto_empresa');
+  sel.innerHTML = '<option value="">Selecione</option>' +
+    comprasEmpresas.map(e=>`<option value="${e.id}">${escapeHtml(e.nome)}</option>`).join('') +
+    '<option value="__nova__">+ Nova empresa</option>';
+  sel.value = selecionarId || '';
+}
+
+function popularSelectMarcaProduto(empresaId, selecionarId){
+  const sel = document.getElementById('produto_marca');
+  if(!empresaId){
+    sel.innerHTML = '<option value="">Selecione a empresa primeiro</option>';
+    return;
+  }
+  const marcasDaEmpresa = comprasMarcas.filter(m=>m.empresa_id===empresaId);
+  sel.innerHTML = '<option value="">Selecione</option>' +
+    marcasDaEmpresa.map(m=>`<option value="${m.id}">${escapeHtml(m.nome)}</option>`).join('') +
+    '<option value="__nova__">+ Nova marca</option>';
+  sel.value = selecionarId || '';
+}
+
+function onMudarEmpresaProduto(){
+  const val = document.getElementById('produto_empresa').value;
+  document.getElementById('produto_empresa_nova').style.display = (val==='__nova__') ? 'block' : 'none';
+  document.getElementById('produto_marca_nova').style.display = 'none';
+  if(val && val!=='__nova__'){
+    popularSelectMarcaProduto(val);
+  }else{
+    popularSelectMarcaProduto(null);
+  }
+}
+
+function onMudarMarcaProduto(){
+  const val = document.getElementById('produto_marca').value;
+  document.getElementById('produto_marca_nova').style.display = (val==='__nova__') ? 'block' : 'none';
+}
+
+function abrirNovoProduto(){
+  produtoEditandoId = null;
+  document.getElementById('produtoModalTitulo').textContent = 'Novo produto';
+  popularSelectEmpresaProduto();
+  popularSelectMarcaProduto(null);
+  document.getElementById('produto_empresa_nova').style.display = 'none';
+  document.getElementById('produto_empresa_nova').value = '';
+  document.getElementById('produto_marca_nova').style.display = 'none';
+  document.getElementById('produto_marca_nova').value = '';
+  document.getElementById('produto_nome').value = '';
+  document.getElementById('produto_descricao').value = '';
+  document.getElementById('produto_min_unidades').value = '';
+  document.getElementById('produto_min_caixas').value = '';
+  document.getElementById('produto_qtd_comprar').value = '';
+  document.getElementById('produtoErr').style.display = 'none';
+  document.getElementById('produtoModal').style.display = 'flex';
+}
+
+function abrirEditarProduto(id){
+  const p = comprasProdutos.find(x=>x.id===id);
+  if(!p) return;
+  const marca = comprasMarcas.find(m=>m.id===p.marca_id);
+  const empresaId = marca ? marca.empresa_id : null;
+
+  produtoEditandoId = id;
+  document.getElementById('produtoModalTitulo').textContent = 'Editar produto';
+  popularSelectEmpresaProduto(empresaId);
+  popularSelectMarcaProduto(empresaId, p.marca_id);
+  document.getElementById('produto_empresa_nova').style.display = 'none';
+  document.getElementById('produto_empresa_nova').value = '';
+  document.getElementById('produto_marca_nova').style.display = 'none';
+  document.getElementById('produto_marca_nova').value = '';
+  document.getElementById('produto_nome').value = p.nome;
+  document.getElementById('produto_descricao').value = p.descricao || '';
+  document.getElementById('produto_min_unidades').value = p.estoque_min_unidades ?? '';
+  document.getElementById('produto_min_caixas').value = p.estoque_min_caixas ?? '';
+  document.getElementById('produto_qtd_comprar').value = p.quantidade_comprar ?? '';
+  document.getElementById('produtoErr').style.display = 'none';
+  document.getElementById('produtoModal').style.display = 'flex';
+}
+
+function fecharProdutoModal(){
+  document.getElementById('produtoModal').style.display = 'none';
+  produtoEditandoId = null;
+}
+
+async function salvarProduto(){
+  const err = document.getElementById('produtoErr');
+  let empresaId = document.getElementById('produto_empresa').value;
+  let marcaId = document.getElementById('produto_marca').value;
+  const nomeProduto = document.getElementById('produto_nome').value.trim();
+  const descricao = document.getElementById('produto_descricao').value.trim();
+  const minUnidades = parseFloat(document.getElementById('produto_min_unidades').value) || 0;
+  const minCaixas = parseFloat(document.getElementById('produto_min_caixas').value) || 0;
+  const qtdComprar = parseFloat(document.getElementById('produto_qtd_comprar').value) || 0;
+  const novaEmpresaNome = document.getElementById('produto_empresa_nova').value.trim();
+  const novaMarcaNome = document.getElementById('produto_marca_nova').value.trim();
+
+  if(empresaId==='__nova__' && !novaEmpresaNome){
+    err.textContent = 'Digite o nome da nova empresa.'; err.style.display = 'block'; return;
+  }
+  if(marcaId==='__nova__' && !novaMarcaNome){
+    err.textContent = 'Digite o nome da nova marca.'; err.style.display = 'block'; return;
+  }
+  if(!nomeProduto){
+    err.textContent = 'Preencha o nome do produto.'; err.style.display = 'block'; return;
+  }
+  if(empresaId!=='__nova__' && !empresaId){
+    err.textContent = 'Selecione ou crie uma empresa.'; err.style.display = 'block'; return;
+  }
+  if(marcaId!=='__nova__' && !marcaId){
+    err.textContent = 'Selecione ou crie uma marca.'; err.style.display = 'block'; return;
+  }
+  err.style.display = 'none';
+
+  if(empresaId==='__nova__'){
+    const { data: novaEmpresa, error: erroEmp } = await sb.from('compras_empresas').insert({ loja: lojaAtual, nome: novaEmpresaNome }).select().single();
+    if(erroEmp){ err.textContent = 'Erro ao criar empresa: ' + erroEmp.message; err.style.display='block'; return; }
+    comprasEmpresas.push(novaEmpresa);
+    empresaId = novaEmpresa.id;
+  }
+
+  if(marcaId==='__nova__'){
+    const { data: novaMarca, error: erroMarca } = await sb.from('compras_marcas').insert({ loja: lojaAtual, empresa_id: empresaId, nome: novaMarcaNome }).select().single();
+    if(erroMarca){ err.textContent = 'Erro ao criar marca: ' + erroMarca.message; err.style.display='block'; return; }
+    comprasMarcas.push(novaMarca);
+    marcaId = novaMarca.id;
+  }
+
+  const payload = {
+    loja: lojaAtual, marca_id: marcaId, nome: nomeProduto, descricao: descricao || null,
+    estoque_min_unidades: minUnidades, estoque_min_caixas: minCaixas, quantidade_comprar: qtdComprar
+  };
+
+  if(produtoEditandoId){
+    const { data, error } = await sb.from('compras_produtos').update(payload).eq('id', produtoEditandoId).select().single();
+    if(error){ err.textContent = 'Erro ao salvar: ' + error.message; err.style.display='block'; return; }
+    const idx = comprasProdutos.findIndex(p=>p.id===produtoEditandoId);
+    if(idx>-1) comprasProdutos[idx] = data;
+  }else{
+    const { data, error } = await sb.from('compras_produtos').insert(payload).select().single();
+    if(error){ err.textContent = 'Erro ao salvar: ' + error.message; err.style.display='block'; return; }
+    comprasProdutos.push(data);
+  }
+
+  renderCompras();
+  fecharProdutoModal();
+}
+
+let excluindoProdutoId = null;
+
+function confirmarExclusaoProduto(id){
+  excluindoProdutoId = id;
+  document.getElementById('confirmProdutoModal').style.display = 'flex';
+}
+
+function fecharConfirmacaoProduto(){
+  document.getElementById('confirmProdutoModal').style.display = 'none';
+  excluindoProdutoId = null;
+}
+
+async function confirmarExclusaoProdutoOk(){
+  if(!excluindoProdutoId) return;
+  const { error } = await sb.from('compras_produtos').delete().eq('id', excluindoProdutoId);
+  if(!error){
+    comprasProdutos = comprasProdutos.filter(p=>p.id!==excluindoProdutoId);
+    renderCompras();
+  }
+  fecharConfirmacaoProduto();
 }
 
 async function selecionarFuncionario(id){
