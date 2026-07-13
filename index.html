@@ -1613,17 +1613,24 @@ async function setFormaPagamento(id, forma){
   const it = lancamentos.find(x=>x.id===id);
   if(!it) return;
   const novaForma = (it.forma_pagamento === forma) ? null : forma;
-  const { error } = await sb.from('lancamentos').update({ forma_pagamento: novaForma }).eq('id', id);
+  const agora = novaForma ? new Date().toISOString() : null;
+  const { error } = await sb.from('lancamentos').update({ forma_pagamento: novaForma, forma_pagamento_em: agora }).eq('id', id);
   if(!error){
     it.forma_pagamento = novaForma;
+    it.forma_pagamento_em = agora;
     render();
   }
 }
 
 async function removerLancamento(id){
+  const it = lancamentos.find(x=>x.id===id);
   const { error } = await sb.from('lancamentos').delete().eq('id', id);
   if(!error){
     lancamentos = lancamentos.filter(x=>x.id!==id);
+    if(it && it.despesa_fixa_id){
+      const mes = it.vencimento.slice(0,7);
+      await sb.from('despesas_fixas_puladas').upsert({ despesa_fixa_id: it.despesa_fixa_id, mes: mes }, { onConflict: 'despesa_fixa_id,mes' });
+    }
     render();
   }
 }
@@ -1838,7 +1845,7 @@ async function confirmarPagamentoCaixaOk(){
 function renderCaixaDoDia(){
   const dados = lancamentosDaLoja().filter(x=>x.tipo==='pagar' && x.status!=='pago');
 
-  const porMaisRecente = (a,b) => (b.criado_em||'').localeCompare(a.criado_em||'');
+  const porMaisRecente = (a,b) => (b.forma_pagamento_em||b.criado_em||'').localeCompare(a.forma_pagamento_em||a.criado_em||'');
   const itensDinheiro = dados.filter(x=>x.forma_pagamento==='dinheiro').sort(porMaisRecente);
   const itensCartao = dados.filter(x=>x.forma_pagamento==='cartao').sort(porMaisRecente);
 
@@ -2088,7 +2095,11 @@ async function gerarLancamentosFixos(){
   const anoMes = anoAtual + '-' + String(mesAtualNum).padStart(2,'0');
   const ultimoDiaDoMes = new Date(anoAtual, mesAtualNum, 0).getDate();
 
+  const { data: pulados } = await sb.from('despesas_fixas_puladas').select('despesa_fixa_id, mes').eq('mes', anoMes);
+  const idsPulados = new Set((pulados||[]).map(p=>p.despesa_fixa_id));
+
   const novos = fixas
+    .filter(f => !idsPulados.has(f.id))
     .filter(f => !lancamentos.some(l => l.despesa_fixa_id === f.id && l.vencimento.slice(0,7) === anoMes))
     .map(f => {
       const diaReal = Math.min(f.dia_vencimento, ultimoDiaDoMes);
@@ -4488,7 +4499,7 @@ async function iniciar(){
     if(document.getElementById('loadingScreen').style.display !== 'none'){
       limparSessaoLocalEForcarReload();
     }
-  }, 9000);
+  }, 14000);
 
   let sessaoInicial = null;
   try{
@@ -4498,9 +4509,9 @@ async function iniciar(){
     console.error('Erro ao validar sessão:', e);
   }
 
+  await aplicarSessao(sessaoInicial, { carregarDados: true });
   clearTimeout(watchdog);
   document.getElementById('loadingScreen').style.display = 'none';
-  await aplicarSessao(sessaoInicial, { carregarDados: true });
 
   sb.auth.onAuthStateChange(async (event, session) => {
     if(event === 'SIGNED_IN' || event === 'SIGNED_OUT'){
@@ -4510,6 +4521,24 @@ async function iniciar(){
 }
 
 iniciar();
+
+const TEMPO_INATIVIDADE_MS = 20 * 60 * 1000; // 20 minutos
+let timerInatividade = null;
+
+function reiniciarTimerInatividade(){
+  clearTimeout(timerInatividade);
+  timerInatividade = setTimeout(async ()=>{
+    if(sb && document.getElementById('app').classList.contains('on')){
+      await sb.auth.signOut({ scope: 'local' });
+      alert('Você foi desconectado por inatividade. Faça login novamente.');
+    }
+  }, TEMPO_INATIVIDADE_MS);
+}
+
+['mousemove','keydown','click','touchstart','scroll'].forEach(evento=>{
+  document.addEventListener(evento, reiniciarTimerInatividade, { passive: true });
+});
+reiniciarTimerInatividade();
 
 if('serviceWorker' in navigator){
   window.addEventListener('load', () => {
