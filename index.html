@@ -682,7 +682,7 @@
       <div class="panel">
         <div class="tablewrap">
           <table class="ledger">
-            <thead><tr><th>Empresa</th><th>Marca</th><th>Produto</th><th>Descrição</th><th>Mín. (un)</th><th>Mín. (cx/fardo)</th><th>Comprar</th><th></th></tr></thead>
+            <thead><tr><th>Empresa</th><th>Marca</th><th>Produto</th><th>Embalagem</th><th>Mín. (un)</th><th>Mín. (emb)</th><th>Atual (un)</th><th>Atual (emb)</th><th>Comprar</th><th></th></tr></thead>
             <tbody id="comprasBody"></tbody>
           </table>
         </div>
@@ -971,12 +971,23 @@
       <input id="produto_marca_nova" placeholder="Nome da nova marca" style="display:none;margin-top:6px;">
     </div>
 
-    <div class="fld"><label>Produto</label><input id="produto_nome" placeholder="Nome do produto"></div>
-    <div class="fld"><label>Descrição</label><input id="produto_descricao" placeholder="Ex: Lata 350ml"></div>
+    <div class="fld"><label>Produto</label><input id="produto_nome" placeholder="Ex: Litrinho 300ml Antarctica"></div>
+
+    <div class="fld"><label>Tipo de embalagem</label>
+      <div class="tipo-toggle" id="embalagemToggle">
+        <button type="button" class="tipo-btn active" data-emb="caixa" onclick="setTipoEmbalagem('caixa')">Caixa</button>
+        <button type="button" class="tipo-btn" data-emb="fardo" onclick="setTipoEmbalagem('fardo')">Fardo</button>
+      </div>
+    </div>
 
     <div class="fld-row">
       <div class="fld"><label>Estoque mínimo (unidades)</label><input id="produto_min_unidades" type="number" min="0" step="1" placeholder="0"></div>
-      <div class="fld"><label>Estoque mínimo (caixas/fardos)</label><input id="produto_min_caixas" type="number" min="0" step="1" placeholder="0"></div>
+      <div class="fld"><label id="lbl_min_caixas">Estoque mínimo (caixas)</label><input id="produto_min_caixas" type="number" min="0" step="1" placeholder="0"></div>
+    </div>
+
+    <div class="fld-row">
+      <div class="fld"><label>Estoque atual (unidades)</label><input id="produto_atual_unidades" type="number" min="0" step="1" placeholder="0"></div>
+      <div class="fld"><label id="lbl_atual_caixas">Estoque atual (caixas)</label><input id="produto_atual_caixas" type="number" min="0" step="1" placeholder="0"></div>
     </div>
 
     <div class="fld"><label>Quantidade a comprar</label><input id="produto_qtd_comprar" type="number" min="0" step="1" placeholder="0"></div>
@@ -3974,7 +3985,6 @@ function renderCompras(){
   if(comprasBuscaTexto){
     linhas = linhas.filter(l=>
       l.produto.nome.toLowerCase().includes(comprasBuscaTexto) ||
-      (l.produto.descricao||'').toLowerCase().includes(comprasBuscaTexto) ||
       l.marcaNome.toLowerCase().includes(comprasBuscaTexto) ||
       l.empresaNome.toLowerCase().includes(comprasBuscaTexto)
     );
@@ -3994,13 +4004,16 @@ function renderCompras(){
   body.innerHTML = linhas.map(l=>{
     const p = l.produto;
     const temFalta = Number(p.quantidade_comprar) > 0;
+    const embalagemLabel = p.tipo_embalagem==='fardo' ? 'Fardo' : 'Caixa';
     return `<tr>
       <td>${escapeHtml(l.empresaNome)}</td>
       <td>${escapeHtml(l.marcaNome)}</td>
       <td>${escapeHtml(p.nome)}</td>
-      <td class="contato">${escapeHtml(p.descricao || '—')}</td>
+      <td>${embalagemLabel}</td>
       <td class="valor">${p.estoque_min_unidades ?? 0}</td>
       <td class="valor">${p.estoque_min_caixas ?? 0}</td>
+      <td class="valor">${p.estoque_atual_unidades ?? 0}</td>
+      <td class="valor">${p.estoque_atual_caixas ?? 0}</td>
       <td><input class="comprar-input ${temFalta?'tem-falta':''}" type="number" min="0" step="1" value="${p.quantidade_comprar ?? 0}" onchange="atualizarQuantidadeComprar('${p.id}', this.value)"></td>
       <td><div class="rowactions">
         <button class="iconbtn edit" title="Editar" onclick="abrirEditarProduto('${p.id}')">✎</button>
@@ -4074,12 +4087,21 @@ function abrirNovoProduto(){
   document.getElementById('produto_marca_nova').style.display = 'none';
   document.getElementById('produto_marca_nova').value = '';
   document.getElementById('produto_nome').value = '';
-  document.getElementById('produto_descricao').value = '';
+  setTipoEmbalagem('caixa');
   document.getElementById('produto_min_unidades').value = '';
   document.getElementById('produto_min_caixas').value = '';
+  document.getElementById('produto_atual_unidades').value = '';
+  document.getElementById('produto_atual_caixas').value = '';
   document.getElementById('produto_qtd_comprar').value = '';
   document.getElementById('produtoErr').style.display = 'none';
   document.getElementById('produtoModal').style.display = 'flex';
+}
+
+function setTipoEmbalagem(tipo){
+  document.querySelectorAll('#embalagemToggle .tipo-btn').forEach(b=>b.classList.toggle('active', b.dataset.emb===tipo));
+  const rotulo = tipo==='fardo' ? 'fardos' : 'caixas';
+  document.getElementById('lbl_min_caixas').textContent = 'Estoque mínimo (' + rotulo + ')';
+  document.getElementById('lbl_atual_caixas').textContent = 'Estoque atual (' + rotulo + ')';
 }
 
 function abrirEditarProduto(id){
@@ -4097,9 +4119,11 @@ function abrirEditarProduto(id){
   document.getElementById('produto_marca_nova').style.display = 'none';
   document.getElementById('produto_marca_nova').value = '';
   document.getElementById('produto_nome').value = p.nome;
-  document.getElementById('produto_descricao').value = p.descricao || '';
+  setTipoEmbalagem(p.tipo_embalagem || 'caixa');
   document.getElementById('produto_min_unidades').value = p.estoque_min_unidades ?? '';
   document.getElementById('produto_min_caixas').value = p.estoque_min_caixas ?? '';
+  document.getElementById('produto_atual_unidades').value = p.estoque_atual_unidades ?? '';
+  document.getElementById('produto_atual_caixas').value = p.estoque_atual_caixas ?? '';
   document.getElementById('produto_qtd_comprar').value = p.quantidade_comprar ?? '';
   document.getElementById('produtoErr').style.display = 'none';
   document.getElementById('produtoModal').style.display = 'flex';
@@ -4115,9 +4139,11 @@ async function salvarProduto(){
   let empresaId = document.getElementById('produto_empresa').value;
   let marcaId = document.getElementById('produto_marca').value;
   const nomeProduto = document.getElementById('produto_nome').value.trim();
-  const descricao = document.getElementById('produto_descricao').value.trim();
+  const tipoEmbalagem = document.querySelector('#embalagemToggle .tipo-btn.active').dataset.emb;
   const minUnidades = parseFloat(document.getElementById('produto_min_unidades').value) || 0;
   const minCaixas = parseFloat(document.getElementById('produto_min_caixas').value) || 0;
+  const atualUnidades = parseFloat(document.getElementById('produto_atual_unidades').value) || 0;
+  const atualCaixas = parseFloat(document.getElementById('produto_atual_caixas').value) || 0;
   const qtdComprar = parseFloat(document.getElementById('produto_qtd_comprar').value) || 0;
   const novaEmpresaNome = document.getElementById('produto_empresa_nova').value.trim();
   const novaMarcaNome = document.getElementById('produto_marca_nova').value.trim();
@@ -4154,8 +4180,10 @@ async function salvarProduto(){
   }
 
   const payload = {
-    loja: lojaAtual, marca_id: marcaId, nome: nomeProduto, descricao: descricao || null,
-    estoque_min_unidades: minUnidades, estoque_min_caixas: minCaixas, quantidade_comprar: qtdComprar
+    loja: lojaAtual, marca_id: marcaId, nome: nomeProduto, tipo_embalagem: tipoEmbalagem,
+    estoque_min_unidades: minUnidades, estoque_min_caixas: minCaixas,
+    estoque_atual_unidades: atualUnidades, estoque_atual_caixas: atualCaixas,
+    quantidade_comprar: qtdComprar
   };
 
   if(produtoEditandoId){
