@@ -4046,7 +4046,13 @@ function onMudarEmpresaProduto(){
   const val = document.getElementById('produto_empresa').value;
   document.getElementById('produto_empresa_nova').style.display = (val==='__nova__') ? 'block' : 'none';
   document.getElementById('produto_marca_nova').style.display = 'none';
-  if(val && val!=='__nova__'){
+  if(val==='__nova__'){
+    // empresa ainda não existe, então só é possível criar uma marca nova também
+    const sel = document.getElementById('produto_marca');
+    sel.innerHTML = '<option value="__nova__">+ Nova marca</option>';
+    sel.value = '__nova__';
+    document.getElementById('produto_marca_nova').style.display = 'block';
+  }else if(val){
     popularSelectMarcaProduto(val);
   }else{
     popularSelectMarcaProduto(null);
