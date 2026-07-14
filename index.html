@@ -768,6 +768,16 @@
           <input id="vendasFileInput" type="file" accept=".xlsx,.xls" multiple style="display:none;" onchange="onSelecionarArquivosVendas(this.files)">
         </label>
         <span style="font-size:12px;color:var(--muted);">Pode selecionar vários arquivos de uma vez, um por dia</span>
+        <button type="button" class="filter-btn" style="border-color:var(--rust);color:var(--rust);margin-left:auto;" onclick="confirmarApagarTudoVendas()">🗑 Apagar tudo (loja atual)</button>
+      </div>
+
+      <div class="panel" style="margin-bottom:20px;padding:14px 20px;display:flex;align-items:center;gap:20px;flex-wrap:wrap;">
+        <div><span style="font-size:11px;text-transform:uppercase;letter-spacing:0.05em;color:var(--muted);">Último dia importado</span><br>
+          <span id="vendasUltimoDia" style="font-family:var(--font-mono);font-size:15px;font-weight:600;">—</span>
+        </div>
+        <div><span style="font-size:11px;text-transform:uppercase;letter-spacing:0.05em;color:var(--muted);">Próximo a importar</span><br>
+          <span id="vendasProximoDia" style="font-family:var(--font-mono);font-size:15px;font-weight:600;color:var(--gold);">—</span>
+        </div>
       </div>
 
       <div id="vendasPreviewWrap" class="panel" style="display:none;margin-bottom:20px;padding:18px 20px;">
@@ -1120,6 +1130,18 @@
   </div>
 </div>
 
+<div id="confirmApagarVendasModal" class="modal-overlay">
+  <div class="modal-box" style="max-width:440px;">
+    <h2>Apagar todas as vendas?</h2>
+    <p class="modal-sub">Isso apaga <strong id="apagarVendasQtd">todos</strong> os lançamentos de "Vendas com Custo" da <strong id="apagarVendasLoja"></strong>, de todos os meses, sem volta. Os dados de outras telas (Contas a pagar, Fluxo de Caixa, etc.) não são afetados.</p>
+    <div class="fld"><label>Para confirmar, digite APAGAR</label><input id="apagarVendasConfirmTexto" placeholder="APAGAR"></div>
+    <div class="modal-actions" style="margin-top:14px;">
+      <button class="addbtn" style="background:var(--rust);" onclick="confirmarApagarTudoVendasOk()">Apagar tudo</button>
+      <button class="cancelbtn" onclick="fecharApagarVendasModal()">Cancelar</button>
+    </div>
+  </div>
+</div>
+
 <div id="confirmFluxoModal" class="modal-overlay">
   <div class="modal-box" style="max-width:380px;">
     <h2>Excluir lançamento?</h2>
@@ -1300,6 +1322,7 @@ function trocarLoja(l){
       document.getElementById('vendasFiltroMes').value = mesAtual;
       mudarMesVendas(mesAtual);
     });
+    atualizarUltimoDiaVendas();
   }
   if(viewAtual === 'fluxoCaixa'){
     popularFiltroMesFluxo().then(()=>{
@@ -2952,15 +2975,92 @@ async function confirmarExclusaoDiferencaOk(){
 let vendasCache = [];
 let vendasArquivosParsed = [];
 
+async function confirmarApagarTudoVendas(){
+  const { count } = await sb.from('vendas_itens').select('id', { count: 'exact', head: true }).eq('loja', lojaAtual);
+  document.getElementById('apagarVendasQtd').textContent = (count || 0) + ' lançamento(s)';
+  document.getElementById('apagarVendasLoja').textContent = NOMES_LOJA[lojaAtual] || '';
+  document.getElementById('apagarVendasConfirmTexto').value = '';
+  document.getElementById('confirmApagarVendasModal').style.display = 'flex';
+}
+
+function fecharApagarVendasModal(){
+  document.getElementById('confirmApagarVendasModal').style.display = 'none';
+}
+
+async function confirmarApagarTudoVendasOk(){
+  const texto = document.getElementById('apagarVendasConfirmTexto').value.trim().toUpperCase();
+  if(texto !== 'APAGAR'){
+    alert('Digite exatamente "APAGAR" (em maiúsculas) para confirmar.');
+    return;
+  }
+
+  const { error } = await sb.from('vendas_itens').delete().eq('loja', lojaAtual);
+  fecharApagarVendasModal();
+
+  if(error){
+    alert('Erro ao apagar: ' + error.message);
+    return;
+  }
+
+  await popularFiltroMesVendas();
+  await carregarVendas();
+  await atualizarUltimoDiaVendas();
+  alert('Todos os lançamentos de Vendas com Custo dessa loja foram apagados.');
+}
+
 async function abrirVendas(){
   await popularFiltroMesVendas();
   const mesAtual = new Date().toISOString().slice(0,7);
   document.getElementById('vendasFiltroMes').value = mesAtual;
   mudarMesVendas(mesAtual);
+  await atualizarUltimoDiaVendas();
+}
+
+async function atualizarUltimoDiaVendas(){
+  const { data, error } = await sb.from('vendas_itens')
+    .select('data')
+    .eq('loja', lojaAtual)
+    .order('data', { ascending: false })
+    .limit(1);
+
+  const elUltimo = document.getElementById('vendasUltimoDia');
+  const elProximo = document.getElementById('vendasProximoDia');
+
+  if(error || !data || data.length===0){
+    elUltimo.textContent = 'nenhum ainda';
+    elProximo.textContent = '—';
+    return;
+  }
+
+  const ultimaData = data[0].data;
+  elUltimo.textContent = fmtData(ultimaData);
+
+  const proximo = new Date(ultimaData + 'T12:00:00');
+  proximo.setDate(proximo.getDate() + 1);
+  const proximoStr = proximo.toISOString().slice(0,10);
+  elProximo.textContent = fmtData(proximoStr);
+}
+
+async function buscarTodasLinhas(construirQuery){
+  let todos = [];
+  let pagina = 0;
+  const tamanho = 1000;
+  while(true){
+    const from = pagina * tamanho;
+    const to = from + tamanho - 1;
+    const { data, error } = await construirQuery(from, to);
+    if(error) return { data: null, error };
+    todos = todos.concat(data || []);
+    if(!data || data.length < tamanho) break;
+    pagina++;
+  }
+  return { data: todos, error: null };
 }
 
 async function popularFiltroMesVendas(){
-  const { data, error } = await sb.from('vendas_itens').select('data').eq('loja', lojaAtual);
+  const { data, error } = await buscarTodasLinhas((from, to) =>
+    sb.from('vendas_itens').select('data').eq('loja', lojaAtual).range(from, to)
+  );
   if(error){ console.error('Erro ao carregar meses de vendas:', error); return; }
   const mesesSet = new Set((data||[]).map(d=>d.data.slice(0,7)));
   const hoje = new Date();
@@ -3103,12 +3203,12 @@ async function confirmarImportVendas(){
 
   const btn = document.getElementById('vendasImportConfirmBtn');
   btn.disabled = true;
-  btn.textContent = 'Importando…';
+  btn.textContent = 'Verificando duplicidade…';
 
-  const registros = [];
+  const registrosBrutos = [];
   vendasArquivosParsed.forEach(a=>{
     a.itens.forEach(v=>{
-      registros.push({
+      registrosBrutos.push({
         loja: lojaAtual,
         data: a.data,
         produto: v.produto,
@@ -3118,6 +3218,39 @@ async function confirmarImportVendas(){
       });
     });
   });
+
+  const datasImportacao = registrosBrutos.map(r=>r.data).sort();
+  const dataMin = datasImportacao[0];
+  const dataMax = datasImportacao[datasImportacao.length-1];
+
+  const { data: existentes } = await buscarTodasLinhas((from, to)=>
+    sb.from('vendas_itens').select('data,produto,categoria,valor_venda,custo')
+      .eq('loja', lojaAtual).gte('data', dataMin).lte('data', dataMax).range(from, to)
+  );
+
+  const chaveDe = r => [r.data, (r.produto||'').trim(), (r.categoria||'').trim(), Number(r.valor_venda).toFixed(2), Number(r.custo).toFixed(2)].join('|');
+  const jaExistentes = new Set((existentes||[]).map(chaveDe));
+
+  const registros = [];
+  let duplicados = 0;
+  for(const r of registrosBrutos){
+    const chave = chaveDe(r);
+    if(jaExistentes.has(chave)){
+      duplicados++;
+    }else{
+      registros.push(r);
+      jaExistentes.add(chave);
+    }
+  }
+
+  if(registros.length===0){
+    btn.disabled = false;
+    btn.textContent = 'Confirmar importação';
+    alert('Todos os ' + duplicados + ' itens desses arquivo(s) já estavam importados (mesma data, produto, categoria, valor e custo). Nada novo para adicionar.');
+    return;
+  }
+
+  btn.textContent = 'Importando…';
 
   const tamanhoLote = 500;
   let erroGeral = null;
@@ -3135,18 +3268,25 @@ async function confirmarImportVendas(){
     return;
   }
 
+  if(duplicados>0){
+    alert(registros.length + ' item(ns) novo(s) importado(s). ' + duplicados + ' já existiam e foram ignorados automaticamente.');
+  }
+
   cancelarImportVendas();
   await popularFiltroMesVendas();
   await carregarVendas();
+  await atualizarUltimoDiaVendas();
 }
 
 async function carregarVendas(){
   const de = document.getElementById('vendasFiltroDe').value;
   const ate = document.getElementById('vendasFiltroAte').value;
-  let query = sb.from('vendas_itens').select('*').eq('loja', lojaAtual);
-  if(de) query = query.gte('data', de);
-  if(ate) query = query.lte('data', ate);
-  const { data, error } = await query.order('data');
+  const { data, error } = await buscarTodasLinhas((from, to)=>{
+    let query = sb.from('vendas_itens').select('*').eq('loja', lojaAtual).order('data').range(from, to);
+    if(de) query = query.gte('data', de);
+    if(ate) query = query.lte('data', ate);
+    return query;
+  });
   if(error){
     console.error('Erro ao carregar vendas:', error);
     vendasCache = [];
@@ -3520,7 +3660,9 @@ async function salvarEdicaoDinheiro(){
 }
 
 async function popularFiltroMesFluxo(){
-  const { data, error } = await sb.from('fluxo_caixa_lancamentos').select('data').eq('loja', lojaAtual);
+  const { data, error } = await buscarTodasLinhas((from, to) =>
+    sb.from('fluxo_caixa_lancamentos').select('data').eq('loja', lojaAtual).range(from, to)
+  );
   if(error){ console.error('Erro ao carregar meses do fluxo de caixa:', error); return; }
   const mesesSet = new Set((data||[]).map(d=>d.data.slice(0,7)));
   const hoje = new Date();
@@ -3728,10 +3870,12 @@ async function confirmarImportFluxo(){
 async function carregarFluxoCaixa(){
   const de = document.getElementById('fluxoFiltroDe').value;
   const ate = document.getElementById('fluxoFiltroAte').value;
-  let query = sb.from('fluxo_caixa_lancamentos').select('*').eq('loja', lojaAtual);
-  if(de) query = query.gte('data', de);
-  if(ate) query = query.lte('data', ate);
-  const { data, error } = await query.order('data');
+  const { data, error } = await buscarTodasLinhas((from, to)=>{
+    let query = sb.from('fluxo_caixa_lancamentos').select('*').eq('loja', lojaAtual).order('data').range(from, to);
+    if(de) query = query.gte('data', de);
+    if(ate) query = query.lte('data', ate);
+    return query;
+  });
   if(error){
     console.error('Erro ao carregar fluxo de caixa:', error);
     fluxoCache = [];
