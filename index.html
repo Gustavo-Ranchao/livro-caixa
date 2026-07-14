@@ -269,6 +269,7 @@
   table.ledger tbody tr.vencido:hover{background:rgba(163,67,45,0.09);}
   table.ledger td{padding:11px 10px;vertical-align:middle;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
   #vendasProdutoBody td:first-child, #vendasCategoriaBody td:first-child{white-space:normal;overflow:visible;text-overflow:clip;}
+  #comprasBody td:nth-child(2), #comprasBody td:nth-child(3){white-space:normal;overflow:visible;text-overflow:clip;}
   td.valor{font-family:var(--font-mono);text-align:right;white-space:nowrap;}
   td.data{font-family:var(--font-mono);font-size:12px;color:var(--muted);white-space:nowrap;}
   .contato{font-size:13px;color:var(--ink);font-weight:500;}
@@ -4151,8 +4152,8 @@ function renderCompras(){
       <td>${embalagemLabel}</td>
       <td class="valor">${p.estoque_min_unidades ?? 0}</td>
       <td class="valor">${p.estoque_min_caixas ?? 0}</td>
-      <td class="valor">${p.estoque_atual_unidades ?? 0}</td>
-      <td class="valor">${p.estoque_atual_caixas ?? 0}</td>
+      <td><input class="comprar-input" type="number" min="0" step="1" value="${p.estoque_atual_unidades ?? 0}" onchange="atualizarEstoqueAtual('${p.id}', 'estoque_atual_unidades', this.value)"></td>
+      <td><input class="comprar-input" type="number" min="0" step="1" value="${p.estoque_atual_caixas ?? 0}" onchange="atualizarEstoqueAtual('${p.id}', 'estoque_atual_caixas', this.value)"></td>
       <td><input class="comprar-input ${temFalta?'tem-falta':''}" type="number" min="0" step="1" value="${p.quantidade_comprar ?? 0}" onchange="atualizarQuantidadeComprar('${p.id}', this.value)"></td>
       <td><div class="rowactions">
         <button class="iconbtn edit" title="Editar" onclick="abrirEditarProduto('${p.id}')">✎</button>
@@ -4169,6 +4170,17 @@ async function atualizarQuantidadeComprar(id, valor){
   if(!error){
     const p = comprasProdutos.find(x=>x.id===id);
     if(p) p.quantidade_comprar = v;
+    renderCompras();
+  }
+}
+
+async function atualizarEstoqueAtual(id, campo, valor){
+  const num = parseFloat(valor);
+  const v = isNaN(num) || num<0 ? 0 : num;
+  const { error } = await sb.from('compras_produtos').update({ [campo]: v }).eq('id', id);
+  if(!error){
+    const p = comprasProdutos.find(x=>x.id===id);
+    if(p) p[campo] = v;
     renderCompras();
   }
 }
