@@ -3125,7 +3125,6 @@ async function onSelecionarArquivosVendas(fileList){
   }
 
   vendasArquivosParsed = [];
-  const dataPadrao = todayStr();
 
   for(const file of arquivos){
     const buffer = await file.arrayBuffer();
@@ -3155,7 +3154,7 @@ async function onSelecionarArquivosVendas(fileList){
     if(itens.length===0) continue;
 
     const dataDetectada = extrairDataDoNomeArquivo(file.name);
-    vendasArquivosParsed.push({ nomeArquivo: file.name, itens: itens, data: dataDetectada || dataPadrao, dataDetectadaAutomaticamente: !!dataDetectada });
+    vendasArquivosParsed.push({ nomeArquivo: file.name, itens: itens, data: dataDetectada || '', dataDetectadaAutomaticamente: !!dataDetectada });
   }
 
   if(vendasArquivosParsed.length===0){
@@ -3164,25 +3163,60 @@ async function onSelecionarArquivosVendas(fileList){
     return;
   }
 
+  const datasComData = vendasArquivosParsed.map(a=>a.data).filter(Boolean);
+  if(datasComData.length>0){
+    const { data: existentes } = await buscarTodasLinhas((from, to) =>
+      sb.from('vendas_itens').select('data').eq('loja', lojaAtual).in('data', datasComData).range(from, to)
+    );
+    const diasComDados = new Set((existentes||[]).map(e=>e.data));
+    vendasArquivosParsed.forEach(a=>{
+      a.jaTemDados = !!(a.data && diasComDados.has(a.data));
+      a.incluir = !a.jaTemDados;
+    });
+  }
+
   renderVendasPreviewLista();
 }
 
-function atualizarDataArquivoVendas(idx, valor){
+async function atualizarDataArquivoVendas(idx, valor){
   vendasArquivosParsed[idx].data = valor;
+  if(valor){
+    const { data: existentes } = await sb.from('vendas_itens').select('id').eq('loja', lojaAtual).eq('data', valor).limit(1);
+    vendasArquivosParsed[idx].jaTemDados = !!(existentes && existentes.length>0);
+    vendasArquivosParsed[idx].incluir = !vendasArquivosParsed[idx].jaTemDados;
+  }else{
+    vendasArquivosParsed[idx].jaTemDados = false;
+    vendasArquivosParsed[idx].incluir = true;
+  }
+  renderVendasPreviewLista();
+}
+
+function alternarIncluirArquivoVendas(idx, marcado){
+  vendasArquivosParsed[idx].incluir = marcado;
 }
 
 function renderVendasPreviewLista(){
   const lista = document.getElementById('vendasPreviewLista');
-  lista.innerHTML = vendasArquivosParsed.map((a, idx)=>`
-    <div style="display:flex;align-items:center;gap:12px;padding:10px 0;${idx>0 ? 'border-top:1px solid var(--paper3);' : ''}">
+  lista.innerHTML = vendasArquivosParsed.map((a, idx)=>{
+    const semData = !a.data;
+    const avisoData = a.dataDetectadaAutomaticamente
+      ? ' · <span style="color:var(--green);">data reconhecida no nome do arquivo ✓</span>'
+      : ' · <span style="color:var(--rust);font-weight:600;">⚠️ data não reconhecida — preencha manualmente</span>';
+    const avisoDuplicado = a.jaTemDados
+      ? '<div style="font-size:12px;color:var(--rust);font-weight:600;margin-top:2px;">⚠️ Esse dia já tem lançamentos importados. Desmarcado por padrão para não duplicar — marque a caixa ao lado se quiser importar mesmo assim.</div>'
+      : '';
+    const incluirChecked = a.incluir!==false ? 'checked' : '';
+    return `<div style="display:flex;align-items:center;gap:12px;padding:10px 0;${idx>0 ? 'border-top:1px solid var(--paper3);' : ''}">
+      <input type="checkbox" ${incluirChecked} title="Incluir este arquivo na importação" onchange="alternarIncluirArquivoVendas(${idx}, this.checked)">
       <div style="flex:1;min-width:0;">
         <div style="font-size:13px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHtml(a.nomeArquivo)}</div>
-        <div style="font-size:12px;color:var(--muted);">${a.itens.length} itens encontrados${a.dataDetectadaAutomaticamente ? ' · <span style="color:var(--green);">data reconhecida no nome do arquivo ✓</span>' : ''}</div>
+        <div style="font-size:12px;color:var(--muted);">${a.itens.length} itens encontrados${avisoData}</div>
+        ${avisoDuplicado}
       </div>
       <label style="font-size:11px;color:var(--muted);white-space:nowrap;">Data</label>
-      <input type="date" value="${a.data}" onchange="atualizarDataArquivoVendas(${idx}, this.value)">
-    </div>
-  `).join('');
+      <input type="date" value="${a.data}" style="${semData ? 'border-color:var(--rust);' : ''}" onchange="atualizarDataArquivoVendas(${idx}, this.value)">
+    </div>`;
+  }).join('');
   document.getElementById('vendasPreviewWrap').style.display = 'block';
 }
 
@@ -3201,14 +3235,20 @@ async function confirmarImportVendas(){
     }
   }
 
+  const incluidos = vendasArquivosParsed.filter(a => a.incluir !== false);
+  if(incluidos.length===0){
+    alert('Nenhum arquivo selecionado para importar (todos foram desmarcados por já terem dados nesse dia).');
+    return;
+  }
+
   const btn = document.getElementById('vendasImportConfirmBtn');
   btn.disabled = true;
-  btn.textContent = 'Verificando duplicidade…';
+  btn.textContent = 'Importando…';
 
-  const registrosBrutos = [];
-  vendasArquivosParsed.forEach(a=>{
+  const registros = [];
+  incluidos.forEach(a=>{
     a.itens.forEach(v=>{
-      registrosBrutos.push({
+      registros.push({
         loja: lojaAtual,
         data: a.data,
         produto: v.produto,
@@ -3218,39 +3258,6 @@ async function confirmarImportVendas(){
       });
     });
   });
-
-  const datasImportacao = registrosBrutos.map(r=>r.data).sort();
-  const dataMin = datasImportacao[0];
-  const dataMax = datasImportacao[datasImportacao.length-1];
-
-  const { data: existentes } = await buscarTodasLinhas((from, to)=>
-    sb.from('vendas_itens').select('data,produto,categoria,valor_venda,custo')
-      .eq('loja', lojaAtual).gte('data', dataMin).lte('data', dataMax).range(from, to)
-  );
-
-  const chaveDe = r => [r.data, (r.produto||'').trim(), (r.categoria||'').trim(), Number(r.valor_venda).toFixed(2), Number(r.custo).toFixed(2)].join('|');
-  const jaExistentes = new Set((existentes||[]).map(chaveDe));
-
-  const registros = [];
-  let duplicados = 0;
-  for(const r of registrosBrutos){
-    const chave = chaveDe(r);
-    if(jaExistentes.has(chave)){
-      duplicados++;
-    }else{
-      registros.push(r);
-      jaExistentes.add(chave);
-    }
-  }
-
-  if(registros.length===0){
-    btn.disabled = false;
-    btn.textContent = 'Confirmar importação';
-    alert('Todos os ' + duplicados + ' itens desses arquivo(s) já estavam importados (mesma data, produto, categoria, valor e custo). Nada novo para adicionar.');
-    return;
-  }
-
-  btn.textContent = 'Importando…';
 
   const tamanhoLote = 500;
   let erroGeral = null;
@@ -3268,9 +3275,8 @@ async function confirmarImportVendas(){
     return;
   }
 
-  if(duplicados>0){
-    alert(registros.length + ' item(ns) novo(s) importado(s). ' + duplicados + ' já existiam e foram ignorados automaticamente.');
-  }
+  const pulados = vendasArquivosParsed.length - incluidos.length;
+  alert(registros.length + ' item(ns) importado(s) de ' + incluidos.length + ' arquivo(s).' + (pulados>0 ? ' ' + pulados + ' arquivo(s) foram pulados por já ter dados naquele dia.' : ''));
 
   cancelarImportVendas();
   await popularFiltroMesVendas();
@@ -3771,38 +3777,27 @@ async function onSelecionarArquivosFluxo(fileList){
     const dataMin = datas[0];
     const dataMax = datas[datas.length-1];
 
-    const { data: existentes } = await sb.from('fluxo_caixa_lancamentos')
-      .select('data,tipo,descricao,valor')
-      .eq('loja', lojaAtual)
-      .gte('data', dataMin)
-      .lte('data', dataMax);
+    const { data: existentes } = await buscarTodasLinhas((from, to) =>
+      sb.from('fluxo_caixa_lancamentos').select('data')
+        .eq('loja', lojaAtual).gte('data', dataMin).lte('data', dataMax).range(from, to)
+    );
+    const diasComDados = new Set((existentes||[]).map(l=>l.data));
 
-    const chaveDe = l => [l.data, (l.tipo||'').trim(), (l.descricao||'').trim(), Number(l.valor).toFixed(2)].join('|');
-    const jaExistentes = new Set((existentes||[]).map(chaveDe));
+    const diasNoArquivo = new Set(todasLinhas.map(l=>l.data));
+    const diasJaImportados = Array.from(diasNoArquivo).filter(d=>diasComDados.has(d)).sort();
 
-    const novos = [];
-    let duplicados = 0;
-    for(const linha of todasLinhas){
-      const chave = chaveDe(linha);
-      if(jaExistentes.has(chave)){
-        duplicados++;
-      }else{
-        novos.push(linha);
-        jaExistentes.add(chave); // evita duplicar entre si, se dois arquivos selecionados juntos tiverem a mesma linha
-      }
-    }
-
+    const novos = todasLinhas.filter(l=>!diasComDados.has(l.data));
     fluxoImportParsed = novos;
 
     const btnConfirmar = document.getElementById('fluxoImportConfirmBtn');
     if(novos.length===0){
       document.getElementById('fluxoPreviewResumo').textContent =
-        'Todos os ' + duplicados + ' lançamento(s) desse arquivo já estavam importados (mesma data, tipo, descrição e valor). Nada novo para adicionar.';
+        'Todos os dias desse(s) arquivo(s) já têm lançamentos importados (' + diasJaImportados.map(fmtData).join(', ') + '). Nada novo para adicionar. Se quiser reimportar mesmo assim, apague esses dias primeiro em "Apagar lançamentos importados (período)".';
       btnConfirmar.style.display = 'none';
     }else{
       let resumo = novos.length + ' lançamento(s) novo(s) encontrado(s), de ' + fmtData(dataMin) + ' até ' + fmtData(dataMax) + '.';
-      if(duplicados>0){
-        resumo += ' ' + duplicados + ' já estavam importados e serão ignorados automaticamente.';
+      if(diasJaImportados.length>0){
+        resumo += ' Os dias ' + diasJaImportados.map(fmtData).join(', ') + ' já tinham dados e foram pulados inteiros (para não duplicar nem descartar lançamentos legítimos repetidos). Se quiser reimportar esses dias, apague-os primeiro.';
       }
       document.getElementById('fluxoPreviewResumo').textContent = resumo;
       btnConfirmar.style.display = '';
