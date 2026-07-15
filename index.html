@@ -159,6 +159,10 @@
   @media (max-width:900px){ .colab-body{grid-template-columns:1fr;} }
 
   #fluxoFormaTable, #fluxoFornecedorTable{width:100%;border-collapse:collapse;font-size:12.5px;}
+  .compras-nav{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;}
+  .compras-chip{font-family:var(--font-sans);font-size:12.5px;padding:7px 14px;border:1px solid var(--line);border-radius:20px;background:#fff;color:var(--muted);cursor:pointer;transition:.15s;}
+  .compras-chip:hover{border-color:var(--gold);color:var(--ink);}
+  .compras-chip.active{background:var(--ink);color:var(--paper);border-color:var(--ink);}
   input.comprar-input{width:80px;font-family:var(--font-mono);font-size:12px;padding:5px 7px;border:1px solid var(--line);border-radius:4px;background:#fff;}
   input.comprar-input:focus{outline:none;border-color:var(--gold);}
   input.comprar-input.tem-falta{border-color:var(--rust);color:var(--rust);font-weight:600;}
@@ -537,12 +541,29 @@
 
         <div class="panel">
           <div class="panel-head"><h2>Novo registro do dia</h2></div>
-          <div class="bh-form">
+
+          <div style="padding:0 20px 14px;">
+            <label style="display:block;font-size:10px;text-transform:uppercase;letter-spacing:0.05em;color:var(--muted);margin-bottom:6px;">Tipo de lançamento</label>
+            <div class="tipo-toggle" id="bhTipoDiaToggle" style="margin:0;">
+              <button type="button" class="tipo-btn active" data-tipodia="normal" onclick="setBhTipoDia('normal')">Dia normal</button>
+              <button type="button" class="tipo-btn" data-tipodia="falta_justificada" onclick="setBhTipoDia('falta_justificada')">Falta justificada</button>
+              <button type="button" class="tipo-btn" data-tipodia="falta_injustificada" onclick="setBhTipoDia('falta_injustificada')">Falta injustificada</button>
+            </div>
+            <div id="bhDescontarFaltaWrap" style="display:none;margin-top:12px;">
+              <label style="display:block;font-size:10px;text-transform:uppercase;letter-spacing:0.05em;color:var(--muted);margin-bottom:6px;">Descontar essas horas do banco de horas?</label>
+              <div class="tipo-toggle" id="bhDescontarToggle" style="margin:0;">
+                <button type="button" class="tipo-btn active" data-desc="sim" onclick="setBhDescontar(true)">Sim, descontar o dia</button>
+                <button type="button" class="tipo-btn" data-desc="nao" onclick="setBhDescontar(false)">Não, manter neutro</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="bh-form" id="bhFormCampos">
             <div class="fld"><label>Data</label><input id="bh_data" type="date"></div>
-            <div class="fld"><label>Entrada 1</label><input id="bh_e1" type="time"></div>
-            <div class="fld"><label>Saída 1</label><input id="bh_s1" type="time"></div>
-            <div class="fld"><label>Entrada 2</label><input id="bh_e2" type="time"></div>
-            <div class="fld"><label>Saída 2</label><input id="bh_s2" type="time"></div>
+            <div class="fld" id="bh_fld_e1"><label>Entrada 1</label><input id="bh_e1" type="time"></div>
+            <div class="fld" id="bh_fld_s1"><label>Saída 1</label><input id="bh_s1" type="time"></div>
+            <div class="fld" id="bh_fld_e2"><label>Entrada 2</label><input id="bh_e2" type="time"></div>
+            <div class="fld" id="bh_fld_s2"><label>Saída 2</label><input id="bh_s2" type="time"></div>
             <button class="addbtn" onclick="salvarRegistroHoras()">Salvar dia</button>
           </div>
           <div class="formerr" id="bhFormErr">Preencha ao menos data, Entrada 1 e Saída 1.</div>
@@ -581,6 +602,7 @@
               <button type="button" class="filter-btn foto-btn" onclick="exportarPdfHoras()" title="Baixar como PDF, com todos os registros">📄 PDF completo</button>
               <button type="button" class="filter-btn foto-btn" onclick="exportarExcelHorasResumo()" title="Só nome, período e horas noturnas — sem os registros de ponto">📊 Excel resumo</button>
               <button type="button" class="filter-btn foto-btn" onclick="exportarPdfHorasResumo()" title="Só nome, período e horas noturnas — sem os registros de ponto">📄 PDF resumo</button>
+              <button type="button" class="filter-btn" style="border-color:var(--rust);color:var(--rust);" onclick="confirmarApagarTudoHoras()">🗑 Apagar tudo</button>
             </div>
           </div>
           <div class="painel-total pagar" id="bhResumoPeriodo" style="display:none;"></div>
@@ -673,6 +695,9 @@
     </div>
 
     <div id="viewCompras" style="display:none;">
+      <div class="compras-nav" id="comprasNavEmpresas"></div>
+      <div class="compras-nav" id="comprasNavMarcas" style="display:none;"></div>
+
       <div class="searchrow">
         <div class="searchbar">
           <input id="comprasBusca" placeholder="🔍 Buscar por produto, marca ou empresa..." oninput="filtrarCompras()">
@@ -1127,6 +1152,18 @@
     <div class="modal-actions" style="margin-top:16px;">
       <button class="addbtn" id="edinheiroSalvarBtn" onclick="salvarEdicaoDinheiro()">Salvar</button>
       <button class="cancelbtn" onclick="fecharEditarDinheiro()">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<div id="confirmApagarHorasModal" class="modal-overlay">
+  <div class="modal-box" style="max-width:440px;">
+    <h2>Apagar todos os registros?</h2>
+    <p class="modal-sub">Isso apaga <strong id="apagarHorasQtd">todos</strong> os registros de ponto de <strong id="apagarHorasNome"></strong>, de todos os meses, sem volta. O cadastro do colaborador continua existindo, só o histórico de ponto é apagado.</p>
+    <div class="fld"><label>Para confirmar, digite APAGAR</label><input id="apagarHorasConfirmTexto" placeholder="APAGAR"></div>
+    <div class="modal-actions" style="margin-top:14px;">
+      <button class="addbtn" style="background:var(--rust);" onclick="confirmarApagarTudoHorasOk()">Apagar tudo</button>
+      <button class="cancelbtn" onclick="fecharApagarHorasModal()">Cancelar</button>
     </div>
   </div>
 </div>
@@ -2976,6 +3013,43 @@ async function confirmarExclusaoDiferencaOk(){
 let vendasCache = [];
 let vendasArquivosParsed = [];
 
+async function confirmarApagarTudoHoras(){
+  if(!bhFuncionarioAtualId){
+    alert('Selecione um funcionário primeiro.');
+    return;
+  }
+  const f = bhFuncionarios.find(x=>x.id===bhFuncionarioAtualId);
+  const { count } = await sb.from('bh_registros').select('id', { count: 'exact', head: true }).eq('funcionario_id', bhFuncionarioAtualId);
+  document.getElementById('apagarHorasQtd').textContent = (count || 0) + ' registro(s)';
+  document.getElementById('apagarHorasNome').textContent = f ? f.nome : '';
+  document.getElementById('apagarHorasConfirmTexto').value = '';
+  document.getElementById('confirmApagarHorasModal').style.display = 'flex';
+}
+
+function fecharApagarHorasModal(){
+  document.getElementById('confirmApagarHorasModal').style.display = 'none';
+}
+
+async function confirmarApagarTudoHorasOk(){
+  const texto = document.getElementById('apagarHorasConfirmTexto').value.trim().toUpperCase();
+  if(texto !== 'APAGAR'){
+    alert('Digite exatamente "APAGAR" (em maiúsculas) para confirmar.');
+    return;
+  }
+
+  const { error } = await sb.from('bh_registros').delete().eq('funcionario_id', bhFuncionarioAtualId);
+  fecharApagarHorasModal();
+
+  if(error){
+    alert('Erro ao apagar: ' + error.message);
+    return;
+  }
+
+  bhRegistros = [];
+  renderBancoHoras();
+  alert('Todos os registros de ponto desse colaborador foram apagados.');
+}
+
 async function confirmarApagarTudoVendas(){
   const { count } = await sb.from('vendas_itens').select('id', { count: 'exact', head: true }).eq('loja', lojaAtual);
   document.getElementById('apagarVendasQtd').textContent = (count || 0) + ' lançamento(s)';
@@ -4093,6 +4167,38 @@ let comprasEmpresas = [];
 let comprasMarcas = [];
 let comprasProdutos = [];
 let comprasBuscaTexto = '';
+let comprasEmpresaFiltro = '';
+let comprasMarcaFiltro = '';
+
+function renderComprasNav(){
+  const navEmp = document.getElementById('comprasNavEmpresas');
+  navEmp.innerHTML = `<button class="compras-chip ${!comprasEmpresaFiltro?'active':''}" onclick="filtrarPorEmpresa('')">Todas as empresas</button>` +
+    comprasEmpresas.map(e=>`<button class="compras-chip ${comprasEmpresaFiltro===e.id?'active':''}" onclick="filtrarPorEmpresa('${e.id}')">${escapeHtml(e.nome)}</button>`).join('');
+
+  const navMarca = document.getElementById('comprasNavMarcas');
+  if(!comprasEmpresaFiltro){
+    navMarca.style.display = 'none';
+    navMarca.innerHTML = '';
+  }else{
+    const marcasDaEmpresa = comprasMarcas.filter(m=>m.empresa_id===comprasEmpresaFiltro);
+    navMarca.style.display = 'flex';
+    navMarca.innerHTML = `<button class="compras-chip ${!comprasMarcaFiltro?'active':''}" onclick="filtrarPorMarca('')">Todas as marcas</button>` +
+      marcasDaEmpresa.map(m=>`<button class="compras-chip ${comprasMarcaFiltro===m.id?'active':''}" onclick="filtrarPorMarca('${m.id}')">${escapeHtml(m.nome)}</button>`).join('');
+  }
+}
+
+function filtrarPorEmpresa(id){
+  comprasEmpresaFiltro = id;
+  comprasMarcaFiltro = '';
+  renderComprasNav();
+  renderCompras();
+}
+
+function filtrarPorMarca(id){
+  comprasMarcaFiltro = id;
+  renderComprasNav();
+  renderCompras();
+}
 let produtoEditandoId = null;
 
 async function carregarCompras(){
@@ -4107,6 +4213,9 @@ async function carregarCompras(){
   comprasEmpresas = rEmpresas.data || [];
   comprasMarcas = rMarcas.data || [];
   comprasProdutos = rProdutos.data || [];
+  comprasEmpresaFiltro = '';
+  comprasMarcaFiltro = '';
+  renderComprasNav();
   renderCompras();
 }
 
@@ -4121,6 +4230,16 @@ function renderCompras(){
     const empresa = marca ? comprasEmpresas.find(e=>e.id===marca.empresa_id) : null;
     return { produto: p, marcaNome: marca ? marca.nome : '—', empresaNome: empresa ? empresa.nome : '—' };
   });
+
+  if(comprasEmpresaFiltro){
+    linhas = linhas.filter(l=>{
+      const marca = comprasMarcas.find(m=>m.id===l.produto.marca_id);
+      return marca && marca.empresa_id === comprasEmpresaFiltro;
+    });
+  }
+  if(comprasMarcaFiltro){
+    linhas = linhas.filter(l=>l.produto.marca_id===comprasMarcaFiltro);
+  }
 
   if(comprasBuscaTexto){
     linhas = linhas.filter(l=>
@@ -4348,6 +4467,7 @@ async function salvarProduto(){
     comprasProdutos.push(data);
   }
 
+  renderComprasNav();
   renderCompras();
   fecharProdutoModal();
 }
@@ -4689,8 +4809,17 @@ function renderBancoHoras(){
   const ordenados = [...bhRegistros].sort((a,b)=> a.data.localeCompare(b.data));
   let acumulado = 0;
   const linhas = ordenados.map(reg=>{
-    const trabalhado = calcularMinutosTrabalhados(reg);
-    const noturno = calcularMinutosNoturnos(reg);
+    let trabalhado, noturno;
+    if(reg.tipo_dia === 'falta_justificada'){
+      trabalhado = f.carga_horaria_diaria_min;
+      noturno = 0;
+    }else if(reg.tipo_dia === 'falta_injustificada'){
+      trabalhado = reg.descontar_falta ? 0 : f.carga_horaria_diaria_min;
+      noturno = 0;
+    }else{
+      trabalhado = calcularMinutosTrabalhados(reg);
+      noturno = calcularMinutosNoturnos(reg);
+    }
     const noturnoConvertido = calcularMinutosNoturnosConvertidos(noturno);
     const saldoDia = trabalhado - f.carga_horaria_diaria_min;
     acumulado += saldoDia;
@@ -4739,20 +4868,29 @@ function renderBancoHoras(){
   semRegistros.style.display = 'none';
 
   const horaOuTraco = v => v ? v.slice(0,5) : '—';
-  body.innerHTML = linhasExibidas.map(l=>`
-    <tr>
+  const rotuloFalta = reg => {
+    if(reg.tipo_dia==='falta_justificada') return '<span style="color:var(--muted);font-weight:600;">Falta justificada</span>';
+    if(reg.tipo_dia==='falta_injustificada') return reg.descontar_falta
+      ? '<span style="color:var(--rust);font-weight:600;">Falta injust. (descontada)</span>'
+      : '<span style="color:var(--rust);font-weight:600;">Falta injust. (sem desconto)</span>';
+    return null;
+  };
+  body.innerHTML = linhasExibidas.slice().reverse().map(l=>{
+    const falta = rotuloFalta(l.reg);
+    return `<tr>
       <td class="data">${fmtData(l.reg.data)}</td>
-      <td class="data">${horaOuTraco(l.reg.entrada1)}</td>
+      <td class="data" ${falta ? 'colspan="4"' : ''}>${falta || horaOuTraco(l.reg.entrada1)}</td>
+      ${falta ? '' : `
       <td class="data">${horaOuTraco(l.reg.saida1)}</td>
       <td class="data">${horaOuTraco(l.reg.entrada2)}</td>
-      <td class="data">${horaOuTraco(l.reg.saida2)}</td>
+      <td class="data">${horaOuTraco(l.reg.saida2)}</td>`}
       <td class="valor">${fmtMinutos(l.trabalhado)}</td>
       <td class="valor" ${l.noturno>0?'style="color:var(--gold);font-weight:600;"':''}>${l.noturno>0 ? fmtMinutos(l.noturno) : '—'}</td>
       <td class="valor" ${l.noturnoConvertido>0?'style="color:var(--gold);font-weight:600;"':''}>${l.noturnoConvertido>0 ? fmtMinutos(l.noturnoConvertido) : '—'}</td>
       <td class="valor" style="color:${l.saldoDia<0?'var(--rust)':'var(--green)'};">${fmtMinutosSinal(l.saldoDia)}</td>
       <td><button class="iconbtn del" title="Excluir" onclick="confirmarExclusaoRegistroHoras('${l.reg.id}')">✕</button></td>
-    </tr>
-  `).join('');
+    </tr>`;
+  }).join('');
 }
 
 function parseHoraCampo(s){
@@ -4860,6 +4998,28 @@ async function confirmarBhImport(){
   }
 }
 
+let bhTipoDiaAtual = 'normal';
+let bhDescontarAtual = true;
+
+function setBhTipoDia(tipo){
+  bhTipoDiaAtual = tipo;
+  document.querySelectorAll('#bhTipoDiaToggle .tipo-btn').forEach(b=>b.classList.toggle('active', b.dataset.tipodia===tipo));
+
+  const ehFalta = tipo!=='normal';
+  ['bh_fld_e1','bh_fld_s1','bh_fld_e2','bh_fld_s2'].forEach(id=>{
+    document.getElementById(id).style.display = ehFalta ? 'none' : '';
+  });
+  document.getElementById('bhDescontarFaltaWrap').style.display = (tipo==='falta_injustificada') ? 'block' : 'none';
+
+  const err = document.getElementById('bhFormErr');
+  err.textContent = ehFalta ? 'Preencha ao menos a data.' : 'Preencha ao menos data, Entrada 1 e Saída 1.';
+}
+
+function setBhDescontar(valor){
+  bhDescontarAtual = valor;
+  document.querySelectorAll('#bhDescontarToggle .tipo-btn').forEach(b=>b.classList.toggle('active', (b.dataset.desc==='sim')===valor));
+}
+
 async function salvarRegistroHoras(){
   const data = document.getElementById('bh_data').value;
   const e1 = document.getElementById('bh_e1').value;
@@ -4867,14 +5027,15 @@ async function salvarRegistroHoras(){
   const e2 = document.getElementById('bh_e2').value;
   const s2 = document.getElementById('bh_s2').value;
   const err = document.getElementById('bhFormErr');
+  const ehFalta = bhTipoDiaAtual !== 'normal';
 
   if(!bhFuncionarioAtualId){
     err.textContent = 'Selecione um funcionário primeiro.';
     err.style.display = 'block';
     return;
   }
-  if(!data || !e1 || !s1){
-    err.textContent = 'Preencha ao menos data, Entrada 1 e Saída 1.';
+  if(!data || (!ehFalta && (!e1 || !s1))){
+    err.textContent = ehFalta ? 'Preencha ao menos a data.' : 'Preencha ao menos data, Entrada 1 e Saída 1.';
     err.style.display = 'block';
     return;
   }
@@ -4883,10 +5044,12 @@ async function salvarRegistroHoras(){
   const registro = {
     funcionario_id: bhFuncionarioAtualId,
     data: data,
-    entrada1: e1 || null,
-    saida1: s1 || null,
-    entrada2: e2 || null,
-    saida2: s2 || null
+    entrada1: ehFalta ? null : (e1 || null),
+    saida1: ehFalta ? null : (s1 || null),
+    entrada2: ehFalta ? null : (e2 || null),
+    saida2: ehFalta ? null : (s2 || null),
+    tipo_dia: bhTipoDiaAtual,
+    descontar_falta: bhTipoDiaAtual==='falta_injustificada' ? bhDescontarAtual : true
   };
 
   const { data: salvo, error } = await sb.from('bh_registros')
@@ -4907,6 +5070,8 @@ async function salvarRegistroHoras(){
   document.getElementById('bh_s1').value = '';
   document.getElementById('bh_e2').value = '';
   document.getElementById('bh_s2').value = '';
+  setBhTipoDia('normal');
+  setBhDescontar(true);
   renderBancoHoras();
 }
 
