@@ -5177,7 +5177,9 @@ async function aplicarSessao(session, opts){
   opts = opts || {};
   if(session){
     document.getElementById('loginScreen').style.display = 'none';
-    document.getElementById('app').classList.add('on');
+    if(opts.carregarDados){
+      document.getElementById('loadingScreen').style.display = 'flex';
+    }
     const nomeUsuario = (session.user.user_metadata && (session.user.user_metadata.nome || session.user.user_metadata.name)) || session.user.email;
     document.getElementById('perfilNome').textContent = nomeUsuario;
     document.getElementById('perfilEmail').textContent = session.user.email;
@@ -5188,9 +5190,12 @@ async function aplicarSessao(session, opts){
     if(opts.carregarDados){
       await carregarDados();
     }
+    document.getElementById('app').classList.add('on');
+    document.getElementById('loadingScreen').style.display = 'none';
   }else{
     document.getElementById('app').classList.remove('on');
     document.getElementById('loginScreen').style.display = 'flex';
+    document.getElementById('loadingScreen').style.display = 'none';
   }
 }
 
