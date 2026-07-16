@@ -48,7 +48,7 @@
   .loginwrap button:disabled{opacity:0.5;}
   .loginerr{color:var(--rust);font-size:12px;margin-top:12px;display:none;}
   .loginwrap .hint{margin-top:20px;font-size:11px;color:var(--muted);line-height:1.5;}
-  .loadingScreen{min-height:100vh;display:flex;align-items:center;justify-content:center;color:var(--muted);font-family:var(--font-voice);font-style:italic;font-size:15px;}
+  .loadingScreen{position:fixed;top:0;left:0;width:100%;height:100vh;background:var(--paper);z-index:9999;display:flex;align-items:center;justify-content:center;color:var(--muted);font-family:var(--font-voice);font-style:italic;font-size:15px;}
 
   /* ---------- App shell ---------- */
   .shell{display:none;min-height:100vh;}
@@ -273,6 +273,7 @@
   table.ledger tbody tr.vencido:hover{background:rgba(163,67,45,0.09);}
   table.ledger td{padding:11px 10px;vertical-align:middle;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
   #vendasProdutoBody td:first-child, #vendasCategoriaBody td:first-child{white-space:normal;overflow:visible;text-overflow:clip;}
+  #fluxoExtratoBody td:nth-child(3), #fluxoDinheiroBody td:nth-child(2), #fluxoFornecedorBody td:first-child{white-space:normal;overflow:visible;text-overflow:clip;}
   #comprasBody td:nth-child(2), #comprasBody td:nth-child(3){white-space:normal;overflow:visible;text-overflow:clip;}
   td.valor{font-family:var(--font-mono);text-align:right;white-space:nowrap;}
   td.data{font-family:var(--font-mono);font-size:12px;color:var(--muted);white-space:nowrap;}
@@ -2477,7 +2478,9 @@ async function mudarViewPrincipal(view){
     await abrirDiferencaCaixa();
   }else if(view==='fluxoCaixa'){
     abrirGrupoNav('financeiro');
+    document.getElementById('loadingScreen').style.display = 'flex';
     await abrirFluxoCaixa();
+    document.getElementById('loadingScreen').style.display = 'none';
   }else if(view==='contasPagar'){
     abrirGrupoNav('financeiro');
   }else if(view==='vendasComCusto'){
@@ -5311,8 +5314,12 @@ async function iniciar(){
   document.getElementById('loadingScreen').style.display = 'none';
 
   sb.auth.onAuthStateChange(async (event, session) => {
-    if(event === 'SIGNED_IN' || event === 'SIGNED_OUT'){
-      await aplicarSessao(session, { carregarDados: event === 'SIGNED_IN' });
+    if(event === 'SIGNED_OUT'){
+      await aplicarSessao(session, { carregarDados: false });
+    }else if(event === 'SIGNED_IN'){
+      const jaEstaAberto = document.getElementById('app').classList.contains('on');
+      if(jaEstaAberto) return;
+      await aplicarSessao(session, { carregarDados: true });
     }
   });
 }
