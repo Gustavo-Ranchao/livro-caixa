@@ -937,6 +937,9 @@
               <button class="filter-btn" style="border-color:var(--rust);color:var(--rust);" onclick="confirmarLimpezaExtrato()">🗑 Apagar lançamentos importados (período)</button>
             </div>
           </div>
+          <div style="padding:0 20px 14px;">
+            <input id="fluxoExtratoBusca" oninput="filtrarExtratoFluxo()" placeholder="🔍 Buscar por valor, dia, tipo, descrição, nome..." style="width:100%;font-family:var(--font-sans);font-size:13px;padding:9px 12px;border:1px solid var(--line);border-radius:6px;background:var(--paper);">
+          </div>
           <div class="tablewrap">
             <table class="ledger">
               <thead><tr><th>Data</th><th>Tipo</th><th>Descrição</th><th style="text-align:right">Valor</th><th></th></tr></thead>
@@ -3366,10 +3369,10 @@ async function carregarVendas(){
   const de = document.getElementById('vendasFiltroDe').value;
   const ate = document.getElementById('vendasFiltroAte').value;
   const { data, error } = await buscarTodasLinhas((from, to)=>{
-    let query = sb.from('vendas_itens').select('*').eq('loja', lojaAtual).order('data').range(from, to);
+    let query = sb.from('vendas_itens').select('*').eq('loja', lojaAtual);
     if(de) query = query.gte('data', de);
     if(ate) query = query.lte('data', ate);
-    return query;
+    return query.order('data').range(from, to);
   });
   if(error){
     console.error('Erro ao carregar vendas:', error);
@@ -4014,10 +4017,10 @@ async function carregarFluxoCaixa(){
   const de = document.getElementById('fluxoFiltroDe').value;
   const ate = document.getElementById('fluxoFiltroAte').value;
   const { data, error } = await buscarTodasLinhas((from, to)=>{
-    let query = sb.from('fluxo_caixa_lancamentos').select('*').eq('loja', lojaAtual).order('data').range(from, to);
+    let query = sb.from('fluxo_caixa_lancamentos').select('*').eq('loja', lojaAtual);
     if(de) query = query.gte('data', de);
     if(ate) query = query.lte('data', ate);
-    return query;
+    return query.order('data').range(from, to);
   });
   if(error){
     console.error('Erro ao carregar fluxo de caixa:', error);
@@ -4066,6 +4069,10 @@ function classificarFormaPagamentoVenda(tipo, descricao){
   if(d.includes('CREDITO') || d.includes('CRÉDITO')) return 'Cartão Crédito';
   if(texto.includes('MASTERCARD') || texto.includes('VISA') || texto.includes('ELO') || texto.includes('MAESTRO') || texto.includes('HIPERCARD') || texto.includes('AMEX')) return 'Cartão';
   return 'Outros';
+}
+
+function filtrarExtratoFluxo(){
+  renderFluxoCaixa();
 }
 
 function renderFluxoCaixa(){
@@ -4121,12 +4128,20 @@ function renderFluxoCaixa(){
     `).join('');
   }
 
-  const extrato = fluxoCache.filter(l=>l.tipo!=='Dinheiro');
+  let extrato = fluxoCache.filter(l=>l.tipo!=='Dinheiro');
+  const buscaExtrato = (document.getElementById('fluxoExtratoBusca').value || '').trim().toLowerCase();
+  if(buscaExtrato){
+    extrato = extrato.filter(l=>{
+      const texto = [fmtData(l.data), l.tipo, l.descricao, brl(l.valor), String(l.valor).replace('.',',')].join(' ').toLowerCase();
+      return texto.includes(buscaExtrato);
+    });
+  }
   const bodyExtrato = document.getElementById('fluxoExtratoBody');
   const emptyExtrato = document.getElementById('fluxoExtratoEmpty');
   if(extrato.length===0){
     bodyExtrato.innerHTML = '';
     emptyExtrato.style.display = 'block';
+    emptyExtrato.textContent = buscaExtrato ? 'Nenhum lançamento encontrado para essa busca.' : 'Nenhum lançamento do extrato importado ainda.';
   }else{
     emptyExtrato.style.display = 'none';
     bodyExtrato.innerHTML = extrato.map(l=>`
