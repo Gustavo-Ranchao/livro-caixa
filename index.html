@@ -3772,6 +3772,97 @@ function mudarMesFluxo(valor){
   carregarFluxoCaixa();
 }
 
+function processarExtratoFormatoAntigo(linhas, idxCabecalho, cabecalhoTextos){
+  const idxData = cabecalhoTextos.indexOf('DATA');
+  const idxTipo = cabecalhoTextos.indexOf('TIPO');
+  const idxDescricao = cabecalhoTextos.findIndex(h=>(h||'').includes('DESCRI'));
+  const idxEntradas = cabecalhoTextos.findIndex(h=>(h||'').includes('ENTRADA'));
+  const idxSaidas = cabecalhoTextos.findIndex(h=>(h||'').includes('SAIDA') || (h||'').includes('SAÍDA'));
+  const idxSaldo = cabecalhoTextos.findIndex(h=>(h||'').includes('SALDO'));
+
+  const transacoes = [];
+  const saldos = [];
+
+  for(let i=idxCabecalho+1; i<linhas.length; i++){
+    const linha = linhas[i];
+    if(!linha || linha.length===0) continue;
+    const tipo = String(linha[idxTipo]||'').trim();
+    if(!tipo) continue;
+    const dataTexto = String(linha[idxData]||'').trim();
+    const data = parseDataBR(dataTexto);
+    if(!data) continue;
+
+    if(tipo.toUpperCase().includes('SALDO DO DIA')){
+      const saldoVal = idxSaldo>-1 ? parseNumeroVenda(linha[idxSaldo]) : null;
+      if(saldoVal!==null) saldos.push({ data, saldo: saldoVal });
+      continue;
+    }
+
+    const descricao = idxDescricao>-1 ? String(linha[idxDescricao]||'').trim() : '';
+    const entradaVal = idxEntradas>-1 ? parseNumeroVenda(linha[idxEntradas]) : null;
+    const saidaVal = idxSaidas>-1 ? parseNumeroVenda(linha[idxSaidas]) : null;
+    let valor = null;
+    if(entradaVal!==null && entradaVal!==0) valor = Math.abs(entradaVal);
+    else if(saidaVal!==null && saidaVal!==0) valor = -Math.abs(saidaVal);
+    if(valor===null) continue;
+    transacoes.push({ data, tipo, descricao, valor });
+  }
+  return { transacoes, saldos };
+}
+
+// Formato "quebrado em várias linhas": cada movimentação tem uma linha principal
+// (Data, Documento, Histórico, Valor) seguida de um número variável de linhas de
+// detalhe (nome de quem pagou/recebeu, observação, etc.) até a próxima linha que
+// já tenha uma nova Data preenchida.
+function processarExtratoFormatoQuebrado(linhas, idxCabecalho, cabecalhoTextos){
+  const idxData = cabecalhoTextos.indexOf('DATA');
+  const idxHistorico = cabecalhoTextos.findIndex(h=>(h||'').includes('HIST'));
+  const idxValor = cabecalhoTextos.indexOf('VALOR');
+
+  const transacoes = [];
+  const saldos = [];
+  let i = idxCabecalho + 1;
+
+  while(i < linhas.length){
+    const linha = linhas[i] || [];
+    const dataTexto = String(linha[idxData]||'').trim();
+    if(!dataTexto){ i++; continue; }
+
+    const data = parseDataBR(dataTexto);
+    const tipo = String(linha[idxHistorico]||'').trim();
+    const valorTexto = String(linha[idxValor]||'').trim();
+
+    let j = i+1;
+    const detalhes = [];
+    while(j < linhas.length){
+      const proxima = linhas[j] || [];
+      const proximaDataTexto = String(proxima[idxData]||'').trim();
+      if(proximaDataTexto) break;
+      const texto = String(proxima[idxHistorico]||'').trim();
+      if(texto) detalhes.push(texto);
+      j++;
+    }
+
+    if(data && valorTexto){
+      const tipoUpper = tipo.toUpperCase();
+      const marcador = valorTexto.trim().slice(-1).toUpperCase();
+      const valorNum = parseNumeroVenda(valorTexto);
+
+      if(tipoUpper === 'SALDO DO DIA'){
+        if(valorNum!==null) saldos.push({ data, saldo: valorNum });
+      }else if(tipoUpper.includes('SALDO')){
+        // "Saldo anterior", "Saldo bloqueado anterior" etc — só informativo, ignora
+      }else if(marcador === '*'){
+        // marcador especial de linha informativa, ignora
+      }else if(valorNum!==null && valorNum!==0){
+        transacoes.push({ data, tipo, descricao: detalhes.join(' · '), valor: valorNum });
+      }
+    }
+    i = j;
+  }
+  return { transacoes, saldos };
+}
+
 async function onSelecionarArquivosFluxo(fileList){
   const arquivos = Array.from(fileList || []);
   if(arquivos.length===0) return;
@@ -3791,57 +3882,36 @@ async function onSelecionarArquivosFluxo(fileList){
       const linhas = XLSX.utils.sheet_to_json(wb.Sheets[primeiraAba], { header: 1, raw: true, defval: '' });
       if(!linhas || linhas.length===0) continue;
 
-      let idxCabecalho = -1, idxData=-1, idxTipo=-1, idxDescricao=-1, idxEntradas=-1, idxSaidas=-1, idxSaldo=-1;
+      let idxCabecalho = -1, cabecalhoTextos = null, formato = null;
       for(let i=0; i<Math.min(linhas.length,15); i++){
         const linha = (linhas[i]||[]).map(c=>String(c||'').trim().toUpperCase());
-        const dIdx = linha.indexOf('DATA');
-        const tIdx = linha.indexOf('TIPO');
-        if(dIdx>-1 && tIdx>-1){
-          idxCabecalho = i;
-          idxData = dIdx;
-          idxTipo = tIdx;
-          idxDescricao = linha.findIndex(h=>(h||'').includes('DESCRI'));
-          idxEntradas = linha.findIndex(h=>(h||'').includes('ENTRADA'));
-          idxSaidas = linha.findIndex(h=>(h||'').includes('SAIDA') || (h||'').includes('SAÍDA'));
-          idxSaldo = linha.findIndex(h=>(h||'').includes('SALDO'));
+        const temData = linha.includes('DATA');
+        const temEntradasSaidas = linha.some(h=>h.includes('ENTRADA')) || linha.some(h=>h.includes('SAIDA') || h.includes('SAÍDA'));
+        const temHistoricoValor = linha.some(h=>h.includes('HIST')) && linha.includes('VALOR');
+        if(temData && linha.includes('TIPO') && temEntradasSaidas){
+          idxCabecalho = i; cabecalhoTextos = linha; formato = 'antigo';
+          break;
+        }
+        if(temData && temHistoricoValor){
+          idxCabecalho = i; cabecalhoTextos = linha; formato = 'quebrado';
           break;
         }
       }
       if(idxCabecalho===-1){
-        console.warn('Não achei cabeçalho (Data + Tipo) no arquivo:', file.name);
+        console.warn('Não reconheci o formato do arquivo:', file.name);
         continue;
       }
 
-      for(let i=idxCabecalho+1; i<linhas.length; i++){
-        const linha = linhas[i];
-        if(!linha || linha.length===0) continue;
-        const tipo = String(linha[idxTipo]||'').trim();
-        if(!tipo) continue;
-        const dataTexto = String(linha[idxData]||'').trim();
-        const data = parseDataBR(dataTexto);
-        if(!data) continue;
+      const resultado = formato==='antigo'
+        ? processarExtratoFormatoAntigo(linhas, idxCabecalho, cabecalhoTextos)
+        : processarExtratoFormatoQuebrado(linhas, idxCabecalho, cabecalhoTextos);
 
-        if(tipo.toUpperCase().includes('SALDO DO DIA')){
-          const saldoVal = idxSaldo>-1 ? parseNumeroVenda(linha[idxSaldo]) : null;
-          if(saldoVal!==null){
-            todosSaldos.push({ data, saldo: saldoVal });
-          }
-          continue;
-        }
-
-        const descricao = idxDescricao>-1 ? String(linha[idxDescricao]||'').trim() : '';
-        const entradaVal = idxEntradas>-1 ? parseNumeroVenda(linha[idxEntradas]) : null;
-        const saidaVal = idxSaidas>-1 ? parseNumeroVenda(linha[idxSaidas]) : null;
-        let valor = null;
-        if(entradaVal!==null && entradaVal!==0) valor = Math.abs(entradaVal);
-        else if(saidaVal!==null && saidaVal!==0) valor = -Math.abs(saidaVal);
-        if(valor===null) continue;
-        todasLinhas.push({ data, tipo, descricao, valor });
-      }
+      todasLinhas = todasLinhas.concat(resultado.transacoes);
+      todosSaldos = todosSaldos.concat(resultado.saldos);
     }
 
     if(todasLinhas.length===0){
-      alert('Não encontrei lançamentos válidos nos arquivos selecionados (esperava colunas Data, Tipo, Descrição, Entradas, Saídas).');
+      alert('Não encontrei lançamentos válidos nos arquivos selecionados.');
       document.getElementById('fluxoFileInput').value = '';
       return;
     }
@@ -3981,13 +4051,17 @@ function limparFiltroFluxo(){
   carregarFluxoCaixa();
 }
 
-function classificarFormaPagamentoVenda(descricao){
+function classificarFormaPagamentoVenda(tipo, descricao){
+  const t = (tipo||'').toUpperCase();
   const d = (descricao||'').toUpperCase();
-  if(d.includes('PIX')) return 'Pix';
-  if(d.includes('BOLETO')) return 'Boleto';
+  const texto = t + ' ' + d;
+  if(texto.includes('PIX')) return 'Pix';
+  if(texto.includes('BOLETO')) return 'Boleto';
+  if(t.includes('ANTECIPA')) return 'Cartão Crédito';
+  if(t.includes('COMPRAS')) return 'Cartão Débito';
   if(d.includes('DEBITO') || d.includes('DÉBITO')) return 'Cartão Débito';
   if(d.includes('CREDITO') || d.includes('CRÉDITO')) return 'Cartão Crédito';
-  if(d.includes('MASTERCARD') || d.includes('VISA') || d.includes('ELO') || d.includes('HIPERCARD') || d.includes('AMEX')) return 'Cartão';
+  if(texto.includes('MASTERCARD') || texto.includes('VISA') || texto.includes('ELO') || texto.includes('MAESTRO') || texto.includes('HIPERCARD') || texto.includes('AMEX')) return 'Cartão';
   return 'Outros';
 }
 
@@ -4001,13 +4075,13 @@ function renderFluxoCaixa(){
   document.getElementById('fluxoTotalSaidas').textContent = brl(totalSaidas);
   document.getElementById('fluxoSaldoLiquido').textContent = brl(saldo);
 
-  const entradasClassificaveis = fluxoCache.filter(l=>(l.tipo==='Vendas' || l.tipo==='Rendimento da conta' || l.tipo==='Dinheiro') && Number(l.valor)>0);
+  const entradasClassificaveis = fluxoCache.filter(l=>Number(l.valor)>0);
   const porForma = {};
   entradasClassificaveis.forEach(v=>{
     let forma;
     if(v.tipo==='Rendimento da conta') forma = 'Rendimento da conta';
     else if(v.tipo==='Dinheiro') forma = 'Dinheiro';
-    else forma = classificarFormaPagamentoVenda(v.descricao);
+    else forma = classificarFormaPagamentoVenda(v.tipo, v.descricao);
     porForma[forma] = (porForma[forma]||0) + Number(v.valor);
   });
   const bodyForma = document.getElementById('fluxoFormaBody');
