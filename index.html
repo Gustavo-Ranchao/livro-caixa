@@ -3861,7 +3861,8 @@ function processarExtratoFormatoQuebrado(linhas, idxCabecalho, cabecalhoTextos){
       }else if(marcador === '*'){
         // marcador especial de linha informativa, ignora
       }else if(valorNum!==null && valorNum!==0){
-        transacoes.push({ data, tipo, descricao: detalhes.join(' · '), valor: valorNum });
+        const descricao = valorNum > 0 ? '' : detalhes.join(' · ');
+        transacoes.push({ data, tipo, descricao, valor: valorNum });
       }
     }
     i = j;
