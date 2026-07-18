@@ -1020,19 +1020,22 @@
       </div>
     </div>
 
+    <div class="fld"><label id="lbl_fator_embalagem">Fator de embalagem (unidades por caixa)</label><input id="produto_fator_embalagem" type="number" min="0" step="1" placeholder="Ex: 24"></div>
+
     <div class="fld-row">
       <div class="fld"><label>Estoque mínimo (unidades)</label><input id="produto_min_unidades" type="number" min="0" step="1" placeholder="0"></div>
-      <div class="fld"><label id="lbl_min_caixas">Estoque mínimo (caixas)</label><input id="produto_min_caixas" type="number" min="0" step="1" placeholder="0"></div>
+      <div class="fld"><label id="lbl_min_caixas">Estoque mínimo (caixas)</label><input id="produto_min_caixas" type="number" min="0" step="1" placeholder="0" oninput="calcularUnidadesPorFator('produto_min_caixas','produto_min_unidades')"></div>
     </div>
 
     <div class="fld-row">
       <div class="fld"><label>Estoque atual (unidades)</label><input id="produto_atual_unidades" type="number" min="0" step="1" placeholder="0"></div>
-      <div class="fld"><label id="lbl_atual_caixas">Estoque atual (caixas)</label><input id="produto_atual_caixas" type="number" min="0" step="1" placeholder="0"></div>
+      <div class="fld"><label id="lbl_atual_caixas">Estoque atual (caixas)</label><input id="produto_atual_caixas" type="number" min="0" step="1" placeholder="0" oninput="calcularUnidadesPorFator('produto_atual_caixas','produto_atual_unidades')"></div>
     </div>
 
     <div class="fld"><label>Quantidade a comprar</label><input id="produto_qtd_comprar" type="number" min="0" step="1" placeholder="0"></div>
 
     <button class="addbtn" onclick="salvarProduto()">Salvar</button>
+    <p class="modal-sub" style="margin-top:-8px;">Preenchendo a caixa acima, o campo de unidades já calcula sozinho (caixas × fator). Você ainda pode ajustar manualmente depois.</p>
     <div class="formerr" id="produtoErr">Preencha empresa, marca e nome do produto.</div>
   </div>
 </div>
@@ -4451,6 +4454,7 @@ function abrirNovoProduto(){
   document.getElementById('produto_marca_nova').value = '';
   document.getElementById('produto_nome').value = '';
   setTipoEmbalagem('caixa');
+  document.getElementById('produto_fator_embalagem').value = '';
   document.getElementById('produto_min_unidades').value = '';
   document.getElementById('produto_min_caixas').value = '';
   document.getElementById('produto_atual_unidades').value = '';
@@ -4463,8 +4467,18 @@ function abrirNovoProduto(){
 function setTipoEmbalagem(tipo){
   document.querySelectorAll('#embalagemToggle .tipo-btn').forEach(b=>b.classList.toggle('active', b.dataset.emb===tipo));
   const rotulo = tipo==='fardo' ? 'fardos' : 'caixas';
+  const rotuloSingular = tipo==='fardo' ? 'fardo' : 'caixa';
   document.getElementById('lbl_min_caixas').textContent = 'Estoque mínimo (' + rotulo + ')';
   document.getElementById('lbl_atual_caixas').textContent = 'Estoque atual (' + rotulo + ')';
+  document.getElementById('lbl_fator_embalagem').textContent = 'Fator de embalagem (unidades por ' + rotuloSingular + ')';
+}
+
+function calcularUnidadesPorFator(idCampoCaixa, idCampoUnidades){
+  const fator = parseFloat(document.getElementById('produto_fator_embalagem').value);
+  const caixas = parseFloat(document.getElementById(idCampoCaixa).value);
+  if(!isNaN(fator) && fator>0 && !isNaN(caixas)){
+    document.getElementById(idCampoUnidades).value = Math.round(caixas * fator);
+  }
 }
 
 function abrirEditarProduto(id){
@@ -4483,6 +4497,7 @@ function abrirEditarProduto(id){
   document.getElementById('produto_marca_nova').value = '';
   document.getElementById('produto_nome').value = p.nome;
   setTipoEmbalagem(p.tipo_embalagem || 'caixa');
+  document.getElementById('produto_fator_embalagem').value = p.fator_embalagem ?? '';
   document.getElementById('produto_min_unidades').value = p.estoque_min_unidades ?? '';
   document.getElementById('produto_min_caixas').value = p.estoque_min_caixas ?? '';
   document.getElementById('produto_atual_unidades').value = p.estoque_atual_unidades ?? '';
@@ -4503,6 +4518,7 @@ async function salvarProduto(){
   let marcaId = document.getElementById('produto_marca').value;
   const nomeProduto = document.getElementById('produto_nome').value.trim();
   const tipoEmbalagem = document.querySelector('#embalagemToggle .tipo-btn.active').dataset.emb;
+  const fatorEmbalagem = parseFloat(document.getElementById('produto_fator_embalagem').value) || null;
   const minUnidades = parseFloat(document.getElementById('produto_min_unidades').value) || 0;
   const minCaixas = parseFloat(document.getElementById('produto_min_caixas').value) || 0;
   const atualUnidades = parseFloat(document.getElementById('produto_atual_unidades').value) || 0;
@@ -4544,6 +4560,7 @@ async function salvarProduto(){
 
   const payload = {
     loja: lojaAtual, marca_id: marcaId, nome: nomeProduto, tipo_embalagem: tipoEmbalagem,
+    fator_embalagem: fatorEmbalagem,
     estoque_min_unidades: minUnidades, estoque_min_caixas: minCaixas,
     estoque_atual_unidades: atualUnidades, estoque_atual_caixas: atualCaixas,
     quantidade_comprar: qtdComprar
