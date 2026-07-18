@@ -1763,12 +1763,15 @@ async function renderInicioFluxoCaixa(){
 
   const [{ data: saldos }, { data: mesLancamentos }] = await Promise.all([
     sb.from('fluxo_caixa_saldos').select('*').eq('loja', lojaAtual).order('data', { ascending: false }).limit(1),
-    sb.from('fluxo_caixa_lancamentos').select('valor').eq('loja', lojaAtual).gte('data', primeiroDia)
+    buscarTodasLinhas((from, to)=>
+      sb.from('fluxo_caixa_lancamentos').select('valor,tipo').eq('loja', lojaAtual).gte('data', primeiroDia).range(from, to)
+    ).then(r=>({ data: r.data }))
   ]);
 
+  const somenteExtrato = (mesLancamentos||[]).filter(l=>l.tipo!=='Dinheiro');
   const saldoExtrato = (saldos && saldos.length>0) ? saldos[0] : null;
-  const entradas = (mesLancamentos||[]).filter(l=>Number(l.valor)>0).reduce((s,l)=>s+Number(l.valor),0);
-  const saidas = (mesLancamentos||[]).filter(l=>Number(l.valor)<0).reduce((s,l)=>s+Math.abs(Number(l.valor)),0);
+  const entradas = somenteExtrato.filter(l=>Number(l.valor)>0).reduce((s,l)=>s+Number(l.valor),0);
+  const saidas = somenteExtrato.filter(l=>Number(l.valor)<0).reduce((s,l)=>s+Math.abs(Number(l.valor)),0);
   const saldoLiquidoMes = entradas - saidas;
 
   el.innerHTML = `
@@ -1821,7 +1824,9 @@ async function renderInicioVendas(){
   const anoMes = hoje.getFullYear() + '-' + String(hoje.getMonth()+1).padStart(2,'0');
   const primeiroDia = anoMes + '-01';
 
-  const { data, error } = await sb.from('vendas_itens').select('valor_venda,custo').eq('loja', lojaAtual).gte('data', primeiroDia);
+  const { data, error } = await buscarTodasLinhas((from, to)=>
+    sb.from('vendas_itens').select('valor_venda,custo').eq('loja', lojaAtual).gte('data', primeiroDia).range(from, to)
+  );
 
   if(error || !data || data.length===0){
     el.innerHTML = '<span class="inicio-vazio">Nenhuma venda importada esse mês ainda.</span>';
