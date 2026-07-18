@@ -157,6 +157,13 @@
   #colabTable1 th, #colabTable2 th{text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:0.05em;color:var(--muted);font-weight:500;padding:8px 16px;background:var(--paper2);}
   #colabTable1 td, #colabTable2 td{padding:10px 16px;border-top:1px solid var(--paper3);}
   @media (max-width:900px){ .colab-body{grid-template-columns:1fr;} }
+  .inicio-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:24px;}
+  @media (max-width:900px){ .inicio-grid{grid-template-columns:1fr;} }
+  .inicio-linha{display:flex;justify-content:space-between;align-items:baseline;padding:8px 0;border-top:1px solid var(--paper3);}
+  .inicio-linha:first-child{border-top:none;}
+  .inicio-linha .lbl{font-size:12.5px;color:var(--muted);}
+  .inicio-linha .val{font-family:var(--font-mono);font-size:14px;font-weight:600;}
+  .inicio-vazio{color:var(--muted);font-style:italic;font-size:13px;}
 
   #fluxoFormaTable, #fluxoFornecedorTable{width:100%;border-collapse:collapse;font-size:12.5px;}
   .compras-nav{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;}
@@ -364,9 +371,12 @@
 
       <div class="app-nav">
         <div class="nav-group">
+          <button class="nav-group-header active-topo" id="navHeaderInicio" onclick="mudarViewPrincipal('inicio')">🏠 Início</button>
+        </div>
+        <div class="nav-group">
           <button class="nav-group-header aberto" id="navHeaderFinanceiro" onclick="toggleNavGroup('financeiro')">💰 Financeiro <span class="chevron">▾</span></button>
           <div class="nav-sub aberto" id="navGroupFinanceiro">
-            <button class="nav-sub-item active" data-view="contasPagar" onclick="mudarViewPrincipal('contasPagar')">Contas a pagar</button>
+            <button class="nav-sub-item" data-view="contasPagar" onclick="mudarViewPrincipal('contasPagar')">Contas a pagar</button>
             <button class="nav-sub-item" data-view="despesasFixas" onclick="mudarViewPrincipal('despesasFixas')">Despesas fixas</button>
             <button class="nav-sub-item" data-view="comprovantes" onclick="mudarViewPrincipal('comprovantes')">Comprovantes</button>
             <button class="nav-sub-item" data-view="diferencaCaixa" onclick="mudarViewPrincipal('diferencaCaixa')">Diferença de Caixa</button>
@@ -410,7 +420,28 @@
   </div>
 
   <div class="main">
-    <div id="viewContasPagar">
+    <div id="viewInicio">
+      <div class="inicio-grid">
+        <div class="panel" style="cursor:pointer;" onclick="mudarViewPrincipal('contasPagar')">
+          <div class="colab-col-head"><span>📋 Contas a pagar</span></div>
+          <div id="inicioContasPagar" style="padding:18px 20px;font-size:13px;color:var(--muted);">Carregando…</div>
+        </div>
+        <div class="panel" style="cursor:pointer;" onclick="mudarViewPrincipal('fluxoCaixa')">
+          <div class="colab-col-head"><span>💰 Fluxo de caixa</span></div>
+          <div id="inicioFluxoCaixa" style="padding:18px 20px;font-size:13px;color:var(--muted);">Carregando…</div>
+        </div>
+        <div class="panel" style="cursor:pointer;" onclick="mudarViewPrincipal('bancoHoras')">
+          <div class="colab-col-head"><span>🕐 Banco de horas</span></div>
+          <div id="inicioBancoHoras" style="padding:18px 20px;font-size:13px;color:var(--muted);">Carregando…</div>
+        </div>
+        <div class="panel" style="cursor:pointer;" onclick="mudarViewPrincipal('vendasComCusto')">
+          <div class="colab-col-head"><span>📊 Vendas</span></div>
+          <div id="inicioVendas" style="padding:18px 20px;font-size:13px;color:var(--muted);">Carregando…</div>
+        </div>
+      </div>
+    </div>
+
+    <div id="viewContasPagar" style="display:none;">
     <div class="metrics" style="flex-direction:row;margin-bottom:20px;">
       <div class="metric pagar" style="flex:0 0 220px;"><div class="lbl">A pagar (pendente)</div><div class="val" id="totalPagar">R$ 0,00</div><div class="sub" id="subPagar">0 lançamentos</div></div>
       <div class="panel" style="flex:1;padding:16px 20px;">
@@ -1379,6 +1410,9 @@ function trocarLoja(l){
   if(viewAtual === 'compras'){
     carregarCompras();
   }
+  if(viewAtual === 'inicio'){
+    abrirInicio();
+  }
 }
 
 const brl = v => 'R$ ' + Number(v).toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2});
@@ -1689,6 +1723,119 @@ async function carregarDados(){
   document.getElementById('caixaInicial').value = formatarCampoMoeda(caixaIniciais[lojaAtual] || 0);
 
   render();
+  await abrirInicio();
+}
+
+async function abrirInicio(){
+  await Promise.all([
+    renderInicioContasPagar(),
+    renderInicioFluxoCaixa(),
+    renderInicioBancoHoras(),
+    renderInicioVendas()
+  ]);
+}
+
+async function renderInicioContasPagar(){
+  const el = document.getElementById('inicioContasPagar');
+  const hoje = todayStr();
+  const daqui7dias = new Date();
+  daqui7dias.setDate(daqui7dias.getDate() + 6);
+  const daqui7diasStr = daqui7dias.toISOString().slice(0,10);
+
+  const pendentes = (lancamentos||[]).filter(l=>l.tipo==='pagar' && l.status!=='pago' && l.loja===lojaAtual);
+  const vencidas = pendentes.filter(l=>l.vencimento < hoje);
+  const estaSemana = pendentes.filter(l=>l.vencimento >= hoje && l.vencimento <= daqui7diasStr);
+
+  const totalVencidas = vencidas.reduce((s,l)=>s+Number(l.valor),0);
+  const totalSemana = estaSemana.reduce((s,l)=>s+Number(l.valor),0);
+
+  el.innerHTML = `
+    <div class="inicio-linha"><span class="lbl">Vencendo essa semana</span><span class="val" style="color:var(--gold);">${estaSemana.length} · ${brl(totalSemana)}</span></div>
+    <div class="inicio-linha"><span class="lbl">Já vencidas</span><span class="val" style="color:${vencidas.length>0?'var(--rust)':'var(--green)'};">${vencidas.length} · ${brl(totalVencidas)}</span></div>
+  `;
+}
+
+async function renderInicioFluxoCaixa(){
+  const el = document.getElementById('inicioFluxoCaixa');
+  const hoje = new Date();
+  const anoMes = hoje.getFullYear() + '-' + String(hoje.getMonth()+1).padStart(2,'0');
+  const primeiroDia = anoMes + '-01';
+
+  const [{ data: saldos }, { data: mesLancamentos }] = await Promise.all([
+    sb.from('fluxo_caixa_saldos').select('*').eq('loja', lojaAtual).order('data', { ascending: false }).limit(1),
+    sb.from('fluxo_caixa_lancamentos').select('valor').eq('loja', lojaAtual).gte('data', primeiroDia)
+  ]);
+
+  const saldoExtrato = (saldos && saldos.length>0) ? saldos[0] : null;
+  const entradas = (mesLancamentos||[]).filter(l=>Number(l.valor)>0).reduce((s,l)=>s+Number(l.valor),0);
+  const saidas = (mesLancamentos||[]).filter(l=>Number(l.valor)<0).reduce((s,l)=>s+Math.abs(Number(l.valor)),0);
+  const saldoLiquidoMes = entradas - saidas;
+
+  el.innerHTML = `
+    <div class="inicio-linha"><span class="lbl">Saldo (extrato)</span><span class="val">${saldoExtrato ? brl(saldoExtrato.saldo) : '—'}</span></div>
+    <div class="inicio-linha"><span class="lbl">Líquido do mês</span><span class="val" style="color:${saldoLiquidoMes<0?'var(--rust)':'var(--green)'};">${brl(saldoLiquidoMes)}</span></div>
+  `;
+}
+
+async function renderInicioBancoHoras(){
+  const el = document.getElementById('inicioBancoHoras');
+  const { data: funcs } = await sb.from('bh_funcionarios').select('*').eq('loja', lojaAtual).eq('ativo', true);
+
+  if(!funcs || funcs.length===0){
+    el.innerHTML = '<span class="inicio-vazio">Nenhum colaborador cadastrado.</span>';
+    return;
+  }
+
+  const LIMITE_ALERTA = -120; // -2h
+  const alertas = [];
+
+  for(const f of funcs){
+    const { data: registros } = await sb.from('bh_registros').select('*').eq('funcionario_id', f.id);
+    let acumulado = 0;
+    (registros||[]).forEach(reg=>{
+      let trabalhado;
+      if(reg.tipo_dia==='falta_justificada') trabalhado = f.carga_horaria_diaria_min;
+      else if(reg.tipo_dia==='falta_injustificada') trabalhado = reg.descontar_falta ? 0 : f.carga_horaria_diaria_min;
+      else trabalhado = calcularMinutosTrabalhados(reg);
+      acumulado += trabalhado - f.carga_horaria_diaria_min;
+    });
+    if(acumulado <= LIMITE_ALERTA){
+      alertas.push({ nome: f.nome, saldo: acumulado });
+    }
+  }
+
+  if(alertas.length===0){
+    el.innerHTML = '<span class="inicio-vazio">Nenhum colaborador com saldo muito negativo.</span>';
+    return;
+  }
+
+  alertas.sort((a,b)=>a.saldo-b.saldo);
+  el.innerHTML = alertas.map(a=>`
+    <div class="inicio-linha"><span class="lbl">${escapeHtml(a.nome)}</span><span class="val" style="color:var(--rust);">${fmtMinutosSinal(a.saldo)}</span></div>
+  `).join('');
+}
+
+async function renderInicioVendas(){
+  const el = document.getElementById('inicioVendas');
+  const hoje = new Date();
+  const anoMes = hoje.getFullYear() + '-' + String(hoje.getMonth()+1).padStart(2,'0');
+  const primeiroDia = anoMes + '-01';
+
+  const { data, error } = await sb.from('vendas_itens').select('valor_venda,custo').eq('loja', lojaAtual).gte('data', primeiroDia);
+
+  if(error || !data || data.length===0){
+    el.innerHTML = '<span class="inicio-vazio">Nenhuma venda importada esse mês ainda.</span>';
+    return;
+  }
+
+  const totalVendido = data.reduce((s,v)=>s+Number(v.valor_venda),0);
+  const totalCusto = data.reduce((s,v)=>s+Number(v.custo),0);
+  const lucro = totalVendido - totalCusto;
+
+  el.innerHTML = `
+    <div class="inicio-linha"><span class="lbl">Vendido no mês</span><span class="val" style="color:var(--green);">${brl(totalVendido)}</span></div>
+    <div class="inicio-linha"><span class="lbl">Lucro no mês</span><span class="val" style="color:${lucro<0?'var(--rust)':'var(--green)'};">${brl(lucro)}</span></div>
+  `;
 }
 
 function mostrarErroCarregamento(msg){
@@ -2413,7 +2560,7 @@ async function confirmarImport(){
 
 /* ================= BANCO DE HORAS ================= */
 
-let viewAtual = 'contasPagar';
+let viewAtual = 'inicio';
 let usuarioEmailAtual = null;
 let bhCarregado = false;
 let bhFuncionarios = [];
@@ -2436,7 +2583,7 @@ function setEscala(e){
   }
 }
 
-const VIEWS = ['contasPagar','despesasFixas','comprovantes','diferencaCaixa','fluxoCaixa','vendasComCusto','bancoHoras','compras','colaboradores'];
+const VIEWS = ['inicio','contasPagar','despesasFixas','comprovantes','diferencaCaixa','fluxoCaixa','vendasComCusto','bancoHoras','compras','colaboradores'];
 let colabCarregado = false;
 
 const NAV_GROUPS = {
@@ -2464,16 +2611,19 @@ async function mudarViewPrincipal(view){
   viewAtual = view;
 
   VIEWS.forEach(v=>{
-    const idMap = { contasPagar:'viewContasPagar', despesasFixas:'viewDespesasFixas', comprovantes:'viewComprovantes', diferencaCaixa:'viewDiferencaCaixa', fluxoCaixa:'viewFluxoCaixa', vendasComCusto:'viewVendasComCusto', bancoHoras:'viewBancoHoras', compras:'viewCompras', colaboradores:'viewColaboradores' };
+    const idMap = { inicio:'viewInicio', contasPagar:'viewContasPagar', despesasFixas:'viewDespesasFixas', comprovantes:'viewComprovantes', diferencaCaixa:'viewDiferencaCaixa', fluxoCaixa:'viewFluxoCaixa', vendasComCusto:'viewVendasComCusto', bancoHoras:'viewBancoHoras', compras:'viewCompras', colaboradores:'viewColaboradores' };
     document.getElementById(idMap[v]).style.display = (v===view) ? '' : 'none';
   });
 
   document.querySelectorAll('.nav-sub-item').forEach(b=>b.classList.toggle('active', b.dataset.view===view));
 
+  document.getElementById('navHeaderInicio').classList.toggle('active-topo', view==='inicio');
   document.getElementById('navHeaderBancoHoras').classList.toggle('active-topo', view==='bancoHoras');
   document.getElementById('navHeaderCompras').classList.toggle('active-topo', view==='compras');
 
-  if(view==='despesasFixas'){
+  if(view==='inicio'){
+    await abrirInicio();
+  }else if(view==='despesasFixas'){
     abrirGrupoNav('financeiro');
     await abrirFixas();
   }else if(view==='comprovantes'){
