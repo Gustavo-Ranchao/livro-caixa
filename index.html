@@ -1024,12 +1024,12 @@
 
     <div class="fld-row">
       <div class="fld"><label>Estoque mínimo (unidades)</label><input id="produto_min_unidades" type="number" min="0" step="1" placeholder="0"></div>
-      <div class="fld"><label id="lbl_min_caixas">Estoque mínimo (caixas)</label><input id="produto_min_caixas" type="number" min="0" step="1" placeholder="0" oninput="calcularUnidadesPorFator('produto_min_caixas','produto_min_unidades')"></div>
+      <div class="fld"><label id="lbl_min_caixas">Estoque mínimo (caixas)</label><input id="produto_min_caixas" type="number" min="0" step="1" placeholder="0" oninput="calcularUnidadesPorFator('produto_min_caixas','produto_min_unidades'); calcularQuantidadeComprarModal();"></div>
     </div>
 
     <div class="fld-row">
       <div class="fld"><label>Estoque atual (unidades)</label><input id="produto_atual_unidades" type="number" min="0" step="1" placeholder="0"></div>
-      <div class="fld"><label id="lbl_atual_caixas">Estoque atual (caixas)</label><input id="produto_atual_caixas" type="number" min="0" step="1" placeholder="0" oninput="calcularUnidadesPorFator('produto_atual_caixas','produto_atual_unidades')"></div>
+      <div class="fld"><label id="lbl_atual_caixas">Estoque atual (caixas)</label><input id="produto_atual_caixas" type="number" min="0" step="1" placeholder="0" oninput="calcularUnidadesPorFator('produto_atual_caixas','produto_atual_unidades'); calcularQuantidadeComprarModal();"></div>
     </div>
 
     <div class="fld"><label>Quantidade a comprar</label><input id="produto_qtd_comprar" type="number" min="0" step="1" placeholder="0"></div>
@@ -4392,10 +4392,16 @@ async function atualizarQuantidadeComprar(id, valor){
 async function atualizarEstoqueAtual(id, campo, valor){
   const num = parseFloat(valor);
   const v = isNaN(num) || num<0 ? 0 : num;
-  const { error } = await sb.from('compras_produtos').update({ [campo]: v }).eq('id', id);
-  if(!error){
-    const p = comprasProdutos.find(x=>x.id===id);
-    if(p) p[campo] = v;
+  const p = comprasProdutos.find(x=>x.id===id);
+
+  const atualizacao = { [campo]: v };
+  if(campo === 'estoque_atual_caixas' && p){
+    atualizacao.quantidade_comprar = Math.max(0, Number(p.estoque_min_caixas||0) - v);
+  }
+
+  const { error } = await sb.from('compras_produtos').update(atualizacao).eq('id', id);
+  if(!error && p){
+    Object.assign(p, atualizacao);
     renderCompras();
   }
 }
@@ -4478,6 +4484,14 @@ function calcularUnidadesPorFator(idCampoCaixa, idCampoUnidades){
   const caixas = parseFloat(document.getElementById(idCampoCaixa).value);
   if(!isNaN(fator) && fator>0 && !isNaN(caixas)){
     document.getElementById(idCampoUnidades).value = Math.round(caixas * fator);
+  }
+}
+
+function calcularQuantidadeComprarModal(){
+  const min = parseFloat(document.getElementById('produto_min_caixas').value);
+  const atual = parseFloat(document.getElementById('produto_atual_caixas').value);
+  if(!isNaN(min) && !isNaN(atual)){
+    document.getElementById('produto_qtd_comprar').value = Math.max(0, min - atual);
   }
 }
 
