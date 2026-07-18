@@ -601,6 +601,7 @@
           <div class="formerr" id="bhFormErr">Preencha ao menos data, Entrada 1 e Saída 1.</div>
 
           <button type="button" class="importbtn" onclick="toggleBhImport()" style="margin:0 20px 18px;width:calc(100% - 40px);">📋 Colar de planilha (vários dias de uma vez)</button>
+          <button type="button" class="importbtn" onclick="abrirLoteFaltas()" style="margin:0 20px 20px;width:calc(100% - 40px);">📅 Lançar faltas em lote (período)</button>
           <div id="bhImportArea" style="display:none;padding:0 20px 20px;">
             <p class="modal-sub" style="margin-bottom:10px;">Copie 5 colunas do Excel/Sheets nessa ordem: <strong>Data, Entrada 1, Saída 1, Entrada 2, Saída 2</strong>. Vale para o funcionário selecionado acima.</p>
             <textarea id="bhImportText" rows="6" placeholder="01/07/2026	07:00	12:00	13:00	19:00&#10;02/07/2026	07:00	12:00	13:00	19:00"></textarea>
@@ -1169,6 +1170,39 @@
     <div class="modal-actions">
       <button class="addbtn" style="background:var(--rust);" onclick="confirmarLimpezaExtratoOk()">Apagar</button>
       <button class="cancelbtn" onclick="fecharConfirmacaoLimpezaExtrato()">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<div id="loteFaltasModal" class="modal-overlay">
+  <div class="modal-box" style="max-width:460px;">
+    <button class="modal-close" onclick="fecharLoteFaltas()">✕</button>
+    <h2>Lançar faltas em lote</h2>
+    <p class="modal-sub" id="loteFaltasEscalaAviso"></p>
+
+    <div class="fld-row">
+      <div class="fld"><label>Data inicial</label><input id="lote_data_inicio" type="date"></div>
+      <div class="fld"><label>Data final</label><input id="lote_data_fim" type="date"></div>
+    </div>
+
+    <label style="display:block;font-size:10px;text-transform:uppercase;letter-spacing:0.05em;color:var(--muted);margin:12px 0 6px;">Tipo</label>
+    <div class="tipo-toggle" id="loteTipoToggle">
+      <button type="button" class="tipo-btn active" data-tipodia="falta_justificada" onclick="setLoteTipoDia('falta_justificada')">Falta justificada</button>
+      <button type="button" class="tipo-btn" data-tipodia="falta_injustificada" onclick="setLoteTipoDia('falta_injustificada')">Falta injustificada</button>
+    </div>
+
+    <div id="loteDescontarWrap" style="display:none;margin-top:12px;">
+      <label style="display:block;font-size:10px;text-transform:uppercase;letter-spacing:0.05em;color:var(--muted);margin-bottom:6px;">Descontar essas horas do banco de horas?</label>
+      <div class="tipo-toggle" id="loteDescontarToggle">
+        <button type="button" class="tipo-btn active" data-desc="sim" onclick="setLoteDescontar(true)">Sim, descontar os dias</button>
+        <button type="button" class="tipo-btn" data-desc="nao" onclick="setLoteDescontar(false)">Não, manter neutro</button>
+      </div>
+    </div>
+
+    <div class="formerr" id="loteFaltasErr">Preencha as duas datas.</div>
+    <div class="modal-actions" style="margin-top:16px;">
+      <button class="addbtn" id="loteFaltasConfirmBtn" onclick="confirmarLoteFaltas()">Lançar faltas</button>
+      <button class="cancelbtn" onclick="fecharLoteFaltas()">Cancelar</button>
     </div>
   </div>
 </div>
@@ -5297,6 +5331,108 @@ function setBhTipoDia(tipo){
 function setBhDescontar(valor){
   bhDescontarAtual = valor;
   document.querySelectorAll('#bhDescontarToggle .tipo-btn').forEach(b=>b.classList.toggle('active', (b.dataset.desc==='sim')===valor));
+}
+
+let loteTipoDiaAtual = 'falta_justificada';
+let loteDescontarAtual = true;
+
+function setLoteTipoDia(tipo){
+  loteTipoDiaAtual = tipo;
+  document.querySelectorAll('#loteTipoToggle .tipo-btn').forEach(b=>b.classList.toggle('active', b.dataset.tipodia===tipo));
+  document.getElementById('loteDescontarWrap').style.display = (tipo==='falta_injustificada') ? 'block' : 'none';
+}
+
+function setLoteDescontar(valor){
+  loteDescontarAtual = valor;
+  document.querySelectorAll('#loteDescontarToggle .tipo-btn').forEach(b=>b.classList.toggle('active', (b.dataset.desc==='sim')===valor));
+}
+
+function abrirLoteFaltas(){
+  if(!bhFuncionarioAtualId){
+    alert('Selecione um funcionário primeiro.');
+    return;
+  }
+  const f = bhFuncionarios.find(x=>x.id===bhFuncionarioAtualId);
+  document.getElementById('loteFaltasEscalaAviso').textContent = (f && f.tipo_escala==='12x36')
+    ? 'Escala 12x36: vamos marcar só os dias de trabalho, alternando a partir da data inicial. Escolha uma data inicial que seja um dia em que ele(a) trabalharia.'
+    : 'Escala normal: todos os dias do período serão marcados como falta.';
+  document.getElementById('lote_data_inicio').value = '';
+  document.getElementById('lote_data_fim').value = '';
+  setLoteTipoDia('falta_justificada');
+  setLoteDescontar(true);
+  document.getElementById('loteFaltasErr').style.display = 'none';
+  document.getElementById('loteFaltasModal').style.display = 'flex';
+}
+
+function fecharLoteFaltas(){
+  document.getElementById('loteFaltasModal').style.display = 'none';
+}
+
+async function confirmarLoteFaltas(){
+  const dataInicio = document.getElementById('lote_data_inicio').value;
+  const dataFim = document.getElementById('lote_data_fim').value;
+  const err = document.getElementById('loteFaltasErr');
+
+  if(!dataInicio || !dataFim || dataFim < dataInicio){
+    err.textContent = 'Preencha as duas datas, com a final igual ou depois da inicial.';
+    err.style.display = 'block';
+    return;
+  }
+  err.style.display = 'none';
+
+  const f = bhFuncionarios.find(x=>x.id===bhFuncionarioAtualId);
+  if(!f) return;
+
+  const datas = [];
+  const cursor = new Date(dataInicio + 'T12:00:00');
+  const fim = new Date(dataFim + 'T12:00:00');
+  let contador = 0;
+  while(cursor <= fim){
+    const incluir = f.tipo_escala==='12x36' ? (contador % 2 === 0) : true;
+    if(incluir) datas.push(cursor.toISOString().slice(0,10));
+    cursor.setDate(cursor.getDate() + 1);
+    contador++;
+  }
+
+  if(datas.length===0){
+    err.textContent = 'Nenhum dia encontrado nesse período.';
+    err.style.display = 'block';
+    return;
+  }
+
+  const btn = document.getElementById('loteFaltasConfirmBtn');
+  btn.disabled = true;
+  btn.textContent = 'Lançando…';
+
+  const registros = datas.map(data => ({
+    funcionario_id: bhFuncionarioAtualId,
+    data: data,
+    entrada1: null, saida1: null, entrada2: null, saida2: null,
+    tipo_dia: loteTipoDiaAtual,
+    descontar_falta: loteTipoDiaAtual==='falta_injustificada' ? loteDescontarAtual : true
+  }));
+
+  const { data: salvos, error } = await sb.from('bh_registros')
+    .upsert(registros, { onConflict: 'funcionario_id,data' })
+    .select();
+
+  btn.disabled = false;
+  btn.textContent = 'Lançar faltas';
+
+  if(error){
+    err.textContent = 'Erro ao lançar: ' + error.message;
+    err.style.display = 'block';
+    return;
+  }
+
+  (salvos||[]).forEach(salvo=>{
+    const idx = bhRegistros.findIndex(r=>r.id===salvo.id || (r.funcionario_id===salvo.funcionario_id && r.data===salvo.data));
+    if(idx>-1) bhRegistros[idx] = salvo; else bhRegistros.push(salvo);
+  });
+
+  renderBancoHoras();
+  fecharLoteFaltas();
+  alert(datas.length + ' dia(s) lançado(s) como falta.');
 }
 
 async function salvarRegistroHoras(){
