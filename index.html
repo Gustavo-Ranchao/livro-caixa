@@ -983,6 +983,13 @@
       </div>
 
       <div id="fluxoSubDinheiro" style="display:none;">
+        <div class="bh-filtro-data" style="margin-bottom:20px;">
+          <label>Mês</label>
+          <select id="dinheiroFiltroMes" onchange="mudarMesFluxo(this.value)">
+            <option value="todos">Todos os meses</option>
+          </select>
+        </div>
+
         <div class="bh-resumo">
           <div class="metric"><div class="lbl">Total entradas (dinheiro)</div><div class="val" id="dinheiroTotalEntradas" style="color:var(--green);">R$ 0,00</div></div>
           <div class="metric"><div class="lbl">Total saídas (dinheiro)</div><div class="val" id="dinheiroTotalSaidas" style="color:var(--rust);">R$ 0,00</div></div>
@@ -1170,6 +1177,20 @@
     <div class="modal-actions">
       <button class="addbtn" style="background:var(--rust);" onclick="confirmarLimpezaExtratoOk()">Apagar</button>
       <button class="cancelbtn" onclick="fecharConfirmacaoLimpezaExtrato()">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<div id="editarFixaModal" class="modal-overlay">
+  <div class="modal-box" style="max-width:400px;">
+    <button class="modal-close" onclick="fecharEditarFixa()">✕</button>
+    <h2>Editar despesa fixa</h2>
+    <div class="fld"><label>Nome</label><input id="fixa_edit_nome" placeholder="Ex: Aluguel"></div>
+    <div class="fld"><label>Dia do vencimento</label><input id="fixa_edit_dia" type="number" min="1" max="31" placeholder="Ex: 10"></div>
+    <div class="formerr" id="fixaEditErr">Preencha nome e um dia entre 1 e 31.</div>
+    <div class="modal-actions" style="margin-top:16px;">
+      <button class="addbtn" id="fixaEditSalvarBtn" onclick="salvarEdicaoFixa()">Salvar</button>
+      <button class="cancelbtn" onclick="fecharEditarFixa()">Cancelar</button>
     </div>
   </div>
 </div>
@@ -2268,9 +2289,83 @@ function renderFixasTable(){
       <td><input class="fixa-valor-input" type="number" step="0.01" min="0" value="${f.valor}" onchange="atualizarValorFixa('${f.id}', this.value)"></td>
       <td>dia ${f.dia_vencimento}</td>
       <td>${f.tipo==='pagar' ? 'A pagar' : 'A receber'}</td>
-      <td><button class="iconbtn del" title="Remover" onclick="excluirFixa('${f.id}')">✕</button></td>
+      <td><div class="rowactions">
+        <button class="iconbtn edit" title="Editar" onclick="abrirEditarFixa('${f.id}')">✎</button>
+        <button class="iconbtn del" title="Remover" onclick="excluirFixa('${f.id}')">✕</button>
+      </div></td>
     </tr>
   `).join('');
+}
+
+let fixaEditandoId = null;
+
+function abrirEditarFixa(id){
+  const f = fixasCache.find(x=>x.id===id);
+  if(!f) return;
+  fixaEditandoId = id;
+  document.getElementById('fixa_edit_nome').value = f.contato;
+  document.getElementById('fixa_edit_dia').value = f.dia_vencimento;
+  document.getElementById('fixaEditErr').style.display = 'none';
+  document.getElementById('editarFixaModal').style.display = 'flex';
+}
+
+function fecharEditarFixa(){
+  document.getElementById('editarFixaModal').style.display = 'none';
+  fixaEditandoId = null;
+}
+
+async function salvarEdicaoFixa(){
+  const nome = document.getElementById('fixa_edit_nome').value.trim();
+  const dia = parseInt(document.getElementById('fixa_edit_dia').value, 10);
+  const err = document.getElementById('fixaEditErr');
+
+  if(!nome || isNaN(dia) || dia<1 || dia>31){
+    err.style.display = 'block';
+    return;
+  }
+  err.style.display = 'none';
+
+  const btn = document.getElementById('fixaEditSalvarBtn');
+  btn.disabled = true;
+  btn.textContent = 'Salvando…';
+
+  const { error } = await sb.from('despesas_fixas').update({ contato: nome, dia_vencimento: dia }).eq('id', fixaEditandoId);
+
+  if(error){
+    err.textContent = 'Erro ao salvar: ' + error.message;
+    err.style.display = 'block';
+    btn.disabled = false;
+    btn.textContent = 'Salvar';
+    return;
+  }
+
+  const f = fixasCache.find(x=>x.id===fixaEditandoId);
+  if(f){ f.contato = nome; f.dia_vencimento = dia; }
+
+  const hoje = new Date();
+  const ultimoDiaDoMes = new Date(hoje.getFullYear(), hoje.getMonth()+1, 0).getDate();
+  const diaReal = Math.min(dia, ultimoDiaDoMes);
+  const anoMes = hoje.getFullYear() + '-' + String(hoje.getMonth()+1).padStart(2,'0');
+  const novoVencimento = anoMes + '-' + String(diaReal).padStart(2,'0');
+
+  const { data: atualizados, error: e2 } = await sb.from('lancamentos')
+    .update({ contato: nome, descricao: nome, vencimento: novoVencimento })
+    .eq('despesa_fixa_id', fixaEditandoId)
+    .eq('status', 'pendente')
+    .select();
+
+  if(!e2 && atualizados){
+    atualizados.forEach(upd=>{
+      const idx = lancamentos.findIndex(l=>l.id===upd.id);
+      if(idx>-1) lancamentos[idx] = upd;
+    });
+    render();
+  }
+
+  renderFixasTable();
+  btn.disabled = false;
+  btn.textContent = 'Salvar';
+  fecharEditarFixa();
 }
 
 function atualizarTotaisFixas(){
@@ -3947,14 +4042,20 @@ async function popularFiltroMesFluxo(){
   const hoje = new Date();
   mesesSet.add(hoje.getFullYear() + '-' + String(hoje.getMonth()+1).padStart(2,'0'));
   const lista = Array.from(mesesSet).sort().reverse();
-  const sel = document.getElementById('fluxoFiltroMes');
-  const atual = sel.value || 'todos';
-  sel.innerHTML = '<option value="todos">Todos os meses</option>' + lista.map(chave=>{
+  const opcoesHtml = '<option value="todos">Todos os meses</option>' + lista.map(chave=>{
     const [ano, mes] = chave.split('-');
     const rotulo = NOMES_MES[parseInt(mes,10)-1] + ' ' + ano;
     return `<option value="${chave}">${rotulo}</option>`;
   }).join('');
+
+  const sel = document.getElementById('fluxoFiltroMes');
+  const atual = sel.value || 'todos';
+  sel.innerHTML = opcoesHtml;
   sel.value = lista.includes(atual) || atual==='todos' ? atual : 'todos';
+
+  const selDinheiro = document.getElementById('dinheiroFiltroMes');
+  selDinheiro.innerHTML = opcoesHtml;
+  selDinheiro.value = sel.value;
 }
 
 function mudarMesFluxo(valor){
@@ -3967,6 +4068,8 @@ function mudarMesFluxo(valor){
     document.getElementById('fluxoFiltroDe').value = valor + '-01';
     document.getElementById('fluxoFiltroAte').value = valor + '-' + String(ultimoDia).padStart(2,'0');
   }
+  document.getElementById('fluxoFiltroMes').value = valor;
+  document.getElementById('dinheiroFiltroMes').value = valor;
   carregarFluxoCaixa();
 }
 
@@ -5661,6 +5764,22 @@ async function iniciar(){
     }
   });
 }
+
+document.addEventListener('input', function(e){
+  const el = e.target;
+  const tipoIgnorado = ['email','password','date','time','month','number','file','checkbox','radio'];
+  const ehInputTexto = el.tagName==='INPUT' && !tipoIgnorado.includes(el.type);
+  const ehTextarea = el.tagName==='TEXTAREA';
+  if((ehInputTexto || ehTextarea) && !el.classList.contains('sem-maiuscula')){
+    const inicio = el.selectionStart;
+    const fim = el.selectionEnd;
+    const novoValor = el.value.toUpperCase();
+    if(novoValor !== el.value){
+      el.value = novoValor;
+      if(inicio!==null && fim!==null) el.setSelectionRange(inicio, fim);
+    }
+  }
+});
 
 iniciar();
 
