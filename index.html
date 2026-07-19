@@ -171,6 +171,16 @@
   .compras-chip:hover{border-color:var(--gold);color:var(--ink);}
   .compras-chip.active{background:var(--ink);color:var(--paper);border-color:var(--ink);}
   input.comprar-input{width:80px;font-family:var(--font-mono);font-size:12px;padding:5px 7px;border:1px solid var(--line);border-radius:4px;background:#fff;}
+  .compras-row{display:grid;grid-template-columns:1fr 1fr 1.5fr 0.85fr 60px 60px 70px 70px 80px 70px;gap:8px;align-items:center;padding:10px 16px;border-top:1px solid var(--paper3);font-size:12.5px;}
+  .compras-row.header{background:var(--paper2);font-size:10px;text-transform:uppercase;letter-spacing:0.04em;color:var(--muted);font-weight:500;border-top:none;padding:8px 16px;}
+  .compras-row .lbl-mobile{display:none;}
+  @media (max-width:900px){
+    .compras-row.header{display:none;}
+    .compras-row{grid-template-columns:1fr;gap:2px;padding:14px 16px;}
+    .compras-row .campo{display:flex;justify-content:space-between;align-items:center;padding:3px 0;}
+    .compras-row .lbl-mobile{display:inline;font-size:10px;text-transform:uppercase;letter-spacing:0.04em;color:var(--muted);}
+    .compras-row input.comprar-input{width:110px;}
+  }
   input.comprar-input:focus{outline:none;border-color:var(--gold);}
   input.comprar-input.tem-falta{border-color:var(--rust);color:var(--rust);font-weight:600;}
   #fluxoFormaTable th, #fluxoFornecedorTable th{text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:0.05em;color:var(--muted);font-weight:500;padding:8px 16px;background:var(--paper2);}
@@ -738,12 +748,20 @@
         <button type="button" class="importbtn" style="width:auto;margin:0;" onclick="abrirNovoProduto()">+ Novo produto</button>
       </div>
 
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:20px;background:#fff;border:1px solid var(--paper3);border-radius:10px;padding:14px 20px;">
+        <span style="font-size:13px;color:var(--muted);">📋 Lista de compras (só o que tem quantidade a comprar):</span>
+        <button class="filter-btn foto-btn" onclick="exportarExcelListaCompras()">📊 Excel</button>
+        <button class="filter-btn foto-btn" onclick="exportarPdfListaCompras()">📄 PDF</button>
+        <button class="filter-btn" style="border-color:var(--rust);color:var(--rust);margin-left:auto;" onclick="confirmarZerarComprar()">✓ Já fiz o pedido — zerar quantidades</button>
+      </div>
+
       <div class="panel">
-        <div class="tablewrap">
-          <table class="ledger">
-            <thead><tr><th>Empresa</th><th>Marca</th><th>Produto</th><th>Embalagem</th><th>Mín. (un)</th><th>Mín. (emb)</th><th>Atual (un)</th><th>Atual (emb)</th><th>Comprar</th><th></th></tr></thead>
-            <tbody id="comprasBody"></tbody>
-          </table>
+        <div class="compras-lista" id="comprasListaWrap">
+          <div class="compras-row header">
+            <div>Empresa</div><div>Marca</div><div>Produto</div><div>Embalagem</div>
+            <div>Mín. (un)</div><div>Mín. (emb)</div><div>Atual (un)</div><div>Atual (emb)</div><div>Comprar</div><div></div>
+          </div>
+          <div id="comprasBody"></div>
         </div>
         <div class="empty" id="comprasEmpty" style="display:none;">Nenhum produto cadastrado ainda.</div>
       </div>
@@ -1097,6 +1115,17 @@
     <button class="addbtn" onclick="salvarProduto()">Salvar</button>
     <p class="modal-sub" style="margin-top:-8px;">Preenchendo a caixa acima, o campo de unidades já calcula sozinho (caixas × fator). Você ainda pode ajustar manualmente depois.</p>
     <div class="formerr" id="produtoErr">Preencha empresa, marca e nome do produto.</div>
+  </div>
+</div>
+
+<div id="confirmZerarComprarModal" class="modal-overlay">
+  <div class="modal-box" style="max-width:420px;">
+    <h2>Zerar quantidades a comprar?</h2>
+    <p class="modal-sub" id="zerarComprarTexto"></p>
+    <div class="modal-actions">
+      <button class="addbtn" onclick="confirmarZerarComprarOk()">Sim, já fiz o pedido</button>
+      <button class="cancelbtn" onclick="fecharZerarComprar()">Cancelar</button>
+    </div>
   </div>
 </div>
 
@@ -4698,6 +4727,9 @@ function exportarExcelFluxoCompleto(){
     ['Dinheiro — Saídas', brl(dinheiroSai)],
     ['Conta bancária (extrato) — Entradas', brl(extratoEnt)],
     ['Conta bancária (extrato) — Saídas', brl(extratoSai)],
+    [],
+    ['Total — Entradas', brl(dinheiroEnt + extratoEnt)],
+    ['Total — Saídas', brl(dinheiroSai + extratoSai)],
     []
   ];
   const cabecalho = ['Data','Origem','Tipo','Descrição','Valor'];
@@ -4734,8 +4766,10 @@ function exportarPdfFluxoCompleto(){
       ['Dinheiro', brl(dinheiroEnt), brl(dinheiroSai)],
       ['Conta bancária (extrato)', brl(extratoEnt), brl(extratoSai)]
     ],
+    foot: [['Total', brl(dinheiroEnt + extratoEnt), brl(dinheiroSai + extratoSai)]],
     styles: { fontSize: 9.5, cellPadding: 4 },
     headStyles: { fillColor: [38,51,43] },
+    footStyles: { fillColor: [233,225,203], textColor:20, fontStyle:'bold' },
     columnStyles: { 0: { fontStyle: 'bold' } },
     theme: 'grid'
   });
@@ -4817,6 +4851,7 @@ let comprasEmpresas = [];
 let comprasMarcas = [];
 let comprasProdutos = [];
 let comprasBuscaTexto = '';
+let comprasLinhasAtuais = [];
 let comprasEmpresaFiltro = '';
 let comprasMarcaFiltro = '';
 
@@ -4901,6 +4936,8 @@ function renderCompras(){
 
   linhas.sort((a,b)=> a.empresaNome.localeCompare(b.empresaNome) || a.marcaNome.localeCompare(b.marcaNome) || a.produto.nome.localeCompare(b.produto.nome));
 
+  comprasLinhasAtuais = linhas;
+
   const body = document.getElementById('comprasBody');
   const empty = document.getElementById('comprasEmpty');
   if(linhas.length===0){
@@ -4914,22 +4951,117 @@ function renderCompras(){
     const p = l.produto;
     const temFalta = Number(p.quantidade_comprar) > 0;
     const embalagemLabel = p.tipo_embalagem==='fardo' ? 'Fardo' : 'Caixa';
-    return `<tr>
-      <td>${escapeHtml(l.empresaNome)}</td>
-      <td>${escapeHtml(l.marcaNome)}</td>
-      <td>${escapeHtml(p.nome)}</td>
-      <td>${embalagemLabel}</td>
-      <td class="valor">${p.estoque_min_unidades ?? 0}</td>
-      <td class="valor">${p.estoque_min_caixas ?? 0}</td>
-      <td><input class="comprar-input" type="number" min="0" step="1" value="${p.estoque_atual_unidades ?? 0}" onchange="atualizarEstoqueAtual('${p.id}', 'estoque_atual_unidades', this.value)"></td>
-      <td><input class="comprar-input" type="number" min="0" step="1" value="${p.estoque_atual_caixas ?? 0}" onchange="atualizarEstoqueAtual('${p.id}', 'estoque_atual_caixas', this.value)"></td>
-      <td><input class="comprar-input ${temFalta?'tem-falta':''}" type="number" min="0" step="1" value="${p.quantidade_comprar ?? 0}" onchange="atualizarQuantidadeComprar('${p.id}', this.value)"></td>
-      <td><div class="rowactions">
+    return `<div class="compras-row">
+      <div class="campo"><span class="lbl-mobile">Empresa</span>${escapeHtml(l.empresaNome)}</div>
+      <div class="campo"><span class="lbl-mobile">Marca</span>${escapeHtml(l.marcaNome)}</div>
+      <div class="campo"><span class="lbl-mobile">Produto</span>${escapeHtml(p.nome)}</div>
+      <div class="campo"><span class="lbl-mobile">Embalagem</span>${embalagemLabel}</div>
+      <div class="campo"><span class="lbl-mobile">Mín. (un)</span>${p.estoque_min_unidades ?? 0}</div>
+      <div class="campo"><span class="lbl-mobile">Mín. (emb)</span>${p.estoque_min_caixas ?? 0}</div>
+      <div class="campo"><span class="lbl-mobile">Atual (un)</span><input class="comprar-input" type="number" min="0" step="1" value="${p.estoque_atual_unidades ?? 0}" onchange="atualizarEstoqueAtual('${p.id}', 'estoque_atual_unidades', this.value)"></div>
+      <div class="campo"><span class="lbl-mobile">Atual (emb)</span><input class="comprar-input" type="number" min="0" step="1" value="${p.estoque_atual_caixas ?? 0}" onchange="atualizarEstoqueAtual('${p.id}', 'estoque_atual_caixas', this.value)"></div>
+      <div class="campo"><span class="lbl-mobile">Comprar</span><input class="comprar-input ${temFalta?'tem-falta':''}" type="number" min="0" step="1" value="${p.quantidade_comprar ?? 0}" onchange="atualizarQuantidadeComprar('${p.id}', this.value)"></div>
+      <div class="campo"><span class="lbl-mobile">Ações</span><div class="rowactions">
         <button class="iconbtn edit" title="Editar" onclick="abrirEditarProduto('${p.id}')">✎</button>
         <button class="iconbtn del" title="Excluir" onclick="confirmarExclusaoProduto('${p.id}')">✕</button>
-      </div></td>
-    </tr>`;
+      </div></div>
+    </div>`;
   }).join('');
+}
+
+function itensParaComprar(){
+  return comprasLinhasAtuais.filter(l=>Number(l.produto.quantidade_comprar) > 0)
+    .sort((a,b)=> a.empresaNome.localeCompare(b.empresaNome) || a.marcaNome.localeCompare(b.marcaNome) || a.produto.nome.localeCompare(b.produto.nome));
+}
+
+function exportarExcelListaCompras(){
+  const itens = itensParaComprar();
+  if(itens.length===0){ alert('Nenhum item com quantidade a comprar preenchida (com o filtro/busca atual).'); return; }
+  if(!window.XLSX){ alert('Não foi possível carregar o recurso de Excel. Recarregue a página e tente de novo.'); return; }
+  const dados = itens.map(l=>({
+    'Empresa': l.empresaNome,
+    'Marca': l.marcaNome,
+    'Produto': l.produto.nome,
+    'Embalagem': l.produto.tipo_embalagem==='fardo' ? 'Fardo' : 'Caixa',
+    'Comprar': l.produto.quantidade_comprar
+  }));
+  const planilha = XLSX.utils.json_to_sheet(dados);
+  planilha['!cols'] = [{wch:22},{wch:18},{wch:36},{wch:12},{wch:10}];
+  const livro = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(livro, planilha, 'Lista de Compras');
+  const nomeLoja = (NOMES_LOJA[lojaAtual]||'').toLowerCase().replace(' ','');
+  const dataArquivo = new Date().toISOString().slice(0,10);
+  XLSX.writeFile(livro, 'lista-de-compras-' + nomeLoja + '-' + dataArquivo + '.xlsx');
+}
+
+function exportarPdfListaCompras(){
+  const itens = itensParaComprar();
+  if(itens.length===0){ alert('Nenhum item com quantidade a comprar preenchida (com o filtro/busca atual).'); return; }
+  if(!window.jspdf || !window.jspdf.jsPDF){ alert('Não foi possível carregar o recurso de PDF. Recarregue a página e tente de novo.'); return; }
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF();
+  const agora = new Date();
+  const dataHora = fmtData(agora.toISOString().slice(0,10)) + ' ' + agora.toTimeString().slice(0,5);
+
+  doc.setFontSize(16);
+  doc.text('Lista de Compras — ' + (NOMES_LOJA[lojaAtual]||''), 14, 18);
+  doc.setFontSize(10);
+  doc.setTextColor(120);
+  doc.text('Gerado em ' + dataHora, 14, 25);
+
+  let corpo = [];
+  let empresaAnterior = null;
+  itens.forEach(l=>{
+    if(l.empresaNome !== empresaAnterior){
+      corpo.push([{ content: l.empresaNome, colSpan: 4, styles: { fontStyle:'bold', fillColor:[233,225,203], textColor:20 } }]);
+      empresaAnterior = l.empresaNome;
+    }
+    const embalagemLabel = l.produto.tipo_embalagem==='fardo' ? 'Fardo' : 'Caixa';
+    corpo.push([l.marcaNome, l.produto.nome, embalagemLabel, String(l.produto.quantidade_comprar)]);
+  });
+
+  doc.autoTable({
+    startY: 32,
+    head: [['Marca','Produto','Embalagem','Comprar']],
+    body: corpo,
+    styles: { fontSize: 9, cellPadding: 3.5 },
+    headStyles: { fillColor: [38,51,43] }
+  });
+
+  const nomeLoja = (NOMES_LOJA[lojaAtual]||'').toLowerCase().replace(' ','');
+  const dataArquivo = agora.toISOString().slice(0,10);
+  doc.save('lista-de-compras-' + nomeLoja + '-' + dataArquivo + '.pdf');
+}
+
+function confirmarZerarComprar(){
+  const itens = itensParaComprar();
+  if(itens.length===0){
+    alert('Nenhum item com quantidade a comprar preenchida (com o filtro/busca atual).');
+    return;
+  }
+  document.getElementById('zerarComprarTexto').textContent =
+    'Isso zera a quantidade a comprar de ' + itens.length + ' produto(s) que estão visíveis com o filtro/busca atual. O resto do cadastro (mínimos, estoque atual) não muda.';
+  document.getElementById('confirmZerarComprarModal').style.display = 'flex';
+}
+
+function fecharZerarComprar(){
+  document.getElementById('confirmZerarComprarModal').style.display = 'none';
+}
+
+async function confirmarZerarComprarOk(){
+  const itens = itensParaComprar();
+  const ids = itens.map(l=>l.produto.id);
+  const { error } = await sb.from('compras_produtos').update({ quantidade_comprar: 0 }).in('id', ids);
+  fecharZerarComprar();
+  if(error){
+    alert('Erro ao zerar: ' + error.message);
+    return;
+  }
+  ids.forEach(id=>{
+    const p = comprasProdutos.find(x=>x.id===id);
+    if(p) p.quantidade_comprar = 0;
+  });
+  renderCompras();
 }
 
 async function atualizarQuantidadeComprar(id, valor){
