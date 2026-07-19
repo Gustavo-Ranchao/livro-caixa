@@ -901,7 +901,17 @@
         <button class="app-tab" id="fluxoSubTabTotal" onclick="mudarSubAbaFluxo('total')">📈 Total de Entradas e Saídas</button>
       </div>
 
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:20px;background:#fff;border:1px solid var(--paper3);border-radius:10px;padding:14px 20px;">
+        <span style="font-size:13px;color:var(--muted);">📑 Relatório único, juntando extrato bancário + dinheiro:</span>
+        <button class="filter-btn foto-btn" onclick="exportarExcelFluxoCompleto()">📊 Excel completo</button>
+        <button class="filter-btn foto-btn" onclick="exportarPdfFluxoCompleto()">📄 PDF completo</button>
+      </div>
+
       <div id="fluxoSubTotal" style="display:none;">
+        <div style="display:flex;justify-content:flex-end;gap:8px;margin-bottom:14px;">
+          <button class="filter-btn foto-btn" onclick="exportarExcelTotalFluxo()">📊 Excel</button>
+          <button class="filter-btn foto-btn" onclick="exportarPdfTotalFluxo()">📄 PDF</button>
+        </div>
         <div class="bh-resumo">
           <div class="metric"><div class="lbl">Total entradas</div><div class="val" id="fluxoCombinadoEntradas" style="color:var(--green);">R$ 0,00</div></div>
           <div class="metric"><div class="lbl">Total saídas</div><div class="val" id="fluxoCombinadoSaidas" style="color:var(--rust);">R$ 0,00</div></div>
@@ -966,6 +976,8 @@
           <div class="panel-head">
             <h2>Lançamentos do extrato</h2>
             <div class="filters">
+              <button class="filter-btn foto-btn" onclick="exportarExcelExtrato()">📊 Excel</button>
+              <button class="filter-btn foto-btn" onclick="exportarPdfExtrato()">📄 PDF</button>
               <button class="filter-btn" style="border-color:var(--rust);color:var(--rust);" onclick="confirmarLimpezaExtrato()">🗑 Apagar lançamentos importados (período)</button>
             </div>
           </div>
@@ -1016,7 +1028,16 @@
         </div>
 
         <div class="panel">
-          <div class="panel-head"><h2>Lançamentos em dinheiro</h2></div>
+          <div class="panel-head">
+            <h2>Lançamentos em dinheiro</h2>
+            <div class="filters">
+              <button class="filter-btn foto-btn" onclick="exportarExcelDinheiro()">📊 Excel</button>
+              <button class="filter-btn foto-btn" onclick="exportarPdfDinheiro()">📄 PDF</button>
+            </div>
+          </div>
+          <div style="padding:0 20px 14px;">
+            <input id="fluxoDinheiroBusca" oninput="filtrarDinheiroFluxo()" placeholder="🔍 Buscar por valor, dia, descrição..." style="width:100%;font-family:var(--font-sans);font-size:13px;padding:9px 12px;border:1px solid var(--line);border-radius:6px;background:var(--paper);">
+          </div>
           <div class="tablewrap">
             <table class="ledger">
               <thead><tr><th>Data</th><th>Descrição</th><th style="text-align:right">Valor</th><th></th></tr></thead>
@@ -3869,6 +3890,10 @@ function renderVendasDashboard(){
 /* ================= FLUXO DE CAIXA ================= */
 
 let fluxoCache = [];
+let fluxoExtratoAtual = [];
+let fluxoDinheiroAtual = [];
+let fluxoFormasAtual = [];
+let fluxoFornecedoresAtual = [];
 let fluxoImportParsed = [];
 let fluxoImportSaldos = [];
 
@@ -4371,6 +4396,10 @@ function filtrarExtratoFluxo(){
   renderFluxoCaixa();
 }
 
+function filtrarDinheiroFluxo(){
+  renderFluxoCaixa();
+}
+
 function renderFluxoCaixa(){
   const somenteExtrato = fluxoCache.filter(l=>l.tipo!=='Dinheiro');
   const totalEntradas = somenteExtrato.filter(l=>Number(l.valor)>0).reduce((s,l)=>s+Number(l.valor), 0);
@@ -4407,6 +4436,7 @@ function renderFluxoCaixa(){
       <tr><td>${forma}</td><td class="valor" style="color:var(--green);">${brl(valor)}</td></tr>
     `).join('');
   }
+  fluxoFormasAtual = formas;
 
   const pagamentos = fluxoCache.filter(l=>Number(l.valor)<0 && l.tipo!=='Vendas');
   const porFornecedor = {};
@@ -4423,6 +4453,7 @@ function renderFluxoCaixa(){
       <tr><td>${escapeHtml(nome)}</td><td class="valor" style="color:var(--rust);">${brl(valor)}</td></tr>
     `).join('');
   }
+  fluxoFornecedoresAtual = fornecedores;
 
   let extrato = fluxoCache.filter(l=>l.tipo!=='Dinheiro');
   const buscaExtrato = (document.getElementById('fluxoExtratoBusca').value || '').trim().toLowerCase();
@@ -4432,6 +4463,7 @@ function renderFluxoCaixa(){
       return texto.includes(buscaExtrato);
     });
   }
+  fluxoExtratoAtual = extrato;
   const bodyExtrato = document.getElementById('fluxoExtratoBody');
   const emptyExtrato = document.getElementById('fluxoExtratoEmpty');
   if(extrato.length===0){
@@ -4463,14 +4495,25 @@ function renderFluxoCaixa(){
   document.getElementById('fluxoCombinadoSaidas').textContent = brl(totalSaidas + dinheiroSaidas);
   document.getElementById('fluxoCombinadoSaldo').textContent = brl((totalEntradas + dinheiroEntradas) - (totalSaidas + dinheiroSaidas));
 
+  let dinheiroExibido = dinheiro;
+  const buscaDinheiro = (document.getElementById('fluxoDinheiroBusca').value || '').trim().toLowerCase();
+  if(buscaDinheiro){
+    dinheiroExibido = dinheiro.filter(l=>{
+      const texto = [fmtData(l.data), l.descricao, brl(l.valor), String(l.valor).replace('.',',')].join(' ').toLowerCase();
+      return texto.includes(buscaDinheiro);
+    });
+  }
+  fluxoDinheiroAtual = dinheiroExibido;
+
   const bodyDinheiro = document.getElementById('fluxoDinheiroBody');
   const emptyDinheiro = document.getElementById('fluxoDinheiroEmpty');
-  if(dinheiro.length===0){
+  if(dinheiroExibido.length===0){
     bodyDinheiro.innerHTML = '';
     emptyDinheiro.style.display = 'block';
+    emptyDinheiro.textContent = buscaDinheiro ? 'Nenhum lançamento encontrado para essa busca.' : 'Nenhum lançamento em dinheiro ainda.';
   }else{
     emptyDinheiro.style.display = 'none';
-    bodyDinheiro.innerHTML = dinheiro.map(l=>`
+    bodyDinheiro.innerHTML = dinheiroExibido.map(l=>`
       <tr>
         <td class="data">${fmtData(l.data)}</td>
         <td class="contato">${escapeHtml(l.descricao || '—')}</td>
@@ -4491,6 +4534,184 @@ function textoPeriodoFluxo(){
     return (de ? fmtData(de) : 'início') + ' a ' + (ate ? fmtData(ate) : 'hoje');
   }
   return 'Todos os períodos';
+}
+
+/* ---------- Exportação: helpers genéricos ---------- */
+
+function gerarLinhasExcelLancamentos(linhas, comTipo){
+  return linhas.map(l=>{
+    const linha = { 'Data': fmtData(l.data) };
+    if(comTipo) linha['Tipo'] = l.tipo;
+    linha['Descrição'] = l.descricao || '—';
+    linha['Valor'] = brl(l.valor);
+    return linha;
+  });
+}
+
+function baixarExcel(planilhaDados, larguras, nomeAba, nomeArquivo){
+  if(!window.XLSX){ alert('Não foi possível carregar o recurso de Excel. Recarregue a página e tente de novo.'); return; }
+  const planilha = XLSX.utils.json_to_sheet(planilhaDados);
+  planilha['!cols'] = larguras;
+  const livro = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(livro, planilha, nomeAba);
+  XLSX.writeFile(livro, nomeArquivo);
+}
+
+function iniciarPdf(titulo, subtitulo){
+  if(!window.jspdf || !window.jspdf.jsPDF){ alert('Não foi possível carregar o recurso de PDF. Recarregue a página e tente de novo.'); return null; }
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF();
+  const agora = new Date();
+  const dataHora = fmtData(agora.toISOString().slice(0,10)) + ' ' + agora.toTimeString().slice(0,5);
+  doc.setFontSize(16);
+  doc.text(titulo, 14, 18);
+  doc.setFontSize(10);
+  doc.setTextColor(120);
+  doc.text(subtitulo + '   ·   Gerado em ' + dataHora, 14, 25);
+  return doc;
+}
+
+function nomeArquivoFluxo(prefixo, extensao){
+  const nomeLoja = (NOMES_LOJA[lojaAtual]||'').toLowerCase().replace(' ','');
+  const dataArquivo = new Date().toISOString().slice(0,10);
+  return prefixo + '-' + nomeLoja + '-' + dataArquivo + '.' + extensao;
+}
+
+/* ---------- Extrato bancário ---------- */
+
+function exportarExcelExtrato(){
+  if(fluxoExtratoAtual.length===0){ alert('Não há lançamentos do extrato para exportar.'); return; }
+  const dados = gerarLinhasExcelLancamentos(fluxoExtratoAtual, true);
+  baixarExcel(dados, [{wch:12},{wch:26},{wch:40},{wch:14}], 'Extrato', nomeArquivoFluxo('extrato-bancario','xlsx'));
+}
+
+function exportarPdfExtrato(){
+  if(fluxoExtratoAtual.length===0){ alert('Não há lançamentos do extrato para exportar.'); return; }
+  const doc = iniciarPdf('Extrato Bancário — ' + (NOMES_LOJA[lojaAtual]||''), 'Período: ' + textoPeriodoFluxo());
+  if(!doc) return;
+  const corpo = fluxoExtratoAtual.map(l=>[fmtData(l.data), l.tipo, l.descricao||'—', brl(l.valor)]);
+  const totalEnt = fluxoExtratoAtual.filter(l=>Number(l.valor)>0).reduce((s,l)=>s+Number(l.valor),0);
+  const totalSai = fluxoExtratoAtual.filter(l=>Number(l.valor)<0).reduce((s,l)=>s+Math.abs(Number(l.valor)),0);
+  doc.autoTable({
+    startY: 32,
+    head: [['Data','Tipo','Descrição','Valor']],
+    body: corpo,
+    foot: [['TOTAL','','Entradas: '+brl(totalEnt)+'  ·  Saídas: '+brl(totalSai), 'Líquido: '+brl(totalEnt-totalSai)]],
+    styles: { fontSize: 8.5, cellPadding: 3 },
+    headStyles: { fillColor: [38,51,43] },
+    footStyles: { fillColor: [233,225,203], textColor:20, fontStyle:'bold' }
+  });
+  doc.save(nomeArquivoFluxo('extrato-bancario','pdf'));
+}
+
+/* ---------- Lançamentos em dinheiro ---------- */
+
+function exportarExcelDinheiro(){
+  if(fluxoDinheiroAtual.length===0){ alert('Não há lançamentos em dinheiro para exportar.'); return; }
+  const dados = gerarLinhasExcelLancamentos(fluxoDinheiroAtual, false);
+  baixarExcel(dados, [{wch:12},{wch:40},{wch:14}], 'Dinheiro', nomeArquivoFluxo('lancamentos-dinheiro','xlsx'));
+}
+
+function exportarPdfDinheiro(){
+  if(fluxoDinheiroAtual.length===0){ alert('Não há lançamentos em dinheiro para exportar.'); return; }
+  const doc = iniciarPdf('Lançamentos em Dinheiro — ' + (NOMES_LOJA[lojaAtual]||''), 'Período: ' + textoPeriodoFluxo());
+  if(!doc) return;
+  const corpo = fluxoDinheiroAtual.map(l=>[fmtData(l.data), l.descricao||'—', brl(l.valor)]);
+  const totalEnt = fluxoDinheiroAtual.filter(l=>Number(l.valor)>0).reduce((s,l)=>s+Number(l.valor),0);
+  const totalSai = fluxoDinheiroAtual.filter(l=>Number(l.valor)<0).reduce((s,l)=>s+Math.abs(Number(l.valor)),0);
+  doc.autoTable({
+    startY: 32,
+    head: [['Data','Descrição','Valor']],
+    body: corpo,
+    foot: [['TOTAL','Entradas: '+brl(totalEnt)+'  ·  Saídas: '+brl(totalSai), 'Líquido: '+brl(totalEnt-totalSai)]],
+    styles: { fontSize: 8.5, cellPadding: 3 },
+    headStyles: { fillColor: [38,51,43] },
+    footStyles: { fillColor: [233,225,203], textColor:20, fontStyle:'bold' }
+  });
+  doc.save(nomeArquivoFluxo('lancamentos-dinheiro','pdf'));
+}
+
+/* ---------- Total de entradas e saídas (por forma / por fornecedor) ---------- */
+
+function exportarExcelTotalFluxo(){
+  if(fluxoFormasAtual.length===0 && fluxoFornecedoresAtual.length===0){ alert('Não há dados para exportar com o período atual.'); return; }
+  if(!window.XLSX){ alert('Não foi possível carregar o recurso de Excel. Recarregue a página e tente de novo.'); return; }
+  const livro = XLSX.utils.book_new();
+
+  const planForma = XLSX.utils.json_to_sheet(fluxoFormasAtual.map(([forma,valor])=>({ 'Forma': forma, 'Valor': brl(valor) })));
+  planForma['!cols'] = [{wch:22},{wch:16}];
+  XLSX.utils.book_append_sheet(livro, planForma, 'Por forma de pagamento');
+
+  const planForn = XLSX.utils.json_to_sheet(fluxoFornecedoresAtual.map(([nome,valor])=>({ 'Fornecedor': nome, 'Valor': brl(valor) })));
+  planForn['!cols'] = [{wch:36},{wch:16}];
+  XLSX.utils.book_append_sheet(livro, planForn, 'Por fornecedor');
+
+  XLSX.writeFile(livro, nomeArquivoFluxo('total-entradas-saidas','xlsx'));
+}
+
+function exportarPdfTotalFluxo(){
+  if(fluxoFormasAtual.length===0 && fluxoFornecedoresAtual.length===0){ alert('Não há dados para exportar com o período atual.'); return; }
+  const doc = iniciarPdf('Total de Entradas e Saídas — ' + (NOMES_LOJA[lojaAtual]||''), 'Período: ' + textoPeriodoFluxo());
+  if(!doc) return;
+
+  doc.autoTable({
+    startY: 32,
+    head: [['Entradas por forma de pagamento','Valor']],
+    body: fluxoFormasAtual.map(([forma,valor])=>[forma, brl(valor)]),
+    styles: { fontSize: 9, cellPadding: 3 },
+    headStyles: { fillColor: [38,51,43] }
+  });
+
+  doc.autoTable({
+    startY: doc.lastAutoTable.finalY + 12,
+    head: [['Pagamentos por fornecedor','Valor']],
+    body: fluxoFornecedoresAtual.map(([nome,valor])=>[nome, brl(valor)]),
+    styles: { fontSize: 9, cellPadding: 3 },
+    headStyles: { fillColor: [38,51,43] }
+  });
+
+  doc.save(nomeArquivoFluxo('total-entradas-saidas','pdf'));
+}
+
+/* ---------- Relatório único (extrato + dinheiro juntos) ---------- */
+
+function montarListaFluxoCompleto(){
+  return [...fluxoExtratoAtual, ...fluxoDinheiroAtual]
+    .slice()
+    .sort((a,b)=> a.data.localeCompare(b.data));
+}
+
+function exportarExcelFluxoCompleto(){
+  const todos = montarListaFluxoCompleto();
+  if(todos.length===0){ alert('Não há lançamentos para exportar com o período/busca atual.'); return; }
+  const dados = todos.map(l=>({
+    'Data': fmtData(l.data),
+    'Origem': l.tipo==='Dinheiro' ? 'Dinheiro' : 'Extrato bancário',
+    'Tipo': l.tipo,
+    'Descrição': l.descricao || '—',
+    'Valor': brl(l.valor)
+  }));
+  baixarExcel(dados, [{wch:12},{wch:16},{wch:26},{wch:40},{wch:14}], 'Fluxo de Caixa', nomeArquivoFluxo('fluxo-de-caixa-completo','xlsx'));
+}
+
+function exportarPdfFluxoCompleto(){
+  const todos = montarListaFluxoCompleto();
+  if(todos.length===0){ alert('Não há lançamentos para exportar com o período/busca atual.'); return; }
+  const doc = iniciarPdf('Fluxo de Caixa Completo — ' + (NOMES_LOJA[lojaAtual]||''), 'Período: ' + textoPeriodoFluxo());
+  if(!doc) return;
+  const corpo = todos.map(l=>[fmtData(l.data), l.tipo==='Dinheiro'?'Dinheiro':'Extrato', l.tipo, l.descricao||'—', brl(l.valor)]);
+  const totalEnt = todos.filter(l=>Number(l.valor)>0).reduce((s,l)=>s+Number(l.valor),0);
+  const totalSai = todos.filter(l=>Number(l.valor)<0).reduce((s,l)=>s+Math.abs(Number(l.valor)),0);
+  doc.autoTable({
+    startY: 32,
+    head: [['Data','Origem','Tipo','Descrição','Valor']],
+    body: corpo,
+    foot: [['TOTAL','','','Entradas: '+brl(totalEnt)+'  ·  Saídas: '+brl(totalSai), 'Líquido: '+brl(totalEnt-totalSai)]],
+    styles: { fontSize: 7.5, cellPadding: 2.5 },
+    headStyles: { fillColor: [38,51,43] },
+    footStyles: { fillColor: [233,225,203], textColor:20, fontStyle:'bold' }
+  });
+  doc.save(nomeArquivoFluxo('fluxo-de-caixa-completo','pdf'));
 }
 
 function confirmarLimpezaExtrato(){
