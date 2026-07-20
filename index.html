@@ -918,6 +918,7 @@
         <button class="app-tab active" id="fluxoSubTabExtrato" onclick="mudarSubAbaFluxo('extrato')">📊 Extrato Bancário</button>
         <button class="app-tab" id="fluxoSubTabDinheiro" onclick="mudarSubAbaFluxo('dinheiro')">💵 Lançamentos em Dinheiro</button>
         <button class="app-tab" id="fluxoSubTabTotal" onclick="mudarSubAbaFluxo('total')">📈 Total de Entradas e Saídas</button>
+        <button class="app-tab" id="fluxoSubTabProjecao" onclick="mudarSubAbaFluxo('projecao')">📉 Projeção</button>
       </div>
 
       <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:20px;background:#fff;border:1px solid var(--paper3);border-radius:10px;padding:14px 20px;">
@@ -962,6 +963,15 @@
             <input id="fluxoFileInput" type="file" accept=".xlsx,.xls" multiple style="display:none;" onchange="onSelecionarArquivosFluxo(this.files)">
           </label>
           <span style="font-size:12px;color:var(--muted);">A data já vem dentro do próprio extrato, não precisa escolher nada</span>
+        </div>
+
+        <div class="panel" style="margin-bottom:20px;padding:14px 20px;display:flex;align-items:center;gap:20px;flex-wrap:wrap;">
+          <div><span style="font-size:11px;text-transform:uppercase;letter-spacing:0.05em;color:var(--muted);">Último dia importado</span><br>
+            <span id="fluxoUltimoDia" style="font-family:var(--font-mono);font-size:15px;font-weight:600;">—</span>
+          </div>
+          <div><span style="font-size:11px;text-transform:uppercase;letter-spacing:0.05em;color:var(--muted);">Próximo a importar</span><br>
+            <span id="fluxoProximoDia" style="font-family:var(--font-mono);font-size:15px;font-weight:600;color:var(--gold);">—</span>
+          </div>
         </div>
 
         <div id="fluxoPreviewWrap" class="panel" style="display:none;margin-bottom:20px;padding:18px 20px;">
@@ -1064,6 +1074,32 @@
             </table>
           </div>
           <div class="empty" id="fluxoDinheiroEmpty" style="display:none;">Nenhum lançamento em dinheiro ainda.</div>
+        </div>
+      </div>
+
+      <div id="fluxoSubProjecao" style="display:none;">
+        <div class="bh-filtro-data" style="margin-bottom:20px;">
+          <label>Mês</label>
+          <select id="projecaoFiltroMes" onchange="mudarMesProjecao(this.value)"></select>
+        </div>
+
+        <div class="bh-resumo">
+          <div class="metric"><div class="lbl">Total entradas</div><div class="val" id="projecaoEntradas" style="color:var(--green);">R$ 0,00</div></div>
+          <div class="metric"><div class="lbl">Total saídas</div><div class="val" id="projecaoSaidas" style="color:var(--rust);">R$ 0,00</div></div>
+          <div class="metric"><div class="lbl">Contas selecionadas</div><div class="val" id="projecaoContas" style="color:var(--rust);">R$ 0,00</div></div>
+          <div class="metric"><div class="lbl">Saldo projetado</div><div class="val" id="projecaoSaldo">R$ 0,00</div></div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-head"><h2>Contas a pagar pendentes — marque as que entram nessa projeção</h2></div>
+          <p class="modal-sub" style="padding:0 20px;margin:-6px 0 12px;">Por padrão já vêm marcadas as contas que vencem dentro do mês escolhido acima. Marque ou desmarque manualmente se alguma conta "pertence" a outro mês na prática.</p>
+          <div class="tablewrap">
+            <table class="ledger">
+              <thead><tr><th></th><th>Vencimento</th><th>Fornecedor</th><th style="text-align:right">Valor</th></tr></thead>
+              <tbody id="projecaoContasBody"></tbody>
+            </table>
+          </div>
+          <div class="empty" id="projecaoContasEmpty" style="display:none;">Nenhuma conta pendente.</div>
         </div>
       </div>
     </div>
@@ -1584,6 +1620,8 @@ function trocarLoja(l){
       document.getElementById('fluxoFiltroMes').value = mesAtual;
       mudarMesFluxo(mesAtual);
     });
+    atualizarUltimoDiaFluxo();
+    if(projecaoJaCarregada) carregarProjecao();
   }
   if(viewAtual === 'compras'){
     carregarCompras();
@@ -4051,12 +4089,19 @@ function mudarSubAbaFluxo(aba){
   document.getElementById('fluxoSubExtrato').style.display = (aba==='extrato') ? '' : 'none';
   document.getElementById('fluxoSubDinheiro').style.display = (aba==='dinheiro') ? '' : 'none';
   document.getElementById('fluxoSubTotal').style.display = (aba==='total') ? '' : 'none';
+  document.getElementById('fluxoSubProjecao').style.display = (aba==='projecao') ? '' : 'none';
   document.getElementById('fluxoSubTabExtrato').classList.toggle('active', aba==='extrato');
   document.getElementById('fluxoSubTabDinheiro').classList.toggle('active', aba==='dinheiro');
   document.getElementById('fluxoSubTabTotal').classList.toggle('active', aba==='total');
+  document.getElementById('fluxoSubTabProjecao').classList.toggle('active', aba==='projecao');
+  if(aba==='projecao' && !projecaoJaCarregada){
+    projecaoJaCarregada = true;
+    abrirProjecao();
+  }
 }
 
 async function abrirFluxoCaixa(){
+  projecaoJaCarregada = false;
   if(!document.getElementById('dinheiro_data').value){
     document.getElementById('dinheiro_data').value = todayStr();
   }
@@ -4064,6 +4109,32 @@ async function abrirFluxoCaixa(){
   const mesAtual = new Date().toISOString().slice(0,7);
   document.getElementById('fluxoFiltroMes').value = mesAtual;
   mudarMesFluxo(mesAtual);
+  await atualizarUltimoDiaFluxo();
+}
+
+async function atualizarUltimoDiaFluxo(){
+  const { data, error } = await sb.from('fluxo_caixa_lancamentos')
+    .select('data')
+    .eq('loja', lojaAtual)
+    .neq('tipo', 'Dinheiro')
+    .order('data', { ascending: false })
+    .limit(1);
+
+  const elUltimo = document.getElementById('fluxoUltimoDia');
+  const elProximo = document.getElementById('fluxoProximoDia');
+
+  if(error || !data || data.length===0){
+    elUltimo.textContent = 'nenhum ainda';
+    elProximo.textContent = '—';
+    return;
+  }
+
+  const ultimaData = data[0].data;
+  elUltimo.textContent = fmtData(ultimaData);
+
+  const proximo = new Date(ultimaData + 'T12:00:00');
+  proximo.setDate(proximo.getDate() + 1);
+  elProximo.textContent = fmtData(proximo.toISOString().slice(0,10));
 }
 
 let dinheiroTipoAtual = 'entrada';
@@ -5684,6 +5755,97 @@ function exportarPdfPagamentos(){
 
   const nomeLoja = (NOMES_LOJA[lojaAtual]||'').toLowerCase().replace(' ','');
   doc.save('pagamentos-' + nomeLoja + '-' + agora.toISOString().slice(0,10) + '.pdf');
+}
+
+/* ================= PROJEÇÃO (fluxo de caixa + contas a pagar) ================= */
+
+let projecaoJaCarregada = false;
+let projecaoMesAtual = '';
+let projecaoSelecionadas = new Set();
+let projecaoPendentesAtual = [];
+let projecaoEntradasValor = 0;
+let projecaoSaidasValor = 0;
+
+async function abrirProjecao(){
+  const sel = document.getElementById('projecaoFiltroMes');
+  const mesAtual = new Date().toISOString().slice(0,7);
+  const hoje = new Date();
+  const meses = [];
+  for(let i=0;i<12;i++){
+    const d = new Date(hoje.getFullYear(), hoje.getMonth()-i, 1);
+    meses.push(d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0'));
+  }
+  sel.innerHTML = meses.map(chave=>{
+    const [ano, mes] = chave.split('-');
+    return `<option value="${chave}">${NOMES_MES[parseInt(mes,10)-1]} ${ano}</option>`;
+  }).join('');
+  sel.value = mesAtual;
+  projecaoMesAtual = mesAtual;
+  await carregarProjecao();
+}
+
+function mudarMesProjecao(valor){
+  projecaoMesAtual = valor;
+  carregarProjecao();
+}
+
+async function carregarProjecao(){
+  const [ano, mes] = projecaoMesAtual.split('-');
+  const ultimoDia = new Date(parseInt(ano,10), parseInt(mes,10), 0).getDate();
+  const de = projecaoMesAtual + '-01';
+  const ate = projecaoMesAtual + '-' + String(ultimoDia).padStart(2,'0');
+
+  const { data: mesLancamentos } = await buscarTodasLinhas((from, to)=>
+    sb.from('fluxo_caixa_lancamentos').select('valor').eq('loja', lojaAtual).gte('data', de).lte('data', ate).range(from, to)
+  );
+  projecaoEntradasValor = (mesLancamentos||[]).filter(l=>Number(l.valor)>0).reduce((s,l)=>s+Number(l.valor), 0);
+  projecaoSaidasValor = (mesLancamentos||[]).filter(l=>Number(l.valor)<0).reduce((s,l)=>s+Math.abs(Number(l.valor)), 0);
+
+  projecaoPendentesAtual = (lancamentos||[]).filter(l=>l.tipo==='pagar' && l.status!=='pago' && l.loja===lojaAtual);
+  projecaoSelecionadas = new Set(projecaoPendentesAtual.filter(l=>l.vencimento>=de && l.vencimento<=ate).map(l=>l.id));
+
+  renderProjecao();
+}
+
+function renderProjecao(){
+  const pendentes = projecaoPendentesAtual.slice().sort((a,b)=>a.vencimento.localeCompare(b.vencimento));
+  const body = document.getElementById('projecaoContasBody');
+  const empty = document.getElementById('projecaoContasEmpty');
+  if(pendentes.length===0){
+    body.innerHTML = '';
+    empty.style.display = 'block';
+  }else{
+    empty.style.display = 'none';
+    body.innerHTML = pendentes.map(l=>`
+      <tr>
+        <td style="width:36px;"><input type="checkbox" ${projecaoSelecionadas.has(l.id)?'checked':''} onchange="toggleProjecaoConta('${l.id}', this.checked)"></td>
+        <td class="data">${fmtData(l.vencimento)}</td>
+        <td class="contato">${escapeHtml(l.contato || l.descricao || '—')}</td>
+        <td class="valor">${brl(l.valor)}</td>
+      </tr>
+    `).join('');
+  }
+  atualizarTotaisProjecao();
+}
+
+function toggleProjecaoConta(id, marcado){
+  if(marcado) projecaoSelecionadas.add(id); else projecaoSelecionadas.delete(id);
+  atualizarTotaisProjecao();
+}
+
+function atualizarTotaisProjecao(){
+  const totalContas = projecaoPendentesAtual
+    .filter(l=>projecaoSelecionadas.has(l.id))
+    .reduce((s,l)=>s+Number(l.valor), 0);
+
+  document.getElementById('projecaoEntradas').textContent = brl(projecaoEntradasValor);
+  document.getElementById('projecaoSaidas').textContent = brl(projecaoSaidasValor);
+  document.getElementById('projecaoContas').textContent = brl(totalContas);
+
+  const saldo = projecaoEntradasValor - projecaoSaidasValor - totalContas;
+  const elSaldo = document.getElementById('projecaoSaldo');
+  elSaldo.textContent = brl(saldo);
+  elSaldo.style.color = saldo<0 ? 'var(--rust)' : 'var(--green)';
 }
 
 async function selecionarFuncionario(id){
