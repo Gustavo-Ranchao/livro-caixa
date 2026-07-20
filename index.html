@@ -391,6 +391,7 @@
             <button class="nav-sub-item" data-view="comprovantes" onclick="mudarViewPrincipal('comprovantes')">Comprovantes</button>
             <button class="nav-sub-item" data-view="diferencaCaixa" onclick="mudarViewPrincipal('diferencaCaixa')">Diferença de Caixa</button>
             <button class="nav-sub-item" data-view="fluxoCaixa" onclick="mudarViewPrincipal('fluxoCaixa')">Fluxo de Caixa</button>
+            <button class="nav-sub-item" data-view="pagamentos" onclick="mudarViewPrincipal('pagamentos')">Pagamentos</button>
           </div>
         </div>
         <div class="nav-group">
@@ -905,7 +906,7 @@
         <div class="panel-head"><h2>Por produto</h2></div>
         <div class="tablewrap">
           <table class="ledger">
-            <thead><tr><th>Produto</th><th>Categoria</th><th style="text-align:right">Vendido</th><th style="text-align:right">Custo</th><th style="text-align:right">Lucro</th><th style="text-align:right">Margem</th></tr></thead>
+            <thead id="vendasProdutoHead"></thead>
             <tbody id="vendasProdutoBody"></tbody>
           </table>
         </div>
@@ -1066,6 +1067,40 @@
         </div>
       </div>
     </div>
+
+    <div id="viewPagamentos" style="display:none;">
+      <div class="bh-filtro-data" style="margin-bottom:20px;">
+        <label>Mês</label>
+        <select id="pagamentosFiltroMes" onchange="mudarMesPagamentos(this.value)">
+          <option value="todos">Todos os meses</option>
+        </select>
+      </div>
+
+      <div class="bh-resumo">
+        <div class="metric"><div class="lbl">Total pago no período</div><div class="val" id="pagamentosTotal" style="color:var(--rust);">R$ 0,00</div></div>
+        <div class="metric"><div class="lbl">Quantidade de pagamentos</div><div class="val" id="pagamentosQtd">0</div></div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-head">
+          <h2>Pagamentos feitos pela conta</h2>
+          <div class="filters">
+            <button class="filter-btn foto-btn" onclick="exportarExcelPagamentos()">📊 Excel</button>
+            <button class="filter-btn foto-btn" onclick="exportarPdfPagamentos()">📄 PDF</button>
+          </div>
+        </div>
+        <div style="padding:0 20px 14px;">
+          <input id="pagamentosBusca" oninput="filtrarPagamentos()" placeholder="🔍 Buscar por valor, tipo, descrição..." style="width:100%;font-family:var(--font-sans);font-size:13px;padding:9px 12px;border:1px solid var(--line);border-radius:6px;background:var(--paper);">
+        </div>
+        <div class="tablewrap">
+          <table class="ledger">
+            <thead><tr><th>Data</th><th>Tipo</th><th>Descrição</th><th style="text-align:right">Valor</th><th></th></tr></thead>
+            <tbody id="pagamentosBody"></tbody>
+          </table>
+        </div>
+        <div class="empty" id="pagamentosEmpty" style="display:none;">Nenhum pagamento nesse período.</div>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -1115,6 +1150,33 @@
     <button class="addbtn" onclick="salvarProduto()">Salvar</button>
     <p class="modal-sub" style="margin-top:-8px;">Preenchendo a caixa acima, o campo de unidades já calcula sozinho (caixas × fator). Você ainda pode ajustar manualmente depois.</p>
     <div class="formerr" id="produtoErr">Preencha empresa, marca e nome do produto.</div>
+  </div>
+</div>
+
+<div id="editPagamentoModal" class="modal-overlay">
+  <div class="modal-box" style="max-width:420px;">
+    <button class="modal-close" onclick="fecharEditarPagamento()">✕</button>
+    <h2>Editar pagamento</h2>
+    <div class="fld"><label>Tipo</label><input id="pag_tipo" placeholder="Ex: Pagamento de conta"></div>
+    <div class="fld"><label>Descrição</label><input id="pag_descricao" placeholder="Fornecedor / observação"></div>
+    <div class="fld"><label>Data</label><input id="pag_data" type="date"></div>
+    <div class="fld"><label>Valor (R$)</label><input id="pag_valor" type="number" step="0.01" min="0" placeholder="0,00"></div>
+    <div class="formerr" id="pagamentoErr">Preencha tipo, data e um valor maior que zero.</div>
+    <div class="modal-actions" style="margin-top:16px;">
+      <button class="addbtn" id="pagamentoSalvarBtn" onclick="salvarEdicaoPagamento()">Salvar</button>
+      <button class="cancelbtn" onclick="fecharEditarPagamento()">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<div id="confirmExclusaoPagamentoModal" class="modal-overlay">
+  <div class="modal-box" style="max-width:380px;">
+    <h2>Excluir pagamento?</h2>
+    <p class="modal-sub">Essa ação não pode ser desfeita.</p>
+    <div class="modal-actions">
+      <button class="addbtn" style="background:var(--rust);" onclick="confirmarExclusaoPagamentoOk()">Excluir</button>
+      <button class="cancelbtn" onclick="fecharConfirmacaoPagamento()">Cancelar</button>
+    </div>
   </div>
 </div>
 
@@ -1514,6 +1576,9 @@ function trocarLoja(l){
   }
   if(viewAtual === 'compras'){
     carregarCompras();
+  }
+  if(viewAtual === 'pagamentos'){
+    abrirPagamentos();
   }
   if(viewAtual === 'inicio'){
     abrirInicio();
@@ -2767,7 +2832,7 @@ function setEscala(e){
   }
 }
 
-const VIEWS = ['inicio','contasPagar','despesasFixas','comprovantes','diferencaCaixa','fluxoCaixa','vendasComCusto','bancoHoras','compras','colaboradores'];
+const VIEWS = ['inicio','contasPagar','despesasFixas','comprovantes','diferencaCaixa','fluxoCaixa','pagamentos','vendasComCusto','bancoHoras','compras','colaboradores'];
 let colabCarregado = false;
 
 const NAV_GROUPS = {
@@ -2795,7 +2860,7 @@ async function mudarViewPrincipal(view){
   viewAtual = view;
 
   VIEWS.forEach(v=>{
-    const idMap = { inicio:'viewInicio', contasPagar:'viewContasPagar', despesasFixas:'viewDespesasFixas', comprovantes:'viewComprovantes', diferencaCaixa:'viewDiferencaCaixa', fluxoCaixa:'viewFluxoCaixa', vendasComCusto:'viewVendasComCusto', bancoHoras:'viewBancoHoras', compras:'viewCompras', colaboradores:'viewColaboradores' };
+    const idMap = { inicio:'viewInicio', contasPagar:'viewContasPagar', despesasFixas:'viewDespesasFixas', comprovantes:'viewComprovantes', diferencaCaixa:'viewDiferencaCaixa', fluxoCaixa:'viewFluxoCaixa', pagamentos:'viewPagamentos', vendasComCusto:'viewVendasComCusto', bancoHoras:'viewBancoHoras', compras:'viewCompras', colaboradores:'viewColaboradores' };
     document.getElementById(idMap[v]).style.display = (v===view) ? '' : 'none';
   });
 
@@ -2821,6 +2886,9 @@ async function mudarViewPrincipal(view){
     document.getElementById('loadingScreen').style.display = 'flex';
     await abrirFluxoCaixa();
     document.getElementById('loadingScreen').style.display = 'none';
+  }else if(view==='pagamentos'){
+    abrirGrupoNav('financeiro');
+    await abrirPagamentos();
   }else if(view==='contasPagar'){
     abrirGrupoNav('financeiro');
   }else if(view==='vendasComCusto'){
@@ -3730,6 +3798,9 @@ function limparFiltroVendas(){
 let vendasCatOrdenarPor = 'vendido';
 let vendasCatOrdemAsc = false;
 let vendasCategoriaAtual = [];
+let vendasProdOrdenarPor = 'lucro';
+let vendasProdOrdemAsc = false;
+let vendasProdutoAtual = [];
 
 function textoPeriodoVendas(){
   const de = document.getElementById('vendasFiltroDe').value;
@@ -3838,6 +3909,34 @@ function renderVendasCategoriaHead(){
   }).join('') + '</tr>';
 }
 
+const CAMPOS_VENDAS_PROD = [
+  { chave:'nome', label:'Produto', align:'left' },
+  { chave:'categoria', label:'Categoria', align:'left' },
+  { chave:'vendido', label:'Vendido', align:'right' },
+  { chave:'custo', label:'Custo', align:'right' },
+  { chave:'lucro', label:'Lucro', align:'right' },
+  { chave:'margem', label:'Margem', align:'right' }
+];
+
+function ordenarVendasProduto(campo){
+  if(vendasProdOrdenarPor === campo){
+    vendasProdOrdemAsc = !vendasProdOrdemAsc;
+  }else{
+    vendasProdOrdenarPor = campo;
+    vendasProdOrdemAsc = (campo === 'nome' || campo === 'categoria');
+  }
+  renderVendasDashboard();
+}
+
+function renderVendasProdutoHead(){
+  const thead = document.getElementById('vendasProdutoHead');
+  thead.innerHTML = '<tr>' + CAMPOS_VENDAS_PROD.map(c=>{
+    const seta = vendasProdOrdenarPor===c.chave ? (vendasProdOrdemAsc ? ' ▲' : ' ▼') : '';
+    const alinhar = c.align==='right' ? 'text-align:right;' : '';
+    return `<th style="cursor:pointer;user-select:none;${alinhar}" onclick="ordenarVendasProduto('${c.chave}')">${c.label}${seta}</th>`;
+  }).join('') + '</tr>';
+}
+
 function renderVendasDashboard(){
   const totalVendido = vendasCache.reduce((s,v)=>s+Number(v.valor_venda), 0);
   const totalCusto = vendasCache.reduce((s,v)=>s+Number(v.custo), 0);
@@ -3894,10 +3993,21 @@ function renderVendasDashboard(){
     porProduto[chave].vendido += Number(v.valor_venda);
     porProduto[chave].custo += Number(v.custo);
   });
-  const listaProdutos = Object.entries(porProduto).map(([nome, d])=>({
-    nome, categoria: d.categoria, vendido: d.vendido, custo: d.custo, lucro: d.vendido-d.custo,
+  let listaProdutos = Object.entries(porProduto).map(([nome, d])=>({
+    nome, categoria: d.categoria || '—', vendido: d.vendido, custo: d.custo, lucro: d.vendido-d.custo,
     margem: d.vendido>0 ? ((d.vendido-d.custo)/d.vendido*100) : 0
-  })).sort((a,b)=>b.lucro-a.lucro);
+  }));
+
+  listaProdutos.sort((a,b)=>{
+    const va = a[vendasProdOrdenarPor], vb = b[vendasProdOrdenarPor];
+    if(typeof va === 'string'){
+      return vendasProdOrdemAsc ? va.localeCompare(vb) : vb.localeCompare(va);
+    }
+    return vendasProdOrdemAsc ? va-vb : vb-va;
+  });
+
+  vendasProdutoAtual = listaProdutos;
+  renderVendasProdutoHead();
 
   const bodyProd = document.getElementById('vendasProdutoBody');
   if(listaProdutos.length===0){
@@ -5302,6 +5412,236 @@ async function confirmarExclusaoProdutoOk(){
     renderCompras();
   }
   fecharConfirmacaoProduto();
+}
+
+/* ================= PAGAMENTOS (extrato bancário) ================= */
+
+let pagamentosCache = [];
+let pagamentosMesAtual = 'todos';
+let pagamentosBuscaTexto = '';
+let pagamentoEditandoId = null;
+let excluindoPagamentoId = null;
+
+async function abrirPagamentos(){
+  await popularFiltroMesPagamentos();
+  const mesAtual = new Date().toISOString().slice(0,7);
+  document.getElementById('pagamentosFiltroMes').value = mesAtual;
+  pagamentosMesAtual = mesAtual;
+  await carregarPagamentos();
+}
+
+async function popularFiltroMesPagamentos(){
+  const { data, error } = await buscarTodasLinhas((from, to)=>
+    sb.from('fluxo_caixa_lancamentos').select('data').eq('loja', lojaAtual).neq('tipo','Dinheiro').lt('valor', 0).range(from, to)
+  );
+  if(error){ console.error('Erro ao carregar meses de pagamentos:', error); return; }
+  const mesesSet = new Set((data||[]).map(d=>d.data.slice(0,7)));
+  const hoje = new Date();
+  mesesSet.add(hoje.getFullYear() + '-' + String(hoje.getMonth()+1).padStart(2,'0'));
+  const lista = Array.from(mesesSet).sort().reverse();
+  const sel = document.getElementById('pagamentosFiltroMes');
+  const atual = sel.value || 'todos';
+  sel.innerHTML = '<option value="todos">Todos os meses</option>' + lista.map(chave=>{
+    const [ano, mes] = chave.split('-');
+    return `<option value="${chave}">${NOMES_MES[parseInt(mes,10)-1]} ${ano}</option>`;
+  }).join('');
+  sel.value = lista.includes(atual) || atual==='todos' ? atual : 'todos';
+}
+
+function mudarMesPagamentos(valor){
+  pagamentosMesAtual = valor;
+  carregarPagamentos();
+}
+
+async function carregarPagamentos(){
+  let de = null, ate = null;
+  if(pagamentosMesAtual !== 'todos'){
+    const [ano, mes] = pagamentosMesAtual.split('-');
+    const ultimoDia = new Date(parseInt(ano,10), parseInt(mes,10), 0).getDate();
+    de = pagamentosMesAtual + '-01';
+    ate = pagamentosMesAtual + '-' + String(ultimoDia).padStart(2,'0');
+  }
+
+  const { data, error } = await buscarTodasLinhas((from, to)=>{
+    let q = sb.from('fluxo_caixa_lancamentos').select('*').eq('loja', lojaAtual).neq('tipo','Dinheiro').lt('valor', 0);
+    if(de) q = q.gte('data', de);
+    if(ate) q = q.lte('data', ate);
+    return q.order('data').range(from, to);
+  });
+
+  if(error){
+    console.error('Erro ao carregar pagamentos:', error);
+    pagamentosCache = [];
+  }else{
+    pagamentosCache = data || [];
+  }
+  renderPagamentos();
+}
+
+function filtrarPagamentos(){
+  pagamentosBuscaTexto = document.getElementById('pagamentosBusca').value.trim().toLowerCase();
+  renderPagamentos();
+}
+
+function renderPagamentos(){
+  let linhas = pagamentosCache;
+  if(pagamentosBuscaTexto){
+    linhas = linhas.filter(l=>{
+      const texto = [fmtData(l.data), l.tipo, l.descricao, brl(l.valor), String(l.valor).replace('.',',')].join(' ').toLowerCase();
+      return texto.includes(pagamentosBuscaTexto);
+    });
+  }
+
+  const total = linhas.reduce((s,l)=>s+Math.abs(Number(l.valor)), 0);
+  document.getElementById('pagamentosTotal').textContent = brl(total);
+  document.getElementById('pagamentosQtd').textContent = linhas.length;
+
+  const body = document.getElementById('pagamentosBody');
+  const empty = document.getElementById('pagamentosEmpty');
+  if(linhas.length===0){
+    body.innerHTML = '';
+    empty.style.display = 'block';
+    empty.textContent = pagamentosBuscaTexto ? 'Nenhum pagamento encontrado para essa busca.' : 'Nenhum pagamento nesse período.';
+  }else{
+    empty.style.display = 'none';
+    body.innerHTML = linhas.map(l=>`
+      <tr>
+        <td class="data">${fmtData(l.data)}</td>
+        <td>${escapeHtml(l.tipo)}</td>
+        <td class="contato">${escapeHtml(l.descricao || '—')}</td>
+        <td class="valor" style="color:var(--rust);">${brl(l.valor)}</td>
+        <td><div class="rowactions">
+          <button class="iconbtn edit" title="Editar" onclick="abrirEditarPagamento('${l.id}')">✎</button>
+          <button class="iconbtn del" title="Excluir" onclick="confirmarExclusaoPagamento('${l.id}')">✕</button>
+        </div></td>
+      </tr>
+    `).join('');
+  }
+}
+
+function abrirEditarPagamento(id){
+  const l = pagamentosCache.find(x=>x.id===id);
+  if(!l) return;
+  pagamentoEditandoId = id;
+  document.getElementById('pag_tipo').value = l.tipo;
+  document.getElementById('pag_descricao').value = l.descricao || '';
+  document.getElementById('pag_data').value = l.data;
+  document.getElementById('pag_valor').value = Math.abs(Number(l.valor));
+  document.getElementById('pagamentoErr').style.display = 'none';
+  document.getElementById('editPagamentoModal').style.display = 'flex';
+}
+
+function fecharEditarPagamento(){
+  document.getElementById('editPagamentoModal').style.display = 'none';
+  pagamentoEditandoId = null;
+}
+
+async function salvarEdicaoPagamento(){
+  const tipo = document.getElementById('pag_tipo').value.trim();
+  const descricao = document.getElementById('pag_descricao').value.trim();
+  const data = document.getElementById('pag_data').value;
+  const valorBruto = parseFloat(document.getElementById('pag_valor').value);
+  const err = document.getElementById('pagamentoErr');
+
+  if(!tipo || !data || isNaN(valorBruto) || valorBruto<=0){
+    err.style.display = 'block';
+    return;
+  }
+  err.style.display = 'none';
+
+  const btn = document.getElementById('pagamentoSalvarBtn');
+  btn.disabled = true;
+  btn.textContent = 'Salvando…';
+
+  const { data: atualizado, error } = await sb.from('fluxo_caixa_lancamentos').update({
+    tipo: tipo,
+    descricao: descricao || null,
+    data: data,
+    valor: -Math.abs(valorBruto)
+  }).eq('id', pagamentoEditandoId).select().single();
+
+  btn.disabled = false;
+  btn.textContent = 'Salvar';
+
+  if(error){
+    err.textContent = 'Erro ao salvar: ' + error.message;
+    err.style.display = 'block';
+    return;
+  }
+
+  const idx = pagamentosCache.findIndex(l=>l.id===pagamentoEditandoId);
+  if(idx>-1) pagamentosCache[idx] = atualizado;
+  renderPagamentos();
+  fecharEditarPagamento();
+  await popularFiltroMesPagamentos();
+}
+
+function confirmarExclusaoPagamento(id){
+  excluindoPagamentoId = id;
+  document.getElementById('confirmExclusaoPagamentoModal').style.display = 'flex';
+}
+
+function fecharConfirmacaoPagamento(){
+  document.getElementById('confirmExclusaoPagamentoModal').style.display = 'none';
+  excluindoPagamentoId = null;
+}
+
+async function confirmarExclusaoPagamentoOk(){
+  if(!excluindoPagamentoId) return;
+  const { error } = await sb.from('fluxo_caixa_lancamentos').delete().eq('id', excluindoPagamentoId);
+  if(!error){
+    pagamentosCache = pagamentosCache.filter(l=>l.id!==excluindoPagamentoId);
+    renderPagamentos();
+  }
+  fecharConfirmacaoPagamento();
+}
+
+function exportarExcelPagamentos(){
+  if(pagamentosCache.length===0){ alert('Não há pagamentos para exportar.'); return; }
+  if(!window.XLSX){ alert('Não foi possível carregar o recurso de Excel. Recarregue a página e tente de novo.'); return; }
+  const dados = pagamentosCache.map(l=>({
+    'Data': fmtData(l.data),
+    'Tipo': l.tipo,
+    'Descrição': l.descricao || '—',
+    'Valor': brl(l.valor)
+  }));
+  const planilha = XLSX.utils.json_to_sheet(dados);
+  planilha['!cols'] = [{wch:12},{wch:26},{wch:40},{wch:14}];
+  const livro = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(livro, planilha, 'Pagamentos');
+  const nomeLoja = (NOMES_LOJA[lojaAtual]||'').toLowerCase().replace(' ','');
+  XLSX.writeFile(livro, 'pagamentos-' + nomeLoja + '-' + new Date().toISOString().slice(0,10) + '.xlsx');
+}
+
+function exportarPdfPagamentos(){
+  if(pagamentosCache.length===0){ alert('Não há pagamentos para exportar.'); return; }
+  if(!window.jspdf || !window.jspdf.jsPDF){ alert('Não foi possível carregar o recurso de PDF. Recarregue a página e tente de novo.'); return; }
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF();
+  const agora = new Date();
+  const dataHora = fmtData(agora.toISOString().slice(0,10)) + ' ' + agora.toTimeString().slice(0,5);
+
+  doc.setFontSize(16);
+  doc.text('Pagamentos Feitos pela Conta — ' + (NOMES_LOJA[lojaAtual]||''), 14, 18);
+  doc.setFontSize(10);
+  doc.setTextColor(120);
+  doc.text('Gerado em ' + dataHora, 14, 25);
+
+  const corpo = pagamentosCache.map(l=>[fmtData(l.data), l.tipo, l.descricao||'—', brl(l.valor)]);
+  const total = pagamentosCache.reduce((s,l)=>s+Math.abs(Number(l.valor)),0);
+
+  doc.autoTable({
+    startY: 32,
+    head: [['Data','Tipo','Descrição','Valor']],
+    body: corpo,
+    foot: [['TOTAL','','', brl(-total)]],
+    styles: { fontSize: 8.5, cellPadding: 3 },
+    headStyles: { fillColor: [38,51,43] },
+    footStyles: { fillColor: [233,225,203], textColor:20, fontStyle:'bold' }
+  });
+
+  const nomeLoja = (NOMES_LOJA[lojaAtual]||'').toLowerCase().replace(' ','');
+  doc.save('pagamentos-' + nomeLoja + '-' + agora.toISOString().slice(0,10) + '.pdf');
 }
 
 async function selecionarFuncionario(id){
