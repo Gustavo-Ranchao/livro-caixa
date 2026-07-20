@@ -1081,6 +1081,17 @@
         <div class="metric"><div class="lbl">Quantidade de pagamentos</div><div class="val" id="pagamentosQtd">0</div></div>
       </div>
 
+      <div class="panel" style="margin-bottom:20px;">
+        <div class="panel-head"><h2>Novo pagamento</h2></div>
+        <div class="bh-form" style="grid-template-columns:1.6fr 1fr 1fr auto;">
+          <div class="fld"><label>Descrição</label><input id="novoPag_descricao" placeholder="Ex: Fornecedor, conta, etc."></div>
+          <div class="fld"><label>Data</label><input id="novoPag_data" type="date"></div>
+          <div class="fld"><label>Valor (R$)</label><input id="novoPag_valor" type="number" step="0.01" min="0" placeholder="0,00"></div>
+          <button class="addbtn" style="width:auto;" onclick="salvarNovoPagamento()">Adicionar</button>
+        </div>
+        <div class="formerr" id="novoPagamentoErr">Preencha descrição, data e um valor maior que zero.</div>
+      </div>
+
       <div class="panel">
         <div class="panel-head">
           <h2>Pagamentos feitos pela conta</h2>
@@ -1090,16 +1101,17 @@
           </div>
         </div>
         <div style="padding:0 20px 14px;">
-          <input id="pagamentosBusca" oninput="filtrarPagamentos()" placeholder="🔍 Buscar por valor, tipo, descrição..." style="width:100%;font-family:var(--font-sans);font-size:13px;padding:9px 12px;border:1px solid var(--line);border-radius:6px;background:var(--paper);">
+          <input id="pagamentosBusca" oninput="filtrarPagamentos()" placeholder="🔍 Buscar por valor, data, descrição..." style="width:100%;font-family:var(--font-sans);font-size:13px;padding:9px 12px;border:1px solid var(--line);border-radius:6px;background:var(--paper);">
         </div>
         <div class="tablewrap">
           <table class="ledger">
-            <thead><tr><th>Data</th><th>Tipo</th><th>Descrição</th><th style="text-align:right">Valor</th><th></th></tr></thead>
+            <thead><tr><th>Data</th><th>Descrição</th><th style="text-align:right">Valor</th><th></th></tr></thead>
             <tbody id="pagamentosBody"></tbody>
           </table>
         </div>
         <div class="empty" id="pagamentosEmpty" style="display:none;">Nenhum pagamento nesse período.</div>
       </div>
+
     </div>
   </div>
 </div>
@@ -1157,7 +1169,6 @@
   <div class="modal-box" style="max-width:420px;">
     <button class="modal-close" onclick="fecharEditarPagamento()">✕</button>
     <h2>Editar pagamento</h2>
-    <div class="fld"><label>Tipo</label><input id="pag_tipo" placeholder="Ex: Pagamento de conta"></div>
     <div class="fld"><label>Descrição</label><input id="pag_descricao" placeholder="Fornecedor / observação"></div>
     <div class="fld"><label>Data</label><input id="pag_data" type="date"></div>
     <div class="fld"><label>Valor (R$)</label><input id="pag_valor" type="number" step="0.01" min="0" placeholder="0,00"></div>
@@ -5423,11 +5434,47 @@ let pagamentoEditandoId = null;
 let excluindoPagamentoId = null;
 
 async function abrirPagamentos(){
+  if(!document.getElementById('novoPag_data').value){
+    document.getElementById('novoPag_data').value = todayStr();
+  }
   await popularFiltroMesPagamentos();
   const mesAtual = new Date().toISOString().slice(0,7);
   document.getElementById('pagamentosFiltroMes').value = mesAtual;
   pagamentosMesAtual = mesAtual;
   await carregarPagamentos();
+}
+
+async function salvarNovoPagamento(){
+  const descricao = document.getElementById('novoPag_descricao').value.trim();
+  const data = document.getElementById('novoPag_data').value;
+  const valorBruto = parseFloat(document.getElementById('novoPag_valor').value);
+  const err = document.getElementById('novoPagamentoErr');
+
+  if(!descricao || !data || isNaN(valorBruto) || valorBruto<=0){
+    err.style.display = 'block';
+    return;
+  }
+  err.style.display = 'none';
+
+  const { data: salvo, error } = await sb.from('fluxo_caixa_lancamentos').insert({
+    loja: lojaAtual,
+    data: data,
+    tipo: 'Pagamento',
+    descricao: descricao,
+    valor: -Math.abs(valorBruto)
+  }).select().single();
+
+  if(error){
+    err.textContent = 'Erro ao salvar: ' + error.message;
+    err.style.display = 'block';
+    return;
+  }
+
+  pagamentosCache.push(salvo);
+  document.getElementById('novoPag_descricao').value = '';
+  document.getElementById('novoPag_valor').value = '';
+  renderPagamentos();
+  await popularFiltroMesPagamentos();
 }
 
 async function popularFiltroMesPagamentos(){
@@ -5487,7 +5534,7 @@ function renderPagamentos(){
   let linhas = pagamentosCache;
   if(pagamentosBuscaTexto){
     linhas = linhas.filter(l=>{
-      const texto = [fmtData(l.data), l.tipo, l.descricao, brl(l.valor), String(l.valor).replace('.',',')].join(' ').toLowerCase();
+      const texto = [fmtData(l.data), l.descricao, brl(l.valor), String(l.valor).replace('.',',')].join(' ').toLowerCase();
       return texto.includes(pagamentosBuscaTexto);
     });
   }
@@ -5507,7 +5554,6 @@ function renderPagamentos(){
     body.innerHTML = linhas.map(l=>`
       <tr>
         <td class="data">${fmtData(l.data)}</td>
-        <td>${escapeHtml(l.tipo)}</td>
         <td class="contato">${escapeHtml(l.descricao || '—')}</td>
         <td class="valor" style="color:var(--rust);">${brl(l.valor)}</td>
         <td><div class="rowactions">
@@ -5523,7 +5569,6 @@ function abrirEditarPagamento(id){
   const l = pagamentosCache.find(x=>x.id===id);
   if(!l) return;
   pagamentoEditandoId = id;
-  document.getElementById('pag_tipo').value = l.tipo;
   document.getElementById('pag_descricao').value = l.descricao || '';
   document.getElementById('pag_data').value = l.data;
   document.getElementById('pag_valor').value = Math.abs(Number(l.valor));
@@ -5537,13 +5582,12 @@ function fecharEditarPagamento(){
 }
 
 async function salvarEdicaoPagamento(){
-  const tipo = document.getElementById('pag_tipo').value.trim();
   const descricao = document.getElementById('pag_descricao').value.trim();
   const data = document.getElementById('pag_data').value;
   const valorBruto = parseFloat(document.getElementById('pag_valor').value);
   const err = document.getElementById('pagamentoErr');
 
-  if(!tipo || !data || isNaN(valorBruto) || valorBruto<=0){
+  if(!data || isNaN(valorBruto) || valorBruto<=0){
     err.style.display = 'block';
     return;
   }
@@ -5554,7 +5598,6 @@ async function salvarEdicaoPagamento(){
   btn.textContent = 'Salvando…';
 
   const { data: atualizado, error } = await sb.from('fluxo_caixa_lancamentos').update({
-    tipo: tipo,
     descricao: descricao || null,
     data: data,
     valor: -Math.abs(valorBruto)
@@ -5601,12 +5644,11 @@ function exportarExcelPagamentos(){
   if(!window.XLSX){ alert('Não foi possível carregar o recurso de Excel. Recarregue a página e tente de novo.'); return; }
   const dados = pagamentosCache.map(l=>({
     'Data': fmtData(l.data),
-    'Tipo': l.tipo,
     'Descrição': l.descricao || '—',
     'Valor': brl(l.valor)
   }));
   const planilha = XLSX.utils.json_to_sheet(dados);
-  planilha['!cols'] = [{wch:12},{wch:26},{wch:40},{wch:14}];
+  planilha['!cols'] = [{wch:12},{wch:40},{wch:14}];
   const livro = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(livro, planilha, 'Pagamentos');
   const nomeLoja = (NOMES_LOJA[lojaAtual]||'').toLowerCase().replace(' ','');
@@ -5627,14 +5669,14 @@ function exportarPdfPagamentos(){
   doc.setTextColor(120);
   doc.text('Gerado em ' + dataHora, 14, 25);
 
-  const corpo = pagamentosCache.map(l=>[fmtData(l.data), l.tipo, l.descricao||'—', brl(l.valor)]);
+  const corpo = pagamentosCache.map(l=>[fmtData(l.data), l.descricao||'—', brl(l.valor)]);
   const total = pagamentosCache.reduce((s,l)=>s+Math.abs(Number(l.valor)),0);
 
   doc.autoTable({
     startY: 32,
-    head: [['Data','Tipo','Descrição','Valor']],
+    head: [['Data','Descrição','Valor']],
     body: corpo,
-    foot: [['TOTAL','','', brl(-total)]],
+    foot: [['TOTAL','', brl(-total)]],
     styles: { fontSize: 8.5, cellPadding: 3 },
     headStyles: { fillColor: [38,51,43] },
     footStyles: { fillColor: [233,225,203], textColor:20, fontStyle:'bold' }
