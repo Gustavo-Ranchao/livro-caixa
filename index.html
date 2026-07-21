@@ -1667,7 +1667,7 @@ function trocarLoja(l){
     atualizarUltimoDiaVendas();
   }
   if(viewAtual === 'fluxoCaixa'){
-    sb.from('fluxo_caixa_contas').select('*').eq('loja', lojaAtual).order('nome').then(({data, error})=>{
+    sb.from('fluxo_caixa_contas').select('*').eq('loja', lojaAtual).order('ordem').order('nome').then(({data, error})=>{
       fluxoContasCache = error ? [] : (data || []);
       renderFluxoContaTabs();
       const contaAlvo = fluxoContasCache.length>0 ? fluxoContasCache[0].id : CONTA_SEM_ID;
@@ -4242,7 +4242,7 @@ async function abrirFluxoCaixa(){
     document.getElementById('dinheiro_data').value = todayStr();
   }
 
-  const { data: contas, error: erroContas } = await sb.from('fluxo_caixa_contas').select('*').eq('loja', lojaAtual).order('nome');
+  const { data: contas, error: erroContas } = await sb.from('fluxo_caixa_contas').select('*').eq('loja', lojaAtual).order('ordem').order('nome');
   fluxoContasCache = erroContas ? [] : (contas || []);
   renderFluxoContaTabs();
   const contaAlvo = fluxoContasCache.some(c=>c.id===fluxoContaAtivaId) ? fluxoContaAtivaId : (fluxoContasCache.length>0 ? fluxoContasCache[0].id : CONTA_SEM_ID);
@@ -6013,7 +6013,7 @@ let excluindoContaBancariaId = null;
 
 async function carregarContasBancarias(){
   document.getElementById('contasBancariasLojaNome').textContent = NOMES_LOJA[lojaAtual] || '';
-  const { data, error } = await sb.from('fluxo_caixa_contas').select('*').eq('loja', lojaAtual).order('nome');
+  const { data, error } = await sb.from('fluxo_caixa_contas').select('*').eq('loja', lojaAtual).order('ordem').order('nome');
   if(error){ console.error('Erro ao carregar contas bancárias:', error); contasBancariasCache = []; }
   else contasBancariasCache = data || [];
   renderContasBancarias();
@@ -6028,15 +6028,37 @@ function renderContasBancarias(){
     return;
   }
   empty.style.display = 'none';
-  body.innerHTML = contasBancariasCache.map(c=>`
+  body.innerHTML = contasBancariasCache.map((c,idx)=>`
     <tr>
       <td>${escapeHtml(c.nome)}</td>
       <td><div class="rowactions">
+        <button class="iconbtn" title="Mover pra cima" ${idx===0?'disabled style="opacity:.3;"':''} onclick="moverContaBancaria('${c.id}', -1)">▲</button>
+        <button class="iconbtn" title="Mover pra baixo" ${idx===contasBancariasCache.length-1?'disabled style="opacity:.3;"':''} onclick="moverContaBancaria('${c.id}', 1)">▼</button>
         <button class="iconbtn edit" title="Editar" onclick="abrirEditarContaBancaria('${c.id}')">✎</button>
         <button class="iconbtn del" title="Excluir" onclick="confirmarExclusaoContaBancaria('${c.id}')">✕</button>
       </div></td>
     </tr>
   `).join('');
+}
+
+async function moverContaBancaria(id, direcao){
+  const idx = contasBancariasCache.findIndex(c=>c.id===id);
+  const novoIdx = idx + direcao;
+  if(idx===-1 || novoIdx<0 || novoIdx>=contasBancariasCache.length) return;
+
+  const atual = contasBancariasCache[idx];
+  const vizinho = contasBancariasCache[novoIdx];
+
+  // garante que cada conta tenha um valor de ordem próprio antes de trocar
+  const ordemAtual = atual.ordem ?? idx;
+  const ordemVizinho = vizinho.ordem ?? novoIdx;
+
+  await Promise.all([
+    sb.from('fluxo_caixa_contas').update({ ordem: ordemVizinho }).eq('id', atual.id),
+    sb.from('fluxo_caixa_contas').update({ ordem: ordemAtual }).eq('id', vizinho.id)
+  ]);
+
+  await carregarContasBancarias();
 }
 
 function abrirNovaContaBancaria(){
@@ -6076,7 +6098,8 @@ async function salvarContaBancaria(){
     const idx = contasBancariasCache.findIndex(c=>c.id===contaBancariaEditandoId);
     if(idx>-1) contasBancariasCache[idx] = data;
   }else{
-    const { data, error } = await sb.from('fluxo_caixa_contas').insert({ loja: lojaAtual, nome }).select().single();
+    const proximaOrdem = contasBancariasCache.length>0 ? Math.max(...contasBancariasCache.map(c=>c.ordem ?? 0)) + 1 : 0;
+    const { data, error } = await sb.from('fluxo_caixa_contas').insert({ loja: lojaAtual, nome, ordem: proximaOrdem }).select().single();
     if(error){ err.textContent = 'Erro ao salvar: ' + error.message; err.style.display = 'block'; return; }
     contasBancariasCache.push(data);
   }
