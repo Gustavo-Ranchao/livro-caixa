@@ -153,9 +153,9 @@
   .colab-body{display:grid;grid-template-columns:1fr 1fr;gap:24px;}
   .colab-col{background:#fff;border:1px solid var(--paper3);border-radius:10px;overflow:hidden;}
   .colab-col-head{padding:16px 20px;font-family:var(--font-voice);font-size:16px;font-weight:600;border-bottom:1px solid var(--paper3);background:var(--paper2);display:flex;justify-content:space-between;align-items:center;}
-  #colabTable1, #colabTable2{width:100%;border-collapse:collapse;font-size:12.5px;}
-  #colabTable1 th, #colabTable2 th{text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:0.05em;color:var(--muted);font-weight:500;padding:8px 16px;background:var(--paper2);}
-  #colabTable1 td, #colabTable2 td{padding:10px 16px;border-top:1px solid var(--paper3);}
+  #colabTable1, #colabTable2, #contasBancariasTable{width:100%;border-collapse:collapse;font-size:12.5px;}
+  #colabTable1 th, #colabTable2 th, #contasBancariasTable th{text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:0.05em;color:var(--muted);font-weight:500;padding:8px 16px;background:var(--paper2);}
+  #colabTable1 td, #colabTable2 td, #contasBancariasTable td{padding:10px 16px;border-top:1px solid var(--paper3);}
   @media (max-width:900px){ .colab-body{grid-template-columns:1fr;} }
   .inicio-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:24px;}
   @media (max-width:900px){ .inicio-grid{grid-template-columns:1fr;} }
@@ -410,6 +410,7 @@
           <button class="nav-group-header" id="navHeaderConfig" onclick="toggleNavGroup('config')">⚙️ Configurações <span class="chevron">▾</span></button>
           <div class="nav-sub" id="navGroupConfig">
             <button class="nav-sub-item" data-view="colaboradores" onclick="mudarViewPrincipal('colaboradores')">Colaboradores</button>
+            <button class="nav-sub-item" data-view="contasBancarias" onclick="mudarViewPrincipal('contasBancarias')">Contas Bancárias</button>
           </div>
         </div>
       </div>
@@ -738,6 +739,20 @@
       </div>
     </div>
 
+    <div id="viewContasBancarias" style="display:none;">
+      <div class="panel">
+        <div class="colab-col-head">
+          <span>Contas bancárias — <span id="contasBancariasLojaNome"></span></span>
+          <button type="button" class="importbtn" style="width:auto;margin:0;" onclick="abrirNovaContaBancaria()">+ Nova conta bancária</button>
+        </div>
+        <table id="contasBancariasTable">
+          <thead><tr><th>Nome</th><th></th></tr></thead>
+          <tbody id="contasBancariasBody"></tbody>
+        </table>
+        <div class="empty" id="contasBancariasEmpty" style="display:none;">Nenhuma conta bancária cadastrada ainda.</div>
+      </div>
+    </div>
+
     <div id="viewCompras" style="display:none;">
       <div class="compras-nav" id="comprasNavEmpresas"></div>
       <div class="compras-nav" id="comprasNavMarcas" style="display:none;"></div>
@@ -846,7 +861,8 @@
           <input id="vendasFileInput" type="file" accept=".xlsx,.xls" multiple style="display:none;" onchange="onSelecionarArquivosVendas(this.files)">
         </label>
         <span style="font-size:12px;color:var(--muted);">Pode selecionar vários arquivos de uma vez, um por dia</span>
-        <button type="button" class="filter-btn" style="border-color:var(--rust);color:var(--rust);margin-left:auto;" onclick="confirmarApagarTudoVendas()">🗑 Apagar tudo (loja atual)</button>
+        <button type="button" class="filter-btn" style="border-color:var(--rust);color:var(--rust);margin-left:auto;" onclick="abrirApagarDiaVendas()">🗑 Apagar um dia específico</button>
+        <button type="button" class="filter-btn" style="border-color:var(--rust);color:var(--rust);" onclick="confirmarApagarTudoVendas()">🗑 Apagar tudo (loja atual)</button>
       </div>
 
       <div class="panel" style="margin-bottom:20px;padding:14px 20px;display:flex;align-items:center;gap:20px;flex-wrap:wrap;">
@@ -914,8 +930,8 @@
     </div>
 
     <div id="viewFluxoCaixa" style="display:none;">
-      <div class="app-tabs" style="margin-bottom:20px;">
-        <button class="app-tab active" id="fluxoSubTabExtrato" onclick="mudarSubAbaFluxo('extrato')">📊 Extrato Bancário</button>
+      <div class="app-tabs" style="margin-bottom:20px;flex-wrap:wrap;">
+        <span id="fluxoContaTabsWrap" style="display:contents;"></span>
         <button class="app-tab" id="fluxoSubTabDinheiro" onclick="mudarSubAbaFluxo('dinheiro')">💵 Lançamentos em Dinheiro</button>
         <button class="app-tab" id="fluxoSubTabTotal" onclick="mudarSubAbaFluxo('total')">📈 Total de Entradas e Saídas</button>
         <button class="app-tab" id="fluxoSubTabProjecao" onclick="mudarSubAbaFluxo('projecao')">📉 Projeção</button>
@@ -957,6 +973,7 @@
       </div>
 
       <div id="fluxoSubExtrato">
+        <h2 id="fluxoContaAtivaTitulo" style="font-family:var(--font-voice);font-size:17px;font-weight:600;margin:0 0 14px;"></h2>
         <div class="vendas-toolbar">
           <label class="vendas-file-label">
             📁 Selecionar extrato(s) .xlsx
@@ -1249,6 +1266,27 @@
   </div>
 </div>
 
+<div id="contaBancariaModal" class="modal-overlay">
+  <div class="modal-box" style="max-width:380px;">
+    <button class="modal-close" onclick="fecharContaBancariaModal()">✕</button>
+    <h2 id="contaBancariaModalTitulo">Nova conta bancária</h2>
+    <div class="fld"><label>Nome</label><input id="contaBancaria_nome" placeholder="Ex: Sicoob, Banco do Brasil"></div>
+    <div class="formerr" id="contaBancariaErr">Digite o nome da conta.</div>
+    <button class="addbtn" onclick="salvarContaBancaria()">Salvar</button>
+  </div>
+</div>
+
+<div id="confirmExclusaoContaBancariaModal" class="modal-overlay">
+  <div class="modal-box" style="max-width:420px;">
+    <h2>Excluir conta bancária?</h2>
+    <p class="modal-sub">Os lançamentos já importados dessa conta continuam existindo, só deixam de ficar ligados a um nome de conta. Essa ação não pode ser desfeita.</p>
+    <div class="modal-actions">
+      <button class="addbtn" style="background:var(--rust);" onclick="confirmarExclusaoContaBancariaOk()">Excluir</button>
+      <button class="cancelbtn" onclick="fecharConfirmacaoContaBancaria()">Cancelar</button>
+    </div>
+  </div>
+</div>
+
 <div id="funcModal" class="modal-overlay">
   <div class="modal-box" style="max-width:400px;">
     <button class="modal-close" onclick="fecharFuncModal()">✕</button>
@@ -1416,6 +1454,20 @@
     <div class="modal-actions" style="margin-top:14px;">
       <button class="addbtn" style="background:var(--rust);" onclick="confirmarApagarTudoHorasOk()">Apagar tudo</button>
       <button class="cancelbtn" onclick="fecharApagarHorasModal()">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<div id="apagarDiaVendasModal" class="modal-overlay">
+  <div class="modal-box" style="max-width:380px;">
+    <button class="modal-close" onclick="fecharApagarDiaVendas()">✕</button>
+    <h2>Apagar vendas de um dia</h2>
+    <div class="fld"><label>Data</label><input id="apagarDiaVendas_data" type="date"></div>
+    <p class="modal-sub" id="apagarDiaVendasInfo" style="min-height:18px;"></p>
+    <div class="formerr" id="apagarDiaVendasErr">Escolha uma data.</div>
+    <div class="modal-actions" style="margin-top:12px;">
+      <button class="addbtn" style="background:var(--rust);" onclick="confirmarApagarDiaVendas()">Apagar esse dia</button>
+      <button class="cancelbtn" onclick="fecharApagarDiaVendas()">Cancelar</button>
     </div>
   </div>
 </div>
@@ -1615,12 +1667,17 @@ function trocarLoja(l){
     atualizarUltimoDiaVendas();
   }
   if(viewAtual === 'fluxoCaixa'){
-    popularFiltroMesFluxo().then(()=>{
-      const mesAtual = new Date().toISOString().slice(0,7);
-      document.getElementById('fluxoFiltroMes').value = mesAtual;
-      mudarMesFluxo(mesAtual);
+    sb.from('fluxo_caixa_contas').select('*').eq('loja', lojaAtual).order('nome').then(({data, error})=>{
+      fluxoContasCache = error ? [] : (data || []);
+      renderFluxoContaTabs();
+      const contaAlvo = fluxoContasCache.length>0 ? fluxoContasCache[0].id : CONTA_SEM_ID;
+      mudarSubAbaFluxo(contaAlvo);
+      popularFiltroMesFluxo().then(()=>{
+        const mesAtual = new Date().toISOString().slice(0,7);
+        document.getElementById('fluxoFiltroMes').value = mesAtual;
+        mudarMesFluxo(mesAtual);
+      });
     });
-    atualizarUltimoDiaFluxo();
     if(projecaoJaCarregada) carregarProjecao();
   }
   if(viewAtual === 'compras'){
@@ -2881,7 +2938,7 @@ function setEscala(e){
   }
 }
 
-const VIEWS = ['inicio','contasPagar','despesasFixas','comprovantes','diferencaCaixa','fluxoCaixa','pagamentos','vendasComCusto','bancoHoras','compras','colaboradores'];
+const VIEWS = ['inicio','contasPagar','despesasFixas','comprovantes','diferencaCaixa','fluxoCaixa','pagamentos','vendasComCusto','bancoHoras','compras','colaboradores','contasBancarias'];
 let colabCarregado = false;
 
 const NAV_GROUPS = {
@@ -2909,7 +2966,7 @@ async function mudarViewPrincipal(view){
   viewAtual = view;
 
   VIEWS.forEach(v=>{
-    const idMap = { inicio:'viewInicio', contasPagar:'viewContasPagar', despesasFixas:'viewDespesasFixas', comprovantes:'viewComprovantes', diferencaCaixa:'viewDiferencaCaixa', fluxoCaixa:'viewFluxoCaixa', pagamentos:'viewPagamentos', vendasComCusto:'viewVendasComCusto', bancoHoras:'viewBancoHoras', compras:'viewCompras', colaboradores:'viewColaboradores' };
+    const idMap = { inicio:'viewInicio', contasPagar:'viewContasPagar', despesasFixas:'viewDespesasFixas', comprovantes:'viewComprovantes', diferencaCaixa:'viewDiferencaCaixa', fluxoCaixa:'viewFluxoCaixa', pagamentos:'viewPagamentos', vendasComCusto:'viewVendasComCusto', bancoHoras:'viewBancoHoras', compras:'viewCompras', colaboradores:'viewColaboradores', contasBancarias:'viewContasBancarias' };
     document.getElementById(idMap[v]).style.display = (v===view) ? '' : 'none';
   });
 
@@ -2950,6 +3007,9 @@ async function mudarViewPrincipal(view){
   }else if(view==='colaboradores'){
     abrirGrupoNav('config');
     await carregarColaboradores();
+  }else if(view==='contasBancarias'){
+    abrirGrupoNav('config');
+    await carregarContasBancarias();
   }
 }
 
@@ -3508,6 +3568,50 @@ async function confirmarApagarTudoHorasOk(){
   bhRegistros = [];
   renderBancoHoras();
   alert('Todos os registros de ponto desse colaborador foram apagados.');
+}
+
+function abrirApagarDiaVendas(){
+  document.getElementById('apagarDiaVendas_data').value = '';
+  document.getElementById('apagarDiaVendasInfo').textContent = '';
+  document.getElementById('apagarDiaVendasErr').style.display = 'none';
+  document.getElementById('apagarDiaVendasModal').style.display = 'flex';
+}
+
+function fecharApagarDiaVendas(){
+  document.getElementById('apagarDiaVendasModal').style.display = 'none';
+}
+
+document.addEventListener('change', async (e)=>{
+  if(e.target && e.target.id === 'apagarDiaVendas_data'){
+    const data = e.target.value;
+    const info = document.getElementById('apagarDiaVendasInfo');
+    if(!data){ info.textContent = ''; return; }
+    const { count } = await sb.from('vendas_itens').select('id', { count: 'exact', head: true }).eq('loja', lojaAtual).eq('data', data);
+    info.textContent = (count || 0) + ' item(ns) de venda encontrados nesse dia.';
+  }
+});
+
+async function confirmarApagarDiaVendas(){
+  const data = document.getElementById('apagarDiaVendas_data').value;
+  const err = document.getElementById('apagarDiaVendasErr');
+  if(!data){
+    err.style.display = 'block';
+    return;
+  }
+  err.style.display = 'none';
+
+  const { error } = await sb.from('vendas_itens').delete().eq('loja', lojaAtual).eq('data', data);
+  fecharApagarDiaVendas();
+
+  if(error){
+    alert('Erro ao apagar: ' + error.message);
+    return;
+  }
+
+  await popularFiltroMesVendas();
+  await carregarVendas();
+  await atualizarUltimoDiaVendas();
+  alert('Vendas do dia ' + fmtData(data) + ' apagadas.');
 }
 
 async function confirmarApagarTudoVendas(){
@@ -4077,6 +4181,9 @@ function renderVendasDashboard(){
 
 /* ================= FLUXO DE CAIXA ================= */
 
+const CONTA_SEM_ID = '__sem_conta__';
+let fluxoContasCache = [];
+let fluxoContaAtivaId = CONTA_SEM_ID;
 let fluxoCache = [];
 let fluxoExtratoAtual = [];
 let fluxoDinheiroAtual = [];
@@ -4085,15 +4192,41 @@ let fluxoFornecedoresAtual = [];
 let fluxoImportParsed = [];
 let fluxoImportSaldos = [];
 
+function nomeDaContaFluxo(id){
+  if(id === CONTA_SEM_ID) return 'Sem conta específica';
+  const c = fluxoContasCache.find(x=>x.id===id);
+  return c ? c.nome : '';
+}
+
+function renderFluxoContaTabs(){
+  const wrap = document.getElementById('fluxoContaTabsWrap');
+  const botoesContas = fluxoContasCache.map(c=>
+    `<button class="app-tab" data-conta-id="${c.id}" onclick="mudarSubAbaFluxo('${c.id}')">🏦 ${escapeHtml(c.nome)}</button>`
+  ).join('');
+  const botaoSemConta = `<button class="app-tab" data-conta-id="${CONTA_SEM_ID}" onclick="mudarSubAbaFluxo('${CONTA_SEM_ID}')">📊 Sem conta específica</button>`;
+  wrap.innerHTML = botoesContas + botaoSemConta;
+}
+
 function mudarSubAbaFluxo(aba){
-  document.getElementById('fluxoSubExtrato').style.display = (aba==='extrato') ? '' : 'none';
+  const ehConta = aba!=='dinheiro' && aba!=='total' && aba!=='projecao';
+
+  document.getElementById('fluxoSubExtrato').style.display = ehConta ? '' : 'none';
   document.getElementById('fluxoSubDinheiro').style.display = (aba==='dinheiro') ? '' : 'none';
   document.getElementById('fluxoSubTotal').style.display = (aba==='total') ? '' : 'none';
   document.getElementById('fluxoSubProjecao').style.display = (aba==='projecao') ? '' : 'none';
-  document.getElementById('fluxoSubTabExtrato').classList.toggle('active', aba==='extrato');
+
+  document.querySelectorAll('#fluxoContaTabsWrap .app-tab').forEach(b=>b.classList.toggle('active', ehConta && b.dataset.contaId===aba));
   document.getElementById('fluxoSubTabDinheiro').classList.toggle('active', aba==='dinheiro');
   document.getElementById('fluxoSubTabTotal').classList.toggle('active', aba==='total');
   document.getElementById('fluxoSubTabProjecao').classList.toggle('active', aba==='projecao');
+
+  if(ehConta){
+    fluxoContaAtivaId = aba;
+    document.getElementById('fluxoContaAtivaTitulo').textContent = nomeDaContaFluxo(aba);
+    renderFluxoCaixa();
+    atualizarUltimoDiaFluxo();
+  }
+
   if(aba==='projecao' && !projecaoJaCarregada){
     projecaoJaCarregada = true;
     abrirProjecao();
@@ -4105,6 +4238,13 @@ async function abrirFluxoCaixa(){
   if(!document.getElementById('dinheiro_data').value){
     document.getElementById('dinheiro_data').value = todayStr();
   }
+
+  const { data: contas, error: erroContas } = await sb.from('fluxo_caixa_contas').select('*').eq('loja', lojaAtual).order('nome');
+  fluxoContasCache = erroContas ? [] : (contas || []);
+  renderFluxoContaTabs();
+  const contaAlvo = fluxoContasCache.some(c=>c.id===fluxoContaAtivaId) ? fluxoContaAtivaId : (fluxoContasCache.length>0 ? fluxoContasCache[0].id : CONTA_SEM_ID);
+  mudarSubAbaFluxo(contaAlvo);
+
   await popularFiltroMesFluxo();
   const mesAtual = new Date().toISOString().slice(0,7);
   document.getElementById('fluxoFiltroMes').value = mesAtual;
@@ -4113,12 +4253,12 @@ async function abrirFluxoCaixa(){
 }
 
 async function atualizarUltimoDiaFluxo(){
-  const { data, error } = await sb.from('fluxo_caixa_lancamentos')
+  let query = sb.from('fluxo_caixa_lancamentos')
     .select('data')
     .eq('loja', lojaAtual)
-    .neq('tipo', 'Dinheiro')
-    .order('data', { ascending: false })
-    .limit(1);
+    .neq('tipo', 'Dinheiro');
+  query = fluxoContaAtivaId === CONTA_SEM_ID ? query.is('conta_id', null) : query.eq('conta_id', fluxoContaAtivaId);
+  const { data, error } = await query.order('data', { ascending: false }).limit(1);
 
   const elUltimo = document.getElementById('fluxoUltimoDia');
   const elProximo = document.getElementById('fluxoProximoDia');
@@ -4470,10 +4610,12 @@ async function onSelecionarArquivosFluxo(fileList){
     const dataMin = datas[0];
     const dataMax = datas[datas.length-1];
 
-    const { data: existentes } = await buscarTodasLinhas((from, to) =>
-      sb.from('fluxo_caixa_lancamentos').select('data')
-        .eq('loja', lojaAtual).gte('data', dataMin).lte('data', dataMax).range(from, to)
-    );
+    const { data: existentes } = await buscarTodasLinhas((from, to) => {
+      let q = sb.from('fluxo_caixa_lancamentos').select('data')
+        .eq('loja', lojaAtual).gte('data', dataMin).lte('data', dataMax);
+      q = fluxoContaAtivaId === CONTA_SEM_ID ? q.is('conta_id', null) : q.eq('conta_id', fluxoContaAtivaId);
+      return q.range(from, to);
+    });
     const diasComDados = new Set((existentes||[]).map(l=>l.data));
 
     const diasNoArquivo = new Set(todasLinhas.map(l=>l.data));
@@ -4518,8 +4660,11 @@ async function confirmarImportFluxo(){
   btn.disabled = true;
   btn.textContent = 'Importando…';
 
+  const contaParaSalvar = fluxoContaAtivaId === CONTA_SEM_ID ? null : fluxoContaAtivaId;
+
   const registros = fluxoImportParsed.map(l=>({
     loja: lojaAtual,
+    conta_id: contaParaSalvar,
     data: l.data,
     tipo: l.tipo,
     descricao: l.descricao || null,
@@ -4536,9 +4681,9 @@ async function confirmarImportFluxo(){
 
   if(!erroGeral && fluxoImportSaldos.length>0){
     const saldosRegistros = fluxoImportSaldos.map(s=>({
-      loja: lojaAtual, data: s.data, saldo: s.saldo
+      loja: lojaAtual, conta_id: contaParaSalvar, data: s.data, saldo: s.saldo
     }));
-    const { error: erroSaldo } = await sb.from('fluxo_caixa_saldos').upsert(saldosRegistros, { onConflict: 'loja,data' });
+    const { error: erroSaldo } = await sb.from('fluxo_caixa_saldos').upsert(saldosRegistros, { onConflict: 'loja,conta_id,data' });
     if(erroSaldo) console.error('Erro ao salvar saldos do extrato:', erroSaldo);
   }
 
@@ -4578,6 +4723,7 @@ async function carregarSaldoExtrato(){
   const de = document.getElementById('fluxoFiltroDe').value;
   const ate = document.getElementById('fluxoFiltroAte').value;
   let query = sb.from('fluxo_caixa_saldos').select('*').eq('loja', lojaAtual);
+  query = fluxoContaAtivaId === CONTA_SEM_ID ? query.is('conta_id', null) : query.eq('conta_id', fluxoContaAtivaId);
   if(de) query = query.gte('data', de);
   if(ate) query = query.lte('data', ate);
   const { data, error } = await query.order('data', { ascending: false }).limit(1);
@@ -4676,7 +4822,10 @@ function renderFluxoCaixa(){
   }
   fluxoFornecedoresAtual = fornecedores;
 
-  let extrato = fluxoCache.filter(l=>l.tipo!=='Dinheiro');
+  let extrato = fluxoCache.filter(l=>{
+    if(l.tipo==='Dinheiro') return false;
+    return fluxoContaAtivaId === CONTA_SEM_ID ? !l.conta_id : l.conta_id === fluxoContaAtivaId;
+  });
   const buscaExtrato = (document.getElementById('fluxoExtratoBusca').value || '').trim().toLowerCase();
   if(buscaExtrato){
     extrato = extrato.filter(l=>{
@@ -4982,7 +5131,7 @@ function exportarPdfFluxoCompleto(){
 }
 
 function confirmarLimpezaExtrato(){
-  document.getElementById('limpezaExtratoPeriodo').textContent = textoPeriodoFluxo();
+  document.getElementById('limpezaExtratoPeriodo').textContent = textoPeriodoFluxo() + ' — ' + nomeDaContaFluxo(fluxoContaAtivaId);
   document.getElementById('confirmLimpezaExtratoModal').style.display = 'flex';
 }
 
@@ -4995,11 +5144,13 @@ async function confirmarLimpezaExtratoOk(){
   const ate = document.getElementById('fluxoFiltroAte').value;
 
   let query = sb.from('fluxo_caixa_lancamentos').delete().eq('loja', lojaAtual).neq('tipo', 'Dinheiro');
+  query = fluxoContaAtivaId === CONTA_SEM_ID ? query.is('conta_id', null) : query.eq('conta_id', fluxoContaAtivaId);
   if(de) query = query.gte('data', de);
   if(ate) query = query.lte('data', ate);
   const { error } = await query;
 
   let query2 = sb.from('fluxo_caixa_saldos').delete().eq('loja', lojaAtual);
+  query2 = fluxoContaAtivaId === CONTA_SEM_ID ? query2.is('conta_id', null) : query2.eq('conta_id', fluxoContaAtivaId);
   if(de) query2 = query2.gte('data', de);
   if(ate) query2 = query2.lte('data', ate);
   await query2;
@@ -5846,6 +5997,106 @@ function atualizarTotaisProjecao(){
   const elSaldo = document.getElementById('projecaoSaldo');
   elSaldo.textContent = brl(saldo);
   elSaldo.style.color = saldo<0 ? 'var(--rust)' : 'var(--green)';
+}
+
+/* ================= CONTAS BANCÁRIAS ================= */
+
+let contasBancariasCache = [];
+let contaBancariaEditandoId = null;
+let excluindoContaBancariaId = null;
+
+async function carregarContasBancarias(){
+  document.getElementById('contasBancariasLojaNome').textContent = NOMES_LOJA[lojaAtual] || '';
+  const { data, error } = await sb.from('fluxo_caixa_contas').select('*').eq('loja', lojaAtual).order('nome');
+  if(error){ console.error('Erro ao carregar contas bancárias:', error); contasBancariasCache = []; }
+  else contasBancariasCache = data || [];
+  renderContasBancarias();
+}
+
+function renderContasBancarias(){
+  const body = document.getElementById('contasBancariasBody');
+  const empty = document.getElementById('contasBancariasEmpty');
+  if(contasBancariasCache.length===0){
+    body.innerHTML = '';
+    empty.style.display = 'block';
+    return;
+  }
+  empty.style.display = 'none';
+  body.innerHTML = contasBancariasCache.map(c=>`
+    <tr>
+      <td>${escapeHtml(c.nome)}</td>
+      <td><div class="rowactions">
+        <button class="iconbtn edit" title="Editar" onclick="abrirEditarContaBancaria('${c.id}')">✎</button>
+        <button class="iconbtn del" title="Excluir" onclick="confirmarExclusaoContaBancaria('${c.id}')">✕</button>
+      </div></td>
+    </tr>
+  `).join('');
+}
+
+function abrirNovaContaBancaria(){
+  contaBancariaEditandoId = null;
+  document.getElementById('contaBancariaModalTitulo').textContent = 'Nova conta bancária';
+  document.getElementById('contaBancaria_nome').value = '';
+  document.getElementById('contaBancariaErr').style.display = 'none';
+  document.getElementById('contaBancariaModal').style.display = 'flex';
+}
+
+function abrirEditarContaBancaria(id){
+  const c = contasBancariasCache.find(x=>x.id===id);
+  if(!c) return;
+  contaBancariaEditandoId = id;
+  document.getElementById('contaBancariaModalTitulo').textContent = 'Editar conta bancária';
+  document.getElementById('contaBancaria_nome').value = c.nome;
+  document.getElementById('contaBancariaErr').style.display = 'none';
+  document.getElementById('contaBancariaModal').style.display = 'flex';
+}
+
+function fecharContaBancariaModal(){
+  document.getElementById('contaBancariaModal').style.display = 'none';
+}
+
+async function salvarContaBancaria(){
+  const nome = document.getElementById('contaBancaria_nome').value.trim();
+  const err = document.getElementById('contaBancariaErr');
+  if(!nome){
+    err.style.display = 'block';
+    return;
+  }
+  err.style.display = 'none';
+
+  if(contaBancariaEditandoId){
+    const { data, error } = await sb.from('fluxo_caixa_contas').update({ nome }).eq('id', contaBancariaEditandoId).select().single();
+    if(error){ err.textContent = 'Erro ao salvar: ' + error.message; err.style.display = 'block'; return; }
+    const idx = contasBancariasCache.findIndex(c=>c.id===contaBancariaEditandoId);
+    if(idx>-1) contasBancariasCache[idx] = data;
+  }else{
+    const { data, error } = await sb.from('fluxo_caixa_contas').insert({ loja: lojaAtual, nome }).select().single();
+    if(error){ err.textContent = 'Erro ao salvar: ' + error.message; err.style.display = 'block'; return; }
+    contasBancariasCache.push(data);
+  }
+
+  renderContasBancarias();
+  fecharContaBancariaModal();
+}
+
+function confirmarExclusaoContaBancaria(id){
+  excluindoContaBancariaId = id;
+  document.getElementById('confirmExclusaoContaBancariaModal').style.display = 'flex';
+}
+
+function fecharConfirmacaoContaBancaria(){
+  document.getElementById('confirmExclusaoContaBancariaModal').style.display = 'none';
+  excluindoContaBancariaId = null;
+}
+
+async function confirmarExclusaoContaBancariaOk(){
+  if(!excluindoContaBancariaId) return;
+  const { error } = await sb.from('fluxo_caixa_contas').delete().eq('id', excluindoContaBancariaId);
+  if(!error){
+    contasBancariasCache = contasBancariasCache.filter(c=>c.id!==excluindoContaBancariaId);
+    renderContasBancarias();
+  }
+  fecharConfirmacaoContaBancaria();
 }
 
 async function selecionarFuncionario(id){
