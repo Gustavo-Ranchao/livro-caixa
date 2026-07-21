@@ -3786,8 +3786,8 @@ async function onSelecionarArquivosVendas(fileList){
     for(let i=1; i<linhas.length; i++){
       const linha = linhas[i];
       if(!linha || linha.length===0) continue;
-      const produto = String(linha[idxProduto]||'').trim();
-      const categoria = idxGrupo>-1 ? String(linha[idxGrupo]||'').trim() : '';
+      const produto = String(linha[idxProduto]||'').trim().toUpperCase();
+      const categoria = idxGrupo>-1 ? String(linha[idxGrupo]||'').trim().toUpperCase() : '';
       const valor = parseNumeroVenda(linha[idxValor]);
       const custo = parseNumeroVenda(linha[idxCusto]);
       if(!produto || valor===null || custo===null) continue;
@@ -4488,14 +4488,14 @@ function processarExtratoFormatoAntigo(linhas, idxCabecalho, cabecalhoTextos){
       continue;
     }
 
-    const descricao = idxDescricao>-1 ? String(linha[idxDescricao]||'').trim() : '';
+    const descricao = idxDescricao>-1 ? String(linha[idxDescricao]||'').trim().toUpperCase() : '';
     const entradaVal = idxEntradas>-1 ? parseNumeroVenda(linha[idxEntradas]) : null;
     const saidaVal = idxSaidas>-1 ? parseNumeroVenda(linha[idxSaidas]) : null;
     let valor = null;
     if(entradaVal!==null && entradaVal!==0) valor = Math.abs(entradaVal);
     else if(saidaVal!==null && saidaVal!==0) valor = -Math.abs(saidaVal);
     if(valor===null) continue;
-    transacoes.push({ data, tipo, descricao, valor });
+    transacoes.push({ data, tipo: tipo.toUpperCase(), descricao, valor });
   }
   return { transacoes, saldos };
 }
@@ -4545,8 +4545,8 @@ function processarExtratoFormatoQuebrado(linhas, idxCabecalho, cabecalhoTextos){
       }else if(marcador === '*'){
         // marcador especial de linha informativa, ignora
       }else if(valorNum!==null && valorNum!==0){
-        const descricao = valorNum > 0 ? '' : detalhes.join(' · ');
-        transacoes.push({ data, tipo, descricao, valor: valorNum });
+        const descricao = valorNum > 0 ? '' : detalhes.join(' · ').toUpperCase();
+        transacoes.push({ data, tipo: tipo.toUpperCase(), descricao, valor: valorNum });
       }
     }
     i = j;
@@ -6049,13 +6049,9 @@ async function moverContaBancaria(id, direcao){
   const atual = contasBancariasCache[idx];
   const vizinho = contasBancariasCache[novoIdx];
 
-  // garante que cada conta tenha um valor de ordem próprio antes de trocar
-  const ordemAtual = atual.ordem ?? idx;
-  const ordemVizinho = vizinho.ordem ?? novoIdx;
-
   await Promise.all([
-    sb.from('fluxo_caixa_contas').update({ ordem: ordemVizinho }).eq('id', atual.id),
-    sb.from('fluxo_caixa_contas').update({ ordem: ordemAtual }).eq('id', vizinho.id)
+    sb.from('fluxo_caixa_contas').update({ ordem: novoIdx }).eq('id', atual.id),
+    sb.from('fluxo_caixa_contas').update({ ordem: idx }).eq('id', vizinho.id)
   ]);
 
   await carregarContasBancarias();
