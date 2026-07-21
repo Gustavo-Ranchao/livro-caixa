@@ -1683,6 +1683,9 @@ function trocarLoja(l){
   if(viewAtual === 'compras'){
     carregarCompras();
   }
+  if(viewAtual === 'contasBancarias'){
+    carregarContasBancarias();
+  }
   if(viewAtual === 'pagamentos'){
     abrirPagamentos();
   }
@@ -4768,7 +4771,10 @@ function filtrarDinheiroFluxo(){
 }
 
 function renderFluxoCaixa(){
-  const somenteExtrato = fluxoCache.filter(l=>l.tipo!=='Dinheiro');
+  const somenteExtrato = fluxoCache.filter(l=>{
+    if(l.tipo==='Dinheiro') return false;
+    return fluxoContaAtivaId === CONTA_SEM_ID ? !l.conta_id : l.conta_id === fluxoContaAtivaId;
+  });
   const totalEntradas = somenteExtrato.filter(l=>Number(l.valor)>0).reduce((s,l)=>s+Number(l.valor), 0);
   const totalSaidas = somenteExtrato.filter(l=>Number(l.valor)<0).reduce((s,l)=>s+Math.abs(Number(l.valor)), 0);
   const saldo = totalEntradas - totalSaidas;
