@@ -1667,10 +1667,12 @@ function trocarLoja(l){
     atualizarUltimoDiaVendas();
   }
   if(viewAtual === 'fluxoCaixa'){
-    sb.from('fluxo_caixa_contas').select('*').eq('loja', lojaAtual).order('ordem').order('nome').then(({data, error})=>{
+    sb.from('fluxo_caixa_contas').select('*').eq('loja', lojaAtual).order('ordem').order('nome').then(async ({data, error})=>{
       fluxoContasCache = error ? [] : (data || []);
-      renderFluxoContaTabs();
-      const contaAlvo = fluxoContasCache.length>0 ? fluxoContasCache[0].id : CONTA_SEM_ID;
+      const temDadosSemConta = await existeDadoSemContaFluxo();
+      renderFluxoContaTabs(temDadosSemConta || fluxoContasCache.length===0);
+      let contaAlvo = fluxoContasCache.length>0 ? fluxoContasCache[0].id : CONTA_SEM_ID;
+      if(contaAlvo === CONTA_SEM_ID && !temDadosSemConta && fluxoContasCache.length>0) contaAlvo = fluxoContasCache[0].id;
       mudarSubAbaFluxo(contaAlvo);
       popularFiltroMesFluxo().then(()=>{
         const mesAtual = new Date().toISOString().slice(0,7);
@@ -4201,12 +4203,23 @@ function nomeDaContaFluxo(id){
   return c ? c.nome : '';
 }
 
-function renderFluxoContaTabs(){
+async function existeDadoSemContaFluxo(){
+  const { count } = await sb.from('fluxo_caixa_lancamentos')
+    .select('id', { count: 'exact', head: true })
+    .eq('loja', lojaAtual)
+    .neq('tipo', 'Dinheiro')
+    .is('conta_id', null);
+  return (count || 0) > 0;
+}
+
+function renderFluxoContaTabs(mostrarSemConta){
   const wrap = document.getElementById('fluxoContaTabsWrap');
   const botoesContas = fluxoContasCache.map(c=>
     `<button class="app-tab" data-conta-id="${c.id}" onclick="mudarSubAbaFluxo('${c.id}')">🏦 ${escapeHtml(c.nome)}</button>`
   ).join('');
-  const botaoSemConta = `<button class="app-tab" data-conta-id="${CONTA_SEM_ID}" onclick="mudarSubAbaFluxo('${CONTA_SEM_ID}')">📊 Sem conta específica</button>`;
+  const botaoSemConta = mostrarSemConta
+    ? `<button class="app-tab" data-conta-id="${CONTA_SEM_ID}" onclick="mudarSubAbaFluxo('${CONTA_SEM_ID}')">📊 Sem conta específica</button>`
+    : '';
   wrap.innerHTML = botoesContas + botaoSemConta;
 }
 
@@ -4244,8 +4257,10 @@ async function abrirFluxoCaixa(){
 
   const { data: contas, error: erroContas } = await sb.from('fluxo_caixa_contas').select('*').eq('loja', lojaAtual).order('ordem').order('nome');
   fluxoContasCache = erroContas ? [] : (contas || []);
-  renderFluxoContaTabs();
-  const contaAlvo = fluxoContasCache.some(c=>c.id===fluxoContaAtivaId) ? fluxoContaAtivaId : (fluxoContasCache.length>0 ? fluxoContasCache[0].id : CONTA_SEM_ID);
+  const temDadosSemConta = await existeDadoSemContaFluxo();
+  renderFluxoContaTabs(temDadosSemConta || fluxoContasCache.length===0);
+  let contaAlvo = fluxoContasCache.some(c=>c.id===fluxoContaAtivaId) ? fluxoContaAtivaId : (fluxoContasCache.length>0 ? fluxoContasCache[0].id : CONTA_SEM_ID);
+  if(contaAlvo === CONTA_SEM_ID && !temDadosSemConta && fluxoContasCache.length>0) contaAlvo = fluxoContasCache[0].id;
   mudarSubAbaFluxo(contaAlvo);
 
   await popularFiltroMesFluxo();
