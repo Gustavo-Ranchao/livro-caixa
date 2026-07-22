@@ -1081,8 +1081,13 @@
               <button class="filter-btn foto-btn" onclick="exportarPdfDinheiro()">📄 PDF</button>
             </div>
           </div>
-          <div style="padding:0 20px 14px;">
-            <input id="fluxoDinheiroBusca" oninput="filtrarDinheiroFluxo()" placeholder="🔍 Buscar por valor, dia, descrição..." style="width:100%;font-family:var(--font-sans);font-size:13px;padding:9px 12px;border:1px solid var(--line);border-radius:6px;background:var(--paper);">
+          <div style="padding:0 20px 14px;display:flex;gap:10px;flex-wrap:wrap;">
+            <input id="fluxoDinheiroBusca" oninput="filtrarDinheiroFluxo()" placeholder="🔍 Buscar por valor, dia, descrição..." style="flex:1;min-width:200px;font-family:var(--font-sans);font-size:13px;padding:9px 12px;border:1px solid var(--line);border-radius:6px;background:var(--paper);">
+            <select id="fluxoDinheiroFiltroTipo" onchange="filtrarDinheiroFluxo()" style="font-family:var(--font-sans);font-size:13px;padding:9px 12px;border:1px solid var(--line);border-radius:6px;background:var(--paper);">
+              <option value="todos">Entradas e saídas</option>
+              <option value="entrada">Só entradas</option>
+              <option value="saida">Só saídas</option>
+            </select>
           </div>
           <div class="tablewrap">
             <table class="ledger">
@@ -3686,17 +3691,33 @@ async function atualizarUltimoDiaVendas(){
 }
 
 async function buscarTodasLinhas(construirQuery){
-  let todos = [];
-  let pagina = 0;
   const tamanho = 1000;
+  const LOTE_PARALELO = 5;
+
+  const primeira = await construirQuery(0, tamanho - 1);
+  if(primeira.error) return { data: null, error: primeira.error };
+  let todos = primeira.data || [];
+  if(todos.length < tamanho) return { data: todos, error: null };
+
+  let pagina = 1;
   while(true){
-    const from = pagina * tamanho;
-    const to = from + tamanho - 1;
-    const { data, error } = await construirQuery(from, to);
-    if(error) return { data: null, error };
-    todos = todos.concat(data || []);
-    if(!data || data.length < tamanho) break;
-    pagina++;
+    const promessas = [];
+    for(let i=0; i<LOTE_PARALELO; i++){
+      const p = pagina + i;
+      const from = p * tamanho;
+      const to = from + tamanho - 1;
+      promessas.push(construirQuery(from, to));
+    }
+    const resultados = await Promise.all(promessas);
+    let acabou = false;
+    for(const r of resultados){
+      if(r.error) return { data: null, error: r.error };
+      const dados = r.data || [];
+      todos = todos.concat(dados);
+      if(dados.length < tamanho) acabou = true;
+    }
+    if(acabou) break;
+    pagina += LOTE_PARALELO;
   }
   return { data: todos, error: null };
 }
@@ -4887,9 +4908,13 @@ function renderFluxoCaixa(){
   document.getElementById('fluxoCombinadoSaldo').textContent = brl((totalEntradas + dinheiroEntradas) - (totalSaidas + dinheiroSaidas));
 
   let dinheiroExibido = dinheiro;
+  const filtroTipoDinheiro = document.getElementById('fluxoDinheiroFiltroTipo').value;
+  if(filtroTipoDinheiro === 'entrada') dinheiroExibido = dinheiroExibido.filter(l=>Number(l.valor)>0);
+  else if(filtroTipoDinheiro === 'saida') dinheiroExibido = dinheiroExibido.filter(l=>Number(l.valor)<0);
+
   const buscaDinheiro = (document.getElementById('fluxoDinheiroBusca').value || '').trim().toLowerCase();
   if(buscaDinheiro){
-    dinheiroExibido = dinheiro.filter(l=>{
+    dinheiroExibido = dinheiroExibido.filter(l=>{
       const texto = [fmtData(l.data), l.descricao, brl(l.valor), String(l.valor).replace('.',',')].join(' ').toLowerCase();
       return texto.includes(buscaDinheiro);
     });
@@ -5961,6 +5986,8 @@ function mudarMesProjecao(valor){
   carregarProjecao();
 }
 
+let projecaoMesAnterior = null;
+
 async function carregarProjecao(){
   const [ano, mes] = projecaoMesAtual.split('-');
   const ultimoDia = new Date(parseInt(ano,10), parseInt(mes,10), 0).getDate();
@@ -5973,9 +6000,28 @@ async function carregarProjecao(){
   projecaoEntradasValor = (mesLancamentos||[]).filter(l=>Number(l.valor)>0).reduce((s,l)=>s+Number(l.valor), 0);
   projecaoSaidasValor = (mesLancamentos||[]).filter(l=>Number(l.valor)<0).reduce((s,l)=>s+Math.abs(Number(l.valor)), 0);
 
-  projecaoPendentesAtual = (lancamentos||[]).filter(l=>l.tipo==='pagar' && l.status!=='pago' && l.loja===lojaAtual);
-  projecaoSelecionadas = new Set(projecaoPendentesAtual.filter(l=>l.vencimento>=de && l.vencimento<=ate).map(l=>l.id));
+  const novosPendentes = (lancamentos||[]).filter(l=>l.tipo==='pagar' && l.status!=='pago' && l.loja===lojaAtual);
+  const mesMudou = projecaoMesAnterior !== projecaoMesAtual;
 
+  if(mesMudou){
+    // mês diferente do que estava sendo visto: recomeça do zero, com o padrão de novo
+    projecaoSelecionadas = new Set(novosPendentes.filter(l=>l.vencimento>=de && l.vencimento<=ate).map(l=>l.id));
+    projecaoMesAnterior = projecaoMesAtual;
+  }else{
+    // mesmo mês: preserva o que o usuário já marcou/desmarcou, só adiciona contas novas
+    const idsConhecidos = new Set(projecaoPendentesAtual.map(l=>l.id));
+    novosPendentes.forEach(l=>{
+      if(!idsConhecidos.has(l.id) && l.vencimento>=de && l.vencimento<=ate){
+        projecaoSelecionadas.add(l.id);
+      }
+    });
+    const idsAtuais = new Set(novosPendentes.map(l=>l.id));
+    Array.from(projecaoSelecionadas).forEach(id=>{
+      if(!idsAtuais.has(id)) projecaoSelecionadas.delete(id);
+    });
+  }
+
+  projecaoPendentesAtual = novosPendentes;
   renderProjecao();
 }
 
