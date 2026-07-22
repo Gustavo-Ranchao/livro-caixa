@@ -4651,7 +4651,7 @@ async function onSelecionarArquivosFluxo(fileList){
 
     const { data: existentes } = await buscarTodasLinhas((from, to) => {
       let q = sb.from('fluxo_caixa_lancamentos').select('data')
-        .eq('loja', lojaAtual).gte('data', dataMin).lte('data', dataMax);
+        .eq('loja', lojaAtual).neq('tipo', 'Dinheiro').gte('data', dataMin).lte('data', dataMax);
       q = fluxoContaAtivaId === CONTA_SEM_ID ? q.is('conta_id', null) : q.eq('conta_id', fluxoContaAtivaId);
       return q.range(from, to);
     });
