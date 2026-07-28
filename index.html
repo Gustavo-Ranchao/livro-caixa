@@ -170,6 +170,8 @@
   .compras-chip{font-family:var(--font-sans);font-size:12.5px;padding:7px 14px;border:1px solid var(--line);border-radius:20px;background:#fff;color:var(--muted);cursor:pointer;transition:.15s;}
   .compras-chip:hover{border-color:var(--gold);color:var(--ink);}
   .compras-chip.active{background:var(--ink);color:var(--paper);border-color:var(--ink);}
+  .compras-chip-ok{background:#e3f3e6;border-color:var(--green);color:var(--green);font-weight:600;}
+  .compras-chip-ok.active{background:var(--green);color:var(--paper);border-color:var(--green);}
   input.comprar-input{width:80px;font-family:var(--font-mono);font-size:12px;padding:5px 7px;border:1px solid var(--line);border-radius:4px;background:#fff;}
   .compras-row{display:grid;grid-template-columns:1fr 1fr 1.5fr 0.85fr 60px 60px 70px 70px 80px 70px;gap:8px;align-items:center;padding:10px 16px;border-top:1px solid var(--paper3);font-size:12.5px;}
   .compras-row.header{background:var(--paper2);font-size:10px;text-transform:uppercase;letter-spacing:0.04em;color:var(--muted);font-weight:500;border-top:none;padding:8px 16px;}
@@ -5275,10 +5277,21 @@ let comprasLinhasAtuais = [];
 let comprasEmpresaFiltro = '';
 let comprasMarcaFiltro = '';
 
+function marcaEstaCompleta(marcaId){
+  const produtos = comprasProdutos.filter(p=>p.marca_id===marcaId);
+  return produtos.length>0 && produtos.every(p=>p.revisado);
+}
+
+function empresaEstaCompleta(empresaId){
+  const marcasDaEmpresa = comprasMarcas.filter(m=>m.empresa_id===empresaId);
+  if(marcasDaEmpresa.length===0) return false;
+  return marcasDaEmpresa.every(m=>marcaEstaCompleta(m.id));
+}
+
 function renderComprasNav(){
   const navEmp = document.getElementById('comprasNavEmpresas');
   navEmp.innerHTML = `<button class="compras-chip ${!comprasEmpresaFiltro?'active':''}" onclick="filtrarPorEmpresa('')">Todas as empresas</button>` +
-    comprasEmpresas.map(e=>`<button class="compras-chip ${comprasEmpresaFiltro===e.id?'active':''}" onclick="filtrarPorEmpresa('${e.id}')">${escapeHtml(e.nome)}</button>`).join('');
+    comprasEmpresas.map(e=>`<button class="compras-chip ${empresaEstaCompleta(e.id)?'compras-chip-ok':''} ${comprasEmpresaFiltro===e.id?'active':''}" onclick="filtrarPorEmpresa('${e.id}')">${escapeHtml(e.nome)}</button>`).join('');
 
   const navMarca = document.getElementById('comprasNavMarcas');
   if(!comprasEmpresaFiltro){
@@ -5288,7 +5301,7 @@ function renderComprasNav(){
     const marcasDaEmpresa = comprasMarcas.filter(m=>m.empresa_id===comprasEmpresaFiltro);
     navMarca.style.display = 'flex';
     navMarca.innerHTML = `<button class="compras-chip ${!comprasMarcaFiltro?'active':''}" onclick="filtrarPorMarca('')">Todas as marcas</button>` +
-      marcasDaEmpresa.map(m=>`<button class="compras-chip ${comprasMarcaFiltro===m.id?'active':''}" onclick="filtrarPorMarca('${m.id}')">${escapeHtml(m.nome)}</button>`).join('');
+      marcasDaEmpresa.map(m=>`<button class="compras-chip ${marcaEstaCompleta(m.id)?'compras-chip-ok':''} ${comprasMarcaFiltro===m.id?'active':''}" onclick="filtrarPorMarca('${m.id}')">${escapeHtml(m.nome)}</button>`).join('');
   }
 }
 
@@ -5394,6 +5407,11 @@ function itensParaComprar(){
     .sort((a,b)=> a.empresaNome.localeCompare(b.empresaNome) || a.marcaNome.localeCompare(b.marcaNome) || a.produto.nome.localeCompare(b.produto.nome));
 }
 
+function itensRevisados(){
+  return comprasLinhasAtuais.filter(l=>l.produto.revisado)
+    .sort((a,b)=> a.empresaNome.localeCompare(b.empresaNome) || a.marcaNome.localeCompare(b.marcaNome) || a.produto.nome.localeCompare(b.produto.nome));
+}
+
 function exportarExcelListaCompras(){
   const itens = itensParaComprar();
   if(itens.length===0){ alert('Nenhum item com quantidade a comprar preenchida (com o filtro/busca atual).'); return; }
@@ -5454,13 +5472,13 @@ function exportarPdfListaCompras(){
 }
 
 function confirmarZerarComprar(){
-  const itens = itensParaComprar();
+  const itens = itensRevisados();
   if(itens.length===0){
-    alert('Nenhum item com quantidade a comprar preenchida (com o filtro/busca atual).');
+    alert('Nenhum item revisado (com o filtro/busca atual). Preencha o campo "Atual" de pelo menos um produto primeiro.');
     return;
   }
   document.getElementById('zerarComprarTexto').textContent =
-    'Isso zera a quantidade a comprar E o estoque atual (unidades e embalagem) de ' + itens.length + ' produto(s) que estão visíveis com o filtro/busca atual. Os mínimos cadastrados não mudam.';
+    'Isso zera a quantidade a comprar E o estoque atual (unidades e embalagem) de ' + itens.length + ' produto(s) já revisados, que estão visíveis com o filtro/busca atual. Os mínimos cadastrados não mudam.';
   document.getElementById('confirmZerarComprarModal').style.display = 'flex';
 }
 
@@ -5469,12 +5487,13 @@ function fecharZerarComprar(){
 }
 
 async function confirmarZerarComprarOk(){
-  const itens = itensParaComprar();
+  const itens = itensRevisados();
   const ids = itens.map(l=>l.produto.id);
   const { error } = await sb.from('compras_produtos').update({
     quantidade_comprar: 0,
     estoque_atual_unidades: 0,
-    estoque_atual_caixas: 0
+    estoque_atual_caixas: 0,
+    revisado: false
   }).in('id', ids);
   fecharZerarComprar();
   if(error){
@@ -5487,8 +5506,10 @@ async function confirmarZerarComprarOk(){
       p.quantidade_comprar = 0;
       p.estoque_atual_unidades = 0;
       p.estoque_atual_caixas = 0;
+      p.revisado = false;
     }
   });
+  renderComprasNav();
   renderCompras();
 }
 
@@ -5508,7 +5529,7 @@ async function atualizarEstoqueAtual(id, campo, valor){
   const v = isNaN(num) || num<0 ? 0 : num;
   const p = comprasProdutos.find(x=>x.id===id);
 
-  const atualizacao = { [campo]: v };
+  const atualizacao = { [campo]: v, revisado: true };
   if(campo === 'estoque_atual_caixas' && p){
     atualizacao.quantidade_comprar = Math.max(0, Number(p.estoque_min_caixas||0) - v);
   }
@@ -5516,6 +5537,7 @@ async function atualizarEstoqueAtual(id, campo, valor){
   const { error } = await sb.from('compras_produtos').update(atualizacao).eq('id', id);
   if(!error && p){
     Object.assign(p, atualizacao);
+    renderComprasNav();
     renderCompras();
   }
 }
@@ -5691,7 +5713,7 @@ async function salvarProduto(){
     fator_embalagem: fatorEmbalagem,
     estoque_min_unidades: minUnidades, estoque_min_caixas: minCaixas,
     estoque_atual_unidades: atualUnidades, estoque_atual_caixas: atualCaixas,
-    quantidade_comprar: qtdComprar
+    quantidade_comprar: qtdComprar, revisado: true
   };
 
   if(produtoEditandoId){
