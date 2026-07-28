@@ -547,6 +547,7 @@
         <select id="bhFuncionarioSelect" onchange="selecionarFuncionario(this.value)">
           <option value="">Selecione um funcionário</option>
         </select>
+        <button type="button" class="filter-btn" style="margin-left:auto;" onclick="abrirRelatorioNoturno()">🌙 Relatório de horas noturnas</button>
       </div>
 
       <div class="empty" id="bhSemFuncionario" style="padding:60px 20px;">Cadastre um colaborador em Configurações → Colaboradores, depois selecione ele aqui.</div>
@@ -1519,6 +1520,36 @@
       <button class="addbtn" style="background:var(--rust);" onclick="confirmarExclusaoComprovanteOk()">Excluir</button>
       <button class="cancelbtn" onclick="fecharConfirmacaoComprovante()">Cancelar</button>
     </div>
+  </div>
+</div>
+
+<div id="relatorioNoturnoModal" class="modal-overlay">
+  <div class="modal-box" style="max-width:720px;">
+    <button class="modal-close" onclick="fecharRelatorioNoturno()">✕</button>
+    <h2>Relatório de horas noturnas</h2>
+
+    <div class="fld-row">
+      <div class="fld"><label>Data inicial</label><input id="relNoturno_de" type="date"></div>
+      <div class="fld"><label>Data final</label><input id="relNoturno_ate" type="date"></div>
+      <div class="fld" style="display:flex;align-items:flex-end;">
+        <button class="addbtn" style="margin:0;" onclick="gerarRelatorioNoturno()">Gerar relatório</button>
+      </div>
+    </div>
+
+    <div id="relNoturnoResultado" style="display:none;margin-top:16px;">
+      <div style="display:flex;justify-content:flex-end;gap:8px;margin-bottom:10px;">
+        <button class="filter-btn foto-btn" onclick="exportarExcelRelatorioNoturno()">📊 Excel</button>
+        <button class="filter-btn foto-btn" onclick="exportarPdfRelatorioNoturno()">📄 PDF</button>
+      </div>
+      <div class="tablewrap" style="max-height:420px;overflow-y:auto;">
+        <table class="ledger">
+          <thead><tr><th>Colaborador</th><th>Cargo</th><th style="text-align:right">Horas noturnas</th><th style="text-align:right">Horas noturnas convertidas</th></tr></thead>
+          <tbody id="relNoturnoBody"></tbody>
+        </table>
+      </div>
+    </div>
+    <div class="empty" id="relNoturnoVazio" style="display:none;">Nenhum colaborador com horas noturnas nesse período.</div>
+    <p class="modal-sub" id="relNoturnoCarregando" style="display:none;">Calculando…</p>
   </div>
 </div>
 
@@ -5429,7 +5460,7 @@ function confirmarZerarComprar(){
     return;
   }
   document.getElementById('zerarComprarTexto').textContent =
-    'Isso zera a quantidade a comprar de ' + itens.length + ' produto(s) que estão visíveis com o filtro/busca atual. O resto do cadastro (mínimos, estoque atual) não muda.';
+    'Isso zera a quantidade a comprar E o estoque atual (unidades e embalagem) de ' + itens.length + ' produto(s) que estão visíveis com o filtro/busca atual. Os mínimos cadastrados não mudam.';
   document.getElementById('confirmZerarComprarModal').style.display = 'flex';
 }
 
@@ -5440,7 +5471,11 @@ function fecharZerarComprar(){
 async function confirmarZerarComprarOk(){
   const itens = itensParaComprar();
   const ids = itens.map(l=>l.produto.id);
-  const { error } = await sb.from('compras_produtos').update({ quantidade_comprar: 0 }).in('id', ids);
+  const { error } = await sb.from('compras_produtos').update({
+    quantidade_comprar: 0,
+    estoque_atual_unidades: 0,
+    estoque_atual_caixas: 0
+  }).in('id', ids);
   fecharZerarComprar();
   if(error){
     alert('Erro ao zerar: ' + error.message);
@@ -5448,7 +5483,11 @@ async function confirmarZerarComprarOk(){
   }
   ids.forEach(id=>{
     const p = comprasProdutos.find(x=>x.id===id);
-    if(p) p.quantidade_comprar = 0;
+    if(p){
+      p.quantidade_comprar = 0;
+      p.estoque_atual_unidades = 0;
+      p.estoque_atual_caixas = 0;
+    }
   });
   renderCompras();
 }
@@ -6274,6 +6313,123 @@ function calcularMinutosNoturnos(reg){
 function calcularMinutosNoturnosConvertidos(minutosNoturnos){
   if(!minutosNoturnos) return 0;
   return Math.round((minutosNoturnos / 52.5) * 60);
+}
+
+let relNoturnoDadosAtuais = [];
+let relNoturnoPeriodoAtual = '';
+
+function abrirRelatorioNoturno(){
+  document.getElementById('relNoturno_de').value = '';
+  document.getElementById('relNoturno_ate').value = '';
+  document.getElementById('relNoturnoResultado').style.display = 'none';
+  document.getElementById('relNoturnoVazio').style.display = 'none';
+  document.getElementById('relNoturnoCarregando').style.display = 'none';
+  document.getElementById('relatorioNoturnoModal').style.display = 'flex';
+}
+
+function fecharRelatorioNoturno(){
+  document.getElementById('relatorioNoturnoModal').style.display = 'none';
+}
+
+async function gerarRelatorioNoturno(){
+  const de = document.getElementById('relNoturno_de').value;
+  const ate = document.getElementById('relNoturno_ate').value;
+  if(!de || !ate || ate < de){
+    alert('Escolha uma data inicial e uma data final válidas (final igual ou depois da inicial).');
+    return;
+  }
+  relNoturnoPeriodoAtual = fmtData(de) + ' a ' + fmtData(ate);
+
+  document.getElementById('relNoturnoResultado').style.display = 'none';
+  document.getElementById('relNoturnoVazio').style.display = 'none';
+  document.getElementById('relNoturnoCarregando').style.display = 'block';
+
+  const { data: funcs, error: erroFuncs } = await sb.from('bh_funcionarios').select('*').eq('loja', lojaAtual).eq('ativo', true).order('nome');
+  if(erroFuncs || !funcs || funcs.length===0){
+    document.getElementById('relNoturnoCarregando').style.display = 'none';
+    document.getElementById('relNoturnoVazio').style.display = 'block';
+    return;
+  }
+
+  const linhas = [];
+  for(const f of funcs){
+    const { data: registros } = await sb.from('bh_registros').select('*').eq('funcionario_id', f.id).gte('data', de).lte('data', ate);
+    let totalNoturno = 0;
+    (registros||[]).forEach(reg=>{
+      if(reg.tipo_dia && reg.tipo_dia !== 'normal') return; // faltas não têm horário batido, não entram
+      totalNoturno += calcularMinutosNoturnos(reg);
+    });
+    if(totalNoturno > 0){
+      linhas.push({
+        nome: f.nome,
+        cargo: f.cargo || '—',
+        noturno: totalNoturno,
+        noturnoConvertido: calcularMinutosNoturnosConvertidos(totalNoturno)
+      });
+    }
+  }
+
+  document.getElementById('relNoturnoCarregando').style.display = 'none';
+  relNoturnoDadosAtuais = linhas;
+
+  if(linhas.length===0){
+    document.getElementById('relNoturnoVazio').style.display = 'block';
+    return;
+  }
+
+  document.getElementById('relNoturnoResultado').style.display = 'block';
+  document.getElementById('relNoturnoBody').innerHTML = linhas.map(l=>`
+    <tr>
+      <td>${escapeHtml(l.nome)}</td>
+      <td>${escapeHtml(l.cargo)}</td>
+      <td class="valor">${fmtMinutos(l.noturno)}</td>
+      <td class="valor" style="color:var(--gold);font-weight:600;">${fmtMinutos(l.noturnoConvertido)}</td>
+    </tr>
+  `).join('');
+}
+
+function exportarExcelRelatorioNoturno(){
+  if(relNoturnoDadosAtuais.length===0){ alert('Gere o relatório primeiro.'); return; }
+  if(!window.XLSX){ alert('Não foi possível carregar o recurso de Excel. Recarregue a página e tente de novo.'); return; }
+  const dados = relNoturnoDadosAtuais.map(l=>({
+    'Colaborador': l.nome,
+    'Cargo': l.cargo,
+    'Horas noturnas': fmtMinutos(l.noturno),
+    'Horas noturnas convertidas': fmtMinutos(l.noturnoConvertido)
+  }));
+  const planilha = XLSX.utils.json_to_sheet(dados);
+  planilha['!cols'] = [{wch:26},{wch:26},{wch:16},{wch:22}];
+  const livro = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(livro, planilha, 'Horas Noturnas');
+  const nomeLoja = (NOMES_LOJA[lojaAtual]||'').toLowerCase().replace(' ','');
+  XLSX.writeFile(livro, 'relatorio-horas-noturnas-' + nomeLoja + '-' + new Date().toISOString().slice(0,10) + '.xlsx');
+}
+
+function exportarPdfRelatorioNoturno(){
+  if(relNoturnoDadosAtuais.length===0){ alert('Gere o relatório primeiro.'); return; }
+  if(!window.jspdf || !window.jspdf.jsPDF){ alert('Não foi possível carregar o recurso de PDF. Recarregue a página e tente de novo.'); return; }
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF();
+  const agora = new Date();
+  const dataHora = fmtData(agora.toISOString().slice(0,10)) + ' ' + agora.toTimeString().slice(0,5);
+
+  doc.setFontSize(16);
+  doc.text('Relatório de Horas Noturnas — ' + (NOMES_LOJA[lojaAtual]||''), 14, 18);
+  doc.setFontSize(10);
+  doc.setTextColor(120);
+  doc.text('Período: ' + relNoturnoPeriodoAtual + '   ·   Gerado em ' + dataHora, 14, 25);
+
+  const corpo = relNoturnoDadosAtuais.map(l=>[l.nome, l.cargo, fmtMinutos(l.noturno), fmtMinutos(l.noturnoConvertido)]);
+  doc.autoTable({
+    startY: 32,
+    head: [['Colaborador','Cargo','Horas noturnas','Horas noturnas convertidas']],
+    body: corpo,
+    styles: { fontSize: 9, cellPadding: 3.5 },
+    headStyles: { fillColor: [38,51,43] }
+  });
+
+  const nomeLoja = (NOMES_LOJA[lojaAtual]||'').toLowerCase().replace(' ','');
+  doc.save('relatorio-horas-noturnas-' + nomeLoja + '-' + agora.toISOString().slice(0,10) + '.pdf');
 }
 
 let bhFiltroDe = '';
