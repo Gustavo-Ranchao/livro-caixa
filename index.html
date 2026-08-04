@@ -461,9 +461,9 @@
       <div class="panel" style="flex:1;padding:16px 20px;">
         <h2 style="font-family:var(--font-voice);font-size:15px;font-weight:600;margin:0 0 12px;">Novo lançamento</h2>
         <div class="bh-form" style="grid-template-columns:2fr 1fr 1fr auto;padding:0;">
-          <div class="fld"><label id="f_contato_label">Fornecedor</label><input id="f_contato" placeholder="Nome"></div>
-          <div class="fld"><label>Valor (R$)</label><input id="f_valor" type="number" step="0.01" min="0" placeholder="0,00"></div>
-          <div class="fld"><label>Vencimento</label><input id="f_venc" type="date"></div>
+          <div class="fld"><label id="f_contato_label">Fornecedor</label><input id="f_contato" placeholder="Nome" onkeydown="if(event.key==='Enter'){event.preventDefault();document.getElementById('f_valor').focus();}"></div>
+          <div class="fld"><label>Valor (R$)</label><input id="f_valor" type="number" step="0.01" min="0" placeholder="0,00" onkeydown="if(event.key==='Enter'){event.preventDefault();document.getElementById('f_venc').focus();}"></div>
+          <div class="fld"><label>Vencimento</label><input id="f_venc" type="date" onkeydown="if(event.key==='Enter'){event.preventDefault();addLancamento();}"></div>
           <button class="addbtn" id="addbtn" onclick="addLancamento()" style="width:auto;">Adicionar</button>
         </div>
         <div class="formerr" id="formerr" style="padding:0 0 0;">Preencha descrição, valor e vencimento.</div>
@@ -840,6 +840,12 @@
       <div class="panel" style="margin-top:20px;">
         <div class="panel-head" style="flex-wrap:wrap;">
           <h2>Histórico</h2>
+          <div class="bh-filtro-data">
+            <label>Mês</label>
+            <select id="difFiltroMes" onchange="mudarFiltroDifMes(this.value)">
+              <option value="todos">Todos os meses</option>
+            </select>
+          </div>
           <div class="bh-filtro-data">
             <label>Colaborador(a)</label>
             <select id="difFiltroColaborador" onchange="mudarFiltroDifColaborador(this.value)">
@@ -2469,7 +2475,7 @@ async function confirmarPagamentoCaixaOk(){
 function renderCaixaDoDia(){
   const dados = lancamentosDaLoja().filter(x=>x.tipo==='pagar' && x.status!=='pago');
 
-  const porMaisRecente = (a,b) => (b.forma_pagamento_em||b.criado_em||'').localeCompare(a.forma_pagamento_em||a.criado_em||'');
+  const porMaisRecente = (a,b) => (a.forma_pagamento_em||a.criado_em||'').localeCompare(b.forma_pagamento_em||b.criado_em||'');
   const itensDinheiro = dados.filter(x=>x.forma_pagamento==='dinheiro').sort(porMaisRecente);
   const itensCartao = dados.filter(x=>x.forma_pagamento==='cartao').sort(porMaisRecente);
 
@@ -3389,6 +3395,12 @@ async function carregarDifColaboradores(){
 }
 
 let difFiltroColaboradorId = '';
+let difFiltroMesAtual = 'todos';
+
+function mudarFiltroDifMes(valor){
+  difFiltroMesAtual = valor;
+  renderDiferencasCaixa();
+}
 
 function mudarFiltroDifColaborador(id){
   difFiltroColaboradorId = id || '';
@@ -3408,7 +3420,22 @@ async function carregarDiferencasCaixa(){
   }else{
     difCache = data || [];
   }
+  popularFiltroDifMes();
   renderDiferencasCaixa();
+}
+
+function popularFiltroDifMes(){
+  const mesesSet = new Set(difCache.map(d=>d.data.slice(0,7)));
+  const hoje = new Date();
+  mesesSet.add(hoje.getFullYear() + '-' + String(hoje.getMonth()+1).padStart(2,'0'));
+  const lista = Array.from(mesesSet).sort().reverse();
+  const sel = document.getElementById('difFiltroMes');
+  const atual = sel.value || 'todos';
+  sel.innerHTML = '<option value="todos">Todos os meses</option>' + lista.map(chave=>{
+    const [ano, mes] = chave.split('-');
+    return `<option value="${chave}">${NOMES_MES[parseInt(mes,10)-1]} ${ano}</option>`;
+  }).join('');
+  sel.value = lista.includes(atual) || atual==='todos' ? atual : 'todos';
 }
 
 async function salvarDiferencaCaixa(){
@@ -3453,6 +3480,10 @@ function renderDiferencasCaixa(){
 
   if(difFiltroColaboradorId){
     ordenado = ordenado.filter(d=>d.funcionario_id===difFiltroColaboradorId);
+  }
+
+  if(difFiltroMesAtual && difFiltroMesAtual !== 'todos'){
+    ordenado = ordenado.filter(d=>d.data.slice(0,7) === difFiltroMesAtual);
   }
 
   const totalFalta = ordenado.filter(d=>d.tipo==='falta').reduce((s,d)=>s+Number(d.valor),0);
