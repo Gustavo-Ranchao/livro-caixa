@@ -404,6 +404,7 @@
             <button class="nav-sub-item" data-view="diferencaCaixa" onclick="mudarViewPrincipal('diferencaCaixa')">Diferença de Caixa</button>
             <button class="nav-sub-item" data-view="fluxoCaixa" onclick="mudarViewPrincipal('fluxoCaixa')">Fluxo de Caixa</button>
             <button class="nav-sub-item" data-view="pagamentos" onclick="mudarViewPrincipal('pagamentos')">Pagamentos</button>
+            <button class="nav-sub-item" data-view="pagamentoCaixa" onclick="mudarViewPrincipal('pagamentoCaixa')">Pagamento no Caixa</button>
           </div>
         </div>
         <div class="nav-group">
@@ -1190,6 +1191,53 @@
       </div>
 
     </div>
+
+    <div id="viewPagamentoCaixa" style="display:none;">
+      <div class="bh-filtro-data" style="margin-bottom:20px;">
+        <label>Mês</label>
+        <select id="pagCaixaFiltroMes" onchange="mudarMesPagamentoCaixa(this.value)">
+          <option value="todos">Todos os meses</option>
+        </select>
+      </div>
+
+      <div class="bh-resumo">
+        <div class="metric"><div class="lbl">Total no período</div><div class="val" id="pagCaixaTotal" style="color:var(--rust);">R$ 0,00</div></div>
+        <div class="metric"><div class="lbl">Quantidade de pagamentos</div><div class="val" id="pagCaixaQtd">0</div></div>
+      </div>
+
+      <div class="panel" style="margin-bottom:20px;">
+        <div class="panel-head"><h2>Novo pagamento</h2></div>
+        <div class="bh-form" style="grid-template-columns:1.4fr 1.2fr 0.9fr 0.9fr auto;">
+          <div class="fld"><label>Descrição do pagamento</label><input id="pagCaixa_descricao" placeholder="Ex: Amaral"></div>
+          <div class="fld"><label>Código de tipo</label>
+            <select id="pagCaixa_tipo"><option value="">Selecione</option></select>
+          </div>
+          <div class="fld"><label>Valor (R$)</label><input id="pagCaixa_valor" type="number" step="0.01" min="0" placeholder="0,00"></div>
+          <div class="fld"><label>Data</label><input id="pagCaixa_data" type="date"></div>
+          <button class="addbtn" style="width:auto;" onclick="salvarPagamentoCaixa()">Adicionar</button>
+        </div>
+        <div class="formerr" id="pagCaixaErr">Preencha descrição, código de tipo, data e um valor maior que zero.</div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-head">
+          <h2>Pagamentos lançados</h2>
+          <div class="filters">
+            <button class="filter-btn foto-btn" onclick="exportarExcelPagamentoCaixa()">📊 Excel (formato do sistema principal)</button>
+          </div>
+        </div>
+        <div style="padding:0 20px 14px;">
+          <input id="pagCaixaBusca" oninput="filtrarPagamentoCaixa()" placeholder="🔍 Buscar por descrição, código, valor..." style="width:100%;font-family:var(--font-sans);font-size:13px;padding:9px 12px;border:1px solid var(--line);border-radius:6px;background:var(--paper);">
+        </div>
+        <div class="tablewrap">
+          <table class="ledger">
+            <thead><tr><th>Data</th><th>Código</th><th>Descrição Tipo</th><th>Descrição Pagamento</th><th style="text-align:right">Valor</th><th></th></tr></thead>
+            <tbody id="pagCaixaBody"></tbody>
+          </table>
+        </div>
+        <div class="empty" id="pagCaixaEmpty" style="display:none;">Nenhum pagamento nesse período.</div>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -1239,6 +1287,35 @@
     <button class="addbtn" onclick="salvarProduto()">Salvar</button>
     <p class="modal-sub" style="margin-top:-8px;">Preenchendo a caixa acima, o campo de unidades já calcula sozinho (caixas × fator). Você ainda pode ajustar manualmente depois.</p>
     <div class="formerr" id="produtoErr">Preencha empresa, marca e nome do produto.</div>
+  </div>
+</div>
+
+<div id="editPagCaixaModal" class="modal-overlay">
+  <div class="modal-box" style="max-width:420px;">
+    <button class="modal-close" onclick="fecharEditarPagamentoCaixa()">✕</button>
+    <h2>Editar pagamento</h2>
+    <div class="fld"><label>Descrição do pagamento</label><input id="editPagCaixa_descricao" placeholder="Ex: Amaral"></div>
+    <div class="fld"><label>Código de tipo</label>
+      <select id="editPagCaixa_tipo"><option value="">Selecione</option></select>
+    </div>
+    <div class="fld"><label>Valor (R$)</label><input id="editPagCaixa_valor" type="number" step="0.01" min="0" placeholder="0,00"></div>
+    <div class="fld"><label>Data</label><input id="editPagCaixa_data" type="date"></div>
+    <div class="formerr" id="editPagCaixaErr">Preencha todos os campos.</div>
+    <div class="modal-actions" style="margin-top:16px;">
+      <button class="addbtn" id="editPagCaixaSalvarBtn" onclick="salvarEdicaoPagamentoCaixa()">Salvar</button>
+      <button class="cancelbtn" onclick="fecharEditarPagamentoCaixa()">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<div id="confirmExclusaoPagCaixaModal" class="modal-overlay">
+  <div class="modal-box" style="max-width:380px;">
+    <h2>Excluir pagamento?</h2>
+    <p class="modal-sub">Essa ação não pode ser desfeita.</p>
+    <div class="modal-actions">
+      <button class="addbtn" style="background:var(--rust);" onclick="confirmarExclusaoPagCaixaOk()">Excluir</button>
+      <button class="cancelbtn" onclick="fecharConfirmacaoPagCaixa()">Cancelar</button>
+    </div>
   </div>
 </div>
 
@@ -1744,6 +1821,9 @@ function trocarLoja(l){
   }
   if(viewAtual === 'pagamentos'){
     abrirPagamentos();
+  }
+  if(viewAtual === 'pagamentoCaixa'){
+    abrirPagamentoCaixa();
   }
   if(viewAtual === 'inicio'){
     abrirInicio();
@@ -2997,7 +3077,7 @@ function setEscala(e){
   }
 }
 
-const VIEWS = ['inicio','contasPagar','despesasFixas','comprovantes','diferencaCaixa','fluxoCaixa','pagamentos','vendasComCusto','bancoHoras','compras','colaboradores','contasBancarias'];
+const VIEWS = ['inicio','contasPagar','despesasFixas','comprovantes','diferencaCaixa','fluxoCaixa','pagamentos','pagamentoCaixa','vendasComCusto','bancoHoras','compras','colaboradores','contasBancarias'];
 let colabCarregado = false;
 
 const NAV_GROUPS = {
@@ -3025,7 +3105,7 @@ async function mudarViewPrincipal(view){
   viewAtual = view;
 
   VIEWS.forEach(v=>{
-    const idMap = { inicio:'viewInicio', contasPagar:'viewContasPagar', despesasFixas:'viewDespesasFixas', comprovantes:'viewComprovantes', diferencaCaixa:'viewDiferencaCaixa', fluxoCaixa:'viewFluxoCaixa', pagamentos:'viewPagamentos', vendasComCusto:'viewVendasComCusto', bancoHoras:'viewBancoHoras', compras:'viewCompras', colaboradores:'viewColaboradores', contasBancarias:'viewContasBancarias' };
+    const idMap = { inicio:'viewInicio', contasPagar:'viewContasPagar', despesasFixas:'viewDespesasFixas', comprovantes:'viewComprovantes', diferencaCaixa:'viewDiferencaCaixa', fluxoCaixa:'viewFluxoCaixa', pagamentos:'viewPagamentos', pagamentoCaixa:'viewPagamentoCaixa', vendasComCusto:'viewVendasComCusto', bancoHoras:'viewBancoHoras', compras:'viewCompras', colaboradores:'viewColaboradores', contasBancarias:'viewContasBancarias' };
     document.getElementById(idMap[v]).style.display = (v===view) ? '' : 'none';
   });
 
@@ -3054,6 +3134,9 @@ async function mudarViewPrincipal(view){
   }else if(view==='pagamentos'){
     abrirGrupoNav('financeiro');
     await abrirPagamentos();
+  }else if(view==='pagamentoCaixa'){
+    abrirGrupoNav('financeiro');
+    await abrirPagamentoCaixa();
   }else if(view==='contasPagar'){
     abrirGrupoNav('financeiro');
   }else if(view==='vendasComCusto'){
@@ -6101,6 +6184,258 @@ function exportarPdfPagamentos(){
 
   const nomeLoja = (NOMES_LOJA[lojaAtual]||'').toLowerCase().replace(' ','');
   doc.save('pagamentos-' + nomeLoja + '-' + agora.toISOString().slice(0,10) + '.pdf');
+}
+
+/* ================= PAGAMENTO NO CAIXA (independente, sem ligação com outros módulos) ================= */
+
+let pagCaixaTiposCache = [];
+let pagCaixaCache = [];
+let pagCaixaMesAtual = 'todos';
+let pagCaixaBuscaTexto = '';
+let pagCaixaEditandoId = null;
+let excluindoPagCaixaId = null;
+
+async function abrirPagamentoCaixa(){
+  if(!document.getElementById('pagCaixa_data').value){
+    document.getElementById('pagCaixa_data').value = todayStr();
+  }
+  if(pagCaixaTiposCache.length===0){
+    const { data, error } = await sb.from('pagamentos_caixa_tipos').select('*').order('codigo');
+    pagCaixaTiposCache = error ? [] : (data || []);
+    const opcoes = '<option value="">Selecione</option>' + pagCaixaTiposCache.map(t=>
+      `<option value="${t.id}">${t.codigo} - ${escapeHtml(t.descricao)}</option>`
+    ).join('');
+    document.getElementById('pagCaixa_tipo').innerHTML = opcoes;
+    document.getElementById('editPagCaixa_tipo').innerHTML = opcoes;
+  }
+  await popularFiltroMesPagCaixa();
+  const mesAtual = new Date().toISOString().slice(0,7);
+  document.getElementById('pagCaixaFiltroMes').value = mesAtual;
+  pagCaixaMesAtual = mesAtual;
+  await carregarPagamentoCaixa();
+}
+
+async function popularFiltroMesPagCaixa(){
+  const { data, error } = await buscarTodasLinhas((from, to) =>
+    sb.from('pagamentos_caixa').select('data').eq('loja', lojaAtual).range(from, to)
+  );
+  if(error){ console.error('Erro ao carregar meses de pagamento no caixa:', error); return; }
+  const mesesSet = new Set((data||[]).map(d=>d.data.slice(0,7)));
+  const hoje = new Date();
+  mesesSet.add(hoje.getFullYear() + '-' + String(hoje.getMonth()+1).padStart(2,'0'));
+  const lista = Array.from(mesesSet).sort().reverse();
+  const sel = document.getElementById('pagCaixaFiltroMes');
+  const atual = sel.value || 'todos';
+  sel.innerHTML = '<option value="todos">Todos os meses</option>' + lista.map(chave=>{
+    const [ano, mes] = chave.split('-');
+    return `<option value="${chave}">${NOMES_MES[parseInt(mes,10)-1]} ${ano}</option>`;
+  }).join('');
+  sel.value = lista.includes(atual) || atual==='todos' ? atual : 'todos';
+}
+
+function mudarMesPagamentoCaixa(valor){
+  pagCaixaMesAtual = valor;
+  carregarPagamentoCaixa();
+}
+
+async function carregarPagamentoCaixa(){
+  let de = null, ate = null;
+  if(pagCaixaMesAtual !== 'todos'){
+    const [ano, mes] = pagCaixaMesAtual.split('-');
+    const ultimoDia = new Date(parseInt(ano,10), parseInt(mes,10), 0).getDate();
+    de = pagCaixaMesAtual + '-01';
+    ate = pagCaixaMesAtual + '-' + String(ultimoDia).padStart(2,'0');
+  }
+
+  const { data, error } = await buscarTodasLinhas((from, to)=>{
+    let q = sb.from('pagamentos_caixa').select('*, pagamentos_caixa_tipos(codigo,descricao)').eq('loja', lojaAtual);
+    if(de) q = q.gte('data', de);
+    if(ate) q = q.lte('data', ate);
+    return q.order('data').range(from, to);
+  });
+
+  if(error){
+    console.error('Erro ao carregar pagamento no caixa:', error);
+    pagCaixaCache = [];
+  }else{
+    pagCaixaCache = data || [];
+  }
+  renderPagamentoCaixa();
+}
+
+function filtrarPagamentoCaixa(){
+  pagCaixaBuscaTexto = document.getElementById('pagCaixaBusca').value.trim().toLowerCase();
+  renderPagamentoCaixa();
+}
+
+function renderPagamentoCaixa(){
+  let linhas = pagCaixaCache;
+  if(pagCaixaBuscaTexto){
+    linhas = linhas.filter(l=>{
+      const tipo = l.pagamentos_caixa_tipos;
+      const texto = [fmtData(l.data), l.descricao_pagamento, tipo?String(tipo.codigo):'', tipo?tipo.descricao:'', brl(l.valor_pagamento)].join(' ').toLowerCase();
+      return texto.includes(pagCaixaBuscaTexto);
+    });
+  }
+
+  const total = linhas.reduce((s,l)=>s+Number(l.valor_pagamento), 0);
+  document.getElementById('pagCaixaTotal').textContent = brl(total);
+  document.getElementById('pagCaixaQtd').textContent = linhas.length;
+
+  const body = document.getElementById('pagCaixaBody');
+  const empty = document.getElementById('pagCaixaEmpty');
+  if(linhas.length===0){
+    body.innerHTML = '';
+    empty.style.display = 'block';
+    empty.textContent = pagCaixaBuscaTexto ? 'Nenhum pagamento encontrado para essa busca.' : 'Nenhum pagamento nesse período.';
+  }else{
+    empty.style.display = 'none';
+    body.innerHTML = linhas.map(l=>{
+      const tipo = l.pagamentos_caixa_tipos;
+      return `<tr>
+        <td class="data">${fmtData(l.data)}</td>
+        <td>${tipo ? tipo.codigo : '—'}</td>
+        <td>${tipo ? escapeHtml(tipo.descricao) : '—'}</td>
+        <td class="contato">${escapeHtml(l.descricao_pagamento)}</td>
+        <td class="valor">${brl(l.valor_pagamento)}</td>
+        <td><div class="rowactions">
+          <button class="iconbtn edit" title="Editar" onclick="abrirEditarPagamentoCaixa('${l.id}')">✎</button>
+          <button class="iconbtn del" title="Excluir" onclick="confirmarExclusaoPagCaixa('${l.id}')">✕</button>
+        </div></td>
+      </tr>`;
+    }).join('');
+  }
+}
+
+async function salvarPagamentoCaixa(){
+  const descricao = document.getElementById('pagCaixa_descricao').value.trim();
+  const tipoId = document.getElementById('pagCaixa_tipo').value;
+  const valorBruto = parseFloat(document.getElementById('pagCaixa_valor').value);
+  const data = document.getElementById('pagCaixa_data').value;
+  const err = document.getElementById('pagCaixaErr');
+
+  if(!descricao || !tipoId || !data || isNaN(valorBruto) || valorBruto<=0){
+    err.style.display = 'block';
+    return;
+  }
+  err.style.display = 'none';
+
+  const { data: salvo, error } = await sb.from('pagamentos_caixa').insert({
+    loja: lojaAtual,
+    codigo_tipo_id: tipoId,
+    descricao_pagamento: descricao,
+    valor_pagamento: valorBruto,
+    data: data
+  }).select('*, pagamentos_caixa_tipos(codigo,descricao)').single();
+
+  if(error){
+    err.textContent = 'Erro ao salvar: ' + error.message;
+    err.style.display = 'block';
+    return;
+  }
+
+  pagCaixaCache.push(salvo);
+  document.getElementById('pagCaixa_descricao').value = '';
+  document.getElementById('pagCaixa_tipo').value = '';
+  document.getElementById('pagCaixa_valor').value = '';
+  renderPagamentoCaixa();
+  await popularFiltroMesPagCaixa();
+}
+
+function abrirEditarPagamentoCaixa(id){
+  const l = pagCaixaCache.find(x=>x.id===id);
+  if(!l) return;
+  pagCaixaEditandoId = id;
+  document.getElementById('editPagCaixa_descricao').value = l.descricao_pagamento;
+  document.getElementById('editPagCaixa_tipo').value = l.codigo_tipo_id;
+  document.getElementById('editPagCaixa_valor').value = l.valor_pagamento;
+  document.getElementById('editPagCaixa_data').value = l.data;
+  document.getElementById('editPagCaixaErr').style.display = 'none';
+  document.getElementById('editPagCaixaModal').style.display = 'flex';
+}
+
+function fecharEditarPagamentoCaixa(){
+  document.getElementById('editPagCaixaModal').style.display = 'none';
+  pagCaixaEditandoId = null;
+}
+
+async function salvarEdicaoPagamentoCaixa(){
+  const descricao = document.getElementById('editPagCaixa_descricao').value.trim();
+  const tipoId = document.getElementById('editPagCaixa_tipo').value;
+  const valorBruto = parseFloat(document.getElementById('editPagCaixa_valor').value);
+  const data = document.getElementById('editPagCaixa_data').value;
+  const err = document.getElementById('editPagCaixaErr');
+
+  if(!descricao || !tipoId || !data || isNaN(valorBruto) || valorBruto<=0){
+    err.style.display = 'block';
+    return;
+  }
+  err.style.display = 'none';
+
+  const btn = document.getElementById('editPagCaixaSalvarBtn');
+  btn.disabled = true;
+  btn.textContent = 'Salvando…';
+
+  const { data: atualizado, error } = await sb.from('pagamentos_caixa').update({
+    descricao_pagamento: descricao,
+    codigo_tipo_id: tipoId,
+    valor_pagamento: valorBruto,
+    data: data
+  }).eq('id', pagCaixaEditandoId).select('*, pagamentos_caixa_tipos(codigo,descricao)').single();
+
+  btn.disabled = false;
+  btn.textContent = 'Salvar';
+
+  if(error){
+    err.textContent = 'Erro ao salvar: ' + error.message;
+    err.style.display = 'block';
+    return;
+  }
+
+  const idx = pagCaixaCache.findIndex(l=>l.id===pagCaixaEditandoId);
+  if(idx>-1) pagCaixaCache[idx] = atualizado;
+  renderPagamentoCaixa();
+  fecharEditarPagamentoCaixa();
+}
+
+function confirmarExclusaoPagCaixa(id){
+  excluindoPagCaixaId = id;
+  document.getElementById('confirmExclusaoPagCaixaModal').style.display = 'flex';
+}
+
+function fecharConfirmacaoPagCaixa(){
+  document.getElementById('confirmExclusaoPagCaixaModal').style.display = 'none';
+  excluindoPagCaixaId = null;
+}
+
+async function confirmarExclusaoPagCaixaOk(){
+  if(!excluindoPagCaixaId) return;
+  const { error } = await sb.from('pagamentos_caixa').delete().eq('id', excluindoPagCaixaId);
+  if(!error){
+    pagCaixaCache = pagCaixaCache.filter(l=>l.id!==excluindoPagCaixaId);
+    renderPagamentoCaixa();
+  }
+  fecharConfirmacaoPagCaixa();
+}
+
+function exportarExcelPagamentoCaixa(){
+  if(pagCaixaCache.length===0){ alert('Não há pagamentos para exportar.'); return; }
+  if(!window.XLSX){ alert('Não foi possível carregar o recurso de Excel. Recarregue a página e tente de novo.'); return; }
+  const dados = pagCaixaCache.map(l=>{
+    const tipo = l.pagamentos_caixa_tipos;
+    return {
+      'Cód Tipo Pagamento.': tipo ? tipo.codigo : '',
+      'Descrição Tipo': tipo ? tipo.descricao : '',
+      'Descricao Pagamento': l.descricao_pagamento,
+      'Valor Pagamento': Number(l.valor_pagamento)
+    };
+  });
+  const planilha = XLSX.utils.json_to_sheet(dados);
+  planilha['!cols'] = [{wch:18},{wch:30},{wch:30},{wch:16}];
+  const livro = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(livro, planilha, 'Pagamentos');
+  const nomeLoja = (NOMES_LOJA[lojaAtual]||'').toLowerCase().replace(' ','');
+  XLSX.writeFile(livro, 'pagamento-caixa-' + nomeLoja + '-' + new Date().toISOString().slice(0,10) + '.xlsx');
 }
 
 /* ================= PROJEÇÃO (fluxo de caixa + contas a pagar) ================= */
