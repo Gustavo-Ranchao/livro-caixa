@@ -1210,7 +1210,9 @@
         <div class="bh-form" style="grid-template-columns:1.4fr 1.2fr 0.9fr 0.9fr auto;">
           <div class="fld"><label>Descrição do pagamento</label><input id="pagCaixa_descricao" placeholder="Ex: Amaral"></div>
           <div class="fld"><label>Código de tipo</label>
-            <select id="pagCaixa_tipo"><option value="">Selecione</option></select>
+            <input id="pagCaixa_tipo_busca" list="pagCaixaTiposDatalist" placeholder="Digite pra buscar..." autocomplete="off" oninput="matchTipoPagCaixa('pagCaixa_tipo_busca','pagCaixa_tipo')">
+            <input type="hidden" id="pagCaixa_tipo">
+            <datalist id="pagCaixaTiposDatalist"></datalist>
           </div>
           <div class="fld"><label>Valor (R$)</label><input id="pagCaixa_valor" type="number" step="0.01" min="0" placeholder="0,00"></div>
           <div class="fld"><label>Data</label><input id="pagCaixa_data" type="date"></div>
@@ -1325,7 +1327,8 @@
     <h2>Editar pagamento</h2>
     <div class="fld"><label>Descrição do pagamento</label><input id="editPagCaixa_descricao" placeholder="Ex: Amaral"></div>
     <div class="fld"><label>Código de tipo</label>
-      <select id="editPagCaixa_tipo"><option value="">Selecione</option></select>
+      <input id="editPagCaixa_tipo_busca" list="pagCaixaTiposDatalist" placeholder="Digite pra buscar..." autocomplete="off" oninput="matchTipoPagCaixa('editPagCaixa_tipo_busca','editPagCaixa_tipo')">
+      <input type="hidden" id="editPagCaixa_tipo">
     </div>
     <div class="fld"><label>Valor (R$)</label><input id="editPagCaixa_valor" type="number" step="0.01" min="0" placeholder="0,00"></div>
     <div class="fld"><label>Data</label><input id="editPagCaixa_data" type="date"></div>
@@ -6231,17 +6234,21 @@ async function abrirPagamentoCaixa(){
   if(pagCaixaTiposCache.length===0){
     const { data, error } = await sb.from('pagamentos_caixa_tipos').select('*').order('codigo');
     pagCaixaTiposCache = error ? [] : (data || []);
-    const opcoes = '<option value="">Selecione</option>' + pagCaixaTiposCache.map(t=>
-      `<option value="${t.id}">${t.codigo} - ${escapeHtml(t.descricao)}</option>`
+    document.getElementById('pagCaixaTiposDatalist').innerHTML = pagCaixaTiposCache.map(t=>
+      `<option value="${escapeHtml(labelTipoPagCaixa(t))}">`
     ).join('');
-    document.getElementById('pagCaixa_tipo').innerHTML = opcoes;
-    document.getElementById('editPagCaixa_tipo').innerHTML = opcoes;
   }
   await popularFiltroMesPagCaixa();
   const mesAtual = new Date().toISOString().slice(0,7);
   document.getElementById('pagCaixaFiltroMes').value = mesAtual;
   pagCaixaMesAtual = mesAtual;
   await carregarPagamentoCaixa();
+}
+
+function matchTipoPagCaixa(idBusca, idHidden){
+  const texto = document.getElementById(idBusca).value.trim();
+  const tipo = pagCaixaTiposCache.find(t=>labelTipoPagCaixa(t).toLowerCase()===texto.toLowerCase());
+  document.getElementById(idHidden).value = tipo ? tipo.id : '';
 }
 
 async function popularFiltroMesPagCaixa(){
@@ -6369,6 +6376,7 @@ async function salvarPagamentoCaixa(){
   pagCaixaCache.push(salvo);
   document.getElementById('pagCaixa_descricao').value = '';
   document.getElementById('pagCaixa_tipo').value = '';
+  document.getElementById('pagCaixa_tipo_busca').value = '';
   document.getElementById('pagCaixa_valor').value = '';
   renderPagamentoCaixa();
   await popularFiltroMesPagCaixa();
@@ -6380,6 +6388,8 @@ function abrirEditarPagamentoCaixa(id){
   pagCaixaEditandoId = id;
   document.getElementById('editPagCaixa_descricao').value = l.descricao_pagamento;
   document.getElementById('editPagCaixa_tipo').value = l.codigo_tipo_id;
+  const tipoAtual = pagCaixaTiposCache.find(t=>t.id===l.codigo_tipo_id);
+  document.getElementById('editPagCaixa_tipo_busca').value = tipoAtual ? labelTipoPagCaixa(tipoAtual) : '';
   document.getElementById('editPagCaixa_valor').value = l.valor_pagamento;
   document.getElementById('editPagCaixa_data').value = l.data;
   document.getElementById('editPagCaixaErr').style.display = 'none';
@@ -6519,22 +6529,37 @@ async function processarColarPagCaixa(){
   renderColarPagCaixaPreview();
 }
 
+function labelTipoPagCaixa(t){
+  return t.codigo + ' - ' + t.descricao;
+}
+
 function renderColarPagCaixaPreview(){
-  const opcoesTipo = t => `<option value="${t.id}">${t.codigo} - ${escapeHtml(t.descricao)}</option>`;
-  document.getElementById('colarPagCaixaPreviewBody').innerHTML = colarPagCaixaParsed.map((l,idx)=>`
-    <tr>
+  document.getElementById('colarPagCaixaPreviewBody').innerHTML = colarPagCaixaParsed.map((l,idx)=>{
+    const tipoAtual = pagCaixaTiposCache.find(t=>t.id===l.tipoId);
+    return `<tr>
       <td>${escapeHtml(l.descricao)}</td>
       <td class="valor">${brl(l.valor)}</td>
       <td>
-        <select onchange="colarPagCaixaParsed[${idx}].tipoId=this.value" style="width:100%;">
-          <option value="">Selecione</option>
-          ${pagCaixaTiposCache.map(t=>`<option value="${t.id}" ${l.tipoId===t.id?'selected':''}>${t.codigo} - ${escapeHtml(t.descricao)}</option>`).join('')}
-        </select>
-        ${l.tipoId ? '<span style="font-size:10px;color:var(--green);">🔁 sugerido pelo histórico</span>' : '<span style="font-size:10px;color:var(--rust);">🆕 novo, escolha manualmente</span>'}
+        <input id="colarPagCaixaTipo_${idx}" list="pagCaixaTiposDatalist" autocomplete="off" style="width:100%;" value="${tipoAtual ? escapeHtml(labelTipoPagCaixa(tipoAtual)) : ''}" oninput="matchTipoColarPagCaixa(${idx})">
+        <span id="colarPagCaixaTipoAviso_${idx}" style="font-size:10px;color:${l.tipoId?'var(--green)':'var(--rust)'};">${l.tipoId ? '🔁 sugerido pelo histórico' : '🆕 novo, escolha manualmente'}</span>
       </td>
-    </tr>
-  `).join('');
+    </tr>`;
+  }).join('');
   document.getElementById('colarPagCaixaPreviewWrap').style.display = 'block';
+}
+
+function matchTipoColarPagCaixa(idx){
+  const texto = document.getElementById('colarPagCaixaTipo_' + idx).value.trim();
+  const aviso = document.getElementById('colarPagCaixaTipoAviso_' + idx);
+  const tipo = pagCaixaTiposCache.find(t=>labelTipoPagCaixa(t).toLowerCase()===texto.toLowerCase());
+  colarPagCaixaParsed[idx].tipoId = tipo ? tipo.id : '';
+  if(tipo){
+    aviso.textContent = '✓ código ' + tipo.codigo + ' selecionado';
+    aviso.style.color = 'var(--green)';
+  }else{
+    aviso.textContent = texto ? '⚠ nenhum código encontrado com esse nome' : '🆕 escolha um código';
+    aviso.style.color = 'var(--rust)';
+  }
 }
 
 function cancelarColarPagCaixa(){
