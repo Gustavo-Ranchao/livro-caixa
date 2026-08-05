@@ -1219,6 +1219,35 @@
         <div class="formerr" id="pagCaixaErr">Preencha descrição, código de tipo, data e um valor maior que zero.</div>
       </div>
 
+      <div class="panel" style="margin-bottom:20px;">
+        <div class="panel-head">
+          <h2>Colar de planilha</h2>
+          <div class="filters">
+            <button class="filter-btn" onclick="toggleColarPagCaixa()" id="colarPagCaixaToggleBtn">📋 Colar de planilha (várias linhas de uma vez)</button>
+          </div>
+        </div>
+        <div id="colarPagCaixaArea" style="display:none;padding:0 20px 20px;">
+          <p class="modal-sub" style="margin:0 0 8px;">Cole aqui duas colunas copiadas do Excel: <strong>Descrição</strong> e <strong>Valor</strong> (nessa ordem, uma por linha). O sistema já sugere o código de tipo pra qualquer descrição que você já usou antes.</p>
+          <textarea id="colarPagCaixaTexto" rows="6" style="width:100%;font-family:var(--font-mono);font-size:12.5px;padding:10px;border:1px solid var(--line);border-radius:6px;background:var(--paper);" placeholder="Amaral&#9;1283,00&#10;Souza Cruz&#9;579,05"></textarea>
+          <div style="margin-top:10px;">
+            <button class="addbtn" style="width:auto;" onclick="processarColarPagCaixa()">Processar</button>
+          </div>
+
+          <div id="colarPagCaixaPreviewWrap" style="display:none;margin-top:16px;">
+            <div class="tablewrap">
+              <table class="ledger">
+                <thead><tr><th>Descrição</th><th style="text-align:right">Valor</th><th>Código de tipo</th></tr></thead>
+                <tbody id="colarPagCaixaPreviewBody"></tbody>
+              </table>
+            </div>
+            <div style="margin-top:12px;display:flex;gap:10px;">
+              <button class="addbtn" style="width:auto;" onclick="confirmarColarPagCaixa()">Confirmar importação</button>
+              <button class="cancelbtn" onclick="cancelarColarPagCaixa()">Cancelar</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <div class="panel">
         <div class="panel-head">
           <h2>Pagamentos lançados</h2>
@@ -6222,7 +6251,10 @@ async function popularFiltroMesPagCaixa(){
   if(error){ console.error('Erro ao carregar meses de pagamento no caixa:', error); return; }
   const mesesSet = new Set((data||[]).map(d=>d.data.slice(0,7)));
   const hoje = new Date();
-  mesesSet.add(hoje.getFullYear() + '-' + String(hoje.getMonth()+1).padStart(2,'0'));
+  for(let i=0;i<12;i++){
+    const d = new Date(hoje.getFullYear(), hoje.getMonth()-i, 1);
+    mesesSet.add(d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0'));
+  }
   const lista = Array.from(mesesSet).sort().reverse();
   const sel = document.getElementById('pagCaixaFiltroMes');
   const atual = sel.value || 'todos';
@@ -6436,6 +6468,109 @@ function exportarExcelPagamentoCaixa(){
   XLSX.utils.book_append_sheet(livro, planilha, 'Pagamentos');
   const nomeLoja = (NOMES_LOJA[lojaAtual]||'').toLowerCase().replace(' ','');
   XLSX.writeFile(livro, 'pagamento-caixa-' + nomeLoja + '-' + new Date().toISOString().slice(0,10) + '.xlsx');
+}
+
+/* ---------- Colar de planilha (Descrição + Valor), com sugestão automática de código ---------- */
+
+let colarPagCaixaParsed = [];
+
+function toggleColarPagCaixa(){
+  const area = document.getElementById('colarPagCaixaArea');
+  area.style.display = area.style.display==='none' ? 'block' : 'none';
+}
+
+async function processarColarPagCaixa(){
+  const texto = document.getElementById('colarPagCaixaTexto').value;
+  const linhasTexto = texto.split('\n').map(l=>l.trim()).filter(l=>l);
+  if(linhasTexto.length===0){
+    alert('Cole ao menos uma linha com descrição e valor.');
+    return;
+  }
+
+  // busca todo o histórico já lançado nessa loja, pra sugerir o código pela última vez que essa descrição foi usada
+  const { data: historico } = await buscarTodasLinhas((from, to) =>
+    sb.from('pagamentos_caixa').select('descricao_pagamento,codigo_tipo_id,criado_em').eq('loja', lojaAtual).order('criado_em', { ascending: false }).range(from, to)
+  );
+  const mapaHistorico = {};
+  (historico||[]).forEach(h=>{
+    const chave = h.descricao_pagamento.trim().toLowerCase();
+    if(!(chave in mapaHistorico)) mapaHistorico[chave] = h.codigo_tipo_id; // como veio ordenado por mais recente, a primeira ocorrência é a mais nova
+  });
+
+  const linhas = [];
+  linhasTexto.forEach(linha=>{
+    const partes = linha.split('\t');
+    const colunas = partes.length>=2 ? partes : linha.split(/\s{2,}/);
+    if(colunas.length<2) return;
+    const descricao = colunas[0].trim();
+    const valor = parseNumeroVenda(colunas[colunas.length-1]);
+    if(!descricao || valor===null) return;
+    const chave = descricao.toLowerCase();
+    const tipoSugerido = mapaHistorico[chave] || '';
+    linhas.push({ descricao, valor, tipoId: tipoSugerido });
+  });
+
+  if(linhas.length===0){
+    alert('Não consegui reconhecer nenhuma linha válida. Confira se colou "Descrição" e "Valor" separados por tab (copiando direto do Excel).');
+    return;
+  }
+
+  colarPagCaixaParsed = linhas;
+  renderColarPagCaixaPreview();
+}
+
+function renderColarPagCaixaPreview(){
+  const opcoesTipo = t => `<option value="${t.id}">${t.codigo} - ${escapeHtml(t.descricao)}</option>`;
+  document.getElementById('colarPagCaixaPreviewBody').innerHTML = colarPagCaixaParsed.map((l,idx)=>`
+    <tr>
+      <td>${escapeHtml(l.descricao)}</td>
+      <td class="valor">${brl(l.valor)}</td>
+      <td>
+        <select onchange="colarPagCaixaParsed[${idx}].tipoId=this.value" style="width:100%;">
+          <option value="">Selecione</option>
+          ${pagCaixaTiposCache.map(t=>`<option value="${t.id}" ${l.tipoId===t.id?'selected':''}>${t.codigo} - ${escapeHtml(t.descricao)}</option>`).join('')}
+        </select>
+        ${l.tipoId ? '<span style="font-size:10px;color:var(--green);">🔁 sugerido pelo histórico</span>' : '<span style="font-size:10px;color:var(--rust);">🆕 novo, escolha manualmente</span>'}
+      </td>
+    </tr>
+  `).join('');
+  document.getElementById('colarPagCaixaPreviewWrap').style.display = 'block';
+}
+
+function cancelarColarPagCaixa(){
+  colarPagCaixaParsed = [];
+  document.getElementById('colarPagCaixaTexto').value = '';
+  document.getElementById('colarPagCaixaPreviewWrap').style.display = 'none';
+}
+
+async function confirmarColarPagCaixa(){
+  const semCodigo = colarPagCaixaParsed.filter(l=>!l.tipoId);
+  if(semCodigo.length>0){
+    alert('Ainda falta escolher o código de tipo de ' + semCodigo.length + ' linha(s) (marcadas como "novo"). Escolha antes de confirmar.');
+    return;
+  }
+
+  const dataEscolhida = document.getElementById('pagCaixa_data').value || todayStr();
+  const registros = colarPagCaixaParsed.map(l=>({
+    loja: lojaAtual,
+    codigo_tipo_id: l.tipoId,
+    descricao_pagamento: l.descricao,
+    valor_pagamento: l.valor,
+    data: dataEscolhida
+  }));
+
+  const { data: salvos, error } = await sb.from('pagamentos_caixa').insert(registros).select('*, pagamentos_caixa_tipos(codigo,descricao)');
+  if(error){
+    alert('Erro ao importar: ' + error.message);
+    return;
+  }
+
+  pagCaixaCache = pagCaixaCache.concat(salvos||[]);
+  renderPagamentoCaixa();
+  await popularFiltroMesPagCaixa();
+  cancelarColarPagCaixa();
+  document.getElementById('colarPagCaixaArea').style.display = 'none';
+  alert((salvos||[]).length + ' pagamento(s) importado(s) com sucesso.');
 }
 
 /* ================= PROJEÇÃO (fluxo de caixa + contas a pagar) ================= */
