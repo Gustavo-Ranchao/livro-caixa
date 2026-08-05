@@ -1255,6 +1255,7 @@
           <h2>Pagamentos lançados</h2>
           <div class="filters">
             <button class="filter-btn foto-btn" onclick="exportarExcelPagamentoCaixa()">📊 Excel (formato do sistema principal)</button>
+            <button class="filter-btn" style="border-color:var(--rust);color:var(--rust);" onclick="confirmarApagarTudoPagCaixa()">🗑 Apagar tudo (período)</button>
           </div>
         </div>
         <div style="padding:0 20px 14px;">
@@ -1336,6 +1337,18 @@
     <div class="modal-actions" style="margin-top:16px;">
       <button class="addbtn" id="editPagCaixaSalvarBtn" onclick="salvarEdicaoPagamentoCaixa()">Salvar</button>
       <button class="cancelbtn" onclick="fecharEditarPagamentoCaixa()">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<div id="confirmApagarTudoPagCaixaModal" class="modal-overlay">
+  <div class="modal-box" style="max-width:420px;">
+    <h2>Apagar todos os pagamentos desse período?</h2>
+    <p class="modal-sub" id="apagarTudoPagCaixaTexto"></p>
+    <div class="fld"><label>Para confirmar, digite APAGAR</label><input id="apagarTudoPagCaixaConfirmTexto" placeholder="APAGAR"></div>
+    <div class="modal-actions" style="margin-top:14px;">
+      <button class="addbtn" style="background:var(--rust);" onclick="confirmarApagarTudoPagCaixaOk()">Apagar tudo</button>
+      <button class="cancelbtn" onclick="fecharApagarTudoPagCaixa()">Cancelar</button>
     </div>
   </div>
 </div>
@@ -6274,6 +6287,14 @@ async function popularFiltroMesPagCaixa(){
 
 function mudarMesPagamentoCaixa(valor){
   pagCaixaMesAtual = valor;
+  if(valor !== 'todos'){
+    const hojeStr = todayStr();
+    if(valor === hojeStr.slice(0,7)){
+      document.getElementById('pagCaixa_data').value = hojeStr;
+    }else{
+      document.getElementById('pagCaixa_data').value = valor + '-01';
+    }
+  }
   carregarPagamentoCaixa();
 }
 
@@ -6458,6 +6479,47 @@ async function confirmarExclusaoPagCaixaOk(){
     renderPagamentoCaixa();
   }
   fecharConfirmacaoPagCaixa();
+}
+
+function confirmarApagarTudoPagCaixa(){
+  if(pagCaixaCache.length===0){
+    alert('Não há pagamentos nesse período pra apagar.');
+    return;
+  }
+  const periodo = pagCaixaMesAtual==='todos' ? 'todos os meses' : (()=>{
+    const [ano, mes] = pagCaixaMesAtual.split('-');
+    return NOMES_MES[parseInt(mes,10)-1] + ' de ' + ano;
+  })();
+  document.getElementById('apagarTudoPagCaixaTexto').textContent =
+    'Isso apaga os ' + pagCaixaCache.length + ' pagamento(s) lançado(s) em "' + periodo + '" (loja ' + (NOMES_LOJA[lojaAtual]||'') + '). Essa ação não pode ser desfeita.';
+  document.getElementById('apagarTudoPagCaixaConfirmTexto').value = '';
+  document.getElementById('confirmApagarTudoPagCaixaModal').style.display = 'flex';
+}
+
+function fecharApagarTudoPagCaixa(){
+  document.getElementById('confirmApagarTudoPagCaixaModal').style.display = 'none';
+}
+
+async function confirmarApagarTudoPagCaixaOk(){
+  const texto = document.getElementById('apagarTudoPagCaixaConfirmTexto').value.trim().toUpperCase();
+  if(texto !== 'APAGAR'){
+    alert('Digite exatamente "APAGAR" (em maiúsculas) para confirmar.');
+    return;
+  }
+
+  const ids = pagCaixaCache.map(l=>l.id);
+  const { error } = await sb.from('pagamentos_caixa').delete().in('id', ids);
+  fecharApagarTudoPagCaixa();
+
+  if(error){
+    alert('Erro ao apagar: ' + error.message);
+    return;
+  }
+
+  pagCaixaCache = [];
+  renderPagamentoCaixa();
+  await popularFiltroMesPagCaixa();
+  alert('Pagamentos apagados.');
 }
 
 function exportarExcelPagamentoCaixa(){
