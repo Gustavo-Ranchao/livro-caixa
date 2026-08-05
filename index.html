@@ -6258,6 +6258,17 @@ async function abrirPagamentoCaixa(){
   await carregarPagamentoCaixa();
 }
 
+async function gravarMemoriaPagCaixa(descricao, tipoId){
+  const chave = descricao.trim().toLowerCase();
+  if(!chave || !tipoId) return;
+  await sb.from('pagamentos_caixa_memoria').upsert({
+    loja: lojaAtual,
+    descricao_normalizada: chave,
+    codigo_tipo_id: tipoId,
+    atualizado_em: new Date().toISOString()
+  }, { onConflict: 'loja,descricao_normalizada' });
+}
+
 function matchTipoPagCaixa(idBusca, idHidden){
   const texto = document.getElementById(idBusca).value.trim();
   const tipo = pagCaixaTiposCache.find(t=>labelTipoPagCaixa(t).toLowerCase()===texto.toLowerCase());
@@ -6395,6 +6406,7 @@ async function salvarPagamentoCaixa(){
   }
 
   pagCaixaCache.push(salvo);
+  gravarMemoriaPagCaixa(descricao, tipoId);
   document.getElementById('pagCaixa_descricao').value = '';
   document.getElementById('pagCaixa_tipo').value = '';
   document.getElementById('pagCaixa_tipo_busca').value = '';
@@ -6457,6 +6469,7 @@ async function salvarEdicaoPagamentoCaixa(){
 
   const idx = pagCaixaCache.findIndex(l=>l.id===pagCaixaEditandoId);
   if(idx>-1) pagCaixaCache[idx] = atualizado;
+  gravarMemoriaPagCaixa(descricao, tipoId);
   renderPagamentoCaixa();
   fecharEditarPagamentoCaixa();
 }
@@ -6559,14 +6572,13 @@ async function processarColarPagCaixa(){
     return;
   }
 
-  // busca todo o histórico já lançado nessa loja, pra sugerir o código pela última vez que essa descrição foi usada
+  // consulta a memória (sobrevive mesmo se os lançamentos forem apagados depois)
   const { data: historico } = await buscarTodasLinhas((from, to) =>
-    sb.from('pagamentos_caixa').select('descricao_pagamento,codigo_tipo_id,criado_em').eq('loja', lojaAtual).order('criado_em', { ascending: false }).range(from, to)
+    sb.from('pagamentos_caixa_memoria').select('descricao_normalizada,codigo_tipo_id').eq('loja', lojaAtual).range(from, to)
   );
   const mapaHistorico = {};
   (historico||[]).forEach(h=>{
-    const chave = h.descricao_pagamento.trim().toLowerCase();
-    if(!(chave in mapaHistorico)) mapaHistorico[chave] = h.codigo_tipo_id; // como veio ordenado por mais recente, a primeira ocorrência é a mais nova
+    mapaHistorico[h.descricao_normalizada] = h.codigo_tipo_id;
   });
 
   const linhas = [];
@@ -6653,6 +6665,13 @@ async function confirmarColarPagCaixa(){
   }
 
   pagCaixaCache = pagCaixaCache.concat(salvos||[]);
+  const memoriaRegistros = colarPagCaixaParsed.map(l=>({
+    loja: lojaAtual,
+    descricao_normalizada: l.descricao.trim().toLowerCase(),
+    codigo_tipo_id: l.tipoId,
+    atualizado_em: new Date().toISOString()
+  }));
+  await sb.from('pagamentos_caixa_memoria').upsert(memoriaRegistros, { onConflict: 'loja,descricao_normalizada' });
   renderPagamentoCaixa();
   await popularFiltroMesPagCaixa();
   cancelarColarPagCaixa();
