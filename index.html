@@ -353,6 +353,16 @@
 
 <div id="loadingScreen" class="loadingScreen">Carregando…</div>
 
+<div id="progressoModal" class="modal-overlay">
+  <div class="modal-box" style="max-width:380px;text-align:center;">
+    <h2 id="progressoTitulo" style="font-size:15px;">Carregando…</h2>
+    <div style="background:var(--paper2);border-radius:8px;overflow:hidden;height:18px;margin:16px 0 8px;border:1px solid var(--paper3);">
+      <div id="progressoBarra" style="background:var(--green);height:100%;width:0%;transition:width .2s ease;"></div>
+    </div>
+    <p id="progressoTexto" style="font-size:13px;color:var(--muted);margin:0;">0%</p>
+  </div>
+</div>
+
 <div id="loginScreen" class="loginshell" style="display:none;">
   <div class="loginwrap">
     <h1>Livro-Caixa</h1>
@@ -3331,6 +3341,22 @@ async function confirmarExclusaoComprovanteOk(){
   fecharConfirmacaoComprovante();
 }
 
+function abrirProgresso(titulo){
+  document.getElementById('progressoTitulo').textContent = titulo;
+  atualizarProgresso(0);
+  document.getElementById('progressoModal').style.display = 'flex';
+}
+
+function atualizarProgresso(pct){
+  const p = Math.max(0, Math.min(100, Math.round(pct)));
+  document.getElementById('progressoBarra').style.width = p + '%';
+  document.getElementById('progressoTexto').textContent = p + '%';
+}
+
+function fecharProgresso(){
+  document.getElementById('progressoModal').style.display = 'none';
+}
+
 async function baixarTodosComprovantes(){
   if(!window.JSZip){
     alert('Não foi possível carregar o recurso de .zip. Recarregue a página e tente de novo.');
@@ -3340,20 +3366,35 @@ async function baixarTodosComprovantes(){
     alert('Não há comprovantes nesse mês para baixar.');
     return;
   }
+
+  abrirProgresso('Preparando comprovantes…');
   const zip = new JSZip();
+  const total = compCache.length;
+  let feitos = 0;
+
   for(const c of compCache){
     const { data: urlData } = await sb.storage.from('comprovantes').createSignedUrl(c.caminho_storage, 3600);
-    if(!urlData) continue;
-    const resp = await fetch(urlData.signedUrl);
-    const blob = await resp.blob();
-    zip.file(c.nome_arquivo, blob);
+    if(urlData){
+      const resp = await fetch(urlData.signedUrl);
+      const blob = await resp.blob();
+      zip.file(c.nome_arquivo, blob);
+    }
+    feitos++;
+    atualizarProgresso((feitos / total) * 90); // reserva os últimos 10% pra compactação
   }
-  const conteudo = await zip.generateAsync({ type: 'blob' });
+
+  abrirProgresso('Compactando arquivo .zip…');
+  const conteudo = await zip.generateAsync({ type: 'blob' }, (metadata)=>{
+    atualizarProgresso(90 + metadata.percent * 0.1);
+  });
+
+  atualizarProgresso(100);
   const link = document.createElement('a');
   link.href = URL.createObjectURL(conteudo);
   link.download = 'comprovantes-' + (NOMES_LOJA[lojaAtual]||'').toLowerCase().replace(' ','') + '-' + compMesAtual + '.zip';
   link.click();
   URL.revokeObjectURL(link.href);
+  setTimeout(fecharProgresso, 400);
 }
 
 /* ================= DIFERENÇA DE CAIXA ================= */
@@ -4663,14 +4704,17 @@ async function onSelecionarArquivosFluxo(fileList){
   }
 
   try{
+    abrirProgresso('Lendo arquivo(s)…');
     let todasLinhas = [];
     let todosSaldos = [];
 
-    for(const file of arquivos){
+    for(let idxArq=0; idxArq<arquivos.length; idxArq++){
+      const file = arquivos[idxArq];
       const buffer = await file.arrayBuffer();
       const wb = XLSX.read(buffer, { type: 'array' });
       const primeiraAba = wb.SheetNames[0];
       const linhas = XLSX.utils.sheet_to_json(wb.Sheets[primeiraAba], { header: 1, raw: true, defval: '' });
+      atualizarProgresso(((idxArq+1) / arquivos.length) * 60);
       if(!linhas || linhas.length===0) continue;
 
       let idxCabecalho = -1, cabecalhoTextos = null, formato = null;
@@ -4713,12 +4757,14 @@ async function onSelecionarArquivosFluxo(fileList){
     const dataMin = datas[0];
     const dataMax = datas[datas.length-1];
 
+    atualizarProgresso(70);
     const { data: existentes } = await buscarTodasLinhas((from, to) => {
       let q = sb.from('fluxo_caixa_lancamentos').select('data')
         .eq('loja', lojaAtual).neq('tipo', 'Dinheiro').gte('data', dataMin).lte('data', dataMax);
       q = fluxoContaAtivaId === CONTA_SEM_ID ? q.is('conta_id', null) : q.eq('conta_id', fluxoContaAtivaId);
       return q.range(from, to);
     });
+    atualizarProgresso(95);
     const diasComDados = new Set((existentes||[]).map(l=>l.data));
 
     const diasNoArquivo = new Set(todasLinhas.map(l=>l.data));
@@ -4741,8 +4787,11 @@ async function onSelecionarArquivosFluxo(fileList){
       btnConfirmar.style.display = '';
     }
     document.getElementById('fluxoPreviewWrap').style.display = 'block';
+    atualizarProgresso(100);
+    setTimeout(fecharProgresso, 250);
   }catch(e){
     console.error('Erro ao processar arquivo(s) de fluxo de caixa:', e);
+    fecharProgresso();
     alert('Não foi possível ler o(s) arquivo(s). Detalhe: ' + (e && e.message ? e.message : e));
     document.getElementById('fluxoFileInput').value = '';
   }
@@ -4762,6 +4811,7 @@ async function confirmarImportFluxo(){
   const btn = document.getElementById('fluxoImportConfirmBtn');
   btn.disabled = true;
   btn.textContent = 'Importando…';
+  abrirProgresso('Importando lançamentos do extrato…');
 
   const contaParaSalvar = fluxoContaAtivaId === CONTA_SEM_ID ? null : fluxoContaAtivaId;
 
@@ -4780,9 +4830,11 @@ async function confirmarImportFluxo(){
     const lote = registros.slice(i, i+tamanhoLote);
     const { error } = await sb.from('fluxo_caixa_lancamentos').insert(lote);
     if(error){ erroGeral = error; break; }
+    atualizarProgresso(((i+lote.length) / registros.length) * 65);
   }
 
   if(!erroGeral && fluxoImportSaldos.length>0){
+    atualizarProgresso(70);
     const saldosRegistros = fluxoImportSaldos.map(s=>({
       loja: lojaAtual, conta_id: contaParaSalvar, data: s.data, saldo: s.saldo
     }));
@@ -4794,13 +4846,18 @@ async function confirmarImportFluxo(){
   btn.textContent = 'Confirmar importação';
 
   if(erroGeral){
+    fecharProgresso();
     alert('Erro ao importar: ' + erroGeral.message);
     return;
   }
 
   cancelarImportFluxo();
+  atualizarProgresso(80);
   await popularFiltroMesFluxo();
+  atualizarProgresso(90);
   await carregarFluxoCaixa();
+  atualizarProgresso(100);
+  setTimeout(fecharProgresso, 300);
 }
 
 async function carregarFluxoCaixa(){
