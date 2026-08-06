@@ -5229,7 +5229,7 @@ function renderFluxoCaixa(){
   const porFormaLinhas = {};
   entradasClassificaveis.forEach(v=>{
     let forma;
-    if(v.tipo==='Rendimento da conta') forma = 'Rendimento da conta';
+    if((v.tipo||'').toUpperCase().includes('RENDIMENTO DA CONTA')) forma = 'Rendimento da conta';
     else if(v.tipo==='Dinheiro') forma = 'Dinheiro';
     else forma = classificarFormaPagamentoVenda(v.tipo, v.descricao);
     porForma[forma] = (porForma[forma]||0) + Number(v.valor);
@@ -5470,17 +5470,14 @@ function exportarExcelTotalFluxo(){
   const resumo = [
     ['Período', textoPeriodoFluxo()],
     [],
-    ['Dinheiro — Entradas', brl(r.dinheiroEntradas)],
-    ['Dinheiro — Saídas', brl(r.dinheiroSaidas)],
-    ['Extrato bancário (todas as contas) — Entradas', brl(r.totalEntradas)],
-    ['Extrato bancário (todas as contas) — Saídas', brl(r.totalSaidas)],
-    [],
-    ['Total — Entradas', brl(r.totalEntradas + r.dinheiroEntradas)],
-    ['Total — Saídas', brl(r.totalSaidas + r.dinheiroSaidas)],
+    ['', 'Entradas', 'Saídas', 'Resultado'],
+    ['Dinheiro', brl(r.dinheiroEntradas), brl(r.dinheiroSaidas), brl(r.dinheiroEntradas - r.dinheiroSaidas)],
+    ['Extrato bancário (todas as contas)', brl(r.totalEntradas), brl(r.totalSaidas), brl(r.totalEntradas - r.totalSaidas)],
+    ['Total', brl(r.totalEntradas + r.dinheiroEntradas), brl(r.totalSaidas + r.dinheiroSaidas), brl((r.totalEntradas + r.dinheiroEntradas) - (r.totalSaidas + r.dinheiroSaidas))],
     []
   ];
   const planResumo = XLSX.utils.aoa_to_sheet(resumo);
-  planResumo['!cols'] = [{wch:36},{wch:16}];
+  planResumo['!cols'] = [{wch:36},{wch:16},{wch:16},{wch:16}];
   XLSX.utils.book_append_sheet(livro, planResumo, 'Resumo');
 
   const planForma = XLSX.utils.json_to_sheet(fluxoFormasAtual.map(([forma,valor])=>({ 'Forma': forma, 'Valor': brl(valor) })));
@@ -5502,12 +5499,12 @@ function exportarPdfTotalFluxo(){
 
   doc.autoTable({
     startY: 32,
-    head: [['', 'Entradas', 'Saídas']],
+    head: [['', 'Entradas', 'Saídas', 'Resultado']],
     body: [
-      ['Dinheiro', brl(r.dinheiroEntradas), brl(r.dinheiroSaidas)],
-      ['Extrato bancário (todas as contas)', brl(r.totalEntradas), brl(r.totalSaidas)]
+      ['Dinheiro', brl(r.dinheiroEntradas), brl(r.dinheiroSaidas), brl(r.dinheiroEntradas - r.dinheiroSaidas)],
+      ['Extrato bancário (todas as contas)', brl(r.totalEntradas), brl(r.totalSaidas), brl(r.totalEntradas - r.totalSaidas)]
     ],
-    foot: [['Total', brl(r.totalEntradas + r.dinheiroEntradas), brl(r.totalSaidas + r.dinheiroSaidas)]],
+    foot: [['Total', brl(r.totalEntradas + r.dinheiroEntradas), brl(r.totalSaidas + r.dinheiroSaidas), brl((r.totalEntradas + r.dinheiroEntradas) - (r.totalSaidas + r.dinheiroSaidas))]],
     styles: { fontSize: 9.5, cellPadding: 4 },
     headStyles: { fillColor: [38,51,43] },
     footStyles: { fillColor: [233,225,203], textColor:20, fontStyle:'bold' },
