@@ -6679,7 +6679,7 @@ let invEditandoId = null;
 let excluindoInvId = null;
 
 function calcularResultadoInventario(sobras, faltas, vencidos, negativos){
-  return (sobras||0) - (faltas||0) - (vencidos||0) - (negativos||0);
+  return (negativos||0) + (sobras||0) - (faltas||0) - (vencidos||0);
 }
 
 function num(v){
