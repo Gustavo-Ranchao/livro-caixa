@@ -420,6 +420,12 @@
           <button class="nav-group-header" id="navHeaderCompras" onclick="mudarViewPrincipal('compras')">🛒 Compras</button>
         </div>
         <div class="nav-group">
+          <button class="nav-group-header aberto" id="navHeaderEstoque" onclick="toggleNavGroup('estoque')">📦 Estoque <span class="chevron">▾</span></button>
+          <div class="nav-sub aberto" id="navGroupEstoque">
+            <button class="nav-sub-item" data-view="inventario" onclick="mudarViewPrincipal('inventario')">Inventário</button>
+          </div>
+        </div>
+        <div class="nav-group">
           <button class="nav-group-header" id="navHeaderConfig" onclick="toggleNavGroup('config')">⚙️ Configurações <span class="chevron">▾</span></button>
           <div class="nav-sub" id="navGroupConfig">
             <button class="nav-sub-item" data-view="colaboradores" onclick="mudarViewPrincipal('colaboradores')">Colaboradores</button>
@@ -764,6 +770,54 @@
           <tbody id="contasBancariasBody"></tbody>
         </table>
         <div class="empty" id="contasBancariasEmpty" style="display:none;">Nenhuma conta bancária cadastrada ainda.</div>
+      </div>
+    </div>
+
+    <div id="viewInventario" style="display:none;">
+      <div class="bh-filtro-data" style="margin-bottom:20px;">
+        <label>Mês</label>
+        <select id="invFiltroMes" onchange="mudarMesInventario(this.value)">
+          <option value="todos">Todos os meses</option>
+        </select>
+      </div>
+
+      <div class="panel" style="margin-bottom:20px;">
+        <div class="panel-head"><h2>Novo inventário</h2></div>
+        <div class="bh-form" style="grid-template-columns:0.9fr 1fr 1fr 1fr 1fr 1fr;">
+          <div class="fld"><label>Data</label><input id="inv_data" type="date"></div>
+          <div class="fld"><label>Estoque inicial (R$)</label><input id="inv_inicial" type="number" step="0.01" placeholder="0,00" oninput="calcularPreviaInventario()"></div>
+          <div class="fld"><label>Negativos (R$)</label><input id="inv_negativos" type="number" step="0.01" placeholder="0,00" oninput="calcularPreviaInventario()"></div>
+          <div class="fld"><label>Sobras (R$)</label><input id="inv_sobras" type="number" step="0.01" placeholder="0,00" oninput="calcularPreviaInventario()"></div>
+          <div class="fld"><label>Faltas (R$)</label><input id="inv_faltas" type="number" step="0.01" placeholder="0,00" oninput="calcularPreviaInventario()"></div>
+          <div class="fld"><label>Vencidos (R$)</label><input id="inv_vencidos" type="number" step="0.01" placeholder="0,00" oninput="calcularPreviaInventario()"></div>
+        </div>
+        <div class="bh-resumo" style="margin-top:14px;">
+          <div class="metric"><div class="lbl" id="invPreviaResultadoLbl">Resultado (sobra/falta geral)</div><div class="val" id="invPreviaResultado">R$ 0,00</div></div>
+          <div class="metric"><div class="lbl">Estoque final</div><div class="val" id="invPreviaFinal">R$ 0,00</div></div>
+        </div>
+        <button class="addbtn" style="width:auto;margin-top:14px;" onclick="salvarInventario()">Adicionar</button>
+        <div class="formerr" id="invErr">Preencha a data e ao menos o estoque inicial.</div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-head">
+          <h2>Inventários lançados</h2>
+          <div class="filters">
+            <button class="filter-btn foto-btn" onclick="exportarExcelInventario()">📊 Excel</button>
+            <button class="filter-btn foto-btn" onclick="exportarPdfInventario()">📄 PDF</button>
+          </div>
+        </div>
+        <div class="tablewrap">
+          <table class="ledger">
+            <thead><tr>
+              <th>Data</th><th style="text-align:right">Estoque inicial</th><th style="text-align:right">Negativos</th>
+              <th style="text-align:right">Sobras</th><th style="text-align:right">Faltas</th><th style="text-align:right">Vencidos</th>
+              <th style="text-align:right">Resultado</th><th style="text-align:right">Estoque final</th><th></th>
+            </tr></thead>
+            <tbody id="invBody"></tbody>
+          </table>
+        </div>
+        <div class="empty" id="invEmpty" style="display:none;">Nenhum inventário lançado nesse período.</div>
       </div>
     </div>
 
@@ -1412,6 +1466,43 @@
   </div>
 </div>
 
+<div id="editInvModal" class="modal-overlay">
+  <div class="modal-box" style="max-width:480px;">
+    <button class="modal-close" onclick="fecharEditarInventario()">✕</button>
+    <h2>Editar inventário</h2>
+    <div class="fld"><label>Data</label><input id="editInv_data" type="date"></div>
+    <div class="fld-row">
+      <div class="fld"><label>Estoque inicial (R$)</label><input id="editInv_inicial" type="number" step="0.01" oninput="calcularPreviaInventarioEdit()"></div>
+      <div class="fld"><label>Negativos (R$)</label><input id="editInv_negativos" type="number" step="0.01" oninput="calcularPreviaInventarioEdit()"></div>
+    </div>
+    <div class="fld-row">
+      <div class="fld"><label>Sobras (R$)</label><input id="editInv_sobras" type="number" step="0.01" oninput="calcularPreviaInventarioEdit()"></div>
+      <div class="fld"><label>Faltas (R$)</label><input id="editInv_faltas" type="number" step="0.01" oninput="calcularPreviaInventarioEdit()"></div>
+    </div>
+    <div class="fld"><label>Vencidos (R$)</label><input id="editInv_vencidos" type="number" step="0.01" oninput="calcularPreviaInventarioEdit()"></div>
+    <div class="bh-resumo" style="margin-top:10px;">
+      <div class="metric"><div class="lbl" id="editInvPreviaResultadoLbl">Resultado</div><div class="val" id="editInvPreviaResultado">R$ 0,00</div></div>
+      <div class="metric"><div class="lbl">Estoque final</div><div class="val" id="editInvPreviaFinal">R$ 0,00</div></div>
+    </div>
+    <div class="formerr" id="editInvErr">Preencha a data e ao menos o estoque inicial.</div>
+    <div class="modal-actions" style="margin-top:16px;">
+      <button class="addbtn" id="editInvSalvarBtn" onclick="salvarEdicaoInventario()">Salvar</button>
+      <button class="cancelbtn" onclick="fecharEditarInventario()">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<div id="confirmExclusaoInvModal" class="modal-overlay">
+  <div class="modal-box" style="max-width:380px;">
+    <h2>Excluir inventário?</h2>
+    <p class="modal-sub">Essa ação não pode ser desfeita.</p>
+    <div class="modal-actions">
+      <button class="addbtn" style="background:var(--rust);" onclick="confirmarExclusaoInvOk()">Excluir</button>
+      <button class="cancelbtn" onclick="fecharConfirmacaoInv()">Cancelar</button>
+    </div>
+  </div>
+</div>
+
 <div id="contaBancariaModal" class="modal-overlay">
   <div class="modal-box" style="max-width:380px;">
     <button class="modal-close" onclick="fecharContaBancariaModal()">✕</button>
@@ -1863,6 +1954,9 @@ function trocarLoja(l){
   }
   if(viewAtual === 'contasBancarias'){
     carregarContasBancarias();
+  }
+  if(viewAtual === 'inventario'){
+    abrirInventario();
   }
   if(viewAtual === 'pagamentos'){
     abrirPagamentos();
@@ -3122,12 +3216,13 @@ function setEscala(e){
   }
 }
 
-const VIEWS = ['inicio','contasPagar','despesasFixas','comprovantes','diferencaCaixa','fluxoCaixa','pagamentos','pagamentoCaixa','vendasComCusto','bancoHoras','compras','colaboradores','contasBancarias'];
+const VIEWS = ['inicio','contasPagar','despesasFixas','comprovantes','diferencaCaixa','fluxoCaixa','pagamentos','pagamentoCaixa','vendasComCusto','bancoHoras','compras','colaboradores','contasBancarias','inventario'];
 let colabCarregado = false;
 
 const NAV_GROUPS = {
   financeiro: { header: 'navHeaderFinanceiro', sub: 'navGroupFinanceiro' },
   vendas: { header: 'navHeaderVendas', sub: 'navGroupVendas' },
+  estoque: { header: 'navHeaderEstoque', sub: 'navGroupEstoque' },
   config: { header: 'navHeaderConfig', sub: 'navGroupConfig' }
 };
 
@@ -3150,7 +3245,7 @@ async function mudarViewPrincipal(view){
   viewAtual = view;
 
   VIEWS.forEach(v=>{
-    const idMap = { inicio:'viewInicio', contasPagar:'viewContasPagar', despesasFixas:'viewDespesasFixas', comprovantes:'viewComprovantes', diferencaCaixa:'viewDiferencaCaixa', fluxoCaixa:'viewFluxoCaixa', pagamentos:'viewPagamentos', pagamentoCaixa:'viewPagamentoCaixa', vendasComCusto:'viewVendasComCusto', bancoHoras:'viewBancoHoras', compras:'viewCompras', colaboradores:'viewColaboradores', contasBancarias:'viewContasBancarias' };
+    const idMap = { inicio:'viewInicio', contasPagar:'viewContasPagar', despesasFixas:'viewDespesasFixas', comprovantes:'viewComprovantes', diferencaCaixa:'viewDiferencaCaixa', fluxoCaixa:'viewFluxoCaixa', pagamentos:'viewPagamentos', pagamentoCaixa:'viewPagamentoCaixa', vendasComCusto:'viewVendasComCusto', bancoHoras:'viewBancoHoras', compras:'viewCompras', colaboradores:'viewColaboradores', contasBancarias:'viewContasBancarias', inventario:'viewInventario' };
     document.getElementById(idMap[v]).style.display = (v===view) ? '' : 'none';
   });
 
@@ -3197,6 +3292,9 @@ async function mudarViewPrincipal(view){
   }else if(view==='contasBancarias'){
     abrirGrupoNav('config');
     await carregarContasBancarias();
+  }else if(view==='inventario'){
+    abrirGrupoNav('estoque');
+    await abrirInventario();
   }
 }
 
@@ -6571,6 +6669,330 @@ function exportarExcelPagamentoCaixa(){
   XLSX.utils.book_append_sheet(livro, planilha, 'Pagamentos');
   const nomeLoja = (NOMES_LOJA[lojaAtual]||'').toLowerCase().replace(' ','');
   XLSX.writeFile(livro, 'pagamento-caixa-' + nomeLoja + '-' + new Date().toISOString().slice(0,10) + '.xlsx');
+}
+
+/* ================= ESTOQUE > INVENTÁRIO ================= */
+
+let invCache = [];
+let invMesAtual = 'todos';
+let invEditandoId = null;
+let excluindoInvId = null;
+
+function calcularResultadoInventario(sobras, faltas, vencidos, negativos){
+  return (sobras||0) - (faltas||0) - (vencidos||0) - (negativos||0);
+}
+
+function num(v){
+  const n = parseFloat(v);
+  return isNaN(n) ? 0 : n;
+}
+
+function calcularPreviaInventario(){
+  const inicial = num(document.getElementById('inv_inicial').value);
+  const negativos = num(document.getElementById('inv_negativos').value);
+  const sobras = num(document.getElementById('inv_sobras').value);
+  const faltas = num(document.getElementById('inv_faltas').value);
+  const vencidos = num(document.getElementById('inv_vencidos').value);
+  const resultado = calcularResultadoInventario(sobras, faltas, vencidos, negativos);
+  const final = inicial + resultado;
+
+  const elResultado = document.getElementById('invPreviaResultado');
+  const elLbl = document.getElementById('invPreviaResultadoLbl');
+  elLbl.textContent = resultado>=0 ? 'Sobra geral' : 'Falta geral';
+  elResultado.textContent = brl(Math.abs(resultado));
+  elResultado.style.color = resultado>=0 ? 'var(--green)' : 'var(--rust)';
+  document.getElementById('invPreviaFinal').textContent = brl(final);
+}
+
+function calcularPreviaInventarioEdit(){
+  const inicial = num(document.getElementById('editInv_inicial').value);
+  const negativos = num(document.getElementById('editInv_negativos').value);
+  const sobras = num(document.getElementById('editInv_sobras').value);
+  const faltas = num(document.getElementById('editInv_faltas').value);
+  const vencidos = num(document.getElementById('editInv_vencidos').value);
+  const resultado = calcularResultadoInventario(sobras, faltas, vencidos, negativos);
+  const final = inicial + resultado;
+
+  const elResultado = document.getElementById('editInvPreviaResultado');
+  const elLbl = document.getElementById('editInvPreviaResultadoLbl');
+  elLbl.textContent = resultado>=0 ? 'Sobra geral' : 'Falta geral';
+  elResultado.textContent = brl(Math.abs(resultado));
+  elResultado.style.color = resultado>=0 ? 'var(--green)' : 'var(--rust)';
+  document.getElementById('editInvPreviaFinal').textContent = brl(final);
+}
+
+async function abrirInventario(){
+  if(!document.getElementById('inv_data').value){
+    document.getElementById('inv_data').value = todayStr();
+  }
+  calcularPreviaInventario();
+  await popularFiltroMesInventario();
+  const mesAtual = new Date().toISOString().slice(0,7);
+  document.getElementById('invFiltroMes').value = mesAtual;
+  invMesAtual = mesAtual;
+  await carregarInventario();
+}
+
+async function popularFiltroMesInventario(){
+  const { data, error } = await buscarTodasLinhas((from, to) =>
+    sb.from('estoque_inventarios').select('data').eq('loja', lojaAtual).range(from, to)
+  );
+  if(error){ console.error('Erro ao carregar meses de inventário:', error); return; }
+  const mesesSet = new Set((data||[]).map(d=>d.data.slice(0,7)));
+  const hoje = new Date();
+  for(let i=0;i<12;i++){
+    const d = new Date(hoje.getFullYear(), hoje.getMonth()-i, 1);
+    mesesSet.add(d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0'));
+  }
+  const lista = Array.from(mesesSet).sort().reverse();
+  const sel = document.getElementById('invFiltroMes');
+  const atual = sel.value || 'todos';
+  sel.innerHTML = '<option value="todos">Todos os meses</option>' + lista.map(chave=>{
+    const [ano, mes] = chave.split('-');
+    return `<option value="${chave}">${NOMES_MES[parseInt(mes,10)-1]} ${ano}</option>`;
+  }).join('');
+  sel.value = lista.includes(atual) || atual==='todos' ? atual : 'todos';
+}
+
+function mudarMesInventario(valor){
+  invMesAtual = valor;
+  carregarInventario();
+}
+
+async function carregarInventario(){
+  let de = null, ate = null;
+  if(invMesAtual !== 'todos'){
+    const [ano, mes] = invMesAtual.split('-');
+    const ultimoDia = new Date(parseInt(ano,10), parseInt(mes,10), 0).getDate();
+    de = invMesAtual + '-01';
+    ate = invMesAtual + '-' + String(ultimoDia).padStart(2,'0');
+  }
+
+  const { data, error } = await buscarTodasLinhas((from, to)=>{
+    let q = sb.from('estoque_inventarios').select('*').eq('loja', lojaAtual);
+    if(de) q = q.gte('data', de);
+    if(ate) q = q.lte('data', ate);
+    return q.order('data').range(from, to);
+  });
+
+  if(error){
+    console.error('Erro ao carregar inventário:', error);
+    invCache = [];
+  }else{
+    invCache = data || [];
+  }
+  renderInventario();
+}
+
+function renderInventario(){
+  const body = document.getElementById('invBody');
+  const empty = document.getElementById('invEmpty');
+  if(invCache.length===0){
+    body.innerHTML = '';
+    empty.style.display = 'block';
+  }else{
+    empty.style.display = 'none';
+    body.innerHTML = invCache.map(l=>{
+      const resultado = calcularResultadoInventario(l.sobras, l.faltas, l.vencidos, l.negativos);
+      const final = Number(l.estoque_inicial) + resultado;
+      const rotuloResultado = resultado>=0 ? 'Sobra' : 'Falta';
+      return `<tr>
+        <td class="data">${fmtData(l.data)}</td>
+        <td class="valor">${brl(l.estoque_inicial)}</td>
+        <td class="valor">${brl(l.negativos)}</td>
+        <td class="valor" style="color:var(--green);">${brl(l.sobras)}</td>
+        <td class="valor" style="color:var(--rust);">${brl(l.faltas)}</td>
+        <td class="valor">${brl(l.vencidos)}</td>
+        <td class="valor" style="color:${resultado>=0?'var(--green)':'var(--rust)'};font-weight:600;">${rotuloResultado} ${brl(Math.abs(resultado))}</td>
+        <td class="valor" style="font-weight:600;">${brl(final)}</td>
+        <td><div class="rowactions">
+          <button class="iconbtn edit" title="Editar" onclick="abrirEditarInventario('${l.id}')">✎</button>
+          <button class="iconbtn del" title="Excluir" onclick="confirmarExclusaoInv('${l.id}')">✕</button>
+        </div></td>
+      </tr>`;
+    }).join('');
+  }
+}
+
+async function salvarInventario(){
+  const data = document.getElementById('inv_data').value;
+  const inicial = document.getElementById('inv_inicial').value;
+  const err = document.getElementById('invErr');
+
+  if(!data || inicial===''){
+    err.style.display = 'block';
+    return;
+  }
+  err.style.display = 'none';
+
+  const payload = {
+    loja: lojaAtual,
+    data: data,
+    estoque_inicial: num(inicial),
+    negativos: num(document.getElementById('inv_negativos').value),
+    sobras: num(document.getElementById('inv_sobras').value),
+    faltas: num(document.getElementById('inv_faltas').value),
+    vencidos: num(document.getElementById('inv_vencidos').value)
+  };
+
+  const { data: salvo, error } = await sb.from('estoque_inventarios').insert(payload).select().single();
+
+  if(error){
+    err.textContent = 'Erro ao salvar: ' + error.message;
+    err.style.display = 'block';
+    return;
+  }
+
+  invCache.push(salvo);
+  invCache.sort((a,b)=>a.data.localeCompare(b.data));
+  document.getElementById('inv_inicial').value = '';
+  document.getElementById('inv_negativos').value = '';
+  document.getElementById('inv_sobras').value = '';
+  document.getElementById('inv_faltas').value = '';
+  document.getElementById('inv_vencidos').value = '';
+  calcularPreviaInventario();
+  renderInventario();
+  await popularFiltroMesInventario();
+}
+
+function abrirEditarInventario(id){
+  const l = invCache.find(x=>x.id===id);
+  if(!l) return;
+  invEditandoId = id;
+  document.getElementById('editInv_data').value = l.data;
+  document.getElementById('editInv_inicial').value = l.estoque_inicial;
+  document.getElementById('editInv_negativos').value = l.negativos;
+  document.getElementById('editInv_sobras').value = l.sobras;
+  document.getElementById('editInv_faltas').value = l.faltas;
+  document.getElementById('editInv_vencidos').value = l.vencidos;
+  calcularPreviaInventarioEdit();
+  document.getElementById('editInvErr').style.display = 'none';
+  document.getElementById('editInvModal').style.display = 'flex';
+}
+
+function fecharEditarInventario(){
+  document.getElementById('editInvModal').style.display = 'none';
+  invEditandoId = null;
+}
+
+async function salvarEdicaoInventario(){
+  const data = document.getElementById('editInv_data').value;
+  const inicial = document.getElementById('editInv_inicial').value;
+  const err = document.getElementById('editInvErr');
+
+  if(!data || inicial===''){
+    err.style.display = 'block';
+    return;
+  }
+  err.style.display = 'none';
+
+  const btn = document.getElementById('editInvSalvarBtn');
+  btn.disabled = true;
+  btn.textContent = 'Salvando…';
+
+  const payload = {
+    data: data,
+    estoque_inicial: num(inicial),
+    negativos: num(document.getElementById('editInv_negativos').value),
+    sobras: num(document.getElementById('editInv_sobras').value),
+    faltas: num(document.getElementById('editInv_faltas').value),
+    vencidos: num(document.getElementById('editInv_vencidos').value)
+  };
+
+  const { data: atualizado, error } = await sb.from('estoque_inventarios').update(payload).eq('id', invEditandoId).select().single();
+
+  btn.disabled = false;
+  btn.textContent = 'Salvar';
+
+  if(error){
+    err.textContent = 'Erro ao salvar: ' + error.message;
+    err.style.display = 'block';
+    return;
+  }
+
+  const idx = invCache.findIndex(l=>l.id===invEditandoId);
+  if(idx>-1) invCache[idx] = atualizado;
+  invCache.sort((a,b)=>a.data.localeCompare(b.data));
+  renderInventario();
+  fecharEditarInventario();
+}
+
+function confirmarExclusaoInv(id){
+  excluindoInvId = id;
+  document.getElementById('confirmExclusaoInvModal').style.display = 'flex';
+}
+
+function fecharConfirmacaoInv(){
+  document.getElementById('confirmExclusaoInvModal').style.display = 'none';
+  excluindoInvId = null;
+}
+
+async function confirmarExclusaoInvOk(){
+  if(!excluindoInvId) return;
+  const { error } = await sb.from('estoque_inventarios').delete().eq('id', excluindoInvId);
+  if(!error){
+    invCache = invCache.filter(l=>l.id!==excluindoInvId);
+    renderInventario();
+  }
+  fecharConfirmacaoInv();
+}
+
+function exportarExcelInventario(){
+  if(invCache.length===0){ alert('Não há inventários para exportar.'); return; }
+  if(!window.XLSX){ alert('Não foi possível carregar o recurso de Excel. Recarregue a página e tente de novo.'); return; }
+  const dados = invCache.map(l=>{
+    const resultado = calcularResultadoInventario(l.sobras, l.faltas, l.vencidos, l.negativos);
+    const final = Number(l.estoque_inicial) + resultado;
+    return {
+      'Data': fmtData(l.data),
+      'Estoque inicial': Number(l.estoque_inicial),
+      'Negativos': Number(l.negativos),
+      'Sobras': Number(l.sobras),
+      'Faltas': Number(l.faltas),
+      'Vencidos': Number(l.vencidos),
+      'Resultado (sobra/falta geral)': resultado,
+      'Estoque final': final
+    };
+  });
+  const planilha = XLSX.utils.json_to_sheet(dados);
+  planilha['!cols'] = [{wch:12},{wch:14},{wch:12},{wch:12},{wch:12},{wch:12},{wch:20},{wch:14}];
+  const livro = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(livro, planilha, 'Inventário');
+  const nomeLoja = (NOMES_LOJA[lojaAtual]||'').toLowerCase().replace(' ','');
+  XLSX.writeFile(livro, 'inventario-' + nomeLoja + '-' + new Date().toISOString().slice(0,10) + '.xlsx');
+}
+
+function exportarPdfInventario(){
+  if(invCache.length===0){ alert('Não há inventários para exportar.'); return; }
+  if(!window.jspdf || !window.jspdf.jsPDF){ alert('Não foi possível carregar o recurso de PDF. Recarregue a página e tente de novo.'); return; }
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF('l');
+  const agora = new Date();
+  const dataHora = fmtData(agora.toISOString().slice(0,10)) + ' ' + agora.toTimeString().slice(0,5);
+
+  doc.setFontSize(16);
+  doc.text('Inventário — ' + (NOMES_LOJA[lojaAtual]||''), 14, 18);
+  doc.setFontSize(10);
+  doc.setTextColor(120);
+  doc.text('Gerado em ' + dataHora, 14, 25);
+
+  const corpo = invCache.map(l=>{
+    const resultado = calcularResultadoInventario(l.sobras, l.faltas, l.vencidos, l.negativos);
+    const final = Number(l.estoque_inicial) + resultado;
+    const rotulo = resultado>=0 ? 'Sobra' : 'Falta';
+    return [fmtData(l.data), brl(l.estoque_inicial), brl(l.negativos), brl(l.sobras), brl(l.faltas), brl(l.vencidos), rotulo+' '+brl(Math.abs(resultado)), brl(final)];
+  });
+
+  doc.autoTable({
+    startY: 32,
+    head: [['Data','Estoque inicial','Negativos','Sobras','Faltas','Vencidos','Resultado','Estoque final']],
+    body: corpo,
+    styles: { fontSize: 9, cellPadding: 3 },
+    headStyles: { fillColor: [38,51,43] }
+  });
+
+  const nomeLoja = (NOMES_LOJA[lojaAtual]||'').toLowerCase().replace(' ','');
+  doc.save('inventario-' + nomeLoja + '-' + agora.toISOString().slice(0,10) + '.pdf');
 }
 
 /* ---------- Colar de planilha (Descrição + Valor), com sugestão automática de código ---------- */
