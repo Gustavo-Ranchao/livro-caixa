@@ -1471,6 +1471,19 @@
   </div>
 </div>
 
+<div id="detalheFormaModal" class="modal-overlay">
+  <div class="modal-box" style="max-width:640px;">
+    <button class="modal-close" onclick="fecharDetalheFormaPagamento()">✕</button>
+    <h2 id="detalheFormaTitulo">Lançamentos</h2>
+    <div class="tablewrap" style="max-height:400px;overflow-y:auto;">
+      <table class="ledger">
+        <thead><tr><th>Data</th><th>Tipo</th><th>Descrição</th><th style="text-align:right">Valor</th></tr></thead>
+        <tbody id="detalheFormaBody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
 <div id="editInvModal" class="modal-overlay">
   <div class="modal-box" style="max-width:480px;">
     <button class="modal-close" onclick="fecharEditarInventario()">✕</button>
@@ -4568,6 +4581,7 @@ let fluxoCache = [];
 let fluxoExtratoAtual = [];
 let fluxoDinheiroAtual = [];
 let fluxoFormasAtual = [];
+let fluxoPorFormaLinhasAtual = {};
 let fluxoFornecedoresAtual = [];
 let fluxoResumoTotalAtual = { totalEntradas: 0, totalSaidas: 0, dinheiroEntradas: 0, dinheiroSaidas: 0 };
 let fluxoImportParsed = [];
@@ -5212,13 +5226,17 @@ function renderFluxoCaixa(){
 
   const entradasClassificaveis = fluxoCache.filter(l=>Number(l.valor)>0);
   const porForma = {};
+  const porFormaLinhas = {};
   entradasClassificaveis.forEach(v=>{
     let forma;
     if(v.tipo==='Rendimento da conta') forma = 'Rendimento da conta';
     else if(v.tipo==='Dinheiro') forma = 'Dinheiro';
     else forma = classificarFormaPagamentoVenda(v.tipo, v.descricao);
     porForma[forma] = (porForma[forma]||0) + Number(v.valor);
+    if(!porFormaLinhas[forma]) porFormaLinhas[forma] = [];
+    porFormaLinhas[forma].push(v);
   });
+  fluxoPorFormaLinhasAtual = porFormaLinhas;
   const bodyForma = document.getElementById('fluxoFormaBody');
   const ORDEM_FORMAS_ENTRADA = ['Cartão Débito', 'Cartão Crédito', 'Pix', 'Boleto', 'Rendimento da conta', 'Dinheiro'];
   const formas = Object.entries(porForma).sort((a,b)=>{
@@ -5233,7 +5251,9 @@ function renderFluxoCaixa(){
     bodyForma.innerHTML = '<tr><td colspan="2" style="text-align:center;color:var(--muted);font-style:italic;padding:16px;">Nenhuma venda no período.</td></tr>';
   }else{
     bodyForma.innerHTML = formas.map(([forma, valor])=>`
-      <tr><td>${forma}</td><td class="valor" style="color:var(--green);">${brl(valor)}</td></tr>
+      <tr style="cursor:pointer;" onclick="abrirDetalheFormaPagamento('${forma.replace(/'/g,"\\'")}')" title="Clique pra ver os lançamentos dessa categoria">
+        <td>${forma} <span style="font-size:10px;color:var(--muted);">🔍</span></td><td class="valor" style="color:var(--green);">${brl(valor)}</td>
+      </tr>
     `).join('');
   }
   fluxoFormasAtual = formas;
@@ -5604,6 +5624,29 @@ function exportarPdfFluxoCompleto(){
 function confirmarLimpezaExtrato(){
   document.getElementById('limpezaExtratoPeriodo').textContent = textoPeriodoFluxo() + ' — ' + nomeDaContaFluxo(fluxoContaAtivaId);
   document.getElementById('confirmLimpezaExtratoModal').style.display = 'flex';
+}
+
+function abrirDetalheFormaPagamento(forma){
+  const linhas = (fluxoPorFormaLinhasAtual[forma] || []).slice().sort((a,b)=>a.data.localeCompare(b.data));
+  document.getElementById('detalheFormaTitulo').textContent = 'Lançamentos — ' + forma + ' (' + linhas.length + ')';
+  const body = document.getElementById('detalheFormaBody');
+  if(linhas.length===0){
+    body.innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--muted);font-style:italic;padding:16px;">Nenhum lançamento encontrado.</td></tr>';
+  }else{
+    body.innerHTML = linhas.map(l=>`
+      <tr>
+        <td class="data">${fmtData(l.data)}</td>
+        <td>${escapeHtml(l.tipo)}</td>
+        <td class="contato">${escapeHtml(l.descricao || '—')}</td>
+        <td class="valor" style="color:var(--green);">${brl(l.valor)}</td>
+      </tr>
+    `).join('');
+  }
+  document.getElementById('detalheFormaModal').style.display = 'flex';
+}
+
+function fecharDetalheFormaPagamento(){
+  document.getElementById('detalheFormaModal').style.display = 'none';
 }
 
 function fecharConfirmacaoLimpezaExtrato(){
