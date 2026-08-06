@@ -1120,6 +1120,11 @@
           <select id="dinheiroFiltroMes" onchange="mudarMesFluxo(this.value)">
             <option value="todos">Todos os meses</option>
           </select>
+          <label>De</label>
+          <input id="dinheiroFiltroDe" type="date" onchange="mudarPeriodoDinheiro()">
+          <label>Até</label>
+          <input id="dinheiroFiltroAte" type="date" onchange="mudarPeriodoDinheiro()">
+          <button type="button" class="filter-btn" onclick="limparFiltroFluxo()">limpar</button>
         </div>
 
         <div class="bh-resumo">
@@ -4564,6 +4569,7 @@ let fluxoExtratoAtual = [];
 let fluxoDinheiroAtual = [];
 let fluxoFormasAtual = [];
 let fluxoFornecedoresAtual = [];
+let fluxoResumoTotalAtual = { totalEntradas: 0, totalSaidas: 0, dinheiroEntradas: 0, dinheiroSaidas: 0 };
 let fluxoImportParsed = [];
 let fluxoImportSaldos = [];
 
@@ -5107,6 +5113,8 @@ async function confirmarImportFluxo(){
 async function carregarFluxoCaixa(){
   const de = document.getElementById('fluxoFiltroDe').value;
   const ate = document.getElementById('fluxoFiltroAte').value;
+  document.getElementById('dinheiroFiltroDe').value = de;
+  document.getElementById('dinheiroFiltroAte').value = ate;
   const { data, error } = await buscarTodasLinhas((from, to)=>{
     let query = sb.from('fluxo_caixa_lancamentos').select('*').eq('loja', lojaAtual);
     if(de) query = query.gte('data', de);
@@ -5146,6 +5154,19 @@ function limparFiltroFluxo(){
   document.getElementById('fluxoFiltroDe').value = '';
   document.getElementById('fluxoFiltroAte').value = '';
   document.getElementById('fluxoFiltroMes').value = 'todos';
+  document.getElementById('dinheiroFiltroDe').value = '';
+  document.getElementById('dinheiroFiltroAte').value = '';
+  document.getElementById('dinheiroFiltroMes').value = 'todos';
+  carregarFluxoCaixa();
+}
+
+function mudarPeriodoDinheiro(){
+  const de = document.getElementById('dinheiroFiltroDe').value;
+  const ate = document.getElementById('dinheiroFiltroAte').value;
+  document.getElementById('fluxoFiltroDe').value = de;
+  document.getElementById('fluxoFiltroAte').value = ate;
+  document.getElementById('fluxoFiltroMes').value = 'todos';
+  document.getElementById('dinheiroFiltroMes').value = 'todos';
   carregarFluxoCaixa();
 }
 
@@ -5179,6 +5200,11 @@ function renderFluxoCaixa(){
   const totalEntradas = somenteExtrato.filter(l=>Number(l.valor)>0).reduce((s,l)=>s+Number(l.valor), 0);
   const totalSaidas = somenteExtrato.filter(l=>Number(l.valor)<0).reduce((s,l)=>s+Math.abs(Number(l.valor)), 0);
   const saldo = totalEntradas - totalSaidas;
+
+  // "Total de Entradas e Saídas" e Projeção somam TODAS as contas juntas, não só a conta ativa
+  const todosExtratoContas = fluxoCache.filter(l=>l.tipo!=='Dinheiro');
+  const totalEntradasTodasContas = todosExtratoContas.filter(l=>Number(l.valor)>0).reduce((s,l)=>s+Number(l.valor), 0);
+  const totalSaidasTodasContas = todosExtratoContas.filter(l=>Number(l.valor)<0).reduce((s,l)=>s+Math.abs(Number(l.valor)), 0);
 
   document.getElementById('fluxoTotalEntradas').textContent = brl(totalEntradas);
   document.getElementById('fluxoTotalSaidas').textContent = brl(totalSaidas);
@@ -5268,9 +5294,10 @@ function renderFluxoCaixa(){
   document.getElementById('dinheiroTotalSaidas').textContent = brl(dinheiroSaidas);
   document.getElementById('dinheiroSaldoLiquido').textContent = brl(dinheiroEntradas - dinheiroSaidas);
 
-  document.getElementById('fluxoCombinadoEntradas').textContent = brl(totalEntradas + dinheiroEntradas);
-  document.getElementById('fluxoCombinadoSaidas').textContent = brl(totalSaidas + dinheiroSaidas);
-  document.getElementById('fluxoCombinadoSaldo').textContent = brl((totalEntradas + dinheiroEntradas) - (totalSaidas + dinheiroSaidas));
+  document.getElementById('fluxoCombinadoEntradas').textContent = brl(totalEntradasTodasContas + dinheiroEntradas);
+  document.getElementById('fluxoCombinadoSaidas').textContent = brl(totalSaidasTodasContas + dinheiroSaidas);
+  document.getElementById('fluxoCombinadoSaldo').textContent = brl((totalEntradasTodasContas + dinheiroEntradas) - (totalSaidasTodasContas + dinheiroSaidas));
+  fluxoResumoTotalAtual = { totalEntradas: totalEntradasTodasContas, totalSaidas: totalSaidasTodasContas, dinheiroEntradas, dinheiroSaidas };
 
   let dinheiroExibido = dinheiro;
   const filtroTipoDinheiro = document.getElementById('fluxoDinheiroFiltroTipo').value;
@@ -5418,6 +5445,23 @@ function exportarExcelTotalFluxo(){
   if(fluxoFormasAtual.length===0 && fluxoFornecedoresAtual.length===0){ alert('Não há dados para exportar com o período atual.'); return; }
   if(!window.XLSX){ alert('Não foi possível carregar o recurso de Excel. Recarregue a página e tente de novo.'); return; }
   const livro = XLSX.utils.book_new();
+  const r = fluxoResumoTotalAtual;
+
+  const resumo = [
+    ['Período', textoPeriodoFluxo()],
+    [],
+    ['Dinheiro — Entradas', brl(r.dinheiroEntradas)],
+    ['Dinheiro — Saídas', brl(r.dinheiroSaidas)],
+    ['Extrato bancário (todas as contas) — Entradas', brl(r.totalEntradas)],
+    ['Extrato bancário (todas as contas) — Saídas', brl(r.totalSaidas)],
+    [],
+    ['Total — Entradas', brl(r.totalEntradas + r.dinheiroEntradas)],
+    ['Total — Saídas', brl(r.totalSaidas + r.dinheiroSaidas)],
+    []
+  ];
+  const planResumo = XLSX.utils.aoa_to_sheet(resumo);
+  planResumo['!cols'] = [{wch:36},{wch:16}];
+  XLSX.utils.book_append_sheet(livro, planResumo, 'Resumo');
 
   const planForma = XLSX.utils.json_to_sheet(fluxoFormasAtual.map(([forma,valor])=>({ 'Forma': forma, 'Valor': brl(valor) })));
   planForma['!cols'] = [{wch:22},{wch:16}];
@@ -5434,9 +5478,25 @@ function exportarPdfTotalFluxo(){
   if(fluxoFormasAtual.length===0 && fluxoFornecedoresAtual.length===0){ alert('Não há dados para exportar com o período atual.'); return; }
   const doc = iniciarPdf('Total de Entradas e Saídas — ' + (NOMES_LOJA[lojaAtual]||''), 'Período: ' + textoPeriodoFluxo());
   if(!doc) return;
+  const r = fluxoResumoTotalAtual;
 
   doc.autoTable({
     startY: 32,
+    head: [['', 'Entradas', 'Saídas']],
+    body: [
+      ['Dinheiro', brl(r.dinheiroEntradas), brl(r.dinheiroSaidas)],
+      ['Extrato bancário (todas as contas)', brl(r.totalEntradas), brl(r.totalSaidas)]
+    ],
+    foot: [['Total', brl(r.totalEntradas + r.dinheiroEntradas), brl(r.totalSaidas + r.dinheiroSaidas)]],
+    styles: { fontSize: 9.5, cellPadding: 4 },
+    headStyles: { fillColor: [38,51,43] },
+    footStyles: { fillColor: [233,225,203], textColor:20, fontStyle:'bold' },
+    columnStyles: { 0: { fontStyle: 'bold' } },
+    theme: 'grid'
+  });
+
+  doc.autoTable({
+    startY: doc.lastAutoTable.finalY + 12,
     head: [['Entradas por forma de pagamento','Valor']],
     body: fluxoFormasAtual.map(([forma,valor])=>[forma, brl(valor)]),
     styles: { fontSize: 9, cellPadding: 3 },
