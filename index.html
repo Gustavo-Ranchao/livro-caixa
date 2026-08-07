@@ -5552,13 +5552,10 @@ function exportarExcelFluxoCompleto(){
   const resumo = [
     ['Período', textoPeriodoFluxo()],
     [],
-    ['Dinheiro — Entradas', brl(dinheiroEnt)],
-    ['Dinheiro — Saídas', brl(dinheiroSai)],
-    ['Conta bancária (extrato) — Entradas', brl(extratoEnt)],
-    ['Conta bancária (extrato) — Saídas', brl(extratoSai)],
-    [],
-    ['Total — Entradas', brl(dinheiroEnt + extratoEnt)],
-    ['Total — Saídas', brl(dinheiroSai + extratoSai)],
+    ['', 'Entradas', 'Saídas', 'Resultado'],
+    ['Dinheiro', brl(dinheiroEnt), brl(dinheiroSai), brl(dinheiroEnt - dinheiroSai)],
+    ['Conta bancária (extrato)', brl(extratoEnt), brl(extratoSai), brl(extratoEnt - extratoSai)],
+    ['Total', brl(dinheiroEnt + extratoEnt), brl(dinheiroSai + extratoSai), brl((dinheiroEnt + extratoEnt) - (dinheiroSai + extratoSai))],
     []
   ];
   const cabecalho = ['Data','Origem','Tipo','Descrição','Valor'];
@@ -5590,12 +5587,12 @@ function exportarPdfFluxoCompleto(){
 
   doc.autoTable({
     startY: 32,
-    head: [['', 'Entradas', 'Saídas']],
+    head: [['', 'Entradas', 'Saídas', 'Resultado']],
     body: [
-      ['Dinheiro', brl(dinheiroEnt), brl(dinheiroSai)],
-      ['Conta bancária (extrato)', brl(extratoEnt), brl(extratoSai)]
+      ['Dinheiro', brl(dinheiroEnt), brl(dinheiroSai), brl(dinheiroEnt - dinheiroSai)],
+      ['Conta bancária (extrato)', brl(extratoEnt), brl(extratoSai), brl(extratoEnt - extratoSai)]
     ],
-    foot: [['Total', brl(dinheiroEnt + extratoEnt), brl(dinheiroSai + extratoSai)]],
+    foot: [['Total', brl(dinheiroEnt + extratoEnt), brl(dinheiroSai + extratoSai), brl((dinheiroEnt + extratoEnt) - (dinheiroSai + extratoSai))]],
     styles: { fontSize: 9.5, cellPadding: 4 },
     headStyles: { fillColor: [38,51,43] },
     footStyles: { fillColor: [233,225,203], textColor:20, fontStyle:'bold' },
