@@ -857,6 +857,7 @@
       <div id="combPagResultadoWrap" style="display:none;">
         <div class="bh-resumo">
           <div class="metric"><div class="lbl">Combinados</div><div class="val" id="combPagQtdCombinados" style="color:var(--green);">0</div></div>
+          <div class="metric"><div class="lbl">Combinados por soma</div><div class="val" id="combPagQtdGrupos" style="color:var(--green);">0</div></div>
           <div class="metric"><div class="lbl">Compras sem pagamento</div><div class="val" id="combPagQtdComprasSemPar" style="color:var(--rust);">0</div></div>
           <div class="metric"><div class="lbl">Pagamentos sem compra</div><div class="val" id="combPagQtdPagamentosSemPar" style="color:var(--rust);">0</div></div>
         </div>
@@ -873,6 +874,16 @@
             <table class="ledger">
               <thead><tr><th>Fornecedor (compra)</th><th>Nº NF</th><th style="text-align:right">Valor compra</th><th>Descrição (pagamento)</th><th style="text-align:right">Valor pagamento</th><th style="text-align:right">Diferença</th></tr></thead>
               <tbody id="combPagCombinadosBody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="panel" style="margin-bottom:20px;">
+          <div class="panel-head"><h2>🔗 Combinados por soma (parcelas / boletos agrupados)</h2></div>
+          <div class="tablewrap">
+            <table class="ledger">
+              <thead><tr><th>Fornecedor</th><th>Compra(s)</th><th style="text-align:right">Valor compra(s)</th><th>Pagamento(s)</th><th style="text-align:right">Valor pagamento(s)</th><th style="text-align:right">Diferença</th></tr></thead>
+              <tbody id="combPagGruposBody"></tbody>
             </table>
           </div>
         </div>
@@ -7189,7 +7200,7 @@ function exportarPdfInventario(){
 let combPagMesAtual = '';
 let comprasCombParsed = null;
 let pagamentosCombParsed = null;
-let combPagResultado = { pares: [], comprasSemPar: [], pagamentosSemPar: [] };
+let combPagResultado = { pares: [], grupos: [], comprasSemPar: [], pagamentosSemPar: [] };
 
 const PALAVRAS_IGNORADAS_COMB = new Set(['LTDA','LTD','EIRELI','COMERCIO','INDUSTRIA','DISTRIBUIDORA','ALIMENTOS','BEBIDAS','BRASIL','LOJA','PRODUTOS','SOCIAL','RAZAO','MINAS','PAGAMENTO','DESCRICAO']);
 
@@ -7248,14 +7259,30 @@ async function carregarOuPrepararCombinacaoPagamentos(){
       pagamento: { data: c.comb_pag_pagamentos.data, descricao: c.comb_pag_pagamentos.descricao, valor: Number(c.comb_pag_pagamentos.valor) },
       diff: Number(c.diferenca || 0)
     }));
-    const comprasSemPar = comprasSalvas.filter(c=>!c.pagamento_id).map(c=>({
+
+    // reconstrói os grupos combinados por soma a partir do grupo_id (presente tanto em compras quanto em pagamentos)
+    const gruposMap = {};
+    comprasSalvas.filter(c=>c.grupo_id).forEach(c=>{
+      if(!gruposMap[c.grupo_id]) gruposMap[c.grupo_id] = { compras: [], pagamentos: [] };
+      gruposMap[c.grupo_id].compras.push({ numCompra: c.num_compra, numNF: c.num_nf, emissao: c.emissao, entrada: c.entrada, razaoSocial: c.razao_social, nomeFantasia: c.nome_fantasia, valor: Number(c.valor) });
+    });
+    (pagamentosOrfaos||[]).filter(p=>p.grupo_id).forEach(p=>{
+      if(!gruposMap[p.grupo_id]) gruposMap[p.grupo_id] = { compras: [], pagamentos: [] };
+      gruposMap[p.grupo_id].pagamentos.push({ data: p.data, descricao: p.descricao, valor: Number(p.valor) });
+    });
+    const grupos = Object.values(gruposMap).map(g=>({
+      compras: g.compras, pagamentos: g.pagamentos,
+      diff: Math.abs(g.compras.reduce((s,c)=>s+c.valor,0) - g.pagamentos.reduce((s,p)=>s+p.valor,0))
+    }));
+
+    const comprasSemPar = comprasSalvas.filter(c=>!c.pagamento_id && !c.grupo_id).map(c=>({
       numCompra: c.num_compra, numNF: c.num_nf, emissao: c.emissao, entrada: c.entrada, razaoSocial: c.razao_social, nomeFantasia: c.nome_fantasia, valor: Number(c.valor)
     }));
-    const pagamentosSemPar = (pagamentosOrfaos||[]).filter(p=>!idsPagamentosUsados.has(p.id)).map(p=>({
+    const pagamentosSemPar = (pagamentosOrfaos||[]).filter(p=>!idsPagamentosUsados.has(p.id) && !p.grupo_id).map(p=>({
       data: p.data, descricao: p.descricao, valor: Number(p.valor)
     }));
 
-    combPagResultado = { pares, comprasSemPar, pagamentosSemPar };
+    combPagResultado = { pares, grupos, comprasSemPar, pagamentosSemPar };
     renderResultadoCombinacaoPagamentos();
   }else{
     document.getElementById('combPagJaSalvoAviso').style.display = 'none';
@@ -7397,6 +7424,75 @@ function pontuarSimilaridadeComb(nome1, nome2, descricaoPagamento){
   return pontos;
 }
 
+function gerarIdGrupoComb(){
+  if(window.crypto && crypto.randomUUID) return crypto.randomUUID();
+  return 'g_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2,10);
+}
+
+// Procura o menor subconjunto de "itens" (2 a maxItens) cuja soma bate com "alvo" dentro da tolerância.
+// Prioriza subconjuntos menores; em empate, o de menor diferença.
+function encontrarSubconjuntoSomaComb(itens, alvo, tolerancia, maxItens){
+  let melhor = null;
+  const ordenados = itens.slice().sort((a,b)=> b.valor - a.valor);
+  function dfs(startIdx, atuais, soma){
+    if(atuais.length>=2){
+      const diff = Math.abs(soma - alvo);
+      if(diff<=tolerancia && (!melhor || atuais.length<melhor.itens.length || (atuais.length===melhor.itens.length && diff<melhor.diff))){
+        melhor = { itens: atuais.slice(), diff };
+      }
+    }
+    if(atuais.length>=maxItens) return;
+    for(let i=startIdx;i<ordenados.length;i++){
+      const novaSoma = soma + ordenados[i].valor;
+      if(novaSoma > alvo + tolerancia) continue; // poda (valores positivos)
+      atuais.push(ordenados[i]);
+      dfs(i+1, atuais, novaSoma);
+      atuais.pop();
+    }
+  }
+  dfs(0, [], 0);
+  return melhor;
+}
+
+// 2ª passada: tenta combinar por SOMA o que sobrou da 1ª passada (1:1).
+// Cobre parcelamento (1 compra paga em várias vezes) e boleto agrupado (várias compras pagas de uma vez).
+// Só tenta somar itens do mesmo fornecedor (score de similaridade >= 1) pra evitar somas por coincidência.
+function encontrarGruposPorSomaComb(comprasSemPar, pagamentosSemPar){
+  const TOLERANCIA = 0.05;
+  const MAX_ITENS_GRUPO = 6;
+  const compraUsada = new Set();
+  const pagamentoUsado = new Set();
+  const grupos = [];
+
+  // Passo A: 1 compra ↔ várias parcelas (N pagamentos somando o valor da compra)
+  comprasSemPar.slice().sort((a,b)=> b.valor - a.valor).forEach(c=>{
+    if(compraUsada.has(c.idx)) return;
+    const candidatos = pagamentosSemPar.filter(p=> !pagamentoUsado.has(p.idx) && pontuarSimilaridadeComb(c.razaoSocial, c.nomeFantasia, p.descricao) >= 1);
+    if(candidatos.length<2) return;
+    const achado = encontrarSubconjuntoSomaComb(candidatos, c.valor, TOLERANCIA, MAX_ITENS_GRUPO);
+    if(achado){
+      compraUsada.add(c.idx);
+      achado.itens.forEach(p=>pagamentoUsado.add(p.idx));
+      grupos.push({ compras: [c], pagamentos: achado.itens, diff: achado.diff });
+    }
+  });
+
+  // Passo B: várias compras ↔ 1 pagamento (boleto único cobrindo mais de uma nota)
+  pagamentosSemPar.filter(p=>!pagamentoUsado.has(p.idx)).sort((a,b)=> b.valor - a.valor).forEach(p=>{
+    if(pagamentoUsado.has(p.idx)) return;
+    const candidatos = comprasSemPar.filter(c=> !compraUsada.has(c.idx) && pontuarSimilaridadeComb(c.razaoSocial, c.nomeFantasia, p.descricao) >= 1);
+    if(candidatos.length<2) return;
+    const achado = encontrarSubconjuntoSomaComb(candidatos, p.valor, TOLERANCIA, MAX_ITENS_GRUPO);
+    if(achado){
+      pagamentoUsado.add(p.idx);
+      achado.itens.forEach(c=>compraUsada.add(c.idx));
+      grupos.push({ compras: achado.itens, pagamentos: [p], diff: achado.diff });
+    }
+  });
+
+  return grupos;
+}
+
 async function executarCombinacaoPagamentos(){
   if(!comprasCombParsed || !pagamentosCombParsed) return;
 
@@ -7437,17 +7533,37 @@ async function executarCombinacaoPagamentos(){
     pares.push({ compra: c, pagamento: p, diff: cand.diff });
   });
 
-  const comprasSemPar = compras.filter(c=>!compraUsada.has(c.idx));
-  const pagamentosSemPar = pagamentos.filter(p=>!pagamentoUsado.has(p.idx));
+  const comprasSemPar1 = compras.filter(c=>!compraUsada.has(c.idx));
+  const pagamentosSemPar1 = pagamentos.filter(p=>!pagamentoUsado.has(p.idx));
+
+  // 2ª passada: tenta combinar por soma (parcelas / boletos agrupados) o que sobrou
+  const grupos = encontrarGruposPorSomaComb(comprasSemPar1, pagamentosSemPar1);
+  const compraUsadaGrupo = new Set();
+  const pagamentoUsadoGrupo = new Set();
+  grupos.forEach(g=>{
+    g.compras.forEach(c=>compraUsadaGrupo.add(c.idx));
+    g.pagamentos.forEach(p=>pagamentoUsadoGrupo.add(p.idx));
+  });
+  const comprasSemPar = comprasSemPar1.filter(c=>!compraUsadaGrupo.has(c.idx));
+  const pagamentosSemPar = pagamentosSemPar1.filter(p=>!pagamentoUsadoGrupo.has(p.idx));
+
+  const grupoIdPorCompraIdx = {};
+  const grupoIdPorPagamentoIdx = {};
+  grupos.forEach(g=>{
+    const grupoId = gerarIdGrupoComb();
+    g.compras.forEach(c=> grupoIdPorCompraIdx[c.idx] = grupoId);
+    g.pagamentos.forEach(p=> grupoIdPorPagamentoIdx[p.idx] = grupoId);
+  });
 
   const btn = document.getElementById('combPagBtnCombinar');
   btn.disabled = true;
   btn.textContent = 'Salvando…';
   abrirProgresso('Salvando combinação…');
 
-  // 1) grava TODOS os pagamentos do período (pareados ou não), pra poder referenciar o id deles
+  // 1) grava TODOS os pagamentos do período (pareados, agrupados ou não), pra poder referenciar o id deles
   const registrosPagamentos = pagamentos.map(p=>({
-    loja: lojaAtual, mes: combPagMesAtual, data: p.data, descricao: p.descricao, valor: p.valor
+    loja: lojaAtual, mes: combPagMesAtual, data: p.data, descricao: p.descricao, valor: p.valor,
+    grupo_id: grupoIdPorPagamentoIdx[p.idx] || null
   }));
   const { data: pagamentosSalvos, error: erroPag } = await sb.from('comb_pag_pagamentos').insert(registrosPagamentos).select();
   atualizarProgresso(50);
@@ -7464,21 +7580,28 @@ async function executarCombinacaoPagamentos(){
   const idPagamentoPorIdx = {};
   pagamentos.forEach((p, i) => { idPagamentoPorIdx[p.idx] = pagamentosSalvos[i].id; });
 
-  // 2) grava as compras, com pagamento_id preenchido quando houver par
+  // 2) grava as compras: pagamento_id quando par 1:1, grupo_id quando combinado por soma
   const registrosCompras = [
     ...pares.map(par => ({
       loja: lojaAtual, mes: combPagMesAtual,
       num_compra: String(par.compra.numCompra||''), num_nf: String(par.compra.numNF||''),
       emissao: par.compra.emissao, entrada: par.compra.entrada,
       razao_social: par.compra.razaoSocial, nome_fantasia: par.compra.nomeFantasia,
-      valor: par.compra.valor, pagamento_id: idPagamentoPorIdx[par.pagamento.idx], diferenca: Number(par.diff.toFixed(2))
+      valor: par.compra.valor, pagamento_id: idPagamentoPorIdx[par.pagamento.idx], diferenca: Number(par.diff.toFixed(2)), grupo_id: null
     })),
+    ...grupos.flatMap(g => g.compras.map(c => ({
+      loja: lojaAtual, mes: combPagMesAtual,
+      num_compra: String(c.numCompra||''), num_nf: String(c.numNF||''),
+      emissao: c.emissao, entrada: c.entrada,
+      razao_social: c.razaoSocial, nome_fantasia: c.nomeFantasia,
+      valor: c.valor, pagamento_id: null, diferenca: 0, grupo_id: grupoIdPorCompraIdx[c.idx]
+    }))),
     ...comprasSemPar.map(c => ({
       loja: lojaAtual, mes: combPagMesAtual,
       num_compra: String(c.numCompra||''), num_nf: String(c.numNF||''),
       emissao: c.emissao, entrada: c.entrada,
       razao_social: c.razaoSocial, nome_fantasia: c.nomeFantasia,
-      valor: c.valor, pagamento_id: null, diferenca: 0
+      valor: c.valor, pagamento_id: null, diferenca: 0, grupo_id: null
     }))
   ];
   const { error: erroCompras } = await sb.from('comb_pag_compras').insert(registrosCompras);
@@ -7493,17 +7616,18 @@ async function executarCombinacaoPagamentos(){
     return;
   }
 
-  combPagResultado = { pares, comprasSemPar, pagamentosSemPar };
+  combPagResultado = { pares, grupos, comprasSemPar, pagamentosSemPar };
   renderResultadoCombinacaoPagamentos();
   document.getElementById('combPagJaSalvoAviso').style.display = 'flex';
   document.getElementById('combPagUploadWrap').style.display = 'none';
 }
 
 function renderResultadoCombinacaoPagamentos(){
-  const { pares, comprasSemPar, pagamentosSemPar } = combPagResultado;
+  const { pares, grupos, comprasSemPar, pagamentosSemPar } = combPagResultado;
 
   document.getElementById('combPagResultadoWrap').style.display = 'block';
   document.getElementById('combPagQtdCombinados').textContent = pares.length;
+  document.getElementById('combPagQtdGrupos').textContent = (grupos||[]).length;
   document.getElementById('combPagQtdComprasSemPar').textContent = comprasSemPar.length;
   document.getElementById('combPagQtdPagamentosSemPar').textContent = pagamentosSemPar.length;
 
@@ -7519,6 +7643,25 @@ function renderResultadoCombinacaoPagamentos(){
           <td class="valor" style="color:${par.diff>0?'var(--gold)':'var(--muted)'};">${par.diff>0 ? brl(par.diff) : '—'}</td>
         </tr>
       `).join('');
+
+  document.getElementById('combPagGruposBody').innerHTML = (!grupos || grupos.length===0)
+    ? '<tr><td colspan="6" style="text-align:center;color:var(--muted);font-style:italic;padding:16px;">Nenhuma combinação por soma encontrada.</td></tr>'
+    : grupos.map(g=>{
+        const totalCompras = g.compras.reduce((s,c)=>s+c.valor,0);
+        const totalPagamentos = g.pagamentos.reduce((s,p)=>s+p.valor,0);
+        const fornecedor = g.compras[0] ? (g.compras[0].nomeFantasia || g.compras[0].razaoSocial) : '';
+        const compraLinhas = g.compras.map(c=>escapeHtml((c.numNF?('NF '+c.numNF+' — '):'')+brl(c.valor))).join('<br>');
+        const pagamentoLinhas = g.pagamentos.map(p=>escapeHtml((p.data?fmtData(p.data)+' — ':'')+p.descricao+' — '+brl(p.valor))).join('<br>');
+        return `
+        <tr>
+          <td>${escapeHtml(fornecedor)}</td>
+          <td class="contato">${compraLinhas}</td>
+          <td class="valor">${brl(totalCompras)}</td>
+          <td class="contato">${pagamentoLinhas}</td>
+          <td class="valor">${brl(totalPagamentos)}</td>
+          <td class="valor" style="color:${g.diff>0?'var(--gold)':'var(--muted)'};">${g.diff>0 ? brl(g.diff) : '—'}</td>
+        </tr>
+      `;}).join('');
 
   document.getElementById('combPagComprasSemParBody').innerHTML = comprasSemPar.length===0
     ? '<tr><td colspan="4" style="text-align:center;color:var(--muted);font-style:italic;padding:16px;">Todas as compras encontraram um pagamento.</td></tr>'
@@ -7548,8 +7691,8 @@ function nomeArquivoCombPag(extensao){
 }
 
 function exportarExcelCombinacaoPagamentos(){
-  const { pares, comprasSemPar, pagamentosSemPar } = combPagResultado;
-  if(pares.length===0 && comprasSemPar.length===0 && pagamentosSemPar.length===0){ alert('Combine as planilhas primeiro.'); return; }
+  const { pares, grupos, comprasSemPar, pagamentosSemPar } = combPagResultado;
+  if(pares.length===0 && (!grupos||grupos.length===0) && comprasSemPar.length===0 && pagamentosSemPar.length===0){ alert('Combine as planilhas primeiro.'); return; }
   if(!window.XLSX){ alert('Não foi possível carregar o recurso de Excel. Recarregue a página e tente de novo.'); return; }
 
   const livro = XLSX.utils.book_new();
@@ -7564,6 +7707,17 @@ function exportarExcelCombinacaoPagamentos(){
   })));
   planCombinados['!cols'] = [{wch:30},{wch:12},{wch:14},{wch:30},{wch:14},{wch:12}];
   XLSX.utils.book_append_sheet(livro, planCombinados, 'Combinados');
+
+  const planGrupos = XLSX.utils.json_to_sheet((grupos||[]).map(g=>({
+    'Fornecedor': g.compras[0] ? (g.compras[0].nomeFantasia || g.compras[0].razaoSocial) : '',
+    'Compra(s)': g.compras.map(c=>(c.numNF?('NF '+c.numNF+' - '):'')+brl(c.valor)).join(' | '),
+    'Valor compra(s)': Number(g.compras.reduce((s,c)=>s+c.valor,0).toFixed(2)),
+    'Pagamento(s)': g.pagamentos.map(p=>(p.data?fmtData(p.data)+' - ':'')+p.descricao+' - '+brl(p.valor)).join(' | '),
+    'Valor pagamento(s)': Number(g.pagamentos.reduce((s,p)=>s+p.valor,0).toFixed(2)),
+    'Diferença': Number(g.diff.toFixed(2))
+  })));
+  planGrupos['!cols'] = [{wch:30},{wch:35},{wch:14},{wch:45},{wch:16},{wch:12}];
+  XLSX.utils.book_append_sheet(livro, planGrupos, 'Combinados (soma)');
 
   const planComprasSemPar = XLSX.utils.json_to_sheet(comprasSemPar.map(c=>({
     'Fornecedor': c.nomeFantasia || c.razaoSocial, 'Nº NF': c.numNF, 'Emissão': c.emissao ? fmtData(c.emissao) : '', 'Valor': c.valor
@@ -7581,8 +7735,8 @@ function exportarExcelCombinacaoPagamentos(){
 }
 
 function exportarPdfCombinacaoPagamentos(){
-  const { pares, comprasSemPar, pagamentosSemPar } = combPagResultado;
-  if(pares.length===0 && comprasSemPar.length===0 && pagamentosSemPar.length===0){ alert('Combine as planilhas primeiro.'); return; }
+  const { pares, grupos, comprasSemPar, pagamentosSemPar } = combPagResultado;
+  if(pares.length===0 && (!grupos||grupos.length===0) && comprasSemPar.length===0 && pagamentosSemPar.length===0){ alert('Combine as planilhas primeiro.'); return; }
   if(!window.jspdf || !window.jspdf.jsPDF){ alert('Não foi possível carregar o recurso de PDF. Recarregue a página e tente de novo.'); return; }
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF();
@@ -7605,6 +7759,23 @@ function exportarPdfCombinacaoPagamentos(){
     styles: { fontSize: 8, cellPadding: 3 },
     headStyles: { fillColor: [38,51,43] }
   });
+
+  if(grupos && grupos.length>0){
+    doc.autoTable({
+      startY: doc.lastAutoTable.finalY + 12,
+      head: [['Fornecedor','Compra(s)','Valor compra(s)','Pagamento(s)','Valor pagamento(s)','Diferença']],
+      body: grupos.map(g=>[
+        g.compras[0] ? (g.compras[0].nomeFantasia || g.compras[0].razaoSocial) : '',
+        g.compras.map(c=>(c.numNF?('NF '+c.numNF+' - '):'')+brl(c.valor)).join('\n'),
+        brl(g.compras.reduce((s,c)=>s+c.valor,0)),
+        g.pagamentos.map(p=>(p.data?fmtData(p.data)+' - ':'')+p.descricao+' - '+brl(p.valor)).join('\n'),
+        brl(g.pagamentos.reduce((s,p)=>s+p.valor,0)),
+        g.diff>0 ? brl(g.diff) : '—'
+      ]),
+      styles: { fontSize: 8, cellPadding: 3 },
+      headStyles: { fillColor: [38,51,43] }
+    });
+  }
 
   if(comprasSemPar.length>0){
     doc.autoTable({
