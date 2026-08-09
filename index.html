@@ -7715,7 +7715,7 @@ function renderResultadoCombinacaoPagamentos(){
     ? '<tr><td colspan="5" style="text-align:center;color:var(--muted);font-style:italic;padding:16px;">Todas as compras encontraram um pagamento.</td></tr>'
     : comprasSemPar.map(c=>`
         <tr>
-          <td style="width:34px;"><input type="checkbox" ${combPagSelecaoCompras.has(c.id)?'checked':''} onchange="toggleSelecaoCompraComb(${c.id}, this.checked)"></td>
+          <td style="width:34px;"><input type="checkbox" data-id="${escapeHtml(String(c.id))}" ${combPagSelecaoCompras.has(String(c.id))?'checked':''} onchange="toggleSelecaoCompraComb(this)"></td>
           <td>${escapeHtml(c.nomeFantasia || c.razaoSocial)}</td>
           <td>${escapeHtml(String(c.numNF||''))}</td>
           <td class="data">${c.emissao ? fmtData(c.emissao) : '—'}</td>
@@ -7727,7 +7727,7 @@ function renderResultadoCombinacaoPagamentos(){
     ? '<tr><td colspan="4" style="text-align:center;color:var(--muted);font-style:italic;padding:16px;">Todos os pagamentos encontraram uma compra.</td></tr>'
     : pagamentosSemPar.map(p=>`
         <tr>
-          <td style="width:34px;"><input type="checkbox" ${combPagSelecaoPagamentos.has(p.id)?'checked':''} onchange="toggleSelecaoPagamentoComb(${p.id}, this.checked)"></td>
+          <td style="width:34px;"><input type="checkbox" data-id="${escapeHtml(String(p.id))}" ${combPagSelecaoPagamentos.has(String(p.id))?'checked':''} onchange="toggleSelecaoPagamentoComb(this)"></td>
           <td class="data">${fmtData(p.data)}</td>
           <td class="contato">${escapeHtml(p.descricao)}</td>
           <td class="valor" style="color:var(--rust);">${brl(p.valor)}</td>
@@ -7737,12 +7737,14 @@ function renderResultadoCombinacaoPagamentos(){
   atualizarBarraSelecaoComb();
 }
 
-function toggleSelecaoCompraComb(id, marcado){
-  if(marcado) combPagSelecaoCompras.add(id); else combPagSelecaoCompras.delete(id);
+function toggleSelecaoCompraComb(input){
+  const id = input.dataset.id;
+  if(input.checked) combPagSelecaoCompras.add(id); else combPagSelecaoCompras.delete(id);
   atualizarBarraSelecaoComb();
 }
-function toggleSelecaoPagamentoComb(id, marcado){
-  if(marcado) combPagSelecaoPagamentos.add(id); else combPagSelecaoPagamentos.delete(id);
+function toggleSelecaoPagamentoComb(input){
+  const id = input.dataset.id;
+  if(input.checked) combPagSelecaoPagamentos.add(id); else combPagSelecaoPagamentos.delete(id);
   atualizarBarraSelecaoComb();
 }
 
@@ -7756,8 +7758,8 @@ function atualizarBarraSelecaoComb(){
   const barra = document.getElementById('combPagBarraSelecao');
   if(!barra) return;
   const { comprasSemPar, pagamentosSemPar } = combPagResultado;
-  const compras = comprasSemPar.filter(c=>combPagSelecaoCompras.has(c.id));
-  const pagamentos = pagamentosSemPar.filter(p=>combPagSelecaoPagamentos.has(p.id));
+  const compras = comprasSemPar.filter(c=>combPagSelecaoCompras.has(String(c.id)));
+  const pagamentos = pagamentosSemPar.filter(p=>combPagSelecaoPagamentos.has(String(p.id)));
 
   if(compras.length===0 && pagamentos.length===0){
     barra.style.display = 'none';
@@ -7779,8 +7781,8 @@ function atualizarBarraSelecaoComb(){
 
 function abrirConfirmacaoVincularManualComb(){
   const { comprasSemPar, pagamentosSemPar } = combPagResultado;
-  const compras = comprasSemPar.filter(c=>combPagSelecaoCompras.has(c.id));
-  const pagamentos = pagamentosSemPar.filter(p=>combPagSelecaoPagamentos.has(p.id));
+  const compras = comprasSemPar.filter(c=>combPagSelecaoCompras.has(String(c.id)));
+  const pagamentos = pagamentosSemPar.filter(p=>combPagSelecaoPagamentos.has(String(p.id)));
   if(compras.length===0 || pagamentos.length===0) return;
 
   const totalCompras = compras.reduce((s,c)=>s+c.valor,0);
@@ -7799,8 +7801,9 @@ function fecharConfirmacaoVincularManualComb(){
 }
 
 async function confirmarVincularManualCombOk(){
-  const idsCompras = [...combPagSelecaoCompras];
-  const idsPagamentos = [...combPagSelecaoPagamentos];
+  const paraTipoOriginal = v => (v!=='' && !isNaN(v)) ? Number(v) : v;
+  const idsCompras = [...combPagSelecaoCompras].map(paraTipoOriginal);
+  const idsPagamentos = [...combPagSelecaoPagamentos].map(paraTipoOriginal);
   if(idsCompras.length===0 || idsPagamentos.length===0) return;
 
   fecharConfirmacaoVincularManualComb();
