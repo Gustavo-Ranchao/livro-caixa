@@ -405,6 +405,7 @@
             <button class="nav-sub-item" data-view="fluxoCaixa" onclick="mudarViewPrincipal('fluxoCaixa')">Fluxo de Caixa</button>
             <button class="nav-sub-item" data-view="pagamentos" onclick="mudarViewPrincipal('pagamentos')">Pagamentos</button>
             <button class="nav-sub-item" data-view="pagamentoCaixa" onclick="mudarViewPrincipal('pagamentoCaixa')">Pagamento no Caixa</button>
+            <button class="nav-sub-item" data-view="combinacaoPagamentos" onclick="mudarViewPrincipal('combinacaoPagamentos')">Combinação de Pagamentos</button>
           </div>
         </div>
         <div class="nav-group">
@@ -818,6 +819,83 @@
           </table>
         </div>
         <div class="empty" id="invEmpty" style="display:none;">Nenhum inventário lançado nesse período.</div>
+      </div>
+    </div>
+
+    <div id="viewCombinacaoPagamentos" style="display:none;">
+      <div class="bh-filtro-data" style="margin-bottom:20px;">
+        <label>Mês</label>
+        <select id="combPagFiltroMes" onchange="mudarMesCombinacaoPagamentos(this.value)"></select>
+      </div>
+
+      <div class="panel" id="combPagJaSalvoAviso" style="display:none;margin-bottom:20px;padding:14px 20px;align-items:center;gap:14px;flex-wrap:wrap;">
+        <span style="font-size:13px;color:var(--muted);">✓ Esse mês já tem uma combinação salva.</span>
+        <button class="filter-btn" style="border-color:var(--rust);color:var(--rust);" onclick="confirmarApagarCombinacaoMes()">🗑 Apagar e recomeçar esse mês</button>
+      </div>
+
+      <div class="panel" id="combPagUploadWrap" style="margin-bottom:20px;">
+        <div class="panel-head"><h2>Selecionar as duas planilhas</h2></div>
+        <div style="padding:0 20px 20px;display:flex;gap:16px;flex-wrap:wrap;">
+          <label class="vendas-file-label">
+            📁 Planilha de Compras (.xlsx)
+            <input id="combPagComprasInput" type="file" accept=".xlsx,.xls" style="display:none;" onchange="onSelecionarComprasComb(this.files)">
+          </label>
+          <span id="combPagComprasStatus" style="align-self:center;font-size:12.5px;color:var(--muted);">Nenhum arquivo selecionado.</span>
+        </div>
+        <div style="padding:0 20px 20px;display:flex;gap:16px;flex-wrap:wrap;">
+          <label class="vendas-file-label">
+            📁 Planilha de Pagamentos (.xlsx)
+            <input id="combPagPagamentosInput" type="file" accept=".xlsx,.xls" style="display:none;" onchange="onSelecionarPagamentosComb(this.files)">
+          </label>
+          <span id="combPagPagamentosStatus" style="align-self:center;font-size:12.5px;color:var(--muted);">Nenhum arquivo selecionado.</span>
+        </div>
+        <div style="padding:0 20px 20px;">
+          <button class="addbtn" style="width:auto;" id="combPagBtnCombinar" onclick="executarCombinacaoPagamentos()" disabled>Combinar planilhas</button>
+        </div>
+      </div>
+
+      <div id="combPagResultadoWrap" style="display:none;">
+        <div class="bh-resumo">
+          <div class="metric"><div class="lbl">Combinados</div><div class="val" id="combPagQtdCombinados" style="color:var(--green);">0</div></div>
+          <div class="metric"><div class="lbl">Compras sem pagamento</div><div class="val" id="combPagQtdComprasSemPar" style="color:var(--rust);">0</div></div>
+          <div class="metric"><div class="lbl">Pagamentos sem compra</div><div class="val" id="combPagQtdPagamentosSemPar" style="color:var(--rust);">0</div></div>
+        </div>
+
+        <div class="panel" style="margin-bottom:20px;">
+          <div class="panel-head">
+            <h2>✓ Combinados</h2>
+            <div class="filters">
+              <button class="filter-btn foto-btn" onclick="exportarExcelCombinacaoPagamentos()">📊 Excel</button>
+              <button class="filter-btn foto-btn" onclick="exportarPdfCombinacaoPagamentos()">📄 PDF</button>
+            </div>
+          </div>
+          <div class="tablewrap">
+            <table class="ledger">
+              <thead><tr><th>Fornecedor (compra)</th><th>Nº NF</th><th style="text-align:right">Valor compra</th><th>Descrição (pagamento)</th><th style="text-align:right">Valor pagamento</th><th style="text-align:right">Diferença</th></tr></thead>
+              <tbody id="combPagCombinadosBody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="panel" style="margin-bottom:20px;">
+          <div class="panel-head"><h2>⚠ Compras sem pagamento encontrado</h2></div>
+          <div class="tablewrap">
+            <table class="ledger">
+              <thead><tr><th>Fornecedor</th><th>Nº NF</th><th>Emissão</th><th style="text-align:right">Valor</th></tr></thead>
+              <tbody id="combPagComprasSemParBody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-head"><h2>⚠ Pagamentos sem compra encontrada</h2></div>
+          <div class="tablewrap">
+            <table class="ledger">
+              <thead><tr><th>Data</th><th>Descrição</th><th style="text-align:right">Valor</th></tr></thead>
+              <tbody id="combPagPagamentosSemParBody"></tbody>
+            </table>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -1467,6 +1545,17 @@
     <div class="modal-actions">
       <button class="addbtn" style="background:var(--rust);" onclick="confirmarExclusaoProdutoOk()">Excluir</button>
       <button class="cancelbtn" onclick="fecharConfirmacaoProduto()">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<div id="confirmApagarCombinacaoModal" class="modal-overlay">
+  <div class="modal-box" style="max-width:420px;">
+    <h2>Apagar combinação desse mês?</h2>
+    <p class="modal-sub">Isso apaga as compras e pagamentos salvos desse mês nessa loja, pra você poder subir as planilhas de novo. Essa ação não pode ser desfeita.</p>
+    <div class="modal-actions">
+      <button class="addbtn" style="background:var(--rust);" onclick="confirmarApagarCombinacaoMesOk()">Apagar</button>
+      <button class="cancelbtn" onclick="document.getElementById('confirmApagarCombinacaoModal').style.display='none'">Cancelar</button>
     </div>
   </div>
 </div>
@@ -3234,7 +3323,7 @@ function setEscala(e){
   }
 }
 
-const VIEWS = ['inicio','contasPagar','despesasFixas','comprovantes','diferencaCaixa','fluxoCaixa','pagamentos','pagamentoCaixa','vendasComCusto','bancoHoras','compras','colaboradores','contasBancarias','inventario'];
+const VIEWS = ['inicio','contasPagar','despesasFixas','comprovantes','diferencaCaixa','fluxoCaixa','pagamentos','pagamentoCaixa','vendasComCusto','bancoHoras','compras','colaboradores','contasBancarias','inventario','combinacaoPagamentos'];
 let colabCarregado = false;
 
 const NAV_GROUPS = {
@@ -3263,7 +3352,7 @@ async function mudarViewPrincipal(view){
   viewAtual = view;
 
   VIEWS.forEach(v=>{
-    const idMap = { inicio:'viewInicio', contasPagar:'viewContasPagar', despesasFixas:'viewDespesasFixas', comprovantes:'viewComprovantes', diferencaCaixa:'viewDiferencaCaixa', fluxoCaixa:'viewFluxoCaixa', pagamentos:'viewPagamentos', pagamentoCaixa:'viewPagamentoCaixa', vendasComCusto:'viewVendasComCusto', bancoHoras:'viewBancoHoras', compras:'viewCompras', colaboradores:'viewColaboradores', contasBancarias:'viewContasBancarias', inventario:'viewInventario' };
+    const idMap = { inicio:'viewInicio', contasPagar:'viewContasPagar', despesasFixas:'viewDespesasFixas', comprovantes:'viewComprovantes', diferencaCaixa:'viewDiferencaCaixa', fluxoCaixa:'viewFluxoCaixa', pagamentos:'viewPagamentos', pagamentoCaixa:'viewPagamentoCaixa', vendasComCusto:'viewVendasComCusto', bancoHoras:'viewBancoHoras', compras:'viewCompras', colaboradores:'viewColaboradores', contasBancarias:'viewContasBancarias', inventario:'viewInventario', combinacaoPagamentos:'viewCombinacaoPagamentos' };
     document.getElementById(idMap[v]).style.display = (v===view) ? '' : 'none';
   });
 
@@ -3313,6 +3402,9 @@ async function mudarViewPrincipal(view){
   }else if(view==='inventario'){
     abrirGrupoNav('estoque');
     await abrirInventario();
+  }else if(view==='combinacaoPagamentos'){
+    abrirGrupoNav('financeiro');
+    abrirCombinacaoPagamentos();
   }
 }
 
@@ -7090,6 +7182,451 @@ function exportarPdfInventario(){
 
   const nomeLoja = (NOMES_LOJA[lojaAtual]||'').toLowerCase().replace(' ','');
   doc.save('inventario-' + nomeLoja + '-' + agora.toISOString().slice(0,10) + '.pdf');
+}
+
+/* ================= COMBINAÇÃO DE PAGAMENTOS (ferramenta, não grava no banco) ================= */
+
+let combPagMesAtual = '';
+let comprasCombParsed = null;
+let pagamentosCombParsed = null;
+let combPagResultado = { pares: [], comprasSemPar: [], pagamentosSemPar: [] };
+
+const PALAVRAS_IGNORADAS_COMB = new Set(['LTDA','LTD','EIRELI','COMERCIO','INDUSTRIA','DISTRIBUIDORA','ALIMENTOS','BEBIDAS','BRASIL','LOJA','PRODUTOS','SOCIAL','RAZAO','MINAS','PAGAMENTO','DESCRICAO']);
+
+async function abrirCombinacaoPagamentos(){
+  const sel = document.getElementById('combPagFiltroMes');
+  const inicio = new Date(2026, 6, 1); // Julho 2026
+  const hoje = new Date();
+  const fim = new Date(hoje.getFullYear(), hoje.getMonth() + 3, 1);
+  const meses = [];
+  let cursor = new Date(inicio);
+  while(cursor <= fim){
+    meses.push(cursor.getFullYear() + '-' + String(cursor.getMonth()+1).padStart(2,'0'));
+    cursor.setMonth(cursor.getMonth()+1);
+  }
+  sel.innerHTML = meses.map(chave=>{
+    const [ano, mes] = chave.split('-');
+    return `<option value="${chave}">${NOMES_MES[parseInt(mes,10)-1]} ${ano}</option>`;
+  }).join('');
+  const mesAtualStr = hoje.getFullYear() + '-' + String(hoje.getMonth()+1).padStart(2,'0');
+  sel.value = meses.includes(mesAtualStr) ? mesAtualStr : meses[0];
+  combPagMesAtual = sel.value;
+
+  await carregarOuPrepararCombinacaoPagamentos();
+}
+
+function limparSelecaoArquivosComb(){
+  comprasCombParsed = null;
+  pagamentosCombParsed = null;
+  document.getElementById('combPagComprasStatus').textContent = 'Nenhum arquivo selecionado.';
+  document.getElementById('combPagPagamentosStatus').textContent = 'Nenhum arquivo selecionado.';
+  document.getElementById('combPagComprasInput').value = '';
+  document.getElementById('combPagPagamentosInput').value = '';
+  document.getElementById('combPagBtnCombinar').disabled = true;
+}
+
+async function carregarOuPrepararCombinacaoPagamentos(){
+  limparSelecaoArquivosComb();
+  document.getElementById('combPagResultadoWrap').style.display = 'none';
+
+  const { data: comprasSalvas, error } = await sb.from('comb_pag_compras')
+    .select('*, comb_pag_pagamentos(*)')
+    .eq('loja', lojaAtual).eq('mes', combPagMesAtual);
+  const { data: pagamentosOrfaos } = await sb.from('comb_pag_pagamentos')
+    .select('*')
+    .eq('loja', lojaAtual).eq('mes', combPagMesAtual);
+
+  if(error){ console.error('Erro ao carregar combinação salva:', error); return; }
+
+  if((comprasSalvas && comprasSalvas.length>0) || (pagamentosOrfaos && pagamentosOrfaos.length>0)){
+    document.getElementById('combPagJaSalvoAviso').style.display = 'flex';
+    document.getElementById('combPagUploadWrap').style.display = 'none';
+
+    const idsPagamentosUsados = new Set(comprasSalvas.filter(c=>c.pagamento_id).map(c=>c.pagamento_id));
+    const pares = comprasSalvas.filter(c=>c.pagamento_id).map(c=>({
+      compra: { numCompra: c.num_compra, numNF: c.num_nf, emissao: c.emissao, entrada: c.entrada, razaoSocial: c.razao_social, nomeFantasia: c.nome_fantasia, valor: Number(c.valor) },
+      pagamento: { data: c.comb_pag_pagamentos.data, descricao: c.comb_pag_pagamentos.descricao, valor: Number(c.comb_pag_pagamentos.valor) },
+      diff: Number(c.diferenca || 0)
+    }));
+    const comprasSemPar = comprasSalvas.filter(c=>!c.pagamento_id).map(c=>({
+      numCompra: c.num_compra, numNF: c.num_nf, emissao: c.emissao, entrada: c.entrada, razaoSocial: c.razao_social, nomeFantasia: c.nome_fantasia, valor: Number(c.valor)
+    }));
+    const pagamentosSemPar = (pagamentosOrfaos||[]).filter(p=>!idsPagamentosUsados.has(p.id)).map(p=>({
+      data: p.data, descricao: p.descricao, valor: Number(p.valor)
+    }));
+
+    combPagResultado = { pares, comprasSemPar, pagamentosSemPar };
+    renderResultadoCombinacaoPagamentos();
+  }else{
+    document.getElementById('combPagJaSalvoAviso').style.display = 'none';
+    document.getElementById('combPagUploadWrap').style.display = 'block';
+  }
+}
+
+function confirmarApagarCombinacaoMes(){
+  document.getElementById('confirmApagarCombinacaoModal').style.display = 'flex';
+}
+
+async function confirmarApagarCombinacaoMesOk(){
+  document.getElementById('confirmApagarCombinacaoModal').style.display = 'none';
+  await sb.from('comb_pag_compras').delete().eq('loja', lojaAtual).eq('mes', combPagMesAtual);
+  await sb.from('comb_pag_pagamentos').delete().eq('loja', lojaAtual).eq('mes', combPagMesAtual);
+  await carregarOuPrepararCombinacaoPagamentos();
+}
+
+function mudarMesCombinacaoPagamentos(valor){
+  combPagMesAtual = valor;
+  carregarOuPrepararCombinacaoPagamentos();
+}
+
+function excelSerialParaDataComb(serial){
+  const ms = Math.round((serial - 25569) * 86400 * 1000);
+  return new Date(ms);
+}
+
+function parseDataComb(valor){
+  if(valor instanceof Date){
+    return valor.toISOString().slice(0,10);
+  }
+  if(typeof valor === 'number'){
+    return excelSerialParaDataComb(valor).toISOString().slice(0,10);
+  }
+  if(typeof valor === 'string' && valor.trim()){
+    return parseDataBR(valor);
+  }
+  return null;
+}
+
+async function onSelecionarComprasComb(fileList){
+  const file = fileList[0];
+  if(!file) return;
+  if(!window.XLSX){ alert('Não foi possível carregar o leitor de planilhas. Recarregue a página e tente de novo.'); return; }
+
+  const buffer = await file.arrayBuffer();
+  const wb = XLSX.read(buffer, { type: 'array' });
+  const aba = wb.SheetNames[0];
+  const linhas = XLSX.utils.sheet_to_json(wb.Sheets[aba], { header: 1, raw: true, defval: '' });
+  const cabecalho = (linhas[0]||[]).map(h=>String(h||'').trim().toUpperCase());
+  const idxNumCompra = cabecalho.findIndex(h=>h.includes('COMPRA'));
+  const idxNumNF = cabecalho.findIndex(h=>h.includes('NF'));
+  const idxEmissao = cabecalho.findIndex(h=>h.includes('EMISS'));
+  const idxEntrada = cabecalho.findIndex(h=>h.includes('ENTRADA'));
+  const idxRazao = cabecalho.findIndex(h=>h.includes('RAZ'));
+  const idxFantasia = cabecalho.findIndex(h=>h.includes('FANTASIA'));
+  const idxValor = cabecalho.findIndex(h=>h.includes('TOTAL'));
+
+  if(idxNumCompra===-1 || idxValor===-1){
+    alert('Não reconheci as colunas dessa planilha de Compras. Confira se ela tem "Nº Compra" e "Total da NF".');
+    return;
+  }
+
+  const itens = [];
+  for(let i=1;i<linhas.length;i++){
+    const linha = linhas[i];
+    if(!linha || !linha[idxNumCompra]) continue;
+    const valor = parseNumeroVenda(linha[idxValor]);
+    if(valor===null) continue;
+    itens.push({
+      numCompra: linha[idxNumCompra],
+      numNF: idxNumNF>-1 ? linha[idxNumNF] : '',
+      emissao: idxEmissao>-1 ? parseDataComb(linha[idxEmissao]) : null,
+      entrada: idxEntrada>-1 ? parseDataComb(linha[idxEntrada]) : null,
+      razaoSocial: idxRazao>-1 ? String(linha[idxRazao]||'').trim() : '',
+      nomeFantasia: idxFantasia>-1 ? String(linha[idxFantasia]||'').trim() : '',
+      valor
+    });
+  }
+
+  comprasCombParsed = itens;
+  document.getElementById('combPagComprasStatus').textContent = '✓ ' + file.name + ' (' + itens.length + ' compra(s) lida(s))';
+  document.getElementById('combPagBtnCombinar').disabled = !(comprasCombParsed && pagamentosCombParsed);
+}
+
+async function onSelecionarPagamentosComb(fileList){
+  const file = fileList[0];
+  if(!file) return;
+  if(!window.XLSX){ alert('Não foi possível carregar o leitor de planilhas. Recarregue a página e tente de novo.'); return; }
+
+  const buffer = await file.arrayBuffer();
+  const wb = XLSX.read(buffer, { type: 'array' });
+  const aba = wb.SheetNames[0];
+  const linhas = XLSX.utils.sheet_to_json(wb.Sheets[aba], { header: 1, raw: true, defval: '' });
+  const cabecalho = (linhas[0]||[]).map(h=>String(h||'').trim().toUpperCase());
+  const idxData = cabecalho.indexOf('DATA');
+  const idxDescricao = cabecalho.findIndex(h=>h.includes('DESCRI'));
+  const idxValor = cabecalho.findIndex(h=>h.includes('SA'));
+
+  if(idxData===-1 || idxValor===-1){
+    alert('Não reconheci as colunas dessa planilha de Pagamentos. Confira se ela tem "Data" e "Saída".');
+    return;
+  }
+
+  const itens = [];
+  for(let i=1;i<linhas.length;i++){
+    const linha = linhas[i];
+    if(!linha || linha.length===0) continue;
+    const valor = parseNumeroVenda(linha[idxValor]);
+    if(valor===null || valor===0) continue;
+    const data = parseDataComb(linha[idxData]);
+    if(!data) continue;
+    itens.push({
+      data,
+      descricao: idxDescricao>-1 ? String(linha[idxDescricao]||'').trim() : '',
+      valor
+    });
+  }
+
+  pagamentosCombParsed = itens;
+  document.getElementById('combPagPagamentosStatus').textContent = '✓ ' + file.name + ' (' + itens.length + ' pagamento(s) lido(s))';
+  document.getElementById('combPagBtnCombinar').disabled = !(comprasCombParsed && pagamentosCombParsed);
+}
+
+function normalizarTextoComb(s){
+  return (s||'').toUpperCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+    .replace(/[^A-Z0-9 ]/g,' ')
+    .split(/\s+/)
+    .filter(w=>w.length>=3 && !PALAVRAS_IGNORADAS_COMB.has(w));
+}
+
+function pontuarSimilaridadeComb(nome1, nome2, descricaoPagamento){
+  const palavrasFornecedor = new Set([...normalizarTextoComb(nome1), ...normalizarTextoComb(nome2)]);
+  const palavrasPagamento = normalizarTextoComb(descricaoPagamento);
+  let pontos = 0;
+  palavrasPagamento.forEach(p=>{ if(palavrasFornecedor.has(p)) pontos++; });
+  return pontos;
+}
+
+async function executarCombinacaoPagamentos(){
+  if(!comprasCombParsed || !pagamentosCombParsed) return;
+
+  const [ano, mes] = combPagMesAtual.split('-');
+  const de = combPagMesAtual + '-01';
+  const ultimoDia = new Date(parseInt(ano,10), parseInt(mes,10), 0).getDate();
+  const ate = combPagMesAtual + '-' + String(ultimoDia).padStart(2,'0');
+
+  const compras = comprasCombParsed
+    .filter(c => !c.emissao || (c.emissao>=de && c.emissao<=ate))
+    .map((c,idx)=>({...c, idx}));
+  const pagamentos = pagamentosCombParsed
+    .filter(p => p.data>=de && p.data<=ate)
+    .map((p,idx)=>({...p, idx}));
+
+  const TOLERANCIA = 0.05;
+  const candidatos = [];
+  compras.forEach(c=>{
+    pagamentos.forEach(p=>{
+      const diff = Math.abs(c.valor - p.valor);
+      if(diff <= TOLERANCIA){
+        const score = pontuarSimilaridadeComb(c.razaoSocial, c.nomeFantasia, p.descricao);
+        candidatos.push({ compraIdx: c.idx, pagamentoIdx: p.idx, score, diff });
+      }
+    });
+  });
+  candidatos.sort((a,b)=> b.score - a.score || a.diff - b.diff);
+
+  const compraUsada = new Set();
+  const pagamentoUsado = new Set();
+  const pares = [];
+  candidatos.forEach(cand=>{
+    if(compraUsada.has(cand.compraIdx) || pagamentoUsado.has(cand.pagamentoIdx)) return;
+    compraUsada.add(cand.compraIdx);
+    pagamentoUsado.add(cand.pagamentoIdx);
+    const c = compras.find(x=>x.idx===cand.compraIdx);
+    const p = pagamentos.find(x=>x.idx===cand.pagamentoIdx);
+    pares.push({ compra: c, pagamento: p, diff: cand.diff });
+  });
+
+  const comprasSemPar = compras.filter(c=>!compraUsada.has(c.idx));
+  const pagamentosSemPar = pagamentos.filter(p=>!pagamentoUsado.has(p.idx));
+
+  const btn = document.getElementById('combPagBtnCombinar');
+  btn.disabled = true;
+  btn.textContent = 'Salvando…';
+  abrirProgresso('Salvando combinação…');
+
+  // 1) grava TODOS os pagamentos do período (pareados ou não), pra poder referenciar o id deles
+  const registrosPagamentos = pagamentos.map(p=>({
+    loja: lojaAtual, mes: combPagMesAtual, data: p.data, descricao: p.descricao, valor: p.valor
+  }));
+  const { data: pagamentosSalvos, error: erroPag } = await sb.from('comb_pag_pagamentos').insert(registrosPagamentos).select();
+  atualizarProgresso(50);
+
+  if(erroPag){
+    fecharProgresso();
+    btn.disabled = false;
+    btn.textContent = 'Combinar planilhas';
+    alert('Erro ao salvar pagamentos: ' + erroPag.message);
+    return;
+  }
+
+  // mapeia índice original -> id salvo, na mesma ordem que foi inserido
+  const idPagamentoPorIdx = {};
+  pagamentos.forEach((p, i) => { idPagamentoPorIdx[p.idx] = pagamentosSalvos[i].id; });
+
+  // 2) grava as compras, com pagamento_id preenchido quando houver par
+  const registrosCompras = [
+    ...pares.map(par => ({
+      loja: lojaAtual, mes: combPagMesAtual,
+      num_compra: String(par.compra.numCompra||''), num_nf: String(par.compra.numNF||''),
+      emissao: par.compra.emissao, entrada: par.compra.entrada,
+      razao_social: par.compra.razaoSocial, nome_fantasia: par.compra.nomeFantasia,
+      valor: par.compra.valor, pagamento_id: idPagamentoPorIdx[par.pagamento.idx], diferenca: Number(par.diff.toFixed(2))
+    })),
+    ...comprasSemPar.map(c => ({
+      loja: lojaAtual, mes: combPagMesAtual,
+      num_compra: String(c.numCompra||''), num_nf: String(c.numNF||''),
+      emissao: c.emissao, entrada: c.entrada,
+      razao_social: c.razaoSocial, nome_fantasia: c.nomeFantasia,
+      valor: c.valor, pagamento_id: null, diferenca: 0
+    }))
+  ];
+  const { error: erroCompras } = await sb.from('comb_pag_compras').insert(registrosCompras);
+  atualizarProgresso(100);
+
+  btn.disabled = false;
+  btn.textContent = 'Combinar planilhas';
+  setTimeout(fecharProgresso, 250);
+
+  if(erroCompras){
+    alert('Erro ao salvar compras: ' + erroCompras.message);
+    return;
+  }
+
+  combPagResultado = { pares, comprasSemPar, pagamentosSemPar };
+  renderResultadoCombinacaoPagamentos();
+  document.getElementById('combPagJaSalvoAviso').style.display = 'flex';
+  document.getElementById('combPagUploadWrap').style.display = 'none';
+}
+
+function renderResultadoCombinacaoPagamentos(){
+  const { pares, comprasSemPar, pagamentosSemPar } = combPagResultado;
+
+  document.getElementById('combPagResultadoWrap').style.display = 'block';
+  document.getElementById('combPagQtdCombinados').textContent = pares.length;
+  document.getElementById('combPagQtdComprasSemPar').textContent = comprasSemPar.length;
+  document.getElementById('combPagQtdPagamentosSemPar').textContent = pagamentosSemPar.length;
+
+  document.getElementById('combPagCombinadosBody').innerHTML = pares.length===0
+    ? '<tr><td colspan="6" style="text-align:center;color:var(--muted);font-style:italic;padding:16px;">Nenhum par combinado.</td></tr>'
+    : pares.map(par=>`
+        <tr>
+          <td>${escapeHtml(par.compra.nomeFantasia || par.compra.razaoSocial)}</td>
+          <td>${escapeHtml(String(par.compra.numNF||''))}</td>
+          <td class="valor">${brl(par.compra.valor)}</td>
+          <td class="contato">${escapeHtml(par.pagamento.descricao)}</td>
+          <td class="valor">${brl(par.pagamento.valor)}</td>
+          <td class="valor" style="color:${par.diff>0?'var(--gold)':'var(--muted)'};">${par.diff>0 ? brl(par.diff) : '—'}</td>
+        </tr>
+      `).join('');
+
+  document.getElementById('combPagComprasSemParBody').innerHTML = comprasSemPar.length===0
+    ? '<tr><td colspan="4" style="text-align:center;color:var(--muted);font-style:italic;padding:16px;">Todas as compras encontraram um pagamento.</td></tr>'
+    : comprasSemPar.map(c=>`
+        <tr>
+          <td>${escapeHtml(c.nomeFantasia || c.razaoSocial)}</td>
+          <td>${escapeHtml(String(c.numNF||''))}</td>
+          <td class="data">${c.emissao ? fmtData(c.emissao) : '—'}</td>
+          <td class="valor" style="color:var(--rust);">${brl(c.valor)}</td>
+        </tr>
+      `).join('');
+
+  document.getElementById('combPagPagamentosSemParBody').innerHTML = pagamentosSemPar.length===0
+    ? '<tr><td colspan="3" style="text-align:center;color:var(--muted);font-style:italic;padding:16px;">Todos os pagamentos encontraram uma compra.</td></tr>'
+    : pagamentosSemPar.map(p=>`
+        <tr>
+          <td class="data">${fmtData(p.data)}</td>
+          <td class="contato">${escapeHtml(p.descricao)}</td>
+          <td class="valor" style="color:var(--rust);">${brl(p.valor)}</td>
+        </tr>
+      `).join('');
+}
+
+function nomeArquivoCombPag(extensao){
+  const nomeLoja = (NOMES_LOJA[lojaAtual]||'').toLowerCase().replace(' ','');
+  return 'combinacao-pagamentos-' + nomeLoja + '-' + combPagMesAtual + '.' + extensao;
+}
+
+function exportarExcelCombinacaoPagamentos(){
+  const { pares, comprasSemPar, pagamentosSemPar } = combPagResultado;
+  if(pares.length===0 && comprasSemPar.length===0 && pagamentosSemPar.length===0){ alert('Combine as planilhas primeiro.'); return; }
+  if(!window.XLSX){ alert('Não foi possível carregar o recurso de Excel. Recarregue a página e tente de novo.'); return; }
+
+  const livro = XLSX.utils.book_new();
+
+  const planCombinados = XLSX.utils.json_to_sheet(pares.map(par=>({
+    'Fornecedor (compra)': par.compra.nomeFantasia || par.compra.razaoSocial,
+    'Nº NF': par.compra.numNF,
+    'Valor compra': par.compra.valor,
+    'Descrição (pagamento)': par.pagamento.descricao,
+    'Valor pagamento': par.pagamento.valor,
+    'Diferença': Number(par.diff.toFixed(2))
+  })));
+  planCombinados['!cols'] = [{wch:30},{wch:12},{wch:14},{wch:30},{wch:14},{wch:12}];
+  XLSX.utils.book_append_sheet(livro, planCombinados, 'Combinados');
+
+  const planComprasSemPar = XLSX.utils.json_to_sheet(comprasSemPar.map(c=>({
+    'Fornecedor': c.nomeFantasia || c.razaoSocial, 'Nº NF': c.numNF, 'Emissão': c.emissao ? fmtData(c.emissao) : '', 'Valor': c.valor
+  })));
+  planComprasSemPar['!cols'] = [{wch:30},{wch:12},{wch:12},{wch:14}];
+  XLSX.utils.book_append_sheet(livro, planComprasSemPar, 'Compras sem pagamento');
+
+  const planPagamentosSemPar = XLSX.utils.json_to_sheet(pagamentosSemPar.map(p=>({
+    'Data': fmtData(p.data), 'Descrição': p.descricao, 'Valor': p.valor
+  })));
+  planPagamentosSemPar['!cols'] = [{wch:12},{wch:34},{wch:14}];
+  XLSX.utils.book_append_sheet(livro, planPagamentosSemPar, 'Pagamentos sem compra');
+
+  XLSX.writeFile(livro, nomeArquivoCombPag('xlsx'));
+}
+
+function exportarPdfCombinacaoPagamentos(){
+  const { pares, comprasSemPar, pagamentosSemPar } = combPagResultado;
+  if(pares.length===0 && comprasSemPar.length===0 && pagamentosSemPar.length===0){ alert('Combine as planilhas primeiro.'); return; }
+  if(!window.jspdf || !window.jspdf.jsPDF){ alert('Não foi possível carregar o recurso de PDF. Recarregue a página e tente de novo.'); return; }
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF();
+  const [ano, mes] = combPagMesAtual.split('-');
+  const rotuloMes = NOMES_MES[parseInt(mes,10)-1] + ' ' + ano;
+
+  doc.setFontSize(16);
+  doc.text('Combinação de Pagamentos — ' + (NOMES_LOJA[lojaAtual]||''), 14, 18);
+  doc.setFontSize(10);
+  doc.setTextColor(120);
+  doc.text('Mês: ' + rotuloMes + '   ·   Combinados: ' + pares.length + '   ·   Sem par: ' + (comprasSemPar.length+pagamentosSemPar.length), 14, 25);
+
+  doc.autoTable({
+    startY: 32,
+    head: [['Fornecedor (compra)','Nº NF','Valor compra','Descrição (pagamento)','Valor pagamento','Diferença']],
+    body: pares.map(par=>[
+      par.compra.nomeFantasia || par.compra.razaoSocial, String(par.compra.numNF||''), brl(par.compra.valor),
+      par.pagamento.descricao, brl(par.pagamento.valor), par.diff>0 ? brl(par.diff) : '—'
+    ]),
+    styles: { fontSize: 8, cellPadding: 3 },
+    headStyles: { fillColor: [38,51,43] }
+  });
+
+  if(comprasSemPar.length>0){
+    doc.autoTable({
+      startY: doc.lastAutoTable.finalY + 12,
+      head: [['Compras sem pagamento','Nº NF','Emissão','Valor']],
+      body: comprasSemPar.map(c=>[c.nomeFantasia || c.razaoSocial, String(c.numNF||''), c.emissao?fmtData(c.emissao):'', brl(c.valor)]),
+      styles: { fontSize: 8, cellPadding: 3 },
+      headStyles: { fillColor: [155,60,50] }
+    });
+  }
+
+  if(pagamentosSemPar.length>0){
+    doc.autoTable({
+      startY: doc.lastAutoTable.finalY + 12,
+      head: [['Pagamentos sem compra','Descrição','Valor']],
+      body: pagamentosSemPar.map(p=>[fmtData(p.data), p.descricao, brl(p.valor)]),
+      styles: { fontSize: 8, cellPadding: 3 },
+      headStyles: { fillColor: [155,60,50] }
+    });
+  }
+
+  doc.save(nomeArquivoCombPag('pdf'));
 }
 
 /* ---------- Colar de planilha (Descrição + Valor), com sugestão automática de código ---------- */
