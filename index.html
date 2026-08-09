@@ -858,6 +858,7 @@
         <div class="bh-resumo">
           <div class="metric"><div class="lbl">Combinados</div><div class="val" id="combPagQtdCombinados" style="color:var(--green);">0</div></div>
           <div class="metric"><div class="lbl">Combinados por soma</div><div class="val" id="combPagQtdGrupos" style="color:var(--green);">0</div></div>
+          <div class="metric"><div class="lbl">Bonificações</div><div class="val" id="combPagQtdBonificacoes" style="color:var(--gold);">0</div></div>
           <div class="metric"><div class="lbl">Compras sem pagamento</div><div class="val" id="combPagQtdComprasSemPar" style="color:var(--rust);">0</div></div>
           <div class="metric"><div class="lbl">Pagamentos sem compra</div><div class="val" id="combPagQtdPagamentosSemPar" style="color:var(--rust);">0</div></div>
         </div>
@@ -872,7 +873,7 @@
           </div>
           <div class="tablewrap">
             <table class="ledger">
-              <thead><tr><th>Fornecedor (compra)</th><th>Nº NF</th><th style="text-align:right">Valor compra</th><th>Descrição (pagamento)</th><th style="text-align:right">Valor pagamento</th><th style="text-align:right">Diferença</th></tr></thead>
+              <thead><tr><th>Fornecedor (compra)</th><th>Nº NF</th><th style="text-align:right">Valor compra</th><th>Descrição (pagamento)</th><th style="text-align:right">Valor pagamento</th><th style="text-align:right">Diferença</th><th></th></tr></thead>
               <tbody id="combPagCombinadosBody"></tbody>
             </table>
           </div>
@@ -898,10 +899,21 @@
           </div>
         </div>
 
+        <div class="panel" style="margin-bottom:20px;">
+          <div class="panel-head"><h2>🎁 Bonificações (sem pagamento esperado)</h2></div>
+          <div class="tablewrap">
+            <table class="ledger">
+              <thead><tr><th>Fornecedor</th><th>Nº NF</th><th>Emissão</th><th style="text-align:right">Valor</th><th></th></tr></thead>
+              <tbody id="combPagBonificacoesBody"></tbody>
+            </table>
+          </div>
+        </div>
+
         <div class="panel" id="combPagBarraSelecao" style="display:none;margin-bottom:20px;align-items:center;gap:14px;flex-wrap:wrap;position:sticky;top:8px;z-index:5;border:1px solid var(--gold);">
           <span id="combPagBarraTexto" style="font-size:13px;"></span>
-          <div style="display:flex;gap:10px;margin-left:auto;">
+          <div style="display:flex;gap:10px;margin-left:auto;flex-wrap:wrap;">
             <button class="cancelbtn" style="padding:6px 14px;" onclick="limparSelecaoManualComb()">Limpar seleção</button>
+            <button class="filter-btn" style="padding:6px 14px;" id="combPagBtnBonificacao" disabled onclick="abrirConfirmacaoBonificacaoComb()">🎁 Marcar como bonificação</button>
             <button class="addbtn" style="width:auto;padding:6px 16px;" id="combPagBtnVincular" disabled onclick="abrirConfirmacaoVincularManualComb()">Vincular selecionados</button>
           </div>
         </div>
@@ -1574,6 +1586,17 @@
     <div class="modal-actions">
       <button class="addbtn" style="background:var(--rust);" onclick="confirmarExclusaoProdutoOk()">Excluir</button>
       <button class="cancelbtn" onclick="fecharConfirmacaoProduto()">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<div id="confirmBonificacaoCombModal" class="modal-overlay">
+  <div class="modal-box" style="max-width:420px;">
+    <h2>Marcar como bonificação?</h2>
+    <p class="modal-sub" id="confirmBonificacaoCombTexto"></p>
+    <div class="modal-actions">
+      <button class="addbtn" onclick="confirmarBonificacaoCombOk()">Marcar como bonificação</button>
+      <button class="cancelbtn" onclick="fecharConfirmacaoBonificacaoComb()">Cancelar</button>
     </div>
   </div>
 </div>
@@ -7229,7 +7252,7 @@ function exportarPdfInventario(){
 let combPagMesAtual = '';
 let comprasCombParsed = null;
 let pagamentosCombParsed = null;
-let combPagResultado = { pares: [], grupos: [], comprasSemPar: [], pagamentosSemPar: [] };
+let combPagResultado = { pares: [], grupos: [], comprasSemPar: [], pagamentosSemPar: [], bonificacoes: [] };
 let combPagSelecaoCompras = new Set();
 let combPagSelecaoPagamentos = new Set();
 
@@ -7308,14 +7331,17 @@ async function carregarOuPrepararCombinacaoPagamentos(){
       diff: Math.abs(g.compras.reduce((s,c)=>s+c.valor,0) - g.pagamentos.reduce((s,p)=>s+p.valor,0))
     }));
 
-    const comprasSemPar = comprasSalvas.filter(c=>!c.pagamento_id && !c.grupo_id).map(c=>({
+    const comprasSemPar = comprasSalvas.filter(c=>!c.pagamento_id && !c.grupo_id && !c.bonificacao).map(c=>({
+      id: c.id, numCompra: c.num_compra, numNF: c.num_nf, emissao: c.emissao, entrada: c.entrada, razaoSocial: c.razao_social, nomeFantasia: c.nome_fantasia, valor: Number(c.valor)
+    }));
+    const bonificacoes = comprasSalvas.filter(c=>c.bonificacao).map(c=>({
       id: c.id, numCompra: c.num_compra, numNF: c.num_nf, emissao: c.emissao, entrada: c.entrada, razaoSocial: c.razao_social, nomeFantasia: c.nome_fantasia, valor: Number(c.valor)
     }));
     const pagamentosSemPar = (pagamentosOrfaos||[]).filter(p=>!idsPagamentosUsados.has(p.id) && !p.grupo_id).map(p=>({
       id: p.id, data: p.data, descricao: p.descricao, valor: Number(p.valor)
     }));
 
-    combPagResultado = { pares, grupos, comprasSemPar, pagamentosSemPar };
+    combPagResultado = { pares, grupos, comprasSemPar, pagamentosSemPar, bonificacoes };
     combPagSelecaoCompras.clear();
     combPagSelecaoPagamentos.clear();
     renderResultadoCombinacaoPagamentos();
@@ -7544,14 +7570,15 @@ async function executarCombinacaoPagamentos(){
     .map((p,idx)=>({...p, idx}));
 
   const TOLERANCIA = 4; // diferença entre nota e boleto (juros/desconto de poucos reais)
-  const TOLERANCIA_EXATA = 0.05; // acima disso, exige que o nome bata com a descrição do pagamento
   const candidatos = [];
   compras.forEach(c=>{
     pagamentos.forEach(p=>{
       const diff = Math.abs(c.valor - p.valor);
       if(diff <= TOLERANCIA){
         const score = pontuarSimilaridadeComb(c.razaoSocial, c.nomeFantasia, p.descricao);
-        if(diff <= TOLERANCIA_EXATA || score >= 1){
+        // sempre exige que ao menos uma palavra do nome do fornecedor bata com a descrição do pagamento —
+        // valor idêntico sozinho não é garantia de ser a mesma transação (dois fornecedores podem coincidir de valor)
+        if(score >= 1){
           candidatos.push({ compraIdx: c.idx, pagamentoIdx: p.idx, score, diff });
         }
       }
@@ -7680,18 +7707,19 @@ function linhaGrupoComb(g){
 }
 
 function renderResultadoCombinacaoPagamentos(){
-  const { pares, grupos, comprasSemPar, pagamentosSemPar } = combPagResultado;
+  const { pares, grupos, comprasSemPar, pagamentosSemPar, bonificacoes } = combPagResultado;
   const gruposAuto = (grupos||[]).filter(g=>!g.manual);
   const gruposManuais = (grupos||[]).filter(g=>g.manual);
 
   document.getElementById('combPagResultadoWrap').style.display = 'block';
   document.getElementById('combPagQtdCombinados').textContent = pares.length;
   document.getElementById('combPagQtdGrupos').textContent = gruposAuto.length;
+  document.getElementById('combPagQtdBonificacoes').textContent = (bonificacoes||[]).length;
   document.getElementById('combPagQtdComprasSemPar').textContent = comprasSemPar.length;
   document.getElementById('combPagQtdPagamentosSemPar').textContent = pagamentosSemPar.length;
 
   document.getElementById('combPagCombinadosBody').innerHTML = pares.length===0
-    ? '<tr><td colspan="6" style="text-align:center;color:var(--muted);font-style:italic;padding:16px;">Nenhum par combinado.</td></tr>'
+    ? '<tr><td colspan="7" style="text-align:center;color:var(--muted);font-style:italic;padding:16px;">Nenhum par combinado.</td></tr>'
     : pares.map(par=>`
         <tr>
           <td>${escapeHtml(par.compra.nomeFantasia || par.compra.razaoSocial)}</td>
@@ -7700,6 +7728,7 @@ function renderResultadoCombinacaoPagamentos(){
           <td class="contato">${escapeHtml(par.pagamento.descricao)}</td>
           <td class="valor">${brl(par.pagamento.valor)}</td>
           <td class="valor" style="color:${par.diff>0?'var(--gold)':'var(--muted)'};">${par.diff>0 ? brl(par.diff) : '—'}</td>
+          <td><button class="filter-btn" style="padding:4px 10px;font-size:12px;" onclick='desfazerParComb(${JSON.stringify(par.compra.id)}, ${JSON.stringify(par.pagamento.id)})'>Desfazer</button></td>
         </tr>
       `).join('');
 
@@ -7710,6 +7739,18 @@ function renderResultadoCombinacaoPagamentos(){
   document.getElementById('combPagManuaisBody').innerHTML = gruposManuais.length===0
     ? '<tr><td colspan="7" style="text-align:center;color:var(--muted);font-style:italic;padding:16px;">Nenhuma vinculação manual ainda. Selecione itens nas tabelas abaixo pra vincular com desconto.</td></tr>'
     : gruposManuais.map(linhaGrupoComb).join('');
+
+  document.getElementById('combPagBonificacoesBody').innerHTML = (!bonificacoes || bonificacoes.length===0)
+    ? '<tr><td colspan="5" style="text-align:center;color:var(--muted);font-style:italic;padding:16px;">Nenhuma bonificação marcada ainda. Selecione compras abaixo e marque como bonificação.</td></tr>'
+    : bonificacoes.map(c=>`
+        <tr>
+          <td>${escapeHtml(c.nomeFantasia || c.razaoSocial)}</td>
+          <td>${escapeHtml(String(c.numNF||''))}</td>
+          <td class="data">${c.emissao ? fmtData(c.emissao) : '—'}</td>
+          <td class="valor">${brl(c.valor)}</td>
+          <td><button class="filter-btn" style="padding:4px 10px;font-size:12px;" onclick="desfazerBonificacaoComb(${JSON.stringify([c.id])})">Desfazer</button></td>
+        </tr>
+      `).join('');
 
   document.getElementById('combPagComprasSemParBody').innerHTML = comprasSemPar.length===0
     ? '<tr><td colspan="5" style="text-align:center;color:var(--muted);font-style:italic;padding:16px;">Todas as compras encontraram um pagamento.</td></tr>'
@@ -7777,6 +7818,57 @@ function atualizarBarraSelecaoComb(){
 
   const btn = document.getElementById('combPagBtnVincular');
   btn.disabled = !(compras.length>0 && pagamentos.length>0);
+
+  const btnBonif = document.getElementById('combPagBtnBonificacao');
+  if(btnBonif) btnBonif.disabled = !(compras.length>0);
+}
+
+function abrirConfirmacaoBonificacaoComb(){
+  const { comprasSemPar } = combPagResultado;
+  const compras = comprasSemPar.filter(c=>combPagSelecaoCompras.has(String(c.id)));
+  if(compras.length===0) return;
+
+  const totalCompras = compras.reduce((s,c)=>s+c.valor,0);
+  document.getElementById('confirmBonificacaoCombTexto').innerHTML =
+    `Marcar <b>${compras.length}</b> compra(s) (${brl(totalCompras)}) como bonificação (sem pagamento esperado)?`
+    + `<br>Ela(s) vai(vão) sair da lista de pendências e não vai(vão) mais precisar de um pagamento pareado.`;
+
+  document.getElementById('confirmBonificacaoCombModal').style.display = 'flex';
+}
+
+function fecharConfirmacaoBonificacaoComb(){
+  document.getElementById('confirmBonificacaoCombModal').style.display = 'none';
+}
+
+async function confirmarBonificacaoCombOk(){
+  const paraTipoOriginal = v => (v!=='' && !isNaN(v)) ? Number(v) : v;
+  const idsCompras = [...combPagSelecaoCompras].map(paraTipoOriginal);
+  if(idsCompras.length===0) return;
+
+  fecharConfirmacaoBonificacaoComb();
+  abrirProgresso('Marcando…');
+
+  const { error } = await sb.from('comb_pag_compras').update({ bonificacao: true }).in('id', idsCompras);
+  fecharProgresso();
+
+  if(error){
+    alert('Erro ao marcar bonificação: ' + error.message);
+    return;
+  }
+
+  combPagSelecaoCompras.clear();
+  await carregarOuPrepararCombinacaoPagamentos();
+}
+
+async function desfazerBonificacaoComb(idsCompras){
+  abrirProgresso('Desfazendo…');
+  const { error } = await sb.from('comb_pag_compras').update({ bonificacao: false }).in('id', idsCompras);
+  fecharProgresso();
+  if(error){
+    alert('Erro ao desfazer: ' + error.message);
+    return;
+  }
+  await carregarOuPrepararCombinacaoPagamentos();
 }
 
 function abrirConfirmacaoVincularManualComb(){
@@ -7836,14 +7928,26 @@ async function desfazerGrupoComb(idsCompras, idsPagamentos){
   await carregarOuPrepararCombinacaoPagamentos();
 }
 
+// desfaz um par 1:1 da tabela "Combinados" (a compra e o pagamento voltam pra lista de sem-par)
+async function desfazerParComb(idCompra, idPagamento){
+  abrirProgresso('Desfazendo…');
+  const { error } = await sb.from('comb_pag_compras').update({ pagamento_id: null, diferenca: 0 }).eq('id', idCompra);
+  fecharProgresso();
+  if(error){
+    alert('Erro ao desfazer: ' + error.message);
+    return;
+  }
+  await carregarOuPrepararCombinacaoPagamentos();
+}
+
 function nomeArquivoCombPag(extensao){
   const nomeLoja = (NOMES_LOJA[lojaAtual]||'').toLowerCase().replace(' ','');
   return 'combinacao-pagamentos-' + nomeLoja + '-' + combPagMesAtual + '.' + extensao;
 }
 
 function exportarExcelCombinacaoPagamentos(){
-  const { pares, grupos, comprasSemPar, pagamentosSemPar } = combPagResultado;
-  if(pares.length===0 && (!grupos||grupos.length===0) && comprasSemPar.length===0 && pagamentosSemPar.length===0){ alert('Combine as planilhas primeiro.'); return; }
+  const { pares, grupos, comprasSemPar, pagamentosSemPar, bonificacoes } = combPagResultado;
+  if(pares.length===0 && (!grupos||grupos.length===0) && comprasSemPar.length===0 && pagamentosSemPar.length===0 && (!bonificacoes||bonificacoes.length===0)){ alert('Combine as planilhas primeiro.'); return; }
   if(!window.XLSX){ alert('Não foi possível carregar o recurso de Excel. Recarregue a página e tente de novo.'); return; }
 
   const livro = XLSX.utils.book_new();
@@ -7876,6 +7980,12 @@ function exportarExcelCombinacaoPagamentos(){
   planManuais['!cols'] = [{wch:30},{wch:35},{wch:14},{wch:45},{wch:16},{wch:12}];
   XLSX.utils.book_append_sheet(livro, planManuais, 'Vinculados manualmente');
 
+  const planBonificacoes = XLSX.utils.json_to_sheet((bonificacoes||[]).map(c=>({
+    'Fornecedor': c.nomeFantasia || c.razaoSocial, 'Nº NF': c.numNF, 'Emissão': c.emissao ? fmtData(c.emissao) : '', 'Valor': c.valor
+  })));
+  planBonificacoes['!cols'] = [{wch:30},{wch:12},{wch:12},{wch:14}];
+  XLSX.utils.book_append_sheet(livro, planBonificacoes, 'Bonificações');
+
   const planComprasSemPar = XLSX.utils.json_to_sheet(comprasSemPar.map(c=>({
     'Fornecedor': c.nomeFantasia || c.razaoSocial, 'Nº NF': c.numNF, 'Emissão': c.emissao ? fmtData(c.emissao) : '', 'Valor': c.valor
   })));
@@ -7892,8 +8002,8 @@ function exportarExcelCombinacaoPagamentos(){
 }
 
 function exportarPdfCombinacaoPagamentos(){
-  const { pares, grupos, comprasSemPar, pagamentosSemPar } = combPagResultado;
-  if(pares.length===0 && (!grupos||grupos.length===0) && comprasSemPar.length===0 && pagamentosSemPar.length===0){ alert('Combine as planilhas primeiro.'); return; }
+  const { pares, grupos, comprasSemPar, pagamentosSemPar, bonificacoes } = combPagResultado;
+  if(pares.length===0 && (!grupos||grupos.length===0) && comprasSemPar.length===0 && pagamentosSemPar.length===0 && (!bonificacoes||bonificacoes.length===0)){ alert('Combine as planilhas primeiro.'); return; }
   if(!window.jspdf || !window.jspdf.jsPDF){ alert('Não foi possível carregar o recurso de PDF. Recarregue a página e tente de novo.'); return; }
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF();
@@ -7943,6 +8053,16 @@ function exportarPdfCombinacaoPagamentos(){
       startY: doc.lastAutoTable.finalY + 12,
       head: [['Fornecedor (vinculado manualmente)','Compra(s)','Valor compra(s)','Pagamento(s)','Valor pagamento(s)','Diferença']],
       body: gruposManuaisPdf.map(linhasGrupoPdf),
+      styles: { fontSize: 8, cellPadding: 3 },
+      headStyles: { fillColor: [180,140,30] }
+    });
+  }
+
+  if(bonificacoes && bonificacoes.length>0){
+    doc.autoTable({
+      startY: doc.lastAutoTable.finalY + 12,
+      head: [['Bonificações','Nº NF','Emissão','Valor']],
+      body: bonificacoes.map(c=>[c.nomeFantasia || c.razaoSocial, String(c.numNF||''), c.emissao?fmtData(c.emissao):'', brl(c.valor)]),
       styles: { fontSize: 8, cellPadding: 3 },
       headStyles: { fillColor: [180,140,30] }
     });
