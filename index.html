@@ -882,9 +882,27 @@
           <div class="panel-head"><h2>🔗 Combinados por soma (parcelas / boletos agrupados)</h2></div>
           <div class="tablewrap">
             <table class="ledger">
-              <thead><tr><th>Fornecedor</th><th>Compra(s)</th><th style="text-align:right">Valor compra(s)</th><th>Pagamento(s)</th><th style="text-align:right">Valor pagamento(s)</th><th style="text-align:right">Diferença</th></tr></thead>
+              <thead><tr><th>Fornecedor</th><th>Compra(s)</th><th style="text-align:right">Valor compra(s)</th><th>Pagamento(s)</th><th style="text-align:right">Valor pagamento(s)</th><th style="text-align:right">Diferença</th><th></th></tr></thead>
               <tbody id="combPagGruposBody"></tbody>
             </table>
+          </div>
+        </div>
+
+        <div class="panel" style="margin-bottom:20px;">
+          <div class="panel-head"><h2>✋ Vinculados manualmente (com desconto/diferença)</h2></div>
+          <div class="tablewrap">
+            <table class="ledger">
+              <thead><tr><th>Fornecedor</th><th>Compra(s)</th><th style="text-align:right">Valor compra(s)</th><th>Pagamento(s)</th><th style="text-align:right">Valor pagamento(s)</th><th style="text-align:right">Diferença</th><th></th></tr></thead>
+              <tbody id="combPagManuaisBody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="panel" id="combPagBarraSelecao" style="display:none;margin-bottom:20px;align-items:center;gap:14px;flex-wrap:wrap;position:sticky;top:8px;z-index:5;border:1px solid var(--gold);">
+          <span id="combPagBarraTexto" style="font-size:13px;"></span>
+          <div style="display:flex;gap:10px;margin-left:auto;">
+            <button class="cancelbtn" style="padding:6px 14px;" onclick="limparSelecaoManualComb()">Limpar seleção</button>
+            <button class="addbtn" style="width:auto;padding:6px 16px;" id="combPagBtnVincular" disabled onclick="abrirConfirmacaoVincularManualComb()">Vincular selecionados</button>
           </div>
         </div>
 
@@ -892,7 +910,7 @@
           <div class="panel-head"><h2>⚠ Compras sem pagamento encontrado</h2></div>
           <div class="tablewrap">
             <table class="ledger">
-              <thead><tr><th>Fornecedor</th><th>Nº NF</th><th>Emissão</th><th style="text-align:right">Valor</th></tr></thead>
+              <thead><tr><th></th><th>Fornecedor</th><th>Nº NF</th><th>Emissão</th><th style="text-align:right">Valor</th></tr></thead>
               <tbody id="combPagComprasSemParBody"></tbody>
             </table>
           </div>
@@ -902,7 +920,7 @@
           <div class="panel-head"><h2>⚠ Pagamentos sem compra encontrada</h2></div>
           <div class="tablewrap">
             <table class="ledger">
-              <thead><tr><th>Data</th><th>Descrição</th><th style="text-align:right">Valor</th></tr></thead>
+              <thead><tr><th></th><th>Data</th><th>Descrição</th><th style="text-align:right">Valor</th></tr></thead>
               <tbody id="combPagPagamentosSemParBody"></tbody>
             </table>
           </div>
@@ -1556,6 +1574,17 @@
     <div class="modal-actions">
       <button class="addbtn" style="background:var(--rust);" onclick="confirmarExclusaoProdutoOk()">Excluir</button>
       <button class="cancelbtn" onclick="fecharConfirmacaoProduto()">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<div id="confirmVincularManualCombModal" class="modal-overlay">
+  <div class="modal-box" style="max-width:420px;">
+    <h2>Vincular manualmente?</h2>
+    <p class="modal-sub" id="confirmVincularManualCombTexto"></p>
+    <div class="modal-actions">
+      <button class="addbtn" onclick="confirmarVincularManualCombOk()">Vincular</button>
+      <button class="cancelbtn" onclick="fecharConfirmacaoVincularManualComb()">Cancelar</button>
     </div>
   </div>
 </div>
@@ -7201,6 +7230,8 @@ let combPagMesAtual = '';
 let comprasCombParsed = null;
 let pagamentosCombParsed = null;
 let combPagResultado = { pares: [], grupos: [], comprasSemPar: [], pagamentosSemPar: [] };
+let combPagSelecaoCompras = new Set();
+let combPagSelecaoPagamentos = new Set();
 
 const PALAVRAS_IGNORADAS_COMB = new Set(['LTDA','LTD','EIRELI','COMERCIO','INDUSTRIA','DISTRIBUIDORA','ALIMENTOS','BEBIDAS','BRASIL','LOJA','PRODUTOS','SOCIAL','RAZAO','MINAS','PAGAMENTO','DESCRICAO']);
 
@@ -7255,34 +7286,38 @@ async function carregarOuPrepararCombinacaoPagamentos(){
 
     const idsPagamentosUsados = new Set(comprasSalvas.filter(c=>c.pagamento_id).map(c=>c.pagamento_id));
     const pares = comprasSalvas.filter(c=>c.pagamento_id).map(c=>({
-      compra: { numCompra: c.num_compra, numNF: c.num_nf, emissao: c.emissao, entrada: c.entrada, razaoSocial: c.razao_social, nomeFantasia: c.nome_fantasia, valor: Number(c.valor) },
-      pagamento: { data: c.comb_pag_pagamentos.data, descricao: c.comb_pag_pagamentos.descricao, valor: Number(c.comb_pag_pagamentos.valor) },
+      compra: { id: c.id, numCompra: c.num_compra, numNF: c.num_nf, emissao: c.emissao, entrada: c.entrada, razaoSocial: c.razao_social, nomeFantasia: c.nome_fantasia, valor: Number(c.valor) },
+      pagamento: { id: c.comb_pag_pagamentos.id, data: c.comb_pag_pagamentos.data, descricao: c.comb_pag_pagamentos.descricao, valor: Number(c.comb_pag_pagamentos.valor) },
       diff: Number(c.diferenca || 0)
     }));
 
-    // reconstrói os grupos combinados por soma a partir do grupo_id (presente tanto em compras quanto em pagamentos)
+    // reconstrói os grupos (por soma automática OU vinculados manualmente) a partir do grupo_id
     const gruposMap = {};
     comprasSalvas.filter(c=>c.grupo_id).forEach(c=>{
-      if(!gruposMap[c.grupo_id]) gruposMap[c.grupo_id] = { compras: [], pagamentos: [] };
-      gruposMap[c.grupo_id].compras.push({ numCompra: c.num_compra, numNF: c.num_nf, emissao: c.emissao, entrada: c.entrada, razaoSocial: c.razao_social, nomeFantasia: c.nome_fantasia, valor: Number(c.valor) });
+      if(!gruposMap[c.grupo_id]) gruposMap[c.grupo_id] = { compras: [], pagamentos: [], manual: false };
+      gruposMap[c.grupo_id].compras.push({ id: c.id, numCompra: c.num_compra, numNF: c.num_nf, emissao: c.emissao, entrada: c.entrada, razaoSocial: c.razao_social, nomeFantasia: c.nome_fantasia, valor: Number(c.valor) });
+      if(c.grupo_manual) gruposMap[c.grupo_id].manual = true;
     });
     (pagamentosOrfaos||[]).filter(p=>p.grupo_id).forEach(p=>{
-      if(!gruposMap[p.grupo_id]) gruposMap[p.grupo_id] = { compras: [], pagamentos: [] };
-      gruposMap[p.grupo_id].pagamentos.push({ data: p.data, descricao: p.descricao, valor: Number(p.valor) });
+      if(!gruposMap[p.grupo_id]) gruposMap[p.grupo_id] = { compras: [], pagamentos: [], manual: false };
+      gruposMap[p.grupo_id].pagamentos.push({ id: p.id, data: p.data, descricao: p.descricao, valor: Number(p.valor) });
+      if(p.grupo_manual) gruposMap[p.grupo_id].manual = true;
     });
     const grupos = Object.values(gruposMap).map(g=>({
-      compras: g.compras, pagamentos: g.pagamentos,
+      compras: g.compras, pagamentos: g.pagamentos, manual: g.manual,
       diff: Math.abs(g.compras.reduce((s,c)=>s+c.valor,0) - g.pagamentos.reduce((s,p)=>s+p.valor,0))
     }));
 
     const comprasSemPar = comprasSalvas.filter(c=>!c.pagamento_id && !c.grupo_id).map(c=>({
-      numCompra: c.num_compra, numNF: c.num_nf, emissao: c.emissao, entrada: c.entrada, razaoSocial: c.razao_social, nomeFantasia: c.nome_fantasia, valor: Number(c.valor)
+      id: c.id, numCompra: c.num_compra, numNF: c.num_nf, emissao: c.emissao, entrada: c.entrada, razaoSocial: c.razao_social, nomeFantasia: c.nome_fantasia, valor: Number(c.valor)
     }));
     const pagamentosSemPar = (pagamentosOrfaos||[]).filter(p=>!idsPagamentosUsados.has(p.id) && !p.grupo_id).map(p=>({
-      data: p.data, descricao: p.descricao, valor: Number(p.valor)
+      id: p.id, data: p.data, descricao: p.descricao, valor: Number(p.valor)
     }));
 
     combPagResultado = { pares, grupos, comprasSemPar, pagamentosSemPar };
+    combPagSelecaoCompras.clear();
+    combPagSelecaoPagamentos.clear();
     renderResultadoCombinacaoPagamentos();
   }else{
     document.getElementById('combPagJaSalvoAviso').style.display = 'none';
@@ -7458,7 +7493,7 @@ function encontrarSubconjuntoSomaComb(itens, alvo, tolerancia, maxItens){
 // Cobre parcelamento (1 compra paga em várias vezes) e boleto agrupado (várias compras pagas de uma vez).
 // Só tenta somar itens do mesmo fornecedor (score de similaridade >= 1) pra evitar somas por coincidência.
 function encontrarGruposPorSomaComb(comprasSemPar, pagamentosSemPar){
-  const TOLERANCIA = 0.05;
+  const TOLERANCIA = 4; // mesma tolerância da 1ª passada (diferença entre nota e boleto)
   const MAX_ITENS_GRUPO = 6;
   const compraUsada = new Set();
   const pagamentoUsado = new Set();
@@ -7508,14 +7543,17 @@ async function executarCombinacaoPagamentos(){
     .filter(p => p.data>=de && p.data<=ate)
     .map((p,idx)=>({...p, idx}));
 
-  const TOLERANCIA = 0.05;
+  const TOLERANCIA = 4; // diferença entre nota e boleto (juros/desconto de poucos reais)
+  const TOLERANCIA_EXATA = 0.05; // acima disso, exige que o nome bata com a descrição do pagamento
   const candidatos = [];
   compras.forEach(c=>{
     pagamentos.forEach(p=>{
       const diff = Math.abs(c.valor - p.valor);
       if(diff <= TOLERANCIA){
         const score = pontuarSimilaridadeComb(c.razaoSocial, c.nomeFantasia, p.descricao);
-        candidatos.push({ compraIdx: c.idx, pagamentoIdx: p.idx, score, diff });
+        if(diff <= TOLERANCIA_EXATA || score >= 1){
+          candidatos.push({ compraIdx: c.idx, pagamentoIdx: p.idx, score, diff });
+        }
       }
     });
   });
@@ -7616,18 +7654,39 @@ async function executarCombinacaoPagamentos(){
     return;
   }
 
-  combPagResultado = { pares, grupos, comprasSemPar, pagamentosSemPar };
-  renderResultadoCombinacaoPagamentos();
-  document.getElementById('combPagJaSalvoAviso').style.display = 'flex';
-  document.getElementById('combPagUploadWrap').style.display = 'none';
+  // recarrega do banco (garante que cada item tenha o id salvo, necessário pra vinculação manual depois)
+  await carregarOuPrepararCombinacaoPagamentos();
+}
+
+function linhaGrupoComb(g){
+  const totalCompras = g.compras.reduce((s,c)=>s+c.valor,0);
+  const totalPagamentos = g.pagamentos.reduce((s,p)=>s+p.valor,0);
+  const fornecedor = g.compras[0] ? (g.compras[0].nomeFantasia || g.compras[0].razaoSocial) : '';
+  const compraLinhas = g.compras.map(c=>escapeHtml((c.numNF?('NF '+c.numNF+' — '):'')+brl(c.valor))).join('<br>');
+  const pagamentoLinhas = g.pagamentos.map(p=>escapeHtml((p.data?fmtData(p.data)+' — ':'')+p.descricao+' — '+brl(p.valor))).join('<br>');
+  const idsCompras = JSON.stringify(g.compras.map(c=>c.id));
+  const idsPagamentos = JSON.stringify(g.pagamentos.map(p=>p.id));
+  return `
+    <tr>
+      <td>${escapeHtml(fornecedor)}</td>
+      <td class="contato">${compraLinhas}</td>
+      <td class="valor">${brl(totalCompras)}</td>
+      <td class="contato">${pagamentoLinhas}</td>
+      <td class="valor">${brl(totalPagamentos)}</td>
+      <td class="valor" style="color:${g.diff>0?'var(--gold)':'var(--muted)'};">${g.diff>0 ? brl(g.diff) : '—'}</td>
+      <td><button class="filter-btn" style="padding:4px 10px;font-size:12px;" onclick='desfazerGrupoComb(${idsCompras}, ${idsPagamentos})'>Desfazer</button></td>
+    </tr>
+  `;
 }
 
 function renderResultadoCombinacaoPagamentos(){
   const { pares, grupos, comprasSemPar, pagamentosSemPar } = combPagResultado;
+  const gruposAuto = (grupos||[]).filter(g=>!g.manual);
+  const gruposManuais = (grupos||[]).filter(g=>g.manual);
 
   document.getElementById('combPagResultadoWrap').style.display = 'block';
   document.getElementById('combPagQtdCombinados').textContent = pares.length;
-  document.getElementById('combPagQtdGrupos').textContent = (grupos||[]).length;
+  document.getElementById('combPagQtdGrupos').textContent = gruposAuto.length;
   document.getElementById('combPagQtdComprasSemPar').textContent = comprasSemPar.length;
   document.getElementById('combPagQtdPagamentosSemPar').textContent = pagamentosSemPar.length;
 
@@ -7644,29 +7703,19 @@ function renderResultadoCombinacaoPagamentos(){
         </tr>
       `).join('');
 
-  document.getElementById('combPagGruposBody').innerHTML = (!grupos || grupos.length===0)
-    ? '<tr><td colspan="6" style="text-align:center;color:var(--muted);font-style:italic;padding:16px;">Nenhuma combinação por soma encontrada.</td></tr>'
-    : grupos.map(g=>{
-        const totalCompras = g.compras.reduce((s,c)=>s+c.valor,0);
-        const totalPagamentos = g.pagamentos.reduce((s,p)=>s+p.valor,0);
-        const fornecedor = g.compras[0] ? (g.compras[0].nomeFantasia || g.compras[0].razaoSocial) : '';
-        const compraLinhas = g.compras.map(c=>escapeHtml((c.numNF?('NF '+c.numNF+' — '):'')+brl(c.valor))).join('<br>');
-        const pagamentoLinhas = g.pagamentos.map(p=>escapeHtml((p.data?fmtData(p.data)+' — ':'')+p.descricao+' — '+brl(p.valor))).join('<br>');
-        return `
-        <tr>
-          <td>${escapeHtml(fornecedor)}</td>
-          <td class="contato">${compraLinhas}</td>
-          <td class="valor">${brl(totalCompras)}</td>
-          <td class="contato">${pagamentoLinhas}</td>
-          <td class="valor">${brl(totalPagamentos)}</td>
-          <td class="valor" style="color:${g.diff>0?'var(--gold)':'var(--muted)'};">${g.diff>0 ? brl(g.diff) : '—'}</td>
-        </tr>
-      `;}).join('');
+  document.getElementById('combPagGruposBody').innerHTML = gruposAuto.length===0
+    ? '<tr><td colspan="7" style="text-align:center;color:var(--muted);font-style:italic;padding:16px;">Nenhuma combinação por soma encontrada.</td></tr>'
+    : gruposAuto.map(linhaGrupoComb).join('');
+
+  document.getElementById('combPagManuaisBody').innerHTML = gruposManuais.length===0
+    ? '<tr><td colspan="7" style="text-align:center;color:var(--muted);font-style:italic;padding:16px;">Nenhuma vinculação manual ainda. Selecione itens nas tabelas abaixo pra vincular com desconto.</td></tr>'
+    : gruposManuais.map(linhaGrupoComb).join('');
 
   document.getElementById('combPagComprasSemParBody').innerHTML = comprasSemPar.length===0
-    ? '<tr><td colspan="4" style="text-align:center;color:var(--muted);font-style:italic;padding:16px;">Todas as compras encontraram um pagamento.</td></tr>'
+    ? '<tr><td colspan="5" style="text-align:center;color:var(--muted);font-style:italic;padding:16px;">Todas as compras encontraram um pagamento.</td></tr>'
     : comprasSemPar.map(c=>`
         <tr>
+          <td style="width:34px;"><input type="checkbox" ${combPagSelecaoCompras.has(c.id)?'checked':''} onchange="toggleSelecaoCompraComb(${c.id}, this.checked)"></td>
           <td>${escapeHtml(c.nomeFantasia || c.razaoSocial)}</td>
           <td>${escapeHtml(String(c.numNF||''))}</td>
           <td class="data">${c.emissao ? fmtData(c.emissao) : '—'}</td>
@@ -7675,14 +7724,113 @@ function renderResultadoCombinacaoPagamentos(){
       `).join('');
 
   document.getElementById('combPagPagamentosSemParBody').innerHTML = pagamentosSemPar.length===0
-    ? '<tr><td colspan="3" style="text-align:center;color:var(--muted);font-style:italic;padding:16px;">Todos os pagamentos encontraram uma compra.</td></tr>'
+    ? '<tr><td colspan="4" style="text-align:center;color:var(--muted);font-style:italic;padding:16px;">Todos os pagamentos encontraram uma compra.</td></tr>'
     : pagamentosSemPar.map(p=>`
         <tr>
+          <td style="width:34px;"><input type="checkbox" ${combPagSelecaoPagamentos.has(p.id)?'checked':''} onchange="toggleSelecaoPagamentoComb(${p.id}, this.checked)"></td>
           <td class="data">${fmtData(p.data)}</td>
           <td class="contato">${escapeHtml(p.descricao)}</td>
           <td class="valor" style="color:var(--rust);">${brl(p.valor)}</td>
         </tr>
       `).join('');
+
+  atualizarBarraSelecaoComb();
+}
+
+function toggleSelecaoCompraComb(id, marcado){
+  if(marcado) combPagSelecaoCompras.add(id); else combPagSelecaoCompras.delete(id);
+  atualizarBarraSelecaoComb();
+}
+function toggleSelecaoPagamentoComb(id, marcado){
+  if(marcado) combPagSelecaoPagamentos.add(id); else combPagSelecaoPagamentos.delete(id);
+  atualizarBarraSelecaoComb();
+}
+
+function limparSelecaoManualComb(){
+  combPagSelecaoCompras.clear();
+  combPagSelecaoPagamentos.clear();
+  renderResultadoCombinacaoPagamentos();
+}
+
+function atualizarBarraSelecaoComb(){
+  const barra = document.getElementById('combPagBarraSelecao');
+  if(!barra) return;
+  const { comprasSemPar, pagamentosSemPar } = combPagResultado;
+  const compras = comprasSemPar.filter(c=>combPagSelecaoCompras.has(c.id));
+  const pagamentos = pagamentosSemPar.filter(p=>combPagSelecaoPagamentos.has(p.id));
+
+  if(compras.length===0 && pagamentos.length===0){
+    barra.style.display = 'none';
+    return;
+  }
+  barra.style.display = 'flex';
+
+  const totalCompras = compras.reduce((s,c)=>s+c.valor,0);
+  const totalPagamentos = pagamentos.reduce((s,p)=>s+p.valor,0);
+  const diff = totalCompras - totalPagamentos;
+
+  document.getElementById('combPagBarraTexto').innerHTML =
+    `<b>${compras.length}</b> compra(s) selecionada(s) (${brl(totalCompras)}) &nbsp;+&nbsp; <b>${pagamentos.length}</b> pagamento(s) selecionado(s) (${brl(totalPagamentos)})`
+    + (compras.length>0 && pagamentos.length>0 ? ` &nbsp;→&nbsp; diferença: <b style="color:${Math.abs(diff)>0.005?'var(--gold)':'var(--muted)'}">${brl(Math.abs(diff))}</b>` : '');
+
+  const btn = document.getElementById('combPagBtnVincular');
+  btn.disabled = !(compras.length>0 && pagamentos.length>0);
+}
+
+function abrirConfirmacaoVincularManualComb(){
+  const { comprasSemPar, pagamentosSemPar } = combPagResultado;
+  const compras = comprasSemPar.filter(c=>combPagSelecaoCompras.has(c.id));
+  const pagamentos = pagamentosSemPar.filter(p=>combPagSelecaoPagamentos.has(p.id));
+  if(compras.length===0 || pagamentos.length===0) return;
+
+  const totalCompras = compras.reduce((s,c)=>s+c.valor,0);
+  const totalPagamentos = pagamentos.reduce((s,p)=>s+p.valor,0);
+  const diff = totalCompras - totalPagamentos;
+
+  document.getElementById('confirmVincularManualCombTexto').innerHTML =
+    `Vincular <b>${compras.length}</b> compra(s) (${brl(totalCompras)}) com <b>${pagamentos.length}</b> pagamento(s) (${brl(totalPagamentos)})?`
+    + `<br>Diferença: <b>${brl(Math.abs(diff))}</b>${diff>0 ? ' (compra maior — provável desconto no boleto)' : (diff<0 ? ' (pagamento maior que a compra)' : '')}.`;
+
+  document.getElementById('confirmVincularManualCombModal').style.display = 'flex';
+}
+
+function fecharConfirmacaoVincularManualComb(){
+  document.getElementById('confirmVincularManualCombModal').style.display = 'none';
+}
+
+async function confirmarVincularManualCombOk(){
+  const idsCompras = [...combPagSelecaoCompras];
+  const idsPagamentos = [...combPagSelecaoPagamentos];
+  if(idsCompras.length===0 || idsPagamentos.length===0) return;
+
+  fecharConfirmacaoVincularManualComb();
+  abrirProgresso('Vinculando…');
+
+  const grupoId = gerarIdGrupoComb();
+  const { error: erro1 } = await sb.from('comb_pag_compras').update({ grupo_id: grupoId, grupo_manual: true, pagamento_id: null }).in('id', idsCompras);
+  const { error: erro2 } = erro1 ? {error:null} : await sb.from('comb_pag_pagamentos').update({ grupo_id: grupoId, grupo_manual: true }).in('id', idsPagamentos);
+  fecharProgresso();
+
+  if(erro1 || erro2){
+    alert('Erro ao vincular: ' + ((erro1||erro2).message));
+    return;
+  }
+
+  combPagSelecaoCompras.clear();
+  combPagSelecaoPagamentos.clear();
+  await carregarOuPrepararCombinacaoPagamentos();
+}
+
+async function desfazerGrupoComb(idsCompras, idsPagamentos){
+  abrirProgresso('Desfazendo…');
+  const { error: erro1 } = await sb.from('comb_pag_compras').update({ grupo_id: null, grupo_manual: false }).in('id', idsCompras);
+  const { error: erro2 } = erro1 ? {error:null} : await sb.from('comb_pag_pagamentos').update({ grupo_id: null, grupo_manual: false }).in('id', idsPagamentos);
+  fecharProgresso();
+  if(erro1 || erro2){
+    alert('Erro ao desfazer: ' + ((erro1||erro2).message));
+    return;
+  }
+  await carregarOuPrepararCombinacaoPagamentos();
 }
 
 function nomeArquivoCombPag(extensao){
@@ -7708,16 +7856,22 @@ function exportarExcelCombinacaoPagamentos(){
   planCombinados['!cols'] = [{wch:30},{wch:12},{wch:14},{wch:30},{wch:14},{wch:12}];
   XLSX.utils.book_append_sheet(livro, planCombinados, 'Combinados');
 
-  const planGrupos = XLSX.utils.json_to_sheet((grupos||[]).map(g=>({
+  const linhasGrupo = g=>({
     'Fornecedor': g.compras[0] ? (g.compras[0].nomeFantasia || g.compras[0].razaoSocial) : '',
     'Compra(s)': g.compras.map(c=>(c.numNF?('NF '+c.numNF+' - '):'')+brl(c.valor)).join(' | '),
     'Valor compra(s)': Number(g.compras.reduce((s,c)=>s+c.valor,0).toFixed(2)),
     'Pagamento(s)': g.pagamentos.map(p=>(p.data?fmtData(p.data)+' - ':'')+p.descricao+' - '+brl(p.valor)).join(' | '),
     'Valor pagamento(s)': Number(g.pagamentos.reduce((s,p)=>s+p.valor,0).toFixed(2)),
     'Diferença': Number(g.diff.toFixed(2))
-  })));
+  });
+
+  const planGrupos = XLSX.utils.json_to_sheet((grupos||[]).filter(g=>!g.manual).map(linhasGrupo));
   planGrupos['!cols'] = [{wch:30},{wch:35},{wch:14},{wch:45},{wch:16},{wch:12}];
   XLSX.utils.book_append_sheet(livro, planGrupos, 'Combinados (soma)');
+
+  const planManuais = XLSX.utils.json_to_sheet((grupos||[]).filter(g=>g.manual).map(linhasGrupo));
+  planManuais['!cols'] = [{wch:30},{wch:35},{wch:14},{wch:45},{wch:16},{wch:12}];
+  XLSX.utils.book_append_sheet(livro, planManuais, 'Vinculados manualmente');
 
   const planComprasSemPar = XLSX.utils.json_to_sheet(comprasSemPar.map(c=>({
     'Fornecedor': c.nomeFantasia || c.razaoSocial, 'Nº NF': c.numNF, 'Emissão': c.emissao ? fmtData(c.emissao) : '', 'Valor': c.valor
@@ -7760,20 +7914,34 @@ function exportarPdfCombinacaoPagamentos(){
     headStyles: { fillColor: [38,51,43] }
   });
 
-  if(grupos && grupos.length>0){
+  const linhasGrupoPdf = g=>[
+    g.compras[0] ? (g.compras[0].nomeFantasia || g.compras[0].razaoSocial) : '',
+    g.compras.map(c=>(c.numNF?('NF '+c.numNF+' - '):'')+brl(c.valor)).join('\n'),
+    brl(g.compras.reduce((s,c)=>s+c.valor,0)),
+    g.pagamentos.map(p=>(p.data?fmtData(p.data)+' - ':'')+p.descricao+' - '+brl(p.valor)).join('\n'),
+    brl(g.pagamentos.reduce((s,p)=>s+p.valor,0)),
+    g.diff>0 ? brl(g.diff) : '—'
+  ];
+  const gruposAutoPdf = (grupos||[]).filter(g=>!g.manual);
+  const gruposManuaisPdf = (grupos||[]).filter(g=>g.manual);
+
+  if(gruposAutoPdf.length>0){
     doc.autoTable({
       startY: doc.lastAutoTable.finalY + 12,
       head: [['Fornecedor','Compra(s)','Valor compra(s)','Pagamento(s)','Valor pagamento(s)','Diferença']],
-      body: grupos.map(g=>[
-        g.compras[0] ? (g.compras[0].nomeFantasia || g.compras[0].razaoSocial) : '',
-        g.compras.map(c=>(c.numNF?('NF '+c.numNF+' - '):'')+brl(c.valor)).join('\n'),
-        brl(g.compras.reduce((s,c)=>s+c.valor,0)),
-        g.pagamentos.map(p=>(p.data?fmtData(p.data)+' - ':'')+p.descricao+' - '+brl(p.valor)).join('\n'),
-        brl(g.pagamentos.reduce((s,p)=>s+p.valor,0)),
-        g.diff>0 ? brl(g.diff) : '—'
-      ]),
+      body: gruposAutoPdf.map(linhasGrupoPdf),
       styles: { fontSize: 8, cellPadding: 3 },
       headStyles: { fillColor: [38,51,43] }
+    });
+  }
+
+  if(gruposManuaisPdf.length>0){
+    doc.autoTable({
+      startY: doc.lastAutoTable.finalY + 12,
+      head: [['Fornecedor (vinculado manualmente)','Compra(s)','Valor compra(s)','Pagamento(s)','Valor pagamento(s)','Diferença']],
+      body: gruposManuaisPdf.map(linhasGrupoPdf),
+      styles: { fontSize: 8, cellPadding: 3 },
+      headStyles: { fillColor: [180,140,30] }
     });
   }
 
