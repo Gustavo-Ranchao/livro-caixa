@@ -1266,7 +1266,7 @@
             <div class="fld"><label>Descrição</label><input id="dinheiro_descricao" placeholder="Ex: Venda balcão, Troco motoboy"></div>
             <div class="fld"><label>Data</label><input id="dinheiro_data" type="date"></div>
             <div class="fld"><label>Valor (R$)</label><input id="dinheiro_valor" type="number" step="0.01" min="0" placeholder="0,00" onkeydown="if(event.key==='Enter'){event.preventDefault();salvarLancamentoDinheiro();}"></div>
-            <button class="addbtn" style="width:auto;" onclick="salvarLancamentoDinheiro()">Adicionar</button>
+            <button class="addbtn" id="addbtnDinheiro" style="width:auto;" onclick="salvarLancamentoDinheiro()">Adicionar</button>
           </div>
           <div class="formerr" id="dinheiroErr">Preencha descrição, data e um valor maior que zero.</div>
         </div>
@@ -2579,6 +2579,8 @@ document.getElementById('empresaNome').addEventListener('change', async (e)=>{
 });
 
 async function addLancamento(){
+  const btnTravado = document.getElementById('addbtn');
+  if(btnTravado.disabled) return; // trava contra chamada dupla (duplo clique, handler duplicado, etc.)
   const contato = document.getElementById('f_contato').value.trim();
   const valor = parseFloat(document.getElementById('f_valor').value);
   const venc = document.getElementById('f_venc').value;
@@ -3351,15 +3353,6 @@ async function confirmarImport(){
     btn.textContent = 'Importar';
   }
 }
-
-['f_contato','f_valor','f_venc'].forEach(id=>{
-  document.getElementById(id).addEventListener('keydown', (e)=>{
-    if(e.key === 'Enter'){
-      e.preventDefault();
-      addLancamento();
-    }
-  });
-});
 
 /* ================= BANCO DE HORAS ================= */
 
@@ -4885,6 +4878,8 @@ async function sincronizarHistoricoContasDinheiro(){
 }
 
 async function salvarLancamentoDinheiro(){
+  const btnDinheiro = document.getElementById('addbtnDinheiro');
+  if(btnDinheiro.disabled) return; // trava contra chamada dupla
   const descricao = document.getElementById('dinheiro_descricao').value.trim();
   const data = document.getElementById('dinheiro_data').value;
   const valorBruto = parseFloat(document.getElementById('dinheiro_valor').value);
@@ -4895,6 +4890,7 @@ async function salvarLancamentoDinheiro(){
     return;
   }
   err.style.display = 'none';
+  btnDinheiro.disabled = true;
 
   const valor = dinheiroTipoAtual==='entrada' ? valorBruto : -valorBruto;
 
@@ -4905,6 +4901,8 @@ async function salvarLancamentoDinheiro(){
     descricao: descricao,
     valor: valor
   }).select().single();
+
+  btnDinheiro.disabled = false;
 
   if(error){
     err.textContent = 'Erro ao salvar: ' + error.message;
