@@ -254,6 +254,8 @@
   .searchbar{flex:1;min-width:220px;margin-bottom:0;}
   .searchbar input{width:100%;font-family:var(--font-sans);font-size:14px;padding:12px 16px;border:1px solid var(--paper3);border-radius:8px;background:#fff;color:var(--ink);}
   .searchbar input:focus{outline:none;border-color:var(--gold);box-shadow:0 0 0 3px rgba(156,122,43,0.12);}
+  .comb-busca{width:100%;font-family:var(--font-sans);font-size:13px;padding:8px 12px;border:1px solid var(--paper3);border-radius:8px;background:#fff;color:var(--ink);}
+  .comb-busca:focus{outline:none;border-color:var(--gold);box-shadow:0 0 0 3px rgba(156,122,43,0.12);}
   #filtroMes{font-family:var(--font-sans);font-size:13px;padding:0 14px;border:1px solid var(--paper3);border-radius:8px;background:#fff;color:var(--ink);cursor:pointer;}
   #filtroMes:focus{outline:none;border-color:var(--gold);}
   .cols{display:grid;grid-template-columns:1fr;gap:28px;}
@@ -871,6 +873,7 @@
               <button class="filter-btn foto-btn" onclick="exportarPdfCombinacaoPagamentos()">📄 PDF</button>
             </div>
           </div>
+          <div style="padding:0 20px 14px;"><input class="comb-busca" placeholder="🔍 Buscar por nome ou valor..." oninput="combPagBusca.combinados=this.value;renderResultadoCombinacaoPagamentos();"></div>
           <div class="tablewrap">
             <table class="ledger">
               <thead><tr><th>Fornecedor (compra)</th><th>Nº NF</th><th style="text-align:right">Valor compra</th><th>Descrição (pagamento)</th><th style="text-align:right">Valor pagamento</th><th style="text-align:right">Diferença</th><th></th></tr></thead>
@@ -881,6 +884,7 @@
 
         <div class="panel" style="margin-bottom:20px;">
           <div class="panel-head"><h2>🔗 Combinados por soma (parcelas / boletos agrupados)</h2></div>
+          <div style="padding:0 20px 14px;"><input class="comb-busca" placeholder="🔍 Buscar por nome ou valor..." oninput="combPagBusca.grupos=this.value;renderResultadoCombinacaoPagamentos();"></div>
           <div class="tablewrap">
             <table class="ledger">
               <thead><tr><th>Fornecedor</th><th>Compra(s)</th><th style="text-align:right">Valor compra(s)</th><th>Pagamento(s)</th><th style="text-align:right">Valor pagamento(s)</th><th style="text-align:right">Diferença</th><th></th></tr></thead>
@@ -891,6 +895,7 @@
 
         <div class="panel" style="margin-bottom:20px;">
           <div class="panel-head"><h2>✋ Vinculados manualmente (com desconto/diferença)</h2></div>
+          <div style="padding:0 20px 14px;"><input class="comb-busca" placeholder="🔍 Buscar por nome ou valor..." oninput="combPagBusca.manuais=this.value;renderResultadoCombinacaoPagamentos();"></div>
           <div class="tablewrap">
             <table class="ledger">
               <thead><tr><th>Fornecedor</th><th>Compra(s)</th><th style="text-align:right">Valor compra(s)</th><th>Pagamento(s)</th><th style="text-align:right">Valor pagamento(s)</th><th style="text-align:right">Diferença</th><th></th></tr></thead>
@@ -901,6 +906,7 @@
 
         <div class="panel" style="margin-bottom:20px;">
           <div class="panel-head"><h2>🎁 Bonificações (sem pagamento esperado)</h2></div>
+          <div style="padding:0 20px 14px;"><input class="comb-busca" placeholder="🔍 Buscar por nome ou valor..." oninput="combPagBusca.bonificacoes=this.value;renderResultadoCombinacaoPagamentos();"></div>
           <div class="tablewrap">
             <table class="ledger">
               <thead><tr><th>Fornecedor</th><th>Nº NF</th><th>Emissão</th><th style="text-align:right">Valor</th><th></th></tr></thead>
@@ -920,9 +926,10 @@
 
         <div class="panel" style="margin-bottom:20px;">
           <div class="panel-head"><h2>⚠ Compras sem pagamento encontrado</h2></div>
+          <div style="padding:0 20px 14px;"><input class="comb-busca" placeholder="🔍 Buscar por nome ou valor..." oninput="combPagBusca.comprasSemPar=this.value;renderResultadoCombinacaoPagamentos();"></div>
           <div class="tablewrap">
             <table class="ledger">
-              <thead><tr><th></th><th>Fornecedor</th><th>Nº NF</th><th>Emissão</th><th style="text-align:right">Valor</th></tr></thead>
+              <thead><tr><th></th><th>Fornecedor</th><th>Nº NF</th><th>Emissão</th><th style="text-align:right">Valor</th><th></th></tr></thead>
               <tbody id="combPagComprasSemParBody"></tbody>
             </table>
           </div>
@@ -930,9 +937,10 @@
 
         <div class="panel">
           <div class="panel-head"><h2>⚠ Pagamentos sem compra encontrada</h2></div>
+          <div style="padding:0 20px 14px;"><input class="comb-busca" placeholder="🔍 Buscar por nome ou valor..." oninput="combPagBusca.pagamentosSemPar=this.value;renderResultadoCombinacaoPagamentos();"></div>
           <div class="tablewrap">
             <table class="ledger">
-              <thead><tr><th></th><th>Data</th><th>Descrição</th><th style="text-align:right">Valor</th></tr></thead>
+              <thead><tr><th></th><th>Data</th><th>Descrição</th><th style="text-align:right">Valor</th><th></th></tr></thead>
               <tbody id="combPagPagamentosSemParBody"></tbody>
             </table>
           </div>
@@ -1263,8 +1271,8 @@
                 <button type="button" class="tipo-btn" data-tipo="saida" onclick="setDinheiroTipo('saida')">Saída</button>
               </div>
             </div>
-            <div class="fld"><label>Descrição</label><input id="dinheiro_descricao" placeholder="Ex: Venda balcão, Troco motoboy"></div>
-            <div class="fld"><label>Data</label><input id="dinheiro_data" type="date"></div>
+            <div class="fld"><label>Descrição</label><input id="dinheiro_descricao" placeholder="Ex: Venda balcão, Troco motoboy" onkeydown="if(event.key==='Enter'){event.preventDefault();document.getElementById('dinheiro_data').focus();}"></div>
+            <div class="fld"><label>Data</label><input id="dinheiro_data" type="date" onkeydown="if(event.key==='Enter'){event.preventDefault();document.getElementById('dinheiro_valor').focus();}"></div>
             <div class="fld"><label>Valor (R$)</label><input id="dinheiro_valor" type="number" step="0.01" min="0" placeholder="0,00" onkeydown="if(event.key==='Enter'){event.preventDefault();salvarLancamentoDinheiro();}"></div>
             <button class="addbtn" id="addbtnDinheiro" style="width:auto;" onclick="salvarLancamentoDinheiro()">Adicionar</button>
           </div>
@@ -1597,6 +1605,17 @@
     <div class="modal-actions">
       <button class="addbtn" onclick="confirmarBonificacaoCombOk()">Marcar como bonificação</button>
       <button class="cancelbtn" onclick="fecharConfirmacaoBonificacaoComb()">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<div id="confirmExcluirItemCombModal" class="modal-overlay">
+  <div class="modal-box" style="max-width:380px;">
+    <h2>Excluir lançamento?</h2>
+    <p class="modal-sub" id="confirmExcluirItemCombTexto">Essa ação não pode ser desfeita.</p>
+    <div class="modal-actions">
+      <button class="addbtn" style="background:var(--rust);" onclick="confirmarExcluirItemCombOk()">Excluir</button>
+      <button class="cancelbtn" onclick="fecharConfirmacaoExcluirItemComb()">Cancelar</button>
     </div>
   </div>
 </div>
@@ -2133,6 +2152,9 @@ function trocarLoja(l){
   }
   if(viewAtual === 'pagamentoCaixa'){
     abrirPagamentoCaixa();
+  }
+  if(viewAtual === 'combinacaoPagamentos'){
+    abrirCombinacaoPagamentos();
   }
   if(viewAtual === 'inicio'){
     abrirInicio();
@@ -4781,6 +4803,11 @@ function mudarSubAbaFluxo(aba){
     atualizarUltimoDiaFluxo();
   }
 
+  if(aba==='dinheiro'){
+    // foco automático na descrição, pra já poder digitar sem precisar clicar
+    setTimeout(()=>{ const el = document.getElementById('dinheiro_descricao'); if(el) el.focus(); }, 0);
+  }
+
   if(aba==='projecao' && !projecaoJaCarregada){
     projecaoJaCarregada = true;
     abrirProjecao();
@@ -4913,6 +4940,7 @@ async function salvarLancamentoDinheiro(){
   fluxoCache.push(salvo);
   document.getElementById('dinheiro_descricao').value = '';
   document.getElementById('dinheiro_valor').value = '';
+  document.getElementById('dinheiro_descricao').focus();
   renderFluxoCaixa();
   await popularFiltroMesFluxo();
 }
@@ -7251,6 +7279,14 @@ let combPagMesAtual = '';
 let comprasCombParsed = null;
 let pagamentosCombParsed = null;
 let combPagResultado = { pares: [], grupos: [], comprasSemPar: [], pagamentosSemPar: [], bonificacoes: [] };
+let combPagBusca = { combinados:'', grupos:'', manuais:'', bonificacoes:'', comprasSemPar:'', pagamentosSemPar:'' };
+
+// busca simples por nome ou valor: casa se a query aparecer em qualquer um dos textos/valores passados
+function combPagBate(query, ...valores){
+  if(!query || !query.trim()) return true;
+  const q = query.trim().toLowerCase();
+  return valores.some(v => String(v ?? '').toLowerCase().includes(q));
+}
 let combPagSelecaoCompras = new Set();
 let combPagSelecaoPagamentos = new Set();
 
@@ -7716,9 +7752,15 @@ function renderResultadoCombinacaoPagamentos(){
   document.getElementById('combPagQtdComprasSemPar').textContent = comprasSemPar.length;
   document.getElementById('combPagQtdPagamentosSemPar').textContent = pagamentosSemPar.length;
 
+  const paresFiltrados = pares.filter(par => combPagBate(combPagBusca.combinados,
+    par.compra.nomeFantasia, par.compra.razaoSocial, par.compra.numNF, par.pagamento.descricao,
+    brl(par.compra.valor), brl(par.pagamento.valor)));
+
   document.getElementById('combPagCombinadosBody').innerHTML = pares.length===0
     ? '<tr><td colspan="7" style="text-align:center;color:var(--muted);font-style:italic;padding:16px;">Nenhum par combinado.</td></tr>'
-    : pares.map(par=>`
+    : paresFiltrados.length===0
+    ? '<tr><td colspan="7" style="text-align:center;color:var(--muted);font-style:italic;padding:16px;">Nenhum resultado pra essa busca.</td></tr>'
+    : paresFiltrados.map(par=>`
         <tr>
           <td>${escapeHtml(par.compra.nomeFantasia || par.compra.razaoSocial)}</td>
           <td>${escapeHtml(String(par.compra.numNF||''))}</td>
@@ -7730,46 +7772,74 @@ function renderResultadoCombinacaoPagamentos(){
         </tr>
       `).join('');
 
+  const bateGrupo = (g, query) => combPagBate(query,
+    g.compras[0] ? (g.compras[0].nomeFantasia || g.compras[0].razaoSocial) : '',
+    ...g.compras.map(c=>c.numNF), ...g.compras.map(c=>brl(c.valor)),
+    ...g.pagamentos.map(p=>p.descricao), ...g.pagamentos.map(p=>brl(p.valor)));
+
+  const gruposAutoFiltrados = gruposAuto.filter(g=>bateGrupo(g, combPagBusca.grupos));
   document.getElementById('combPagGruposBody').innerHTML = gruposAuto.length===0
     ? '<tr><td colspan="7" style="text-align:center;color:var(--muted);font-style:italic;padding:16px;">Nenhuma combinação por soma encontrada.</td></tr>'
-    : gruposAuto.map(linhaGrupoComb).join('');
+    : gruposAutoFiltrados.length===0
+    ? '<tr><td colspan="7" style="text-align:center;color:var(--muted);font-style:italic;padding:16px;">Nenhum resultado pra essa busca.</td></tr>'
+    : gruposAutoFiltrados.map(linhaGrupoComb).join('');
 
+  const gruposManuaisFiltrados = gruposManuais.filter(g=>bateGrupo(g, combPagBusca.manuais));
   document.getElementById('combPagManuaisBody').innerHTML = gruposManuais.length===0
     ? '<tr><td colspan="7" style="text-align:center;color:var(--muted);font-style:italic;padding:16px;">Nenhuma vinculação manual ainda. Selecione itens nas tabelas abaixo pra vincular com desconto.</td></tr>'
-    : gruposManuais.map(linhaGrupoComb).join('');
+    : gruposManuaisFiltrados.length===0
+    ? '<tr><td colspan="7" style="text-align:center;color:var(--muted);font-style:italic;padding:16px;">Nenhum resultado pra essa busca.</td></tr>'
+    : gruposManuaisFiltrados.map(linhaGrupoComb).join('');
 
+  const bonificacoesFiltradas = (bonificacoes||[]).filter(c=>combPagBate(combPagBusca.bonificacoes,
+    c.nomeFantasia, c.razaoSocial, c.numNF, brl(c.valor)));
   document.getElementById('combPagBonificacoesBody').innerHTML = (!bonificacoes || bonificacoes.length===0)
     ? '<tr><td colspan="5" style="text-align:center;color:var(--muted);font-style:italic;padding:16px;">Nenhuma bonificação marcada ainda. Selecione compras abaixo e marque como bonificação.</td></tr>'
-    : bonificacoes.map(c=>`
+    : bonificacoesFiltradas.length===0
+    ? '<tr><td colspan="5" style="text-align:center;color:var(--muted);font-style:italic;padding:16px;">Nenhum resultado pra essa busca.</td></tr>'
+    : bonificacoesFiltradas.map(c=>`
         <tr>
           <td>${escapeHtml(c.nomeFantasia || c.razaoSocial)}</td>
           <td>${escapeHtml(String(c.numNF||''))}</td>
           <td class="data">${c.emissao ? fmtData(c.emissao) : '—'}</td>
           <td class="valor">${brl(c.valor)}</td>
-          <td><button class="filter-btn" style="padding:4px 10px;font-size:12px;" onclick="desfazerBonificacaoComb(${JSON.stringify([c.id])})">Desfazer</button></td>
+          <td style="white-space:nowrap;">
+            <button class="filter-btn" style="padding:4px 10px;font-size:12px;" onclick="desfazerBonificacaoComb(${JSON.stringify([c.id])})">Desfazer</button>
+            <button class="filter-btn" style="padding:4px 10px;font-size:12px;color:var(--rust);" onclick='abrirConfirmacaoExcluirItemComb("compra", ${JSON.stringify(c.id)}, ${JSON.stringify((c.nomeFantasia||c.razaoSocial)+' — '+brl(c.valor))})'>🗑</button>
+          </td>
         </tr>
       `).join('');
 
+  const comprasSemParFiltradas = comprasSemPar.filter(c=>combPagBate(combPagBusca.comprasSemPar,
+    c.nomeFantasia, c.razaoSocial, c.numNF, brl(c.valor)));
   document.getElementById('combPagComprasSemParBody').innerHTML = comprasSemPar.length===0
-    ? '<tr><td colspan="5" style="text-align:center;color:var(--muted);font-style:italic;padding:16px;">Todas as compras encontraram um pagamento.</td></tr>'
-    : comprasSemPar.map(c=>`
+    ? '<tr><td colspan="6" style="text-align:center;color:var(--muted);font-style:italic;padding:16px;">Todas as compras encontraram um pagamento.</td></tr>'
+    : comprasSemParFiltradas.length===0
+    ? '<tr><td colspan="6" style="text-align:center;color:var(--muted);font-style:italic;padding:16px;">Nenhum resultado pra essa busca.</td></tr>'
+    : comprasSemParFiltradas.map(c=>`
         <tr>
           <td style="width:34px;"><input type="checkbox" data-id="${escapeHtml(String(c.id))}" ${combPagSelecaoCompras.has(String(c.id))?'checked':''} onchange="toggleSelecaoCompraComb(this)"></td>
           <td>${escapeHtml(c.nomeFantasia || c.razaoSocial)}</td>
           <td>${escapeHtml(String(c.numNF||''))}</td>
           <td class="data">${c.emissao ? fmtData(c.emissao) : '—'}</td>
           <td class="valor" style="color:var(--rust);">${brl(c.valor)}</td>
+          <td><button class="filter-btn" style="padding:4px 10px;font-size:12px;color:var(--rust);" onclick='abrirConfirmacaoExcluirItemComb("compra", ${JSON.stringify(c.id)}, ${JSON.stringify((c.nomeFantasia||c.razaoSocial)+' — '+brl(c.valor))})'>🗑</button></td>
         </tr>
       `).join('');
 
+  const pagamentosSemParFiltrados = pagamentosSemPar.filter(p=>combPagBate(combPagBusca.pagamentosSemPar,
+    p.descricao, brl(p.valor)));
   document.getElementById('combPagPagamentosSemParBody').innerHTML = pagamentosSemPar.length===0
-    ? '<tr><td colspan="4" style="text-align:center;color:var(--muted);font-style:italic;padding:16px;">Todos os pagamentos encontraram uma compra.</td></tr>'
-    : pagamentosSemPar.map(p=>`
+    ? '<tr><td colspan="5" style="text-align:center;color:var(--muted);font-style:italic;padding:16px;">Todos os pagamentos encontraram uma compra.</td></tr>'
+    : pagamentosSemParFiltrados.length===0
+    ? '<tr><td colspan="5" style="text-align:center;color:var(--muted);font-style:italic;padding:16px;">Nenhum resultado pra essa busca.</td></tr>'
+    : pagamentosSemParFiltrados.map(p=>`
         <tr>
           <td style="width:34px;"><input type="checkbox" data-id="${escapeHtml(String(p.id))}" ${combPagSelecaoPagamentos.has(String(p.id))?'checked':''} onchange="toggleSelecaoPagamentoComb(this)"></td>
           <td class="data">${fmtData(p.data)}</td>
           <td class="contato">${escapeHtml(p.descricao)}</td>
           <td class="valor" style="color:var(--rust);">${brl(p.valor)}</td>
+          <td><button class="filter-btn" style="padding:4px 10px;font-size:12px;color:var(--rust);" onclick='abrirConfirmacaoExcluirItemComb("pagamento", ${JSON.stringify(p.id)}, ${JSON.stringify(p.descricao+' — '+brl(p.valor))})'>🗑</button></td>
         </tr>
       `).join('');
 
@@ -7846,11 +7916,15 @@ async function confirmarBonificacaoCombOk(){
   fecharConfirmacaoBonificacaoComb();
   abrirProgresso('Marcando…');
 
-  const { error } = await sb.from('comb_pag_compras').update({ bonificacao: true }).in('id', idsCompras);
+  const { data: atualizados, error } = await sb.from('comb_pag_compras').update({ bonificacao: true }).in('id', idsCompras).select('id');
   fecharProgresso();
 
   if(error){
     alert('Erro ao marcar bonificação: ' + error.message);
+    return;
+  }
+  if(!atualizados || atualizados.length===0){
+    alert('Nada foi alterado — o(s) registro(s) selecionado(s) não foi(ram) encontrado(s) no banco (id: ' + idsCompras.join(', ') + '). Tente recarregar a página (Ctrl+Shift+R) e repetir.');
     return;
   }
 
@@ -7860,10 +7934,14 @@ async function confirmarBonificacaoCombOk(){
 
 async function desfazerBonificacaoComb(idsCompras){
   abrirProgresso('Desfazendo…');
-  const { error } = await sb.from('comb_pag_compras').update({ bonificacao: false }).in('id', idsCompras);
+  const { data: atualizados, error } = await sb.from('comb_pag_compras').update({ bonificacao: false }).in('id', idsCompras).select('id');
   fecharProgresso();
   if(error){
     alert('Erro ao desfazer: ' + error.message);
+    return;
+  }
+  if(!atualizados || atualizados.length===0){
+    alert('Nada foi alterado — o registro não foi encontrado no banco (id: ' + idsCompras.join(', ') + '). Tente recarregar a página (Ctrl+Shift+R) e clicar em Desfazer de novo.');
     return;
   }
   await carregarOuPrepararCombinacaoPagamentos();
@@ -7900,12 +7978,16 @@ async function confirmarVincularManualCombOk(){
   abrirProgresso('Vinculando…');
 
   const grupoId = gerarIdGrupoComb();
-  const { error: erro1 } = await sb.from('comb_pag_compras').update({ grupo_id: grupoId, grupo_manual: true, pagamento_id: null }).in('id', idsCompras);
-  const { error: erro2 } = erro1 ? {error:null} : await sb.from('comb_pag_pagamentos').update({ grupo_id: grupoId, grupo_manual: true }).in('id', idsPagamentos);
+  const { data: atu1, error: erro1 } = await sb.from('comb_pag_compras').update({ grupo_id: grupoId, grupo_manual: true, pagamento_id: null }).in('id', idsCompras).select('id');
+  const { data: atu2, error: erro2 } = erro1 ? {data:null, error:null} : await sb.from('comb_pag_pagamentos').update({ grupo_id: grupoId, grupo_manual: true }).in('id', idsPagamentos).select('id');
   fecharProgresso();
 
   if(erro1 || erro2){
     alert('Erro ao vincular: ' + ((erro1||erro2).message));
+    return;
+  }
+  if((!atu1 || atu1.length===0) || (!atu2 || atu2.length===0)){
+    alert('Nada foi alterado — algum dos registros selecionados não foi encontrado no banco. Tente recarregar a página (Ctrl+Shift+R) e repetir a seleção.');
     return;
   }
 
@@ -7916,11 +7998,15 @@ async function confirmarVincularManualCombOk(){
 
 async function desfazerGrupoComb(idsCompras, idsPagamentos){
   abrirProgresso('Desfazendo…');
-  const { error: erro1 } = await sb.from('comb_pag_compras').update({ grupo_id: null, grupo_manual: false }).in('id', idsCompras);
-  const { error: erro2 } = erro1 ? {error:null} : await sb.from('comb_pag_pagamentos').update({ grupo_id: null, grupo_manual: false }).in('id', idsPagamentos);
+  const { data: atu1, error: erro1 } = await sb.from('comb_pag_compras').update({ grupo_id: null, grupo_manual: false }).in('id', idsCompras).select('id');
+  const { data: atu2, error: erro2 } = erro1 ? {data:null, error:null} : await sb.from('comb_pag_pagamentos').update({ grupo_id: null, grupo_manual: false }).in('id', idsPagamentos).select('id');
   fecharProgresso();
   if(erro1 || erro2){
     alert('Erro ao desfazer: ' + ((erro1||erro2).message));
+    return;
+  }
+  if((!atu1 || atu1.length===0) && (!atu2 || atu2.length===0)){
+    alert('Nada foi alterado — os registros não foram encontrados no banco. Tente recarregar a página (Ctrl+Shift+R) e clicar em Desfazer de novo.');
     return;
   }
   await carregarOuPrepararCombinacaoPagamentos();
@@ -7929,12 +8015,50 @@ async function desfazerGrupoComb(idsCompras, idsPagamentos){
 // desfaz um par 1:1 da tabela "Combinados" (a compra e o pagamento voltam pra lista de sem-par)
 async function desfazerParComb(idCompra, idPagamento){
   abrirProgresso('Desfazendo…');
-  const { error } = await sb.from('comb_pag_compras').update({ pagamento_id: null, diferenca: 0 }).eq('id', idCompra);
+  const { data: atualizados, error } = await sb.from('comb_pag_compras').update({ pagamento_id: null, diferenca: 0 }).eq('id', idCompra).select('id');
   fecharProgresso();
   if(error){
     alert('Erro ao desfazer: ' + error.message);
     return;
   }
+  if(!atualizados || atualizados.length===0){
+    alert('Nada foi alterado — o registro (id: ' + idCompra + ') não foi encontrado no banco. Tente recarregar a página (Ctrl+Shift+R) e clicar em Desfazer de novo.');
+    return;
+  }
+  await carregarOuPrepararCombinacaoPagamentos();
+}
+
+// exclusão individual de um lançamento (compra ou pagamento) de dentro da Combinação de Pagamentos.
+// só disponível pra itens sem par (soltos) — itens combinados/agrupados precisam de "Desfazer" primeiro.
+let combPagExcluirAlvo = null;
+function abrirConfirmacaoExcluirItemComb(tipo, id, rotulo){
+  combPagExcluirAlvo = { tipo, id };
+  document.getElementById('confirmExcluirItemCombTexto').textContent =
+    (tipo==='compra' ? 'Excluir a compra ' : 'Excluir o pagamento ') + rotulo + '? Essa ação não pode ser desfeita.';
+  document.getElementById('confirmExcluirItemCombModal').style.display = 'flex';
+}
+function fecharConfirmacaoExcluirItemComb(){
+  combPagExcluirAlvo = null;
+  document.getElementById('confirmExcluirItemCombModal').style.display = 'none';
+}
+async function confirmarExcluirItemCombOk(){
+  if(!combPagExcluirAlvo) return;
+  const { tipo, id } = combPagExcluirAlvo;
+  fecharConfirmacaoExcluirItemComb();
+  abrirProgresso('Excluindo…');
+  const tabela = tipo==='compra' ? 'comb_pag_compras' : 'comb_pag_pagamentos';
+  const { data: excluidos, error } = await sb.from(tabela).delete().eq('id', id).select('id');
+  fecharProgresso();
+  if(error){
+    alert('Erro ao excluir: ' + error.message);
+    return;
+  }
+  if(!excluidos || excluidos.length===0){
+    alert('Nada foi excluído — o registro (id: ' + id + ') não foi encontrado no banco. Tente recarregar a página (Ctrl+Shift+R) e repetir.');
+    return;
+  }
+  combPagSelecaoCompras.delete(String(id));
+  combPagSelecaoPagamentos.delete(String(id));
   await carregarOuPrepararCombinacaoPagamentos();
 }
 
