@@ -3925,7 +3925,16 @@ async function onSelecionarLeitorComprovante(fileList){
     atualizarProgresso(90);
 
     if(error){
-      document.getElementById('leitorAvisoIA').innerHTML = '⚠ Não consegui ler automaticamente (' + error.message + '). Preencha os campos manualmente.';
+      let detalhe = error.message;
+      // supabase-js não inclui o corpo da resposta em error.message — precisa ler do error.context (Response)
+      if(error.context && typeof error.context.json === 'function'){
+        try{
+          const corpo = await error.context.json();
+          if(corpo && corpo.erro) detalhe = corpo.erro;
+        }catch(_e){ /* corpo não era JSON, mantém a mensagem padrão */ }
+      }
+      document.getElementById('leitorAvisoIA').innerHTML = '⚠ Não consegui ler automaticamente (' + escapeHtml(detalhe) + '). Preencha os campos manualmente.';
+      console.error('Erro leitor de comprovante:', error);
     }else if(data && data.erro){
       document.getElementById('leitorAvisoIA').innerHTML = '⚠ ' + data.erro + ' Confira ou preencha manualmente.';
       if(data.descricao) document.getElementById('leitor_descricao').value = data.descricao;
