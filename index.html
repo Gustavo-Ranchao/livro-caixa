@@ -1002,7 +1002,7 @@
       </div>
 
       <label class="comp-upload" id="leitorUploadArea">
-        <input id="leitorFileInput" type="file" accept="image/*" onchange="onSelecionarLeitorComprovante(this.files)">
+        <input id="leitorFileInput" type="file" accept="image/*,.pdf,application/pdf" onchange="onSelecionarLeitorComprovante(this.files)">
         📎 Clique aqui ou arraste a foto do comprovante — a Claude vai ler o favorecido, o valor e a data pra você
       </label>
 
@@ -1010,6 +1010,10 @@
         <div class="panel-head"><h2>Confira antes de salvar</h2></div>
         <div style="display:flex;gap:20px;flex-wrap:wrap;padding:0 20px 20px;">
           <img id="leitorPreviewImg" style="max-width:220px;max-height:280px;border-radius:8px;border:1px solid var(--paper3);object-fit:contain;">
+          <div id="leitorPreviewPdf" style="display:none;width:220px;height:280px;border-radius:8px;border:1px solid var(--paper3);align-items:center;justify-content:center;flex-direction:column;gap:8px;color:var(--muted);font-size:13px;text-align:center;padding:12px;">
+            <span style="font-size:40px;">📄</span>
+            <span id="leitorPreviewPdfNome" style="word-break:break-word;"></span>
+          </div>
           <div style="flex:1;min-width:260px;display:flex;flex-direction:column;gap:14px;">
             <div class="fld"><label>Descrição (favorecido)</label><input id="leitor_descricao" placeholder="Nome de quem recebeu"></div>
             <div style="display:flex;gap:14px;">
@@ -3880,10 +3884,23 @@ async function onSelecionarLeitorComprovante(fileList){
   const arquivo = fileList && fileList[0];
   if(!arquivo) return;
 
+  const ehPdf = arquivo.type === 'application/pdf' || /\.pdf$/i.test(arquivo.name);
+
   leitorArquivoAtual = arquivo;
   if(leitorPreviewUrlAtual) URL.revokeObjectURL(leitorPreviewUrlAtual);
-  leitorPreviewUrlAtual = URL.createObjectURL(arquivo);
-  document.getElementById('leitorPreviewImg').src = leitorPreviewUrlAtual;
+
+  if(ehPdf){
+    document.getElementById('leitorPreviewImg').style.display = 'none';
+    document.getElementById('leitorPreviewImg').src = '';
+    document.getElementById('leitorPreviewPdf').style.display = 'flex';
+    document.getElementById('leitorPreviewPdfNome').textContent = arquivo.name;
+  }else{
+    leitorPreviewUrlAtual = URL.createObjectURL(arquivo);
+    document.getElementById('leitorPreviewImg').style.display = 'block';
+    document.getElementById('leitorPreviewImg').src = leitorPreviewUrlAtual;
+    document.getElementById('leitorPreviewPdf').style.display = 'none';
+  }
+
   document.getElementById('leitorRevisaoPanel').style.display = 'block';
   document.getElementById('leitor_descricao').value = '';
   document.getElementById('leitor_data').value = '';
@@ -3934,6 +3951,7 @@ function cancelarLeitorComprovante(){
   if(leitorPreviewUrlAtual){ URL.revokeObjectURL(leitorPreviewUrlAtual); leitorPreviewUrlAtual = null; }
   document.getElementById('leitorRevisaoPanel').style.display = 'none';
   document.getElementById('leitorFileInput').value = '';
+  document.getElementById('leitorPreviewPdf').style.display = 'none';
 }
 
 async function salvarLeitorComprovante(){
