@@ -403,6 +403,7 @@
             <button class="nav-sub-item" data-view="contasPagar" onclick="mudarViewPrincipal('contasPagar')">Contas a pagar</button>
             <button class="nav-sub-item" data-view="despesasFixas" onclick="mudarViewPrincipal('despesasFixas')">Despesas fixas</button>
             <button class="nav-sub-item" data-view="comprovantes" onclick="mudarViewPrincipal('comprovantes')">Comprovantes</button>
+            <button class="nav-sub-item" data-view="leitorComprovante" onclick="mudarViewPrincipal('leitorComprovante')">Leitor de Comprovante</button>
             <button class="nav-sub-item" data-view="diferencaCaixa" onclick="mudarViewPrincipal('diferencaCaixa')">Diferença de Caixa</button>
             <button class="nav-sub-item" data-view="fluxoCaixa" onclick="mudarViewPrincipal('fluxoCaixa')">Fluxo de Caixa</button>
             <button class="nav-sub-item" data-view="pagamentos" onclick="mudarViewPrincipal('pagamentos')">Pagamentos</button>
@@ -992,6 +993,45 @@
 
       <div class="empty" id="compEmpty" style="display:none;">Nenhum comprovante enviado nesse mês ainda.</div>
       <div class="comp-grid" id="compGrid"></div>
+    </div>
+
+    <div id="viewLeitorComprovante" style="display:none;">
+      <div class="comp-toolbar">
+        <label style="font-size:11px;text-transform:uppercase;letter-spacing:0.05em;color:var(--muted);">Mês</label>
+        <input id="leitorMes" type="month" onchange="mudarMesLeitorComprovante(this.value)">
+      </div>
+
+      <label class="comp-upload" id="leitorUploadArea">
+        <input id="leitorFileInput" type="file" accept="image/*" onchange="onSelecionarLeitorComprovante(this.files)">
+        📎 Clique aqui ou arraste a foto do comprovante — a Claude vai ler o favorecido, o valor e a data pra você
+      </label>
+
+      <div class="panel" id="leitorRevisaoPanel" style="display:none;margin-top:20px;">
+        <div class="panel-head"><h2>Confira antes de salvar</h2></div>
+        <div style="display:flex;gap:20px;flex-wrap:wrap;padding:0 20px 20px;">
+          <img id="leitorPreviewImg" style="max-width:220px;max-height:280px;border-radius:8px;border:1px solid var(--paper3);object-fit:contain;">
+          <div style="flex:1;min-width:260px;display:flex;flex-direction:column;gap:14px;">
+            <div class="fld"><label>Descrição (favorecido)</label><input id="leitor_descricao" placeholder="Nome de quem recebeu"></div>
+            <div style="display:flex;gap:14px;">
+              <div class="fld" style="flex:1;"><label>Data</label><input id="leitor_data" type="date"></div>
+              <div class="fld" style="flex:1;"><label>Valor (R$)</label><input id="leitor_valor" type="number" step="0.01" min="0" placeholder="0,00"></div>
+            </div>
+            <div id="leitorAvisoIA" style="font-size:12px;color:var(--muted);"></div>
+            <div style="display:flex;gap:10px;">
+              <button class="addbtn" style="width:auto;" id="leitorBtnSalvar" onclick="salvarLeitorComprovante()">Salvar lançamento</button>
+              <button class="cancelbtn" onclick="cancelarLeitorComprovante()">Cancelar</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="empty" id="leitorEmpty" style="display:none;">Nenhum comprovante lido nesse mês ainda.</div>
+      <div class="tablewrap" id="leitorTableWrap" style="margin-top:20px;display:none;">
+        <table class="ledger">
+          <thead><tr><th></th><th>Descrição (favorecido)</th><th>Data</th><th style="text-align:right">Valor</th><th></th></tr></thead>
+          <tbody id="leitorListaBody"></tbody>
+        </table>
+      </div>
     </div>
 
     <div id="viewDiferencaCaixa" style="display:none;">
@@ -1943,6 +1983,17 @@
   </div>
 </div>
 
+<div id="confirmLeitorComprovanteModal" class="modal-overlay">
+  <div class="modal-box" style="max-width:380px;">
+    <h2>Excluir lançamento?</h2>
+    <p class="modal-sub">Isso apaga o lançamento e a imagem do comprovante. Essa ação não pode ser desfeita.</p>
+    <div class="modal-actions">
+      <button class="addbtn" style="background:var(--rust);" onclick="confirmarExclusaoLeitorComprovanteOk()">Excluir</button>
+      <button class="cancelbtn" onclick="fecharConfirmacaoLeitorComprovante()">Cancelar</button>
+    </div>
+  </div>
+</div>
+
 <div id="relatorioNoturnoModal" class="modal-overlay">
   <div class="modal-box" style="max-width:720px;">
     <button class="modal-close" onclick="fecharRelatorioNoturno()">✕</button>
@@ -2110,6 +2161,10 @@ function trocarLoja(l){
   }
   if(viewAtual === 'comprovantes'){
     carregarComprovantes();
+  }
+  if(viewAtual === 'leitorComprovante'){
+    cancelarLeitorComprovante();
+    carregarLeitorComprovantes();
   }
   if(viewAtual === 'diferencaCaixa'){
     abrirDiferencaCaixa();
@@ -3401,7 +3456,7 @@ function setEscala(e){
   }
 }
 
-const VIEWS = ['inicio','contasPagar','despesasFixas','comprovantes','diferencaCaixa','fluxoCaixa','pagamentos','pagamentoCaixa','vendasComCusto','bancoHoras','compras','colaboradores','contasBancarias','inventario','combinacaoPagamentos'];
+const VIEWS = ['inicio','contasPagar','despesasFixas','comprovantes','leitorComprovante','diferencaCaixa','fluxoCaixa','pagamentos','pagamentoCaixa','vendasComCusto','bancoHoras','compras','colaboradores','contasBancarias','inventario','combinacaoPagamentos'];
 let colabCarregado = false;
 
 const NAV_GROUPS = {
@@ -3430,7 +3485,7 @@ async function mudarViewPrincipal(view){
   viewAtual = view;
 
   VIEWS.forEach(v=>{
-    const idMap = { inicio:'viewInicio', contasPagar:'viewContasPagar', despesasFixas:'viewDespesasFixas', comprovantes:'viewComprovantes', diferencaCaixa:'viewDiferencaCaixa', fluxoCaixa:'viewFluxoCaixa', pagamentos:'viewPagamentos', pagamentoCaixa:'viewPagamentoCaixa', vendasComCusto:'viewVendasComCusto', bancoHoras:'viewBancoHoras', compras:'viewCompras', colaboradores:'viewColaboradores', contasBancarias:'viewContasBancarias', inventario:'viewInventario', combinacaoPagamentos:'viewCombinacaoPagamentos' };
+    const idMap = { inicio:'viewInicio', contasPagar:'viewContasPagar', despesasFixas:'viewDespesasFixas', comprovantes:'viewComprovantes', leitorComprovante:'viewLeitorComprovante', diferencaCaixa:'viewDiferencaCaixa', fluxoCaixa:'viewFluxoCaixa', pagamentos:'viewPagamentos', pagamentoCaixa:'viewPagamentoCaixa', vendasComCusto:'viewVendasComCusto', bancoHoras:'viewBancoHoras', compras:'viewCompras', colaboradores:'viewColaboradores', contasBancarias:'viewContasBancarias', inventario:'viewInventario', combinacaoPagamentos:'viewCombinacaoPagamentos' };
     document.getElementById(idMap[v]).style.display = (v===view) ? '' : 'none';
   });
 
@@ -3448,6 +3503,9 @@ async function mudarViewPrincipal(view){
   }else if(view==='comprovantes'){
     abrirGrupoNav('financeiro');
     await abrirComprovantes();
+  }else if(view==='leitorComprovante'){
+    abrirGrupoNav('financeiro');
+    await abrirLeitorComprovante();
   }else if(view==='diferencaCaixa'){
     abrirGrupoNav('financeiro');
     await abrirDiferencaCaixa();
@@ -3755,6 +3813,195 @@ async function confirmarExclusaoComprovanteOk(){
     await renderComprovantesGrid();
   }
   fecharConfirmacaoComprovante();
+}
+
+/* ================= LEITOR DE COMPROVANTE (IA) ================= */
+
+let leitorMesAtual = new Date().toISOString().slice(0,7);
+let leitorCache = [];
+let leitorArquivoAtual = null; // File selecionado, ainda não salvo
+let leitorPreviewUrlAtual = null;
+
+async function abrirLeitorComprovante(){
+  if(!leitorMesAtual) leitorMesAtual = mesAtualPadrao();
+  document.getElementById('leitorMes').value = leitorMesAtual;
+  cancelarLeitorComprovante();
+  await carregarLeitorComprovantes();
+}
+
+function mudarMesLeitorComprovante(valor){
+  leitorMesAtual = valor || mesAtualPadrao();
+  carregarLeitorComprovantes();
+}
+
+async function carregarLeitorComprovantes(){
+  const { data, error } = await sb.from('leitor_comprovantes')
+    .select('*')
+    .eq('loja', lojaAtual)
+    .eq('mes', leitorMesAtual)
+    .order('data', { ascending: false });
+  if(error){
+    console.error('Erro ao carregar leitor de comprovantes:', error);
+    leitorCache = [];
+  }else{
+    leitorCache = data || [];
+  }
+  renderLeitorComprovantesLista();
+}
+
+function renderLeitorComprovantesLista(){
+  const wrap = document.getElementById('leitorTableWrap');
+  const empty = document.getElementById('leitorEmpty');
+  if(leitorCache.length===0){
+    wrap.style.display = 'none';
+    empty.style.display = 'block';
+    return;
+  }
+  empty.style.display = 'none';
+  wrap.style.display = 'block';
+  document.getElementById('leitorListaBody').innerHTML = leitorCache.map(c=>`
+    <tr>
+      <td style="width:60px;"><a href="#" onclick="abrirImagemLeitorComprovante(event, '${escapeHtml(c.caminho_storage)}')" title="Ver imagem">🖼️</a></td>
+      <td>${escapeHtml(c.descricao)}</td>
+      <td class="data">${fmtData(c.data)}</td>
+      <td class="valor">${brl(c.valor)}</td>
+      <td><button class="filter-btn" style="padding:4px 10px;font-size:12px;color:var(--rust);" data-id="${escapeHtml(String(c.id))}" onclick="confirmarExclusaoLeitorComprovante(this)">🗑</button></td>
+    </tr>
+  `).join('');
+}
+
+async function abrirImagemLeitorComprovante(ev, caminho){
+  ev.preventDefault();
+  const { data } = await sb.storage.from('comprovantes').createSignedUrl(caminho, 3600);
+  if(data) window.open(data.signedUrl, '_blank', 'noopener');
+}
+
+async function onSelecionarLeitorComprovante(fileList){
+  const arquivo = fileList && fileList[0];
+  if(!arquivo) return;
+
+  leitorArquivoAtual = arquivo;
+  if(leitorPreviewUrlAtual) URL.revokeObjectURL(leitorPreviewUrlAtual);
+  leitorPreviewUrlAtual = URL.createObjectURL(arquivo);
+  document.getElementById('leitorPreviewImg').src = leitorPreviewUrlAtual;
+  document.getElementById('leitorRevisaoPanel').style.display = 'block';
+  document.getElementById('leitor_descricao').value = '';
+  document.getElementById('leitor_data').value = '';
+  document.getElementById('leitor_valor').value = '';
+  document.getElementById('leitorAvisoIA').textContent = '';
+
+  abrirProgresso('Lendo comprovante com IA…');
+  atualizarProgresso(20);
+
+  try{
+    const base64 = await new Promise((res, rej)=>{
+      const r = new FileReader();
+      r.onload = () => res(r.result.split(',')[1]);
+      r.onerror = () => rej(new Error('Falha ao ler o arquivo'));
+      r.readAsDataURL(arquivo);
+    });
+    atualizarProgresso(50);
+
+    const { data, error } = await sb.functions.invoke('ler-comprovante', {
+      body: { image_base64: base64, media_type: arquivo.type || 'image/jpeg' }
+    });
+    atualizarProgresso(90);
+
+    if(error){
+      document.getElementById('leitorAvisoIA').innerHTML = '⚠ Não consegui ler automaticamente (' + error.message + '). Preencha os campos manualmente.';
+    }else if(data && data.erro){
+      document.getElementById('leitorAvisoIA').innerHTML = '⚠ ' + data.erro + ' Confira ou preencha manualmente.';
+      if(data.descricao) document.getElementById('leitor_descricao').value = data.descricao;
+      if(data.data) document.getElementById('leitor_data').value = data.data;
+      if(data.valor!=null) document.getElementById('leitor_valor').value = data.valor;
+    }else if(data){
+      document.getElementById('leitor_descricao').value = data.descricao || '';
+      document.getElementById('leitor_data').value = data.data || '';
+      document.getElementById('leitor_valor').value = data.valor!=null ? data.valor : '';
+      document.getElementById('leitorAvisoIA').innerHTML = '✓ Lido automaticamente — confira antes de salvar, a IA pode errar.';
+    }
+  }catch(e){
+    document.getElementById('leitorAvisoIA').innerHTML = '⚠ Não consegui ler automaticamente. Preencha os campos manualmente.';
+    console.error(e);
+  }
+
+  atualizarProgresso(100);
+  setTimeout(fecharProgresso, 200);
+}
+
+function cancelarLeitorComprovante(){
+  leitorArquivoAtual = null;
+  if(leitorPreviewUrlAtual){ URL.revokeObjectURL(leitorPreviewUrlAtual); leitorPreviewUrlAtual = null; }
+  document.getElementById('leitorRevisaoPanel').style.display = 'none';
+  document.getElementById('leitorFileInput').value = '';
+}
+
+async function salvarLeitorComprovante(){
+  if(!leitorArquivoAtual){ alert('Selecione uma imagem de comprovante primeiro.'); return; }
+  const descricao = document.getElementById('leitor_descricao').value.trim();
+  const data = document.getElementById('leitor_data').value;
+  const valor = parseFloat(document.getElementById('leitor_valor').value);
+  if(!descricao || !data || isNaN(valor) || valor<=0){
+    alert('Preencha descrição, data e um valor maior que zero.');
+    return;
+  }
+
+  const btn = document.getElementById('leitorBtnSalvar');
+  btn.disabled = true;
+  abrirProgresso('Salvando…');
+
+  const caminho = 'leitor/' + lojaAtual + '/' + leitorMesAtual + '/' + Date.now() + '_' + Math.random().toString(36).slice(2,8) + '_' + leitorArquivoAtual.name;
+  const { error: erroUpload } = await sb.storage.from('comprovantes').upload(caminho, leitorArquivoAtual);
+  atualizarProgresso(60);
+
+  if(erroUpload){
+    fecharProgresso();
+    btn.disabled = false;
+    alert('Erro ao enviar a imagem: ' + erroUpload.message);
+    return;
+  }
+
+  const { error: erroInsert } = await sb.from('leitor_comprovantes').insert({
+    loja: lojaAtual,
+    mes: leitorMesAtual,
+    descricao: descricao,
+    data: data,
+    valor: valor,
+    nome_arquivo: leitorArquivoAtual.name,
+    caminho_storage: caminho
+  });
+  atualizarProgresso(100);
+  btn.disabled = false;
+
+  if(erroInsert){
+    setTimeout(fecharProgresso, 200);
+    alert('Erro ao salvar: ' + erroInsert.message);
+    return;
+  }
+
+  setTimeout(fecharProgresso, 200);
+  cancelarLeitorComprovante();
+  await carregarLeitorComprovantes();
+}
+
+let excluindoLeitorComprovanteId = null;
+function confirmarExclusaoLeitorComprovante(botao){
+  excluindoLeitorComprovanteId = botao.dataset.id;
+  document.getElementById('confirmLeitorComprovanteModal').style.display = 'flex';
+}
+function fecharConfirmacaoLeitorComprovante(){
+  excluindoLeitorComprovanteId = null;
+  document.getElementById('confirmLeitorComprovanteModal').style.display = 'none';
+}
+async function confirmarExclusaoLeitorComprovanteOk(){
+  if(!excluindoLeitorComprovanteId) return;
+  const c = leitorCache.find(x=>String(x.id)===String(excluindoLeitorComprovanteId));
+  if(c){
+    await sb.storage.from('comprovantes').remove([c.caminho_storage]);
+    await sb.from('leitor_comprovantes').delete().eq('id', c.id);
+  }
+  fecharConfirmacaoLeitorComprovante();
+  await carregarLeitorComprovantes();
 }
 
 function abrirProgresso(titulo){
@@ -7725,8 +7972,8 @@ function linhaGrupoComb(g){
   const fornecedor = g.compras[0] ? (g.compras[0].nomeFantasia || g.compras[0].razaoSocial) : '';
   const compraLinhas = g.compras.map(c=>escapeHtml((c.numNF?('NF '+c.numNF+' — '):'')+brl(c.valor))).join('<br>');
   const pagamentoLinhas = g.pagamentos.map(p=>escapeHtml((p.data?fmtData(p.data)+' — ':'')+p.descricao+' — '+brl(p.valor))).join('<br>');
-  const idsCompras = JSON.stringify(g.compras.map(c=>c.id));
-  const idsPagamentos = JSON.stringify(g.pagamentos.map(p=>p.id));
+  const idsCompras = escapeHtml(JSON.stringify(g.compras.map(c=>c.id)));
+  const idsPagamentos = escapeHtml(JSON.stringify(g.pagamentos.map(p=>p.id)));
   return `
     <tr>
       <td>${escapeHtml(fornecedor)}</td>
@@ -7735,7 +7982,7 @@ function linhaGrupoComb(g){
       <td class="contato">${pagamentoLinhas}</td>
       <td class="valor">${brl(totalPagamentos)}</td>
       <td class="valor" style="color:${g.diff>0?'var(--gold)':'var(--muted)'};">${g.diff>0 ? brl(g.diff) : '—'}</td>
-      <td><button class="filter-btn" style="padding:4px 10px;font-size:12px;" onclick='desfazerGrupoComb(${idsCompras}, ${idsPagamentos})'>Desfazer</button></td>
+      <td><button class="filter-btn" style="padding:4px 10px;font-size:12px;" data-ids-compras="${idsCompras}" data-ids-pagamentos="${idsPagamentos}" onclick="desfazerGrupoComb(this)">Desfazer</button></td>
     </tr>
   `;
 }
@@ -7768,7 +8015,7 @@ function renderResultadoCombinacaoPagamentos(){
           <td class="contato">${escapeHtml(par.pagamento.descricao)}</td>
           <td class="valor">${brl(par.pagamento.valor)}</td>
           <td class="valor" style="color:${par.diff>0?'var(--gold)':'var(--muted)'};">${par.diff>0 ? brl(par.diff) : '—'}</td>
-          <td><button class="filter-btn" style="padding:4px 10px;font-size:12px;" onclick='desfazerParComb(${JSON.stringify(par.compra.id)}, ${JSON.stringify(par.pagamento.id)})'>Desfazer</button></td>
+          <td><button class="filter-btn" style="padding:4px 10px;font-size:12px;" data-id-compra="${escapeHtml(String(par.compra.id))}" data-id-pagamento="${escapeHtml(String(par.pagamento.id))}" onclick="desfazerParComb(this)">Desfazer</button></td>
         </tr>
       `).join('');
 
@@ -7804,8 +8051,8 @@ function renderResultadoCombinacaoPagamentos(){
           <td class="data">${c.emissao ? fmtData(c.emissao) : '—'}</td>
           <td class="valor">${brl(c.valor)}</td>
           <td style="white-space:nowrap;">
-            <button class="filter-btn" style="padding:4px 10px;font-size:12px;" onclick="desfazerBonificacaoComb(${JSON.stringify([c.id])})">Desfazer</button>
-            <button class="filter-btn" style="padding:4px 10px;font-size:12px;color:var(--rust);" onclick='abrirConfirmacaoExcluirItemComb("compra", ${JSON.stringify(c.id)}, ${JSON.stringify((c.nomeFantasia||c.razaoSocial)+' — '+brl(c.valor))})'>🗑</button>
+            <button class="filter-btn" style="padding:4px 10px;font-size:12px;" data-id="${escapeHtml(String(c.id))}" onclick="desfazerBonificacaoComb([this.dataset.id])">Desfazer</button>
+            <button class="filter-btn" style="padding:4px 10px;font-size:12px;color:var(--rust);" data-tipo="compra" data-id="${escapeHtml(String(c.id))}" data-rotulo="${escapeHtml((c.nomeFantasia||c.razaoSocial)+' — '+brl(c.valor))}" onclick="abrirConfirmacaoExcluirItemComb(this)">🗑</button>
           </td>
         </tr>
       `).join('');
@@ -7823,7 +8070,7 @@ function renderResultadoCombinacaoPagamentos(){
           <td>${escapeHtml(String(c.numNF||''))}</td>
           <td class="data">${c.emissao ? fmtData(c.emissao) : '—'}</td>
           <td class="valor" style="color:var(--rust);">${brl(c.valor)}</td>
-          <td><button class="filter-btn" style="padding:4px 10px;font-size:12px;color:var(--rust);" onclick='abrirConfirmacaoExcluirItemComb("compra", ${JSON.stringify(c.id)}, ${JSON.stringify((c.nomeFantasia||c.razaoSocial)+' — '+brl(c.valor))})'>🗑</button></td>
+          <td><button class="filter-btn" style="padding:4px 10px;font-size:12px;color:var(--rust);" data-tipo="compra" data-id="${escapeHtml(String(c.id))}" data-rotulo="${escapeHtml((c.nomeFantasia||c.razaoSocial)+' — '+brl(c.valor))}" onclick="abrirConfirmacaoExcluirItemComb(this)">🗑</button></td>
         </tr>
       `).join('');
 
@@ -7839,7 +8086,7 @@ function renderResultadoCombinacaoPagamentos(){
           <td class="data">${fmtData(p.data)}</td>
           <td class="contato">${escapeHtml(p.descricao)}</td>
           <td class="valor" style="color:var(--rust);">${brl(p.valor)}</td>
-          <td><button class="filter-btn" style="padding:4px 10px;font-size:12px;color:var(--rust);" onclick='abrirConfirmacaoExcluirItemComb("pagamento", ${JSON.stringify(p.id)}, ${JSON.stringify(p.descricao+' — '+brl(p.valor))})'>🗑</button></td>
+          <td><button class="filter-btn" style="padding:4px 10px;font-size:12px;color:var(--rust);" data-tipo="pagamento" data-id="${escapeHtml(String(p.id))}" data-rotulo="${escapeHtml(p.descricao+' — '+brl(p.valor))}" onclick="abrirConfirmacaoExcluirItemComb(this)">🗑</button></td>
         </tr>
       `).join('');
 
@@ -7996,7 +8243,9 @@ async function confirmarVincularManualCombOk(){
   await carregarOuPrepararCombinacaoPagamentos();
 }
 
-async function desfazerGrupoComb(idsCompras, idsPagamentos){
+async function desfazerGrupoComb(botao){
+  const idsCompras = JSON.parse(botao.dataset.idsCompras);
+  const idsPagamentos = JSON.parse(botao.dataset.idsPagamentos);
   abrirProgresso('Desfazendo…');
   const { data: atu1, error: erro1 } = await sb.from('comb_pag_compras').update({ grupo_id: null, grupo_manual: false }).in('id', idsCompras).select('id');
   const { data: atu2, error: erro2 } = erro1 ? {data:null, error:null} : await sb.from('comb_pag_pagamentos').update({ grupo_id: null, grupo_manual: false }).in('id', idsPagamentos).select('id');
@@ -8013,7 +8262,8 @@ async function desfazerGrupoComb(idsCompras, idsPagamentos){
 }
 
 // desfaz um par 1:1 da tabela "Combinados" (a compra e o pagamento voltam pra lista de sem-par)
-async function desfazerParComb(idCompra, idPagamento){
+async function desfazerParComb(botao){
+  const idCompra = botao.dataset.idCompra;
   abrirProgresso('Desfazendo…');
   const { data: atualizados, error } = await sb.from('comb_pag_compras').update({ pagamento_id: null, diferenca: 0 }).eq('id', idCompra).select('id');
   fecharProgresso();
@@ -8031,7 +8281,10 @@ async function desfazerParComb(idCompra, idPagamento){
 // exclusão individual de um lançamento (compra ou pagamento) de dentro da Combinação de Pagamentos.
 // só disponível pra itens sem par (soltos) — itens combinados/agrupados precisam de "Desfazer" primeiro.
 let combPagExcluirAlvo = null;
-function abrirConfirmacaoExcluirItemComb(tipo, id, rotulo){
+function abrirConfirmacaoExcluirItemComb(botao){
+  const tipo = botao.dataset.tipo;
+  const id = botao.dataset.id;
+  const rotulo = botao.dataset.rotulo;
   combPagExcluirAlvo = { tipo, id };
   document.getElementById('confirmExcluirItemCombTexto').textContent =
     (tipo==='compra' ? 'Excluir a compra ' : 'Excluir o pagamento ') + rotulo + '? Essa ação não pode ser desfeita.';
