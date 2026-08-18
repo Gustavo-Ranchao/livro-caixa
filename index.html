@@ -5203,7 +5203,10 @@ function processarExtratoFormatoMercadoPago(linhas, idxCabecalho, cabecalhoTexto
     if(valor===null || valor===0) continue;
 
     const { tipo, descricao } = extrairTipoEDescricaoMercadoPago(linha[idxTipo]);
-    transacoes.push({ data, tipo, descricao, valor });
+    // privacidade: assim como nos outros bancos, não guarda nome de quem PAGOU (entrada) —
+    // só guarda nome de quem VOCÊ pagou (saída), igual já funciona pro formato quebrado
+    const descricaoFinal = valor > 0 ? '' : descricao;
+    transacoes.push({ data, tipo, descricao: descricaoFinal, valor });
 
     if(idxSaldoParcial>-1){
       const saldoVal = parseNumeroVenda(linha[idxSaldoParcial]);
