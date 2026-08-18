@@ -403,7 +403,6 @@
             <button class="nav-sub-item" data-view="contasPagar" onclick="mudarViewPrincipal('contasPagar')">Contas a pagar</button>
             <button class="nav-sub-item" data-view="despesasFixas" onclick="mudarViewPrincipal('despesasFixas')">Despesas fixas</button>
             <button class="nav-sub-item" data-view="comprovantes" onclick="mudarViewPrincipal('comprovantes')">Comprovantes</button>
-            <button class="nav-sub-item" data-view="leitorComprovante" onclick="mudarViewPrincipal('leitorComprovante')">Leitor de Comprovante</button>
             <button class="nav-sub-item" data-view="diferencaCaixa" onclick="mudarViewPrincipal('diferencaCaixa')">Diferença de Caixa</button>
             <button class="nav-sub-item" data-view="fluxoCaixa" onclick="mudarViewPrincipal('fluxoCaixa')">Fluxo de Caixa</button>
             <button class="nav-sub-item" data-view="pagamentos" onclick="mudarViewPrincipal('pagamentos')">Pagamentos</button>
@@ -995,48 +994,6 @@
       <div class="comp-grid" id="compGrid"></div>
     </div>
 
-    <div id="viewLeitorComprovante" style="display:none;">
-      <div class="comp-toolbar">
-        <label style="font-size:11px;text-transform:uppercase;letter-spacing:0.05em;color:var(--muted);">Mês</label>
-        <input id="leitorMes" type="month" onchange="mudarMesLeitorComprovante(this.value)">
-      </div>
-
-      <label class="comp-upload" id="leitorUploadArea">
-        <input id="leitorFileInput" type="file" accept="image/*,.pdf,application/pdf" onchange="onSelecionarLeitorComprovante(this.files)">
-        📎 Clique aqui ou arraste a foto do comprovante — a Claude vai ler o favorecido, o valor e a data pra você
-      </label>
-
-      <div class="panel" id="leitorRevisaoPanel" style="display:none;margin-top:20px;">
-        <div class="panel-head"><h2>Confira antes de salvar</h2></div>
-        <div style="display:flex;gap:20px;flex-wrap:wrap;padding:0 20px 20px;">
-          <img id="leitorPreviewImg" style="max-width:220px;max-height:280px;border-radius:8px;border:1px solid var(--paper3);object-fit:contain;">
-          <div id="leitorPreviewPdf" style="display:none;width:220px;height:280px;border-radius:8px;border:1px solid var(--paper3);align-items:center;justify-content:center;flex-direction:column;gap:8px;color:var(--muted);font-size:13px;text-align:center;padding:12px;">
-            <span style="font-size:40px;">📄</span>
-            <span id="leitorPreviewPdfNome" style="word-break:break-word;"></span>
-          </div>
-          <div style="flex:1;min-width:260px;display:flex;flex-direction:column;gap:14px;">
-            <div class="fld"><label>Descrição (favorecido)</label><input id="leitor_descricao" placeholder="Nome de quem recebeu"></div>
-            <div style="display:flex;gap:14px;">
-              <div class="fld" style="flex:1;"><label>Data</label><input id="leitor_data" type="date"></div>
-              <div class="fld" style="flex:1;"><label>Valor (R$)</label><input id="leitor_valor" type="number" step="0.01" min="0" placeholder="0,00"></div>
-            </div>
-            <div id="leitorAvisoIA" style="font-size:12px;color:var(--muted);"></div>
-            <div style="display:flex;gap:10px;">
-              <button class="addbtn" style="width:auto;" id="leitorBtnSalvar" onclick="salvarLeitorComprovante()">Salvar lançamento</button>
-              <button class="cancelbtn" onclick="cancelarLeitorComprovante()">Cancelar</button>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div class="empty" id="leitorEmpty" style="display:none;">Nenhum comprovante lido nesse mês ainda.</div>
-      <div class="tablewrap" id="leitorTableWrap" style="margin-top:20px;display:none;">
-        <table class="ledger">
-          <thead><tr><th></th><th>Descrição (favorecido)</th><th>Data</th><th style="text-align:right">Valor</th><th></th></tr></thead>
-          <tbody id="leitorListaBody"></tbody>
-        </table>
-      </div>
-    </div>
 
     <div id="viewDiferencaCaixa" style="display:none;">
       <div class="bh-resumo">
@@ -1987,17 +1944,6 @@
   </div>
 </div>
 
-<div id="confirmLeitorComprovanteModal" class="modal-overlay">
-  <div class="modal-box" style="max-width:380px;">
-    <h2>Excluir lançamento?</h2>
-    <p class="modal-sub">Isso apaga o lançamento e a imagem do comprovante. Essa ação não pode ser desfeita.</p>
-    <div class="modal-actions">
-      <button class="addbtn" style="background:var(--rust);" onclick="confirmarExclusaoLeitorComprovanteOk()">Excluir</button>
-      <button class="cancelbtn" onclick="fecharConfirmacaoLeitorComprovante()">Cancelar</button>
-    </div>
-  </div>
-</div>
-
 <div id="relatorioNoturnoModal" class="modal-overlay">
   <div class="modal-box" style="max-width:720px;">
     <button class="modal-close" onclick="fecharRelatorioNoturno()">✕</button>
@@ -2165,10 +2111,6 @@ function trocarLoja(l){
   }
   if(viewAtual === 'comprovantes'){
     carregarComprovantes();
-  }
-  if(viewAtual === 'leitorComprovante'){
-    cancelarLeitorComprovante();
-    carregarLeitorComprovantes();
   }
   if(viewAtual === 'diferencaCaixa'){
     abrirDiferencaCaixa();
@@ -3349,6 +3291,12 @@ function parseDataBR(s){
     if(y.length===2) y = '20'+y;
     return y + '-' + mo.padStart(2,'0') + '-' + d.padStart(2,'0');
   }
+  m = s.match(/^(\d{1,2})-(\d{1,2})-(\d{2,4})$/);
+  if(m){
+    let [, d, mo, y] = m;
+    if(y.length===2) y = '20'+y;
+    return y + '-' + mo.padStart(2,'0') + '-' + d.padStart(2,'0');
+  }
   m = s.match(/^(\d{1,2})\s*[\/\-]\s*([a-zçã]{3,4})\.?\s*[\/\-]\s*(\d{2,4})$/i);
   if(m){
     const mesNum = MESES_PT[m[2].toLowerCase().slice(0,3)];
@@ -3460,7 +3408,7 @@ function setEscala(e){
   }
 }
 
-const VIEWS = ['inicio','contasPagar','despesasFixas','comprovantes','leitorComprovante','diferencaCaixa','fluxoCaixa','pagamentos','pagamentoCaixa','vendasComCusto','bancoHoras','compras','colaboradores','contasBancarias','inventario','combinacaoPagamentos'];
+const VIEWS = ['inicio','contasPagar','despesasFixas','comprovantes','diferencaCaixa','fluxoCaixa','pagamentos','pagamentoCaixa','vendasComCusto','bancoHoras','compras','colaboradores','contasBancarias','inventario','combinacaoPagamentos'];
 let colabCarregado = false;
 
 const NAV_GROUPS = {
@@ -3489,7 +3437,7 @@ async function mudarViewPrincipal(view){
   viewAtual = view;
 
   VIEWS.forEach(v=>{
-    const idMap = { inicio:'viewInicio', contasPagar:'viewContasPagar', despesasFixas:'viewDespesasFixas', comprovantes:'viewComprovantes', leitorComprovante:'viewLeitorComprovante', diferencaCaixa:'viewDiferencaCaixa', fluxoCaixa:'viewFluxoCaixa', pagamentos:'viewPagamentos', pagamentoCaixa:'viewPagamentoCaixa', vendasComCusto:'viewVendasComCusto', bancoHoras:'viewBancoHoras', compras:'viewCompras', colaboradores:'viewColaboradores', contasBancarias:'viewContasBancarias', inventario:'viewInventario', combinacaoPagamentos:'viewCombinacaoPagamentos' };
+    const idMap = { inicio:'viewInicio', contasPagar:'viewContasPagar', despesasFixas:'viewDespesasFixas', comprovantes:'viewComprovantes', diferencaCaixa:'viewDiferencaCaixa', fluxoCaixa:'viewFluxoCaixa', pagamentos:'viewPagamentos', pagamentoCaixa:'viewPagamentoCaixa', vendasComCusto:'viewVendasComCusto', bancoHoras:'viewBancoHoras', compras:'viewCompras', colaboradores:'viewColaboradores', contasBancarias:'viewContasBancarias', inventario:'viewInventario', combinacaoPagamentos:'viewCombinacaoPagamentos' };
     document.getElementById(idMap[v]).style.display = (v===view) ? '' : 'none';
   });
 
@@ -3507,9 +3455,6 @@ async function mudarViewPrincipal(view){
   }else if(view==='comprovantes'){
     abrirGrupoNav('financeiro');
     await abrirComprovantes();
-  }else if(view==='leitorComprovante'){
-    abrirGrupoNav('financeiro');
-    await abrirLeitorComprovante();
   }else if(view==='diferencaCaixa'){
     abrirGrupoNav('financeiro');
     await abrirDiferencaCaixa();
@@ -3817,218 +3762,6 @@ async function confirmarExclusaoComprovanteOk(){
     await renderComprovantesGrid();
   }
   fecharConfirmacaoComprovante();
-}
-
-/* ================= LEITOR DE COMPROVANTE (IA) ================= */
-
-let leitorMesAtual = new Date().toISOString().slice(0,7);
-let leitorCache = [];
-let leitorArquivoAtual = null; // File selecionado, ainda não salvo
-let leitorPreviewUrlAtual = null;
-
-async function abrirLeitorComprovante(){
-  if(!leitorMesAtual) leitorMesAtual = mesAtualPadrao();
-  document.getElementById('leitorMes').value = leitorMesAtual;
-  cancelarLeitorComprovante();
-  await carregarLeitorComprovantes();
-}
-
-function mudarMesLeitorComprovante(valor){
-  leitorMesAtual = valor || mesAtualPadrao();
-  carregarLeitorComprovantes();
-}
-
-async function carregarLeitorComprovantes(){
-  const { data, error } = await sb.from('leitor_comprovantes')
-    .select('*')
-    .eq('loja', lojaAtual)
-    .eq('mes', leitorMesAtual)
-    .order('data', { ascending: false });
-  if(error){
-    console.error('Erro ao carregar leitor de comprovantes:', error);
-    leitorCache = [];
-  }else{
-    leitorCache = data || [];
-  }
-  renderLeitorComprovantesLista();
-}
-
-function renderLeitorComprovantesLista(){
-  const wrap = document.getElementById('leitorTableWrap');
-  const empty = document.getElementById('leitorEmpty');
-  if(leitorCache.length===0){
-    wrap.style.display = 'none';
-    empty.style.display = 'block';
-    return;
-  }
-  empty.style.display = 'none';
-  wrap.style.display = 'block';
-  document.getElementById('leitorListaBody').innerHTML = leitorCache.map(c=>`
-    <tr>
-      <td style="width:60px;"><a href="#" onclick="abrirImagemLeitorComprovante(event, '${escapeHtml(c.caminho_storage)}')" title="Ver imagem">🖼️</a></td>
-      <td>${escapeHtml(c.descricao)}</td>
-      <td class="data">${fmtData(c.data)}</td>
-      <td class="valor">${brl(c.valor)}</td>
-      <td><button class="filter-btn" style="padding:4px 10px;font-size:12px;color:var(--rust);" data-id="${escapeHtml(String(c.id))}" onclick="confirmarExclusaoLeitorComprovante(this)">🗑</button></td>
-    </tr>
-  `).join('');
-}
-
-async function abrirImagemLeitorComprovante(ev, caminho){
-  ev.preventDefault();
-  const { data } = await sb.storage.from('comprovantes').createSignedUrl(caminho, 3600);
-  if(data) window.open(data.signedUrl, '_blank', 'noopener');
-}
-
-async function onSelecionarLeitorComprovante(fileList){
-  const arquivo = fileList && fileList[0];
-  if(!arquivo) return;
-
-  const ehPdf = arquivo.type === 'application/pdf' || /\.pdf$/i.test(arquivo.name);
-
-  leitorArquivoAtual = arquivo;
-  if(leitorPreviewUrlAtual) URL.revokeObjectURL(leitorPreviewUrlAtual);
-
-  if(ehPdf){
-    document.getElementById('leitorPreviewImg').style.display = 'none';
-    document.getElementById('leitorPreviewImg').src = '';
-    document.getElementById('leitorPreviewPdf').style.display = 'flex';
-    document.getElementById('leitorPreviewPdfNome').textContent = arquivo.name;
-  }else{
-    leitorPreviewUrlAtual = URL.createObjectURL(arquivo);
-    document.getElementById('leitorPreviewImg').style.display = 'block';
-    document.getElementById('leitorPreviewImg').src = leitorPreviewUrlAtual;
-    document.getElementById('leitorPreviewPdf').style.display = 'none';
-  }
-
-  document.getElementById('leitorRevisaoPanel').style.display = 'block';
-  document.getElementById('leitor_descricao').value = '';
-  document.getElementById('leitor_data').value = '';
-  document.getElementById('leitor_valor').value = '';
-  document.getElementById('leitorAvisoIA').textContent = '';
-
-  abrirProgresso('Lendo comprovante com IA…');
-  atualizarProgresso(20);
-
-  try{
-    const base64 = await new Promise((res, rej)=>{
-      const r = new FileReader();
-      r.onload = () => res(r.result.split(',')[1]);
-      r.onerror = () => rej(new Error('Falha ao ler o arquivo'));
-      r.readAsDataURL(arquivo);
-    });
-    atualizarProgresso(50);
-
-    const { data, error } = await sb.functions.invoke('ler-comprovante', {
-      body: { image_base64: base64, media_type: arquivo.type || 'image/jpeg' }
-    });
-    atualizarProgresso(90);
-
-    if(error){
-      let detalhe = error.message;
-      // supabase-js não inclui o corpo da resposta em error.message — precisa ler do error.context (Response)
-      if(error.context && typeof error.context.json === 'function'){
-        try{
-          const corpo = await error.context.json();
-          if(corpo && corpo.erro) detalhe = corpo.erro;
-        }catch(_e){ /* corpo não era JSON, mantém a mensagem padrão */ }
-      }
-      document.getElementById('leitorAvisoIA').innerHTML = '⚠ Não consegui ler automaticamente (' + escapeHtml(detalhe) + '). Preencha os campos manualmente.';
-      console.error('Erro leitor de comprovante:', error);
-    }else if(data && data.erro){
-      document.getElementById('leitorAvisoIA').innerHTML = '⚠ ' + data.erro + ' Confira ou preencha manualmente.';
-      if(data.descricao) document.getElementById('leitor_descricao').value = data.descricao;
-      if(data.data) document.getElementById('leitor_data').value = data.data;
-      if(data.valor!=null) document.getElementById('leitor_valor').value = data.valor;
-    }else if(data){
-      document.getElementById('leitor_descricao').value = data.descricao || '';
-      document.getElementById('leitor_data').value = data.data || '';
-      document.getElementById('leitor_valor').value = data.valor!=null ? data.valor : '';
-      document.getElementById('leitorAvisoIA').innerHTML = '✓ Lido automaticamente — confira antes de salvar, a IA pode errar.';
-    }
-  }catch(e){
-    document.getElementById('leitorAvisoIA').innerHTML = '⚠ Não consegui ler automaticamente. Preencha os campos manualmente.';
-    console.error(e);
-  }
-
-  atualizarProgresso(100);
-  setTimeout(fecharProgresso, 200);
-}
-
-function cancelarLeitorComprovante(){
-  leitorArquivoAtual = null;
-  if(leitorPreviewUrlAtual){ URL.revokeObjectURL(leitorPreviewUrlAtual); leitorPreviewUrlAtual = null; }
-  document.getElementById('leitorRevisaoPanel').style.display = 'none';
-  document.getElementById('leitorFileInput').value = '';
-  document.getElementById('leitorPreviewPdf').style.display = 'none';
-}
-
-async function salvarLeitorComprovante(){
-  if(!leitorArquivoAtual){ alert('Selecione uma imagem de comprovante primeiro.'); return; }
-  const descricao = document.getElementById('leitor_descricao').value.trim();
-  const data = document.getElementById('leitor_data').value;
-  const valor = parseFloat(document.getElementById('leitor_valor').value);
-  if(!descricao || !data || isNaN(valor) || valor<=0){
-    alert('Preencha descrição, data e um valor maior que zero.');
-    return;
-  }
-
-  const btn = document.getElementById('leitorBtnSalvar');
-  btn.disabled = true;
-  abrirProgresso('Salvando…');
-
-  const caminho = 'leitor/' + lojaAtual + '/' + leitorMesAtual + '/' + Date.now() + '_' + Math.random().toString(36).slice(2,8) + '_' + leitorArquivoAtual.name;
-  const { error: erroUpload } = await sb.storage.from('comprovantes').upload(caminho, leitorArquivoAtual);
-  atualizarProgresso(60);
-
-  if(erroUpload){
-    fecharProgresso();
-    btn.disabled = false;
-    alert('Erro ao enviar a imagem: ' + erroUpload.message);
-    return;
-  }
-
-  const { error: erroInsert } = await sb.from('leitor_comprovantes').insert({
-    loja: lojaAtual,
-    mes: leitorMesAtual,
-    descricao: descricao,
-    data: data,
-    valor: valor,
-    nome_arquivo: leitorArquivoAtual.name,
-    caminho_storage: caminho
-  });
-  atualizarProgresso(100);
-  btn.disabled = false;
-
-  if(erroInsert){
-    setTimeout(fecharProgresso, 200);
-    alert('Erro ao salvar: ' + erroInsert.message);
-    return;
-  }
-
-  setTimeout(fecharProgresso, 200);
-  cancelarLeitorComprovante();
-  await carregarLeitorComprovantes();
-}
-
-let excluindoLeitorComprovanteId = null;
-function confirmarExclusaoLeitorComprovante(botao){
-  excluindoLeitorComprovanteId = botao.dataset.id;
-  document.getElementById('confirmLeitorComprovanteModal').style.display = 'flex';
-}
-function fecharConfirmacaoLeitorComprovante(){
-  excluindoLeitorComprovanteId = null;
-  document.getElementById('confirmLeitorComprovanteModal').style.display = 'none';
-}
-async function confirmarExclusaoLeitorComprovanteOk(){
-  if(!excluindoLeitorComprovanteId) return;
-  const c = leitorCache.find(x=>String(x.id)===String(excluindoLeitorComprovanteId));
-  if(c){
-    await sb.storage.from('comprovantes').remove([c.caminho_storage]);
-    await sb.from('leitor_comprovantes').delete().eq('id', c.id);
-  }
-  fecharConfirmacaoLeitorComprovante();
-  await carregarLeitorComprovantes();
 }
 
 function abrirProgresso(titulo){
@@ -5414,6 +5147,74 @@ function processarExtratoFormatoQuebrado(linhas, idxCabecalho, cabecalhoTextos){
   return { transacoes, saldos };
 }
 
+// Formato Mercado Pago: cada movimentação já vem numa única linha (sem "quebrar"
+// em várias linhas como Sicoob), com colunas RELEASE_DATE / TRANSACTION_TYPE /
+// REFERENCE_ID / TRANSACTION_NET_AMOUNT / PARTIAL_BALANCE. O valor líquido já vem
+// com o sinal certo (positivo = entrada, negativo = saída). Diferente dos bancos
+// tradicionais, aqui o nome de quem pagou/recebeu vem junto no próprio texto do
+// TRANSACTION_TYPE (ex: "Pagamento com Código QR Pix FULANO", "Pix enviado CICLANO"),
+// então separamos isso em categoria (tipo) + nome (descrição). Não vem "SALDO DO DIA"
+// resumido — o PARTIAL_BALANCE se acumula a cada linha, então guardamos só o último
+// saldo de cada dia (o mais recente).
+function extrairTipoEDescricaoMercadoPago(textoOriginal){
+  const texto = String(textoOriginal||'').trim();
+  const textoLower = texto.toLowerCase();
+
+  if(textoLower.includes('cancelado')){
+    return { tipo: 'PIX CANCELADO', descricao: '' };
+  }
+  let m = texto.match(/^Pagamento com C[oó]digo QR Pix\s+(.*)$/i);
+  if(m) return { tipo: 'PIX', descricao: m[1].trim().toUpperCase() };
+
+  m = texto.match(/^Pix enviado\s+(.*)$/i);
+  if(m) return { tipo: 'PIX ENVIADO', descricao: m[1].trim().toUpperCase() };
+
+  m = texto.match(/^Pix recebido\s+(.*)$/i);
+  if(m) return { tipo: 'PIX RECEBIDO', descricao: m[1].trim().toUpperCase() };
+
+  if(textoLower.includes('liberação de dinheiro') || textoLower.includes('liberacao de dinheiro')){
+    return { tipo: 'LIBERAÇÃO DE DINHEIRO', descricao: '' };
+  }
+
+  // não reconheceu um padrão conhecido — guarda o texto original inteiro como tipo,
+  // sem tentar adivinhar uma descrição separada
+  return { tipo: texto.toUpperCase(), descricao: '' };
+}
+
+function processarExtratoFormatoMercadoPago(linhas, idxCabecalho, cabecalhoTextos){
+  const idxData = cabecalhoTextos.indexOf('RELEASE_DATE');
+  const idxTipo = cabecalhoTextos.indexOf('TRANSACTION_TYPE');
+  const idxValor = cabecalhoTextos.findIndex(h=>(h||'').includes('NET_AMOUNT'));
+  const idxSaldoParcial = cabecalhoTextos.findIndex(h=>(h||'').includes('PARTIAL_BALANCE'));
+
+  const transacoes = [];
+  const ultimoSaldoPorDia = new Map(); // guarda só o saldo mais recente de cada dia
+
+  for(let i=idxCabecalho+1; i<linhas.length; i++){
+    const linha = linhas[i];
+    if(!linha || linha.length===0) continue;
+
+    const dataTexto = String(linha[idxData]||'').trim();
+    if(!dataTexto) continue;
+    const data = parseDataBR(dataTexto);
+    if(!data) continue;
+
+    const valor = idxValor>-1 ? parseNumeroVenda(linha[idxValor]) : null;
+    if(valor===null || valor===0) continue;
+
+    const { tipo, descricao } = extrairTipoEDescricaoMercadoPago(linha[idxTipo]);
+    transacoes.push({ data, tipo, descricao, valor });
+
+    if(idxSaldoParcial>-1){
+      const saldoVal = parseNumeroVenda(linha[idxSaldoParcial]);
+      if(saldoVal!==null) ultimoSaldoPorDia.set(data, saldoVal);
+    }
+  }
+
+  const saldos = Array.from(ultimoSaldoPorDia, ([data, saldo]) => ({ data, saldo }));
+  return { transacoes, saldos };
+}
+
 async function onSelecionarArquivosFluxo(fileList){
   const arquivos = Array.from(fileList || []);
   if(arquivos.length===0) return;
@@ -5442,12 +5243,17 @@ async function onSelecionarArquivosFluxo(fileList){
         const temData = linha.includes('DATA');
         const temEntradasSaidas = linha.some(h=>h.includes('ENTRADA')) || linha.some(h=>h.includes('SAIDA') || h.includes('SAÍDA'));
         const temHistoricoValor = linha.some(h=>h.includes('HIST')) && linha.includes('VALOR');
+        const temReleaseDateNetAmount = linha.includes('RELEASE_DATE') && linha.some(h=>h.includes('NET_AMOUNT'));
         if(temData && linha.includes('TIPO') && temEntradasSaidas){
           idxCabecalho = i; cabecalhoTextos = linha; formato = 'antigo';
           break;
         }
         if(temData && temHistoricoValor){
           idxCabecalho = i; cabecalhoTextos = linha; formato = 'quebrado';
+          break;
+        }
+        if(temReleaseDateNetAmount){
+          idxCabecalho = i; cabecalhoTextos = linha; formato = 'mercadopago';
           break;
         }
       }
@@ -5458,6 +5264,8 @@ async function onSelecionarArquivosFluxo(fileList){
 
       const resultado = formato==='antigo'
         ? processarExtratoFormatoAntigo(linhas, idxCabecalho, cabecalhoTextos)
+        : formato==='mercadopago'
+        ? processarExtratoFormatoMercadoPago(linhas, idxCabecalho, cabecalhoTextos)
         : processarExtratoFormatoQuebrado(linhas, idxCabecalho, cabecalhoTextos);
 
       todasLinhas = todasLinhas.concat(resultado.transacoes);
