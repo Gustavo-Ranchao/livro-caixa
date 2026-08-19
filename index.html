@@ -426,6 +426,7 @@
           <button class="nav-group-header aberto" id="navHeaderEstoque" onclick="toggleNavGroup('estoque')">📦 Estoque <span class="chevron">▾</span></button>
           <div class="nav-sub aberto" id="navGroupEstoque">
             <button class="nav-sub-item" data-view="inventario" onclick="mudarViewPrincipal('inventario')">Inventário</button>
+            <button class="nav-sub-item" data-view="contagensEstoque" onclick="mudarViewPrincipal('contagensEstoque')">Contagens de Estoque</button>
           </div>
         </div>
         <div class="nav-group">
@@ -822,6 +823,60 @@
         </div>
         <div class="empty" id="invEmpty" style="display:none;">Nenhum inventário lançado nesse período.</div>
       </div>
+    </div>
+
+    <div id="viewContagensEstoque" style="display:none;">
+      <div class="bh-filtro-data" style="margin-bottom:20px;">
+        <label>Contagem</label>
+        <select id="contEstSeletor" onchange="mudarContagemEstoqueSelecionada(this.value)">
+          <option value="nova">+ Nova contagem</option>
+        </select>
+      </div>
+
+      <div class="panel" id="contEstUploadWrap" style="margin-bottom:20px;">
+        <div class="panel-head"><h2>Importar nova contagem</h2></div>
+        <div style="padding:0 20px 20px;display:flex;gap:16px;flex-wrap:wrap;align-items:flex-end;">
+          <div class="fld" style="max-width:200px;"><label>Data da contagem</label><input id="contEst_data" type="date"></div>
+          <label class="vendas-file-label">
+            📁 Selecionar planilha (.xlsx)
+            <input id="contEstFileInput" type="file" accept=".xlsx,.xls,.csv" style="display:none;" onchange="onSelecionarContagemEstoque(this.files)">
+          </label>
+          <span id="contEstUploadStatus" style="align-self:center;font-size:12.5px;color:var(--muted);">Nenhum arquivo selecionado.</span>
+        </div>
+        <div style="padding:0 20px;font-size:12px;color:var(--muted);">Colunas esperadas: Código do produto, Descrição e Quantidade (aceita nomes parecidos, como "Código" ou "Qtd").</div>
+        <div class="formerr" id="contEstUploadErr" style="display:none;"></div>
+        <div style="padding:16px 20px 20px;display:none;" id="contEstConfirmWrap">
+          <button class="addbtn" style="width:auto;" id="contEstBtnConfirmar" onclick="confirmarImportacaoContagemEstoque()" disabled>Confirmar importação</button>
+        </div>
+      </div>
+
+      <div id="contEstResultadoWrap" style="display:none;">
+        <div class="bh-resumo" style="margin-bottom:20px;">
+          <div class="metric"><div class="lbl">Itens</div><div class="val" id="contEstQtdItens">0</div></div>
+          <div class="metric"><div class="lbl">Já contados</div><div class="val" id="contEstQtdContados" style="color:var(--green);">0</div></div>
+          <div class="metric"><div class="lbl">Com diferença</div><div class="val" id="contEstQtdDiferenca" style="color:var(--rust);">0</div></div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-head">
+            <h2>Itens da contagem</h2>
+            <div class="filters">
+              <button class="filter-btn foto-btn" onclick="exportarExcelContagemEstoque()">📊 Excel</button>
+              <button class="filter-btn foto-btn" onclick="exportarPdfContagemEstoque()">📄 PDF</button>
+              <button class="filter-btn" style="border-color:var(--rust);color:var(--rust);" onclick="confirmarApagarContagemEstoque()">🗑 Apagar essa contagem</button>
+            </div>
+          </div>
+          <div style="padding:0 20px 14px;"><input class="comb-busca" id="contEstBusca" placeholder="🔍 Buscar por código ou descrição..." oninput="renderTabelaContagemEstoque()"></div>
+          <div class="tablewrap">
+            <table class="ledger">
+              <thead><tr><th>Código</th><th>Descrição</th><th style="text-align:right">Qtd. sistema</th><th style="text-align:right">Qtd. contada</th><th style="text-align:right">Diferença</th></tr></thead>
+              <tbody id="contEstBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div class="empty" id="contEstEmpty" style="display:none;">Nenhuma contagem de estoque lançada ainda. Importe uma planilha acima.</div>
     </div>
 
     <div id="viewCombinacaoPagamentos" style="display:none;">
@@ -1632,6 +1687,17 @@
   </div>
 </div>
 
+<div id="confirmApagarContagemEstoqueModal" class="modal-overlay">
+  <div class="modal-box" style="max-width:420px;">
+    <h2>Apagar essa contagem?</h2>
+    <p class="modal-sub">Isso apaga a contagem e todos os itens dela. Essa ação não pode ser desfeita.</p>
+    <div class="modal-actions">
+      <button class="addbtn" style="background:var(--rust);" onclick="confirmarApagarContagemEstoqueOk()">Apagar</button>
+      <button class="cancelbtn" onclick="fecharConfirmacaoApagarContagemEstoque()">Cancelar</button>
+    </div>
+  </div>
+</div>
+
 <div id="confirmApagarCombinacaoModal" class="modal-overlay">
   <div class="modal-box" style="max-width:420px;">
     <h2>Apagar combinação desse mês?</h2>
@@ -2147,6 +2213,9 @@ function trocarLoja(l){
   }
   if(viewAtual === 'inventario'){
     abrirInventario();
+  }
+  if(viewAtual === 'contagensEstoque'){
+    abrirContagensEstoque();
   }
   if(viewAtual === 'pagamentos'){
     abrirPagamentos();
@@ -3408,7 +3477,7 @@ function setEscala(e){
   }
 }
 
-const VIEWS = ['inicio','contasPagar','despesasFixas','comprovantes','diferencaCaixa','fluxoCaixa','pagamentos','pagamentoCaixa','vendasComCusto','bancoHoras','compras','colaboradores','contasBancarias','inventario','combinacaoPagamentos'];
+const VIEWS = ['inicio','contasPagar','despesasFixas','comprovantes','diferencaCaixa','fluxoCaixa','pagamentos','pagamentoCaixa','vendasComCusto','bancoHoras','compras','colaboradores','contasBancarias','inventario','contagensEstoque','combinacaoPagamentos'];
 let colabCarregado = false;
 
 const NAV_GROUPS = {
@@ -3437,7 +3506,7 @@ async function mudarViewPrincipal(view){
   viewAtual = view;
 
   VIEWS.forEach(v=>{
-    const idMap = { inicio:'viewInicio', contasPagar:'viewContasPagar', despesasFixas:'viewDespesasFixas', comprovantes:'viewComprovantes', diferencaCaixa:'viewDiferencaCaixa', fluxoCaixa:'viewFluxoCaixa', pagamentos:'viewPagamentos', pagamentoCaixa:'viewPagamentoCaixa', vendasComCusto:'viewVendasComCusto', bancoHoras:'viewBancoHoras', compras:'viewCompras', colaboradores:'viewColaboradores', contasBancarias:'viewContasBancarias', inventario:'viewInventario', combinacaoPagamentos:'viewCombinacaoPagamentos' };
+    const idMap = { inicio:'viewInicio', contasPagar:'viewContasPagar', despesasFixas:'viewDespesasFixas', comprovantes:'viewComprovantes', diferencaCaixa:'viewDiferencaCaixa', fluxoCaixa:'viewFluxoCaixa', pagamentos:'viewPagamentos', pagamentoCaixa:'viewPagamentoCaixa', vendasComCusto:'viewVendasComCusto', bancoHoras:'viewBancoHoras', compras:'viewCompras', colaboradores:'viewColaboradores', contasBancarias:'viewContasBancarias', inventario:'viewInventario', contagensEstoque:'viewContagensEstoque', combinacaoPagamentos:'viewCombinacaoPagamentos' };
     document.getElementById(idMap[v]).style.display = (v===view) ? '' : 'none';
   });
 
@@ -3487,6 +3556,9 @@ async function mudarViewPrincipal(view){
   }else if(view==='inventario'){
     abrirGrupoNav('estoque');
     await abrirInventario();
+  }else if(view==='contagensEstoque'){
+    abrirGrupoNav('estoque');
+    await abrirContagensEstoque();
   }else if(view==='combinacaoPagamentos'){
     abrirGrupoNav('financeiro');
     abrirCombinacaoPagamentos();
@@ -7356,6 +7428,337 @@ function exportarPdfInventario(){
 
   const nomeLoja = (NOMES_LOJA[lojaAtual]||'').toLowerCase().replace(' ','');
   doc.save('inventario-' + nomeLoja + '-' + agora.toISOString().slice(0,10) + '.pdf');
+}
+
+/* ================= CONTAGENS DE ESTOQUE ================= */
+
+let contagensEstoqueLista = [];
+let contagemEstoqueAtualId = null;
+let contagemEstoqueItens = [];
+let contEstParsed = null; // itens lidos da planilha, aguardando confirmação de importação
+
+async function abrirContagensEstoque(){
+  document.getElementById('contEst_data').value = todayStr();
+  cancelarUploadContagemEstoque();
+  await carregarListaContagensEstoque();
+}
+
+async function carregarListaContagensEstoque(){
+  const { data, error } = await sb.from('contagens_estoque')
+    .select('*')
+    .eq('loja', lojaAtual)
+    .order('data', { ascending: false });
+  contagensEstoqueLista = error ? [] : (data || []);
+
+  const sel = document.getElementById('contEstSeletor');
+  sel.innerHTML = '<option value="nova">+ Nova contagem</option>' +
+    contagensEstoqueLista.map(c => `<option value="${c.id}">${fmtData(c.data)}</option>`).join('');
+
+  if(contagensEstoqueLista.length>0){
+    contagemEstoqueAtualId = contagensEstoqueLista[0].id;
+    sel.value = String(contagemEstoqueAtualId);
+    await carregarItensContagemEstoque(contagemEstoqueAtualId);
+    document.getElementById('contEstUploadWrap').style.display = 'none';
+    document.getElementById('contEstResultadoWrap').style.display = 'block';
+    document.getElementById('contEstEmpty').style.display = 'none';
+  }else{
+    contagemEstoqueAtualId = null;
+    sel.value = 'nova';
+    document.getElementById('contEstUploadWrap').style.display = 'block';
+    document.getElementById('contEstResultadoWrap').style.display = 'none';
+    document.getElementById('contEstEmpty').style.display = 'block';
+  }
+}
+
+async function mudarContagemEstoqueSelecionada(valor){
+  if(valor === 'nova'){
+    contagemEstoqueAtualId = null;
+    cancelarUploadContagemEstoque();
+    document.getElementById('contEstUploadWrap').style.display = 'block';
+    document.getElementById('contEstResultadoWrap').style.display = 'none';
+    return;
+  }
+  contagemEstoqueAtualId = Number(valor);
+  document.getElementById('contEstUploadWrap').style.display = 'none';
+  document.getElementById('contEstEmpty').style.display = 'none';
+  await carregarItensContagemEstoque(contagemEstoqueAtualId);
+  document.getElementById('contEstResultadoWrap').style.display = 'block';
+}
+
+async function carregarItensContagemEstoque(contagemId){
+  const { data, error } = await sb.from('contagens_estoque_itens')
+    .select('*')
+    .eq('contagem_id', contagemId)
+    .order('codigo', { ascending: true });
+  contagemEstoqueItens = error ? [] : (data || []);
+  renderTabelaContagemEstoque();
+}
+
+function normalizarCabecalhoContagem(s){
+  return String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim().toUpperCase();
+}
+
+async function onSelecionarContagemEstoque(fileList){
+  const arquivo = fileList && fileList[0];
+  const err = document.getElementById('contEstUploadErr');
+  err.style.display = 'none';
+  document.getElementById('contEstConfirmWrap').style.display = 'none';
+  document.getElementById('contEstBtnConfirmar').disabled = true;
+  contEstParsed = null;
+
+  if(!arquivo) return;
+  document.getElementById('contEstUploadStatus').textContent = arquivo.name;
+
+  if(!window.XLSX){
+    err.textContent = 'Não foi possível carregar o leitor de planilhas. Recarregue a página e tente de novo.';
+    err.style.display = 'block';
+    return;
+  }
+
+  abrirProgresso('Lendo planilha…');
+  try{
+    const buffer = await arquivo.arrayBuffer();
+    const wb = XLSX.read(buffer, { type: 'array' });
+    const primeiraAba = wb.SheetNames[0];
+    const linhas = XLSX.utils.sheet_to_json(wb.Sheets[primeiraAba], { header: 1, raw: true, defval: '' });
+    atualizarProgresso(60);
+
+    if(!linhas || linhas.length < 2){
+      throw new Error('Planilha vazia ou sem linhas de dados.');
+    }
+
+    // acha a linha de cabeçalho nas primeiras linhas — aceita nomes de coluna parecidos
+    // (ex: "Código", "Cód. Produto", "Descrição", "Produto", "Quantidade", "Qtd")
+    let idxCabecalho = -1, idxCodigo = -1, idxDescricao = -1, idxQuantidade = -1;
+    for(let i=0; i<Math.min(linhas.length,5); i++){
+      const cab = (linhas[i]||[]).map(normalizarCabecalhoContagem);
+      const c = cab.findIndex(h=>h.includes('COD'));
+      // procura descrição só nas colunas que sobraram (nunca reaproveita a mesma coluna do código —
+      // ex: "Código do Produto" não pode contar como coluna de descrição só por conter "PRODUTO")
+      const d = cab.findIndex((h, idx)=> idx!==c && h.includes('DESC'));
+      const dFallback = d>-1 ? d : cab.findIndex((h, idx)=> idx!==c && (h.includes('PRODUTO') || h==='NOME'));
+      const q = cab.findIndex(h=>h.includes('QUANT') || h.includes('QTD'));
+      if(c>-1 && q>-1){
+        idxCabecalho = i; idxCodigo = c; idxDescricao = dFallback; idxQuantidade = q;
+        break;
+      }
+    }
+    if(idxCabecalho===-1){
+      throw new Error('Não encontrei as colunas de Código e Quantidade na planilha. Confira se a primeira linha tem os nomes das colunas.');
+    }
+
+    const itens = [];
+    for(let i=idxCabecalho+1; i<linhas.length; i++){
+      const linha = linhas[i];
+      if(!linha || linha.length===0) continue;
+      const codigo = String(linha[idxCodigo]||'').trim();
+      const descricao = idxDescricao>-1 ? String(linha[idxDescricao]||'').trim() : '';
+      const qtd = parseNumeroVenda(linha[idxQuantidade]);
+      if(!codigo && !descricao) continue;
+      itens.push({ codigo, descricao, qtd_sistema: qtd===null ? 0 : qtd });
+    }
+
+    if(itens.length===0){
+      throw new Error('Não encontrei nenhum item válido na planilha.');
+    }
+
+    contEstParsed = itens;
+    document.getElementById('contEstConfirmWrap').style.display = 'block';
+    document.getElementById('contEstBtnConfirmar').disabled = false;
+    document.getElementById('contEstUploadStatus').textContent = arquivo.name + ' — ' + itens.length + ' item(ns) encontrado(s)';
+    atualizarProgresso(100);
+  }catch(e){
+    err.textContent = e.message || 'Não foi possível ler a planilha.';
+    err.style.display = 'block';
+  }
+  setTimeout(fecharProgresso, 200);
+}
+
+async function confirmarImportacaoContagemEstoque(){
+  if(!contEstParsed || contEstParsed.length===0) return;
+  const data = document.getElementById('contEst_data').value;
+  const err = document.getElementById('contEstUploadErr');
+  if(!data){
+    err.textContent = 'Escolha a data da contagem antes de confirmar.';
+    err.style.display = 'block';
+    return;
+  }
+  err.style.display = 'none';
+
+  const btn = document.getElementById('contEstBtnConfirmar');
+  btn.disabled = true;
+  abrirProgresso('Salvando contagem…');
+
+  const { data: contagemSalva, error: erroContagem } = await sb.from('contagens_estoque')
+    .insert({ loja: lojaAtual, data: data }).select().single();
+  atualizarProgresso(30);
+
+  if(erroContagem){
+    fecharProgresso();
+    btn.disabled = false;
+    alert('Erro ao criar contagem: ' + erroContagem.message);
+    return;
+  }
+
+  const registros = contEstParsed.map(it => ({
+    contagem_id: contagemSalva.id,
+    codigo: it.codigo,
+    descricao: it.descricao,
+    qtd_sistema: it.qtd_sistema,
+    qtd_contada: null
+  }));
+
+  const tamanhoLote = 500;
+  let erroItens = null;
+  for(let i=0; i<registros.length; i+=tamanhoLote){
+    const lote = registros.slice(i, i+tamanhoLote);
+    const { error } = await sb.from('contagens_estoque_itens').insert(lote);
+    if(error){ erroItens = error; break; }
+    atualizarProgresso(30 + ((i+lote.length) / registros.length) * 60);
+  }
+
+  btn.disabled = false;
+
+  if(erroItens){
+    // limpa a contagem órfã pra não deixar lixo no banco
+    await sb.from('contagens_estoque').delete().eq('id', contagemSalva.id);
+    fecharProgresso();
+    alert('Erro ao salvar os itens: ' + erroItens.message);
+    return;
+  }
+
+  cancelarUploadContagemEstoque();
+  await carregarListaContagensEstoque();
+  document.getElementById('contEstSeletor').value = String(contagemSalva.id);
+  contagemEstoqueAtualId = contagemSalva.id;
+  await carregarItensContagemEstoque(contagemSalva.id);
+  document.getElementById('contEstUploadWrap').style.display = 'none';
+  document.getElementById('contEstResultadoWrap').style.display = 'block';
+  atualizarProgresso(100);
+  setTimeout(fecharProgresso, 250);
+}
+
+function cancelarUploadContagemEstoque(){
+  contEstParsed = null;
+  const input = document.getElementById('contEstFileInput');
+  if(input) input.value = '';
+  document.getElementById('contEstUploadStatus').textContent = 'Nenhum arquivo selecionado.';
+  document.getElementById('contEstUploadErr').style.display = 'none';
+  document.getElementById('contEstConfirmWrap').style.display = 'none';
+}
+
+function formatarNumeroContagem(n, comSinal){
+  const num = Number(n||0);
+  const texto = num.toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 3 });
+  if(comSinal && num>0) return '+' + texto;
+  return texto;
+}
+
+function renderTabelaContagemEstoque(){
+  const buscaEl = document.getElementById('contEstBusca');
+  const busca = buscaEl ? buscaEl.value.trim().toLowerCase() : '';
+  const itensFiltrados = contagemEstoqueItens.filter(it=>{
+    if(!busca) return true;
+    return String(it.codigo||'').toLowerCase().includes(busca) || String(it.descricao||'').toLowerCase().includes(busca);
+  });
+
+  document.getElementById('contEstQtdItens').textContent = contagemEstoqueItens.length;
+  document.getElementById('contEstQtdContados').textContent = contagemEstoqueItens.filter(it=>it.qtd_contada!==null && it.qtd_contada!==undefined).length;
+  document.getElementById('contEstQtdDiferenca').textContent = contagemEstoqueItens.filter(it=>it.qtd_contada!==null && it.qtd_contada!==undefined && Number(it.qtd_contada)!==Number(it.qtd_sistema)).length;
+
+  document.getElementById('contEstBody').innerHTML = itensFiltrados.length===0
+    ? '<tr><td colspan="5" style="text-align:center;color:var(--muted);font-style:italic;padding:16px;">Nenhum item encontrado.</td></tr>'
+    : itensFiltrados.map(it=>{
+        const temContagem = it.qtd_contada!==null && it.qtd_contada!==undefined;
+        const diff = temContagem ? Number(it.qtd_contada) - Number(it.qtd_sistema) : null;
+        return `
+        <tr>
+          <td>${escapeHtml(it.codigo||'')}</td>
+          <td class="contato">${escapeHtml(it.descricao||'')}</td>
+          <td class="valor">${formatarNumeroContagem(it.qtd_sistema)}</td>
+          <td class="valor"><input type="number" step="any" style="width:100px;text-align:right;" data-id="${it.id}" value="${temContagem ? it.qtd_contada : ''}" placeholder="—" onchange="salvarQtdContadaEstoque(this)"></td>
+          <td class="valor" style="color:${diff===null?'var(--muted)':(diff===0?'var(--green)':'var(--rust)')};">${diff===null ? '—' : formatarNumeroContagem(diff, true)}</td>
+        </tr>
+      `;}).join('');
+}
+
+async function salvarQtdContadaEstoque(input){
+  const id = Number(input.dataset.id);
+  const valorTexto = input.value.trim();
+  const valor = valorTexto==='' ? null : parseFloat(valorTexto.replace(',','.'));
+
+  const item = contagemEstoqueItens.find(it=>it.id===id);
+  if(item) item.qtd_contada = valor;
+
+  const { error } = await sb.from('contagens_estoque_itens').update({ qtd_contada: valor }).eq('id', id);
+  if(error){
+    alert('Erro ao salvar: ' + error.message);
+    return;
+  }
+  renderTabelaContagemEstoque();
+}
+
+let contEstIdParaApagar = null;
+function confirmarApagarContagemEstoque(){
+  if(!contagemEstoqueAtualId) return;
+  contEstIdParaApagar = contagemEstoqueAtualId;
+  document.getElementById('confirmApagarContagemEstoqueModal').style.display = 'flex';
+}
+function fecharConfirmacaoApagarContagemEstoque(){
+  contEstIdParaApagar = null;
+  document.getElementById('confirmApagarContagemEstoqueModal').style.display = 'none';
+}
+async function confirmarApagarContagemEstoqueOk(){
+  if(!contEstIdParaApagar) return;
+  abrirProgresso('Apagando…');
+  await sb.from('contagens_estoque_itens').delete().eq('contagem_id', contEstIdParaApagar);
+  const { error } = await sb.from('contagens_estoque').delete().eq('id', contEstIdParaApagar);
+  fecharProgresso();
+  fecharConfirmacaoApagarContagemEstoque();
+  if(error){
+    alert('Erro ao apagar: ' + error.message);
+    return;
+  }
+  contagemEstoqueAtualId = null;
+  await carregarListaContagensEstoque();
+}
+
+function exportarExcelContagemEstoque(){
+  if(!contagemEstoqueItens || contagemEstoqueItens.length===0){ alert('Nenhum item pra exportar.'); return; }
+  if(!window.XLSX){ alert('Não foi possível carregar o recurso de Excel. Recarregue a página e tente de novo.'); return; }
+  const planilha = XLSX.utils.json_to_sheet(contagemEstoqueItens.map(it=>({
+    'Código': it.codigo,
+    'Descrição': it.descricao,
+    'Qtd. sistema': Number(it.qtd_sistema||0),
+    'Qtd. contada': (it.qtd_contada===null || it.qtd_contada===undefined) ? '' : Number(it.qtd_contada),
+    'Diferença': (it.qtd_contada===null || it.qtd_contada===undefined) ? '' : Number(it.qtd_contada) - Number(it.qtd_sistema)
+  })));
+  planilha['!cols'] = [{wch:16},{wch:40},{wch:14},{wch:14},{wch:12}];
+  const livro = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(livro, planilha, 'Contagem');
+  const contagem = contagensEstoqueLista.find(c=>c.id===contagemEstoqueAtualId);
+  const nomeLoja = (NOMES_LOJA[lojaAtual]||'').toLowerCase().replace(' ','');
+  XLSX.writeFile(livro, 'contagem-estoque-' + nomeLoja + '-' + (contagem?contagem.data:'') + '.xlsx');
+}
+
+function exportarPdfContagemEstoque(){
+  if(!contagemEstoqueItens || contagemEstoqueItens.length===0){ alert('Nenhum item pra exportar.'); return; }
+  const contagem = contagensEstoqueLista.find(c=>c.id===contagemEstoqueAtualId);
+  const doc = iniciarPdf('Contagem de Estoque — ' + (NOMES_LOJA[lojaAtual]||''), contagem ? ('Data da contagem: ' + fmtData(contagem.data)) : '');
+  if(!doc) return;
+  doc.autoTable({
+    startY: 32,
+    head: [['Código','Descrição','Qtd. sistema','Qtd. contada','Diferença']],
+    body: contagemEstoqueItens.map(it=>{
+      const temContagem = it.qtd_contada!==null && it.qtd_contada!==undefined;
+      const diff = temContagem ? Number(it.qtd_contada) - Number(it.qtd_sistema) : null;
+      return [it.codigo||'', it.descricao||'', formatarNumeroContagem(it.qtd_sistema), temContagem?formatarNumeroContagem(it.qtd_contada):'—', diff===null?'—':formatarNumeroContagem(diff,true)];
+    }),
+    styles: { fontSize: 8, cellPadding: 3 },
+    headStyles: { fillColor: [38,51,43] }
+  });
+  const nomeLoja = (NOMES_LOJA[lojaAtual]||'').toLowerCase().replace(' ','');
+  doc.save('contagem-estoque-' + nomeLoja + '-' + (contagem?contagem.data:'') + '.pdf');
 }
 
 /* ================= COMBINAÇÃO DE PAGAMENTOS (ferramenta, não grava no banco) ================= */
