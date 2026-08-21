@@ -7676,16 +7676,42 @@ function renderTabelaContagemEstoque(){
           <td>${escapeHtml(it.codigo||'')}</td>
           <td class="contato">${escapeHtml(it.descricao||'')}</td>
           <td class="valor">${formatarNumeroContagem(it.qtd_sistema)}</td>
-          <td class="valor"><input type="number" step="any" style="width:100px;text-align:right;" data-id="${it.id}" value="${temContagem ? it.qtd_contada : ''}" placeholder="—" onchange="salvarQtdContadaEstoque(this)"></td>
+          <td class="valor"><input type="text" inputmode="text" style="width:110px;text-align:right;" data-id="${it.id}" value="${temContagem ? it.qtd_contada : ''}" placeholder="ex: 30+20" title="Pode somar, ex: 30+20+50" onchange="salvarQtdContadaEstoque(this)" onkeydown="if(event.key==='Enter'){this.blur();}"></td>
           <td class="valor" style="color:${diff===null?'var(--muted)':(diff===0?'var(--green)':'var(--rust)')};">${diff===null ? '—' : formatarNumeroContagem(diff, true)}</td>
         </tr>
       `;}).join('');
 }
 
+// aceita somar vários números separados por "+", ex: "30+20+50" → 100
+// (útil pra contar em lugares diferentes: prateleira + depósito, por exemplo)
+function parseSomaContagemEstoque(texto){
+  texto = String(texto||'').trim();
+  if(texto === '') return null;
+  const partes = texto.split('+');
+  let soma = 0;
+  for(const parte of partes){
+    const limpo = parte.trim().replace(',', '.');
+    if(limpo === '') return NaN; // ex: "30+" incompleto — inválido, mas diferente de vazio
+    const n = parseFloat(limpo);
+    if(isNaN(n)) return NaN;
+    soma += n;
+  }
+  return soma;
+}
+
 async function salvarQtdContadaEstoque(input){
   const id = Number(input.dataset.id);
   const valorTexto = input.value.trim();
-  const valor = valorTexto==='' ? null : parseFloat(valorTexto.replace(',','.'));
+  const valor = parseSomaContagemEstoque(valorTexto);
+
+  if(Number.isNaN(valor)){
+    input.style.borderColor = 'var(--rust)';
+    input.title = 'Não entendi essa soma. Use números separados por "+", ex: 30+20+50';
+    return; // não salva — deixa o texto como está pro usuário corrigir
+  }
+  input.style.borderColor = '';
+  input.title = 'Pode somar, ex: 30+20+50';
+  if(valor !== null) input.value = valor; // troca o "30+20" pelo resultado (50) depois de salvar
 
   const item = contagemEstoqueItens.find(it=>it.id===id);
   if(item) item.qtd_contada = valor;
