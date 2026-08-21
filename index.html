@@ -868,7 +868,7 @@
           </div>
           <div style="padding:0 20px 14px;"><input class="comb-busca" id="contEstBusca" placeholder="🔍 Buscar por código ou descrição..." oninput="renderTabelaContagemEstoque()"></div>
           <div class="tablewrap">
-            <table class="ledger">
+            <table class="ledger" style="table-layout:auto;">
               <thead><tr><th>Código</th><th>Descrição</th><th style="text-align:right">Qtd. sistema</th><th style="text-align:right">Qtd. contada</th><th style="text-align:right">Diferença</th></tr></thead>
               <tbody id="contEstBody"></tbody>
             </table>
@@ -7674,7 +7674,7 @@ function renderTabelaContagemEstoque(){
         return `
         <tr>
           <td>${escapeHtml(it.codigo||'')}</td>
-          <td class="contato">${escapeHtml(it.descricao||'')}</td>
+          <td class="contato" style="white-space:nowrap;">${escapeHtml(it.descricao||'')}</td>
           <td class="valor">${formatarNumeroContagem(it.qtd_sistema)}</td>
           <td class="valor"><input type="text" inputmode="text" style="width:110px;text-align:right;" data-id="${it.id}" value="${temContagem ? it.qtd_contada : ''}" placeholder="ex: 30+20" title="Pode somar, ex: 30+20+50" onchange="salvarQtdContadaEstoque(this)" onkeydown="if(event.key==='Enter'){this.blur();}"></td>
           <td class="valor" style="color:${diff===null?'var(--muted)':(diff===0?'var(--green)':'var(--rust)')};">${diff===null ? '—' : formatarNumeroContagem(diff, true)}</td>
