@@ -53,6 +53,12 @@
   /* ---------- App shell ---------- */
   .shell{display:none;min-height:100vh;}
   .shell.on{display:grid;grid-template-columns:340px 1fr;}
+  .shell.on.sidebar-collapsed{grid-template-columns:0 1fr;}
+  .shell.sidebar-collapsed .sidebar{display:none;}
+  .sidebar-colapsar-btn{background:transparent;border:none;color:var(--muted);font-size:15px;cursor:pointer;padding:4px 6px;border-radius:6px;flex-shrink:0;}
+  .sidebar-colapsar-btn:hover{background:#fff;color:var(--ink);}
+  .sidebar-reabrir-btn{position:fixed;top:16px;left:16px;z-index:60;background:var(--ink);color:var(--paper);border:none;border-radius:8px;width:40px;height:40px;font-size:16px;cursor:pointer;box-shadow:0 2px 10px rgba(0,0,0,0.18);align-items:center;justify-content:center;}
+  .sidebar-reabrir-btn:hover{background:var(--gold);}
 
   .sidebar{background:var(--paper2);border-right:1px solid var(--paper3);position:sticky;top:0;height:100vh;display:flex;flex-direction:column;}
   .sidebar-top{padding:28px 26px 16px;overflow-y:auto;flex:1;min-height:0;}
@@ -395,9 +401,13 @@
 </div>
 
 <div id="app" class="shell">
+  <button id="sidebarReabrirBtn" class="sidebar-reabrir-btn" onclick="toggleSidebar()" title="Mostrar menu" style="display:none;">☰</button>
   <div class="sidebar">
     <div class="sidebar-top">
-      <div class="brand"><h1>Livro-Caixa</h1><span class="mark"></span></div>
+      <div class="brand">
+        <span style="display:flex;align-items:baseline;gap:6px;"><h1>Livro-Caixa</h1><span class="mark"></span></span>
+        <button id="sidebarColapsarBtn" class="sidebar-colapsar-btn" onclick="toggleSidebar()" title="Esconder menu">☰</button>
+      </div>
       <input id="empresaNome" placeholder="Nome da loja" value="">
 
       <div class="loja-toggle" id="lojaToggle">
@@ -3501,6 +3511,16 @@ const NAV_GROUPS = {
   config: { header: 'navHeaderConfig', sub: 'navGroupConfig' }
 };
 
+function toggleSidebar(){
+  const shell = document.getElementById('app');
+  const colapsado = shell.classList.toggle('sidebar-collapsed');
+  document.getElementById('sidebarReabrirBtn').style.display = colapsado ? 'flex' : 'none';
+}
+function colapsarSidebar(){
+  document.getElementById('app').classList.add('sidebar-collapsed');
+  document.getElementById('sidebarReabrirBtn').style.display = 'flex';
+}
+
 function toggleNavGroup(grupo){
   const g = NAV_GROUPS[grupo];
   const sub = document.getElementById(g.sub);
@@ -3518,6 +3538,7 @@ function abrirGrupoNav(grupo){
 
 async function mudarViewPrincipal(view){
   viewAtual = view;
+  colapsarSidebar();
 
   VIEWS.forEach(v=>{
     const idMap = { inicio:'viewInicio', contasPagar:'viewContasPagar', despesasFixas:'viewDespesasFixas', comprovantes:'viewComprovantes', diferencaCaixa:'viewDiferencaCaixa', fluxoCaixa:'viewFluxoCaixa', pagamentos:'viewPagamentos', pagamentoCaixa:'viewPagamentoCaixa', vendasComCusto:'viewVendasComCusto', bancoHoras:'viewBancoHoras', compras:'viewCompras', colaboradores:'viewColaboradores', contasBancarias:'viewContasBancarias', inventario:'viewInventario', contagensEstoque:'viewContagensEstoque', combinacaoPagamentos:'viewCombinacaoPagamentos' };
