@@ -184,6 +184,18 @@
     .compras-row input.comprar-input{width:110px;}
   }
   input.comprar-input:focus{outline:none;border-color:var(--gold);}
+
+  .contest-row{display:grid;grid-template-columns:100px 1fr 110px 130px 100px;gap:10px;align-items:center;padding:10px 16px;border-top:1px solid var(--paper3);font-size:12.5px;}
+  .contest-row.header{background:var(--paper2);font-size:10px;text-transform:uppercase;letter-spacing:0.04em;color:var(--muted);font-weight:500;border-top:none;padding:8px 16px;}
+  .contest-row .lbl-mobile{display:none;}
+  .contest-row .contest-input{width:100%;text-align:right;}
+  @media (max-width:900px){
+    .contest-row.header{display:none;}
+    .contest-row{grid-template-columns:1fr;gap:2px;padding:14px 16px;}
+    .contest-row .campo{display:flex;justify-content:space-between;align-items:center;padding:4px 0;gap:12px;}
+    .contest-row .lbl-mobile{display:inline;font-size:10px;text-transform:uppercase;letter-spacing:0.04em;color:var(--muted);flex-shrink:0;}
+    .contest-row .contest-input{width:130px;}
+  }
   input.comprar-input.tem-falta{border-color:var(--rust);color:var(--rust);font-weight:600;}
   #fluxoFormaTable th, #fluxoFornecedorTable th{text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:0.05em;color:var(--muted);font-weight:500;padding:8px 16px;background:var(--paper2);}
   #fluxoFormaTable td, #fluxoFornecedorTable td{padding:10px 16px;border-top:1px solid var(--paper3);}
@@ -867,12 +879,14 @@
             </div>
           </div>
           <div style="padding:0 20px 14px;"><input class="comb-busca" id="contEstBusca" placeholder="🔍 Buscar por código ou descrição..." oninput="renderTabelaContagemEstoque()"></div>
-          <div class="tablewrap">
-            <table class="ledger" style="table-layout:auto;">
-              <thead><tr><th>Código</th><th>Descrição</th><th style="text-align:right">Qtd. sistema</th><th style="text-align:right">Qtd. contada</th><th style="text-align:right">Diferença</th></tr></thead>
-              <tbody id="contEstBody"></tbody>
-            </table>
+          <div class="contest-row header">
+            <div>Código</div>
+            <div>Descrição</div>
+            <div style="text-align:right">Qtd. sistema</div>
+            <div style="text-align:right">Qtd. contada</div>
+            <div style="text-align:right">Diferença</div>
           </div>
+          <div id="contEstBody"></div>
         </div>
       </div>
 
@@ -7667,18 +7681,18 @@ function renderTabelaContagemEstoque(){
   document.getElementById('contEstQtdDiferenca').textContent = contagemEstoqueItens.filter(it=>it.qtd_contada!==null && it.qtd_contada!==undefined && Number(it.qtd_contada)!==Number(it.qtd_sistema)).length;
 
   document.getElementById('contEstBody').innerHTML = itensFiltrados.length===0
-    ? '<tr><td colspan="5" style="text-align:center;color:var(--muted);font-style:italic;padding:16px;">Nenhum item encontrado.</td></tr>'
+    ? '<div style="text-align:center;color:var(--muted);font-style:italic;padding:24px 16px;">Nenhum item encontrado.</div>'
     : itensFiltrados.map(it=>{
         const temContagem = it.qtd_contada!==null && it.qtd_contada!==undefined;
         const diff = temContagem ? Number(it.qtd_contada) - Number(it.qtd_sistema) : null;
         return `
-        <tr>
-          <td>${escapeHtml(it.codigo||'')}</td>
-          <td class="contato" style="white-space:nowrap;">${escapeHtml(it.descricao||'')}</td>
-          <td class="valor">${formatarNumeroContagem(it.qtd_sistema)}</td>
-          <td class="valor"><input type="text" inputmode="text" style="width:110px;text-align:right;" data-id="${it.id}" value="${temContagem ? it.qtd_contada : ''}" placeholder="ex: 30+20" title="Pode somar, ex: 30+20+50" onchange="salvarQtdContadaEstoque(this)" onkeydown="if(event.key==='Enter'){this.blur();}"></td>
-          <td class="valor" style="color:${diff===null?'var(--muted)':(diff===0?'var(--green)':'var(--rust)')};">${diff===null ? '—' : formatarNumeroContagem(diff, true)}</td>
-        </tr>
+        <div class="contest-row">
+          <div class="campo"><span class="lbl-mobile">Código</span><span>${escapeHtml(it.codigo||'')}</span></div>
+          <div class="campo"><span class="lbl-mobile">Descrição</span><span>${escapeHtml(it.descricao||'')}</span></div>
+          <div class="campo" style="text-align:right;"><span class="lbl-mobile">Qtd. sistema</span><span>${formatarNumeroContagem(it.qtd_sistema)}</span></div>
+          <div class="campo"><span class="lbl-mobile">Qtd. contada</span><input class="contest-input" type="text" inputmode="text" data-id="${it.id}" value="${temContagem ? it.qtd_contada : ''}" placeholder="ex: 30+20" title="Pode somar, ex: 30+20+50" onchange="salvarQtdContadaEstoque(this)" onkeydown="if(event.key==='Enter'){this.blur();}"></div>
+          <div class="campo" style="text-align:right;color:${diff===null?'var(--muted)':(diff===0?'var(--green)':'var(--rust)')};"><span class="lbl-mobile">Diferença</span><span>${diff===null ? '—' : formatarNumeroContagem(diff, true)}</span></div>
+        </div>
       `;}).join('');
 }
 
