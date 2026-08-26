@@ -9326,21 +9326,23 @@ async function gerarRelatorioNoturno(){
   for(const f of funcs){
     const { data: registros } = await sb.from('bh_registros').select('*').eq('funcionario_id', f.id).gte('data', de).lte('data', ate);
     let totalNoturno = 0;
-    let faltasJustificadas = 0;
-    let faltasInjustificadas = 0;
+    const datasJustificadas = [];
+    const datasInjustificadas = [];
     (registros||[]).forEach(reg=>{
-      if(reg.tipo_dia === 'falta_justificada'){ faltasJustificadas++; return; }
-      if(reg.tipo_dia === 'falta_injustificada'){ faltasInjustificadas++; return; }
+      if(reg.tipo_dia === 'falta_justificada'){ datasJustificadas.push(reg.data); return; }
+      if(reg.tipo_dia === 'falta_injustificada'){ datasInjustificadas.push(reg.data); return; }
       totalNoturno += calcularMinutosNoturnos(reg);
     });
-    if(totalNoturno > 0 || faltasJustificadas > 0 || faltasInjustificadas > 0){
+    datasJustificadas.sort();
+    datasInjustificadas.sort();
+    if(totalNoturno > 0 || datasJustificadas.length > 0 || datasInjustificadas.length > 0){
       linhas.push({
         nome: f.nome,
         cargo: f.cargo || '—',
         noturno: totalNoturno,
         noturnoConvertido: calcularMinutosNoturnosConvertidos(totalNoturno),
-        faltasJustificadas,
-        faltasInjustificadas
+        datasJustificadas,
+        datasInjustificadas
       });
     }
   }
@@ -9360,8 +9362,8 @@ async function gerarRelatorioNoturno(){
       <td>${escapeHtml(l.cargo)}</td>
       <td class="valor">${fmtMinutos(l.noturno)}</td>
       <td class="valor" style="color:var(--gold);font-weight:600;">${fmtMinutos(l.noturnoConvertido)}</td>
-      <td class="valor">${l.faltasJustificadas || '—'}</td>
-      <td class="valor" style="color:${l.faltasInjustificadas>0?'var(--rust)':'inherit'};">${l.faltasInjustificadas || '—'}</td>
+      <td style="white-space:normal;">${l.datasJustificadas.length ? l.datasJustificadas.map(fmtData).join('<br>') : '—'}</td>
+      <td style="white-space:normal;color:${l.datasInjustificadas.length>0?'var(--rust)':'inherit'};">${l.datasInjustificadas.length ? l.datasInjustificadas.map(fmtData).join('<br>') : '—'}</td>
     </tr>
   `).join('');
 }
@@ -9374,11 +9376,11 @@ function exportarExcelRelatorioNoturno(){
     'Cargo': l.cargo,
     'Horas noturnas': fmtMinutos(l.noturno),
     'Horas noturnas convertidas': fmtMinutos(l.noturnoConvertido),
-    'Faltas justificadas': l.faltasJustificadas,
-    'Faltas injustificadas': l.faltasInjustificadas
+    'Faltas justificadas': l.datasJustificadas.map(fmtData).join(', ') || '—',
+    'Faltas injustificadas': l.datasInjustificadas.map(fmtData).join(', ') || '—'
   }));
   const planilha = XLSX.utils.json_to_sheet(dados);
-  planilha['!cols'] = [{wch:26},{wch:26},{wch:16},{wch:22},{wch:18},{wch:20}];
+  planilha['!cols'] = [{wch:26},{wch:26},{wch:16},{wch:22},{wch:24},{wch:24}];
   const livro = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(livro, planilha, 'Horas Noturnas');
   const nomeLoja = (NOMES_LOJA[lojaAtual]||'').toLowerCase().replace(' ','');
@@ -9399,7 +9401,11 @@ function exportarPdfRelatorioNoturno(){
   doc.setTextColor(120);
   doc.text('Período: ' + relNoturnoPeriodoAtual + '   ·   Gerado em ' + dataHora, 14, 25);
 
-  const corpo = relNoturnoDadosAtuais.map(l=>[l.nome, l.cargo, fmtMinutos(l.noturno), fmtMinutos(l.noturnoConvertido), String(l.faltasJustificadas||0), String(l.faltasInjustificadas||0)]);
+  const corpo = relNoturnoDadosAtuais.map(l=>[
+    l.nome, l.cargo, fmtMinutos(l.noturno), fmtMinutos(l.noturnoConvertido),
+    l.datasJustificadas.map(fmtData).join('\n') || '—',
+    l.datasInjustificadas.map(fmtData).join('\n') || '—'
+  ]);
   doc.autoTable({
     startY: 32,
     head: [['Colaborador','Cargo','Horas noturnas','Horas noturnas convertidas','Faltas justificadas','Faltas injustificadas']],
