@@ -593,6 +593,16 @@
     </div>
 
     <div id="viewBancoHoras" style="display:none;">
+      <div class="panel" style="margin-bottom:20px;">
+        <div class="panel-head"><h2>📊 Resumo do banco de horas</h2></div>
+        <div class="contest-row header" style="grid-template-columns:1fr 1fr 110px;">
+          <div>Nome</div>
+          <div>Cargo</div>
+          <div style="text-align:right">Saldo</div>
+        </div>
+        <div id="bhResumoGeralBody"></div>
+      </div>
+
       <div class="bh-toolbar">
         <select id="bhFuncionarioSelect" onchange="selecionarFuncionario(this.value)">
           <option value="">Selecione um funcionário</option>
@@ -2040,7 +2050,7 @@
 </div>
 
 <div id="relatorioNoturnoModal" class="modal-overlay">
-  <div class="modal-box" style="max-width:720px;">
+  <div class="modal-box" style="max-width:860px;">
     <button class="modal-close" onclick="fecharRelatorioNoturno()">✕</button>
     <h2>Relatório de horas noturnas</h2>
 
@@ -2059,12 +2069,12 @@
       </div>
       <div class="tablewrap" style="max-height:420px;overflow-y:auto;">
         <table class="ledger">
-          <thead><tr><th>Colaborador</th><th>Cargo</th><th style="text-align:right">Horas noturnas</th><th style="text-align:right">Horas noturnas convertidas</th></tr></thead>
+          <thead><tr><th>Colaborador</th><th>Cargo</th><th style="text-align:right">Horas noturnas</th><th style="text-align:right">Horas noturnas convertidas</th><th style="text-align:right">Faltas justificadas</th><th style="text-align:right">Faltas injustificadas</th></tr></thead>
           <tbody id="relNoturnoBody"></tbody>
         </table>
       </div>
     </div>
-    <div class="empty" id="relNoturnoVazio" style="display:none;">Nenhum colaborador com horas noturnas nesse período.</div>
+    <div class="empty" id="relNoturnoVazio" style="display:none;">Nenhum colaborador com horas noturnas ou faltas nesse período.</div>
     <p class="modal-sub" id="relNoturnoCarregando" style="display:none;">Calculando…</p>
   </div>
 </div>
@@ -3614,6 +3624,49 @@ async function carregarFuncionarios(){
   bhFuncionarios = data || [];
   bhCarregado = true;
   renderFuncionarioSelect();
+  await calcularResumoSaldosBancoHoras();
+}
+
+// resumo geral: saldo de TODOS os colaboradores, igual ao alerta que já existe na tela inicial,
+// só que mostrando todo mundo (não só quem está com saldo muito negativo)
+let bhResumoSaldos = {}; // { funcionarioId: saldoAcumuladoEmMinutos }
+
+async function calcularResumoSaldosBancoHoras(){
+  bhResumoSaldos = {};
+  for(const f of bhFuncionarios){
+    const { data: registros } = await sb.from('bh_registros').select('*').eq('funcionario_id', f.id);
+    let acumulado = 0;
+    (registros||[]).forEach(reg=>{
+      let trabalhado;
+      if(reg.tipo_dia==='falta_justificada') trabalhado = f.carga_horaria_diaria_min;
+      else if(reg.tipo_dia==='falta_injustificada') trabalhado = reg.descontar_falta ? 0 : f.carga_horaria_diaria_min;
+      else trabalhado = calcularMinutosTrabalhados(reg);
+      acumulado += trabalhado - f.carga_horaria_diaria_min;
+    });
+    bhResumoSaldos[f.id] = acumulado;
+  }
+  renderResumoGeralBancoHoras();
+}
+
+function renderResumoGeralBancoHoras(){
+  const el = document.getElementById('bhResumoGeralBody');
+  if(!el) return;
+  if(bhFuncionarios.length===0){
+    el.innerHTML = '<div style="text-align:center;color:var(--muted);font-style:italic;padding:20px 16px;">Nenhum colaborador cadastrado.</div>';
+    return;
+  }
+  const linhas = bhFuncionarios.map(f=>({
+    id: f.id, nome: f.nome, cargo: f.cargo,
+    saldo: bhResumoSaldos[f.id] ?? 0
+  })).sort((a,b)=>a.saldo-b.saldo);
+
+  el.innerHTML = linhas.map(l=>`
+    <div class="contest-row" style="grid-template-columns:1fr 1fr 110px;cursor:pointer;" onclick="selecionarFuncionario(${l.id})">
+      <div class="campo"><span class="lbl-mobile">Nome</span><span>${escapeHtml(l.nome)}${String(l.id)===String(bhFuncionarioAtualId) ? ' •' : ''}</span></div>
+      <div class="campo"><span class="lbl-mobile">Cargo</span><span>${escapeHtml(l.cargo||'—')}</span></div>
+      <div class="campo" style="text-align:right;"><span class="lbl-mobile">Saldo</span><span style="font-family:var(--font-mono);color:${l.saldo<0?'var(--rust)':(l.saldo>0?'var(--green)':'var(--muted)')};">${fmtMinutosSinal(l.saldo)}</span></div>
+    </div>
+  `).join('');
 }
 
 function renderFuncionarioSelect(){
@@ -9273,16 +9326,21 @@ async function gerarRelatorioNoturno(){
   for(const f of funcs){
     const { data: registros } = await sb.from('bh_registros').select('*').eq('funcionario_id', f.id).gte('data', de).lte('data', ate);
     let totalNoturno = 0;
+    let faltasJustificadas = 0;
+    let faltasInjustificadas = 0;
     (registros||[]).forEach(reg=>{
-      if(reg.tipo_dia && reg.tipo_dia !== 'normal') return; // faltas não têm horário batido, não entram
+      if(reg.tipo_dia === 'falta_justificada'){ faltasJustificadas++; return; }
+      if(reg.tipo_dia === 'falta_injustificada'){ faltasInjustificadas++; return; }
       totalNoturno += calcularMinutosNoturnos(reg);
     });
-    if(totalNoturno > 0){
+    if(totalNoturno > 0 || faltasJustificadas > 0 || faltasInjustificadas > 0){
       linhas.push({
         nome: f.nome,
         cargo: f.cargo || '—',
         noturno: totalNoturno,
-        noturnoConvertido: calcularMinutosNoturnosConvertidos(totalNoturno)
+        noturnoConvertido: calcularMinutosNoturnosConvertidos(totalNoturno),
+        faltasJustificadas,
+        faltasInjustificadas
       });
     }
   }
@@ -9302,6 +9360,8 @@ async function gerarRelatorioNoturno(){
       <td>${escapeHtml(l.cargo)}</td>
       <td class="valor">${fmtMinutos(l.noturno)}</td>
       <td class="valor" style="color:var(--gold);font-weight:600;">${fmtMinutos(l.noturnoConvertido)}</td>
+      <td class="valor">${l.faltasJustificadas || '—'}</td>
+      <td class="valor" style="color:${l.faltasInjustificadas>0?'var(--rust)':'inherit'};">${l.faltasInjustificadas || '—'}</td>
     </tr>
   `).join('');
 }
@@ -9313,10 +9373,12 @@ function exportarExcelRelatorioNoturno(){
     'Colaborador': l.nome,
     'Cargo': l.cargo,
     'Horas noturnas': fmtMinutos(l.noturno),
-    'Horas noturnas convertidas': fmtMinutos(l.noturnoConvertido)
+    'Horas noturnas convertidas': fmtMinutos(l.noturnoConvertido),
+    'Faltas justificadas': l.faltasJustificadas,
+    'Faltas injustificadas': l.faltasInjustificadas
   }));
   const planilha = XLSX.utils.json_to_sheet(dados);
-  planilha['!cols'] = [{wch:26},{wch:26},{wch:16},{wch:22}];
+  planilha['!cols'] = [{wch:26},{wch:26},{wch:16},{wch:22},{wch:18},{wch:20}];
   const livro = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(livro, planilha, 'Horas Noturnas');
   const nomeLoja = (NOMES_LOJA[lojaAtual]||'').toLowerCase().replace(' ','');
@@ -9337,12 +9399,12 @@ function exportarPdfRelatorioNoturno(){
   doc.setTextColor(120);
   doc.text('Período: ' + relNoturnoPeriodoAtual + '   ·   Gerado em ' + dataHora, 14, 25);
 
-  const corpo = relNoturnoDadosAtuais.map(l=>[l.nome, l.cargo, fmtMinutos(l.noturno), fmtMinutos(l.noturnoConvertido)]);
+  const corpo = relNoturnoDadosAtuais.map(l=>[l.nome, l.cargo, fmtMinutos(l.noturno), fmtMinutos(l.noturnoConvertido), String(l.faltasJustificadas||0), String(l.faltasInjustificadas||0)]);
   doc.autoTable({
     startY: 32,
-    head: [['Colaborador','Cargo','Horas noturnas','Horas noturnas convertidas']],
+    head: [['Colaborador','Cargo','Horas noturnas','Horas noturnas convertidas','Faltas justificadas','Faltas injustificadas']],
     body: corpo,
-    styles: { fontSize: 9, cellPadding: 3.5 },
+    styles: { fontSize: 8.5, cellPadding: 3.5 },
     headStyles: { fillColor: [38,51,43] }
   });
 
@@ -9592,6 +9654,8 @@ function renderBancoHoras(){
   });
 
   document.getElementById('bhSaldoTotal').textContent = fmtMinutosSinal(acumulado);
+  bhResumoSaldos[bhFuncionarioAtualId] = acumulado;
+  renderResumoGeralBancoHoras();
 
   const totalTrabalhadoGeral = linhas.reduce((s,l)=>s+l.trabalhado, 0);
   const totalNoturnoGeral = linhas.reduce((s,l)=>s+l.noturno, 0);
