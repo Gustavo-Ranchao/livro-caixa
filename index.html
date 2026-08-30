@@ -460,6 +460,7 @@
           <button class="nav-group-header" id="navHeaderConfig" onclick="toggleNavGroup('config')">⚙️ Configurações <span class="chevron">▾</span></button>
           <div class="nav-sub" id="navGroupConfig">
             <button class="nav-sub-item" data-view="colaboradores" onclick="mudarViewPrincipal('colaboradores')">Colaboradores</button>
+            <button class="nav-sub-item" data-view="fornecedores" onclick="mudarViewPrincipal('fornecedores')">Fornecedores</button>
             <button class="nav-sub-item" data-view="contasBancarias" onclick="mudarViewPrincipal('contasBancarias')">Contas Bancárias</button>
           </div>
         </div>
@@ -509,7 +510,8 @@
       <div class="panel" style="flex:1;padding:16px 20px;">
         <h2 style="font-family:var(--font-voice);font-size:15px;font-weight:600;margin:0 0 12px;">Novo lançamento</h2>
         <div class="bh-form" style="grid-template-columns:2fr 1fr 1fr auto;padding:0;">
-          <div class="fld"><label id="f_contato_label">Fornecedor</label><input id="f_contato" placeholder="Nome" onkeydown="if(event.key==='Enter'){event.preventDefault();document.getElementById('f_valor').focus();}"></div>
+          <div class="fld"><label id="f_contato_label">Fornecedor</label><input id="f_contato" list="listaFornecedores" placeholder="Nome" onkeydown="if(event.key==='Enter'){event.preventDefault();document.getElementById('f_valor').focus();}"></div>
+          <datalist id="listaFornecedores"></datalist>
           <div class="fld"><label>Valor (R$)</label><input id="f_valor" type="number" step="0.01" min="0" placeholder="0,00" onkeydown="if(event.key==='Enter'){event.preventDefault();document.getElementById('f_venc').focus();}"></div>
           <div class="fld"><label>Vencimento</label><input id="f_venc" type="date" onkeydown="if(event.key==='Enter'){event.preventDefault();addLancamento();}"></div>
           <button class="addbtn" id="addbtn" onclick="addLancamento()" style="width:auto;">Adicionar</button>
@@ -811,6 +813,21 @@
           <tbody id="contasBancariasBody"></tbody>
         </table>
         <div class="empty" id="contasBancariasEmpty" style="display:none;">Nenhuma conta bancária cadastrada ainda.</div>
+      </div>
+    </div>
+
+    <div id="viewFornecedores" style="display:none;">
+      <div class="panel">
+        <div class="colab-col-head">
+          <span>Fornecedores — <span id="fornecedoresLojaNome"></span></span>
+          <button type="button" class="importbtn" style="width:auto;margin:0;" onclick="abrirNovoFornecedor()">+ Novo fornecedor</button>
+        </div>
+        <div style="padding:0 20px 14px;"><input class="comb-busca" id="fornecedoresBusca" placeholder="🔍 Buscar por nome..." oninput="renderFornecedores()"></div>
+        <table id="fornecedoresTable">
+          <thead><tr><th>Nome</th><th>Outros nomes (variações)</th><th></th></tr></thead>
+          <tbody id="fornecedoresBody"></tbody>
+        </table>
+        <div class="empty" id="fornecedoresEmpty" style="display:none;">Nenhum fornecedor cadastrado ainda.</div>
       </div>
     </div>
 
@@ -1819,6 +1836,32 @@
   </div>
 </div>
 
+<div id="fornecedorModal" class="modal-overlay">
+  <div class="modal-box" style="max-width:460px;">
+    <button class="modal-close" onclick="fecharFornecedorModal()">✕</button>
+    <h2 id="fornecedorModalTitulo">Novo fornecedor</h2>
+    <div class="fld"><label>Nome</label><input id="fornecedor_nome" placeholder="Ex: Souza Cruz" onkeydown="if(event.key==='Enter'){event.preventDefault();document.getElementById('fornecedor_apelidos').focus();}"></div>
+    <div class="fld">
+      <label>Outros nomes usados (opcional)</label>
+      <input id="fornecedor_apelidos" placeholder="Ex: Souza Cruz Ltda, Souza Cruz Distribuidora" onkeydown="if(event.key==='Enter'){event.preventDefault();salvarFornecedor();}">
+      <div style="font-size:11px;color:var(--muted);margin-top:4px;">Separe por vírgula. Ajuda o sistema a reconhecer o mesmo fornecedor mesmo quando o nome vem escrito diferente (ex: numa nota fiscal ou boleto).</div>
+    </div>
+    <div class="formerr" id="fornecedorErr">Digite o nome do fornecedor.</div>
+    <button class="addbtn" id="fornecedorSalvarBtn" onclick="salvarFornecedor()">Salvar</button>
+  </div>
+</div>
+
+<div id="confirmExclusaoFornecedorModal" class="modal-overlay">
+  <div class="modal-box" style="max-width:420px;">
+    <h2>Excluir fornecedor?</h2>
+    <p class="modal-sub">Os lançamentos já feitos com esse nome continuam existindo. Essa ação não pode ser desfeita.</p>
+    <div class="modal-actions">
+      <button class="addbtn" style="background:var(--rust);" onclick="confirmarExclusaoFornecedorOk()">Excluir</button>
+      <button class="cancelbtn" onclick="fecharConfirmacaoFornecedor()">Cancelar</button>
+    </div>
+  </div>
+</div>
+
 <div id="funcModal" class="modal-overlay">
   <div class="modal-box" style="max-width:400px;">
     <button class="modal-close" onclick="fecharFuncModal()">✕</button>
@@ -2210,6 +2253,9 @@ function trocarLoja(l){
   document.getElementById('bhConteudo').style.display = 'none';
   if(viewAtual === 'bancoHoras'){
     carregarFuncionarios();
+  }
+  if(viewAtual === 'contasPagar' || viewAtual === 'fornecedores'){
+    carregarFornecedores();
   }
   if(viewAtual === 'despesasFixas'){
     abrirFixas();
@@ -2694,7 +2740,7 @@ async function renderInicioVendas(){
 
   el.innerHTML = `
     <div class="inicio-linha"><span class="lbl">Vendido no mês</span><span class="val" style="color:var(--green);">${brl(totalVendido)}</span></div>
-    <div class="inicio-linha"><span class="lbl">Lucro no mês</span><span class="val" style="color:${lucro<0?'var(--rust)':'var(--green)'};">${brl(lucro)}</span></div>
+    <div class="inicio-linha"><span class="lbl">Lucro bruto do mês</span><span class="val" style="color:${lucro<0?'var(--rust)':'var(--green)'};">${brl(lucro)}</span></div>
   `;
 }
 
@@ -3516,7 +3562,7 @@ function setEscala(e){
   }
 }
 
-const VIEWS = ['inicio','contasPagar','despesasFixas','comprovantes','diferencaCaixa','fluxoCaixa','pagamentos','pagamentoCaixa','vendasComCusto','bancoHoras','compras','colaboradores','contasBancarias','inventario','contagensEstoque','combinacaoPagamentos'];
+const VIEWS = ['inicio','contasPagar','despesasFixas','comprovantes','diferencaCaixa','fluxoCaixa','pagamentos','pagamentoCaixa','vendasComCusto','bancoHoras','compras','colaboradores','fornecedores','contasBancarias','inventario','contagensEstoque','combinacaoPagamentos'];
 let colabCarregado = false;
 
 const NAV_GROUPS = {
@@ -3556,7 +3602,7 @@ async function mudarViewPrincipal(view){
   colapsarSidebar();
 
   VIEWS.forEach(v=>{
-    const idMap = { inicio:'viewInicio', contasPagar:'viewContasPagar', despesasFixas:'viewDespesasFixas', comprovantes:'viewComprovantes', diferencaCaixa:'viewDiferencaCaixa', fluxoCaixa:'viewFluxoCaixa', pagamentos:'viewPagamentos', pagamentoCaixa:'viewPagamentoCaixa', vendasComCusto:'viewVendasComCusto', bancoHoras:'viewBancoHoras', compras:'viewCompras', colaboradores:'viewColaboradores', contasBancarias:'viewContasBancarias', inventario:'viewInventario', contagensEstoque:'viewContagensEstoque', combinacaoPagamentos:'viewCombinacaoPagamentos' };
+    const idMap = { inicio:'viewInicio', contasPagar:'viewContasPagar', despesasFixas:'viewDespesasFixas', comprovantes:'viewComprovantes', diferencaCaixa:'viewDiferencaCaixa', fluxoCaixa:'viewFluxoCaixa', pagamentos:'viewPagamentos', pagamentoCaixa:'viewPagamentoCaixa', vendasComCusto:'viewVendasComCusto', bancoHoras:'viewBancoHoras', compras:'viewCompras', colaboradores:'viewColaboradores', fornecedores:'viewFornecedores', contasBancarias:'viewContasBancarias', inventario:'viewInventario', contagensEstoque:'viewContagensEstoque', combinacaoPagamentos:'viewCombinacaoPagamentos' };
     document.getElementById(idMap[v]).style.display = (v===view) ? '' : 'none';
   });
 
@@ -3590,6 +3636,7 @@ async function mudarViewPrincipal(view){
     await abrirPagamentoCaixa();
   }else if(view==='contasPagar'){
     abrirGrupoNav('financeiro');
+    carregarFornecedores();
   }else if(view==='vendasComCusto'){
     abrirGrupoNav('vendas');
     await abrirVendas();
@@ -3600,6 +3647,9 @@ async function mudarViewPrincipal(view){
   }else if(view==='colaboradores'){
     abrirGrupoNav('config');
     await carregarColaboradores();
+  }else if(view==='fornecedores'){
+    abrirGrupoNav('config');
+    await carregarFornecedores();
   }else if(view==='contasBancarias'){
     abrirGrupoNav('config');
     await carregarContasBancarias();
@@ -3663,7 +3713,7 @@ function renderResumoGeralBancoHoras(){
   el.innerHTML = linhas.map(l=>`
     <div class="contest-row" style="grid-template-columns:1fr 1fr 110px;cursor:pointer;" onclick="selecionarFuncionario(${l.id})">
       <div class="campo"><span class="lbl-mobile">Nome</span><span>${escapeHtml(l.nome)}${String(l.id)===String(bhFuncionarioAtualId) ? ' •' : ''}</span></div>
-      <div class="campo"><span class="lbl-mobile">Cargo</span><span>${escapeHtml(l.cargo||'—')}</span></div>
+      <div class="campo"><span class="lbl-mobile">Cargo</span><span>${escapeHtml((l.cargo||'—').toUpperCase())}</span></div>
       <div class="campo" style="text-align:right;"><span class="lbl-mobile">Saldo</span><span style="font-family:var(--font-mono);color:${l.saldo<0?'var(--rust)':(l.saldo>0?'var(--green)':'var(--muted)')};">${fmtMinutosSinal(l.saldo)}</span></div>
     </div>
   `).join('');
@@ -3701,7 +3751,7 @@ function abrirEditarColaborador(id, loja){
   colabLojaAtual = loja;
   document.getElementById('funcModalTitulo').textContent = 'Editar colaborador';
   document.getElementById('func_nome').value = f.nome;
-  document.getElementById('func_cargo').value = f.cargo || '';
+  document.getElementById('func_cargo').value = f.cargo ? f.cargo.toUpperCase() : '';
   escalaSelecionada = f.tipo_escala || 'normal';
   document.querySelectorAll('#escalaToggle .tipo-btn').forEach(b=>b.classList.toggle('active', b.dataset.escala===escalaSelecionada));
   document.getElementById('func_horas').value = Math.floor(f.carga_horaria_diaria_min/60);
@@ -3790,7 +3840,7 @@ function renderColabTabela(numero, lista){
   body.innerHTML = lista.map(f=>`
     <tr>
       <td>${escapeHtml(f.nome)}</td>
-      <td>${f.cargo ? escapeHtml(f.cargo) : '—'}</td>
+      <td>${f.cargo ? escapeHtml(f.cargo.toUpperCase()) : '—'}</td>
       <td>${f.tipo_escala==='12x36' ? '12x36' : 'Normal'}</td>
       <td>${fmtMinutos(f.carga_horaria_diaria_min)}</td>
       <td><div class="rowactions">
@@ -4691,12 +4741,13 @@ let vendasProdOrdemAsc = false;
 let vendasProdutoAtual = [];
 
 function textoPeriodoVendas(){
-  const de = document.getElementById('vendasFiltroDe').value;
-  const ate = document.getElementById('vendasFiltroAte').value;
-  if(de || ate){
-    return (de ? fmtData(de) : 'início') + ' a ' + (ate ? fmtData(ate) : 'hoje');
-  }
-  return 'Todos os períodos';
+  // mostra o período REAL dos dados que entraram no relatório (não o que foi selecionado no filtro) —
+  // evita mostrar "01/08 a 31/08" quando as vendas na verdade só vão até dia 26, por exemplo
+  if(!vendasCache || vendasCache.length===0) return 'Sem dados';
+  const datas = vendasCache.map(v=>v.data).filter(Boolean).sort();
+  const de = datas[0];
+  const ate = datas[datas.length-1];
+  return de===ate ? fmtData(de) : (fmtData(de) + ' a ' + fmtData(ate));
 }
 
 function exportarExcelVendasCategoria(){
@@ -4708,21 +4759,22 @@ function exportarExcelVendasCategoria(){
     alert('Não há dados para exportar com o período atual.');
     return;
   }
-  const linhas = vendasCategoriaAtual.map(c=>({
-    'Categoria': c.nome,
-    'Vendido': brl(c.vendido),
-    'Custo': brl(c.custo),
-    'Lucro': brl(c.lucro),
-    'Margem': c.margem.toFixed(1) + '%'
-  }));
-  const planilha = XLSX.utils.json_to_sheet(linhas);
+  const nomeLoja = NOMES_LOJA[lojaAtual] || '';
+  const linhasAoa = [
+    ['Vendas por Categoria — ' + nomeLoja],
+    ['Período: ' + textoPeriodoVendas()],
+    [],
+    ['Categoria', 'Vendido', 'Custo', 'Lucro', 'Margem'],
+    ...vendasCategoriaAtual.map(c=>[c.nome, brl(c.vendido), brl(c.custo), brl(c.lucro), c.margem.toFixed(1) + '%'])
+  ];
+  const planilha = XLSX.utils.aoa_to_sheet(linhasAoa);
   planilha['!cols'] = [{wch:24},{wch:14},{wch:14},{wch:14},{wch:10}];
   const livro = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(livro, planilha, 'Vendas por Categoria');
 
   const dataArquivo = new Date().toISOString().slice(0,10);
-  const nomeLoja = (NOMES_LOJA[lojaAtual]||'').toLowerCase().replace(' ','');
-  XLSX.writeFile(livro, 'vendas-por-categoria-' + nomeLoja + '-' + dataArquivo + '.xlsx');
+  const nomeArquivo = nomeLoja.toLowerCase().replace(' ','');
+  XLSX.writeFile(livro, 'vendas-por-categoria-' + nomeArquivo + '-' + dataArquivo + '.xlsx');
 }
 
 function exportarPdfVendasCategoria(){
@@ -7902,6 +7954,7 @@ let combPagSelecaoPagamentos = new Set();
 const PALAVRAS_IGNORADAS_COMB = new Set(['LTDA','LTD','EIRELI','COMERCIO','INDUSTRIA','DISTRIBUIDORA','ALIMENTOS','BEBIDAS','BRASIL','LOJA','PRODUTOS','SOCIAL','RAZAO','MINAS','PAGAMENTO','DESCRICAO']);
 
 async function abrirCombinacaoPagamentos(){
+  await carregarFornecedoresComb();
   const sel = document.getElementById('combPagFiltroMes');
   const inicio = new Date(2026, 6, 1); // Julho 2026
   const hoje = new Date();
@@ -8120,8 +8173,38 @@ function normalizarTextoComb(s){
     .filter(w=>w.length>=3 && !PALAVRAS_IGNORADAS_COMB.has(w));
 }
 
+// cadastro de fornecedores (com variações de nome) carregado ao abrir a Combinação de Pagamentos —
+// usado só pra melhorar o reconhecimento de nomes, não trava nada se não achar
+let fornecedoresComb = [];
+async function carregarFornecedoresComb(){
+  const { data, error } = await sb.from('fornecedores').select('nome, apelidos').eq('loja', lojaAtual);
+  fornecedoresComb = error ? [] : (data || []);
+}
+
+// procura, entre os fornecedores cadastrados, algum cujo nome bata com o nome da compra
+// (por palavra em comum) — se achar, devolve TODOS os nomes/variações cadastrados pra ele
+function acharVariacoesFornecedorCadastrado(nome1, nome2){
+  if(!fornecedoresComb || fornecedoresComb.length===0) return [];
+  const palavrasCompra = new Set([...normalizarTextoComb(nome1), ...normalizarTextoComb(nome2)]);
+  if(palavrasCompra.size===0) return [];
+  for(const f of fornecedoresComb){
+    const palavrasFornecedor = normalizarTextoComb(f.nome);
+    const bate = palavrasFornecedor.some(p=>palavrasCompra.has(p));
+    if(bate){
+      const apelidos = (f.apelidos||'').split(',').map(s=>s.trim()).filter(Boolean);
+      return [f.nome, ...apelidos];
+    }
+  }
+  return [];
+}
+
 function pontuarSimilaridadeComb(nome1, nome2, descricaoPagamento){
-  const palavrasFornecedor = new Set([...normalizarTextoComb(nome1), ...normalizarTextoComb(nome2)]);
+  const variacoesCadastradas = acharVariacoesFornecedorCadastrado(nome1, nome2);
+  const palavrasFornecedor = new Set([
+    ...normalizarTextoComb(nome1),
+    ...normalizarTextoComb(nome2),
+    ...variacoesCadastradas.flatMap(normalizarTextoComb)
+  ]);
   const palavrasPagamento = normalizarTextoComb(descricaoPagamento);
   let pontos = 0;
   palavrasPagamento.forEach(p=>{ if(palavrasFornecedor.has(p)) pontos++; });
@@ -9195,6 +9278,133 @@ async function confirmarExclusaoContaBancariaOk(){
   fecharConfirmacaoContaBancaria();
 }
 
+/* ================= FORNECEDORES ================= */
+
+let fornecedoresCache = [];
+let fornecedorEditandoId = null;
+let excluindoFornecedorId = null;
+
+async function carregarFornecedores(){
+  document.getElementById('fornecedoresLojaNome').textContent = NOMES_LOJA[lojaAtual] || '';
+  const { data, error } = await sb.from('fornecedores').select('*').eq('loja', lojaAtual).order('nome');
+  if(error){ console.error('Erro ao carregar fornecedores:', error); fornecedoresCache = []; }
+  else fornecedoresCache = data || [];
+  renderFornecedores();
+  atualizarDatalistFornecedores();
+}
+
+function renderFornecedores(){
+  const body = document.getElementById('fornecedoresBody');
+  const empty = document.getElementById('fornecedoresEmpty');
+  if(fornecedoresCache.length===0){
+    body.innerHTML = '';
+    empty.style.display = 'block';
+    return;
+  }
+  empty.style.display = 'none';
+
+  const busca = (document.getElementById('fornecedoresBusca')?.value || '').trim().toLowerCase();
+  const filtrados = fornecedoresCache.filter(f => !busca
+    || f.nome.toLowerCase().includes(busca)
+    || (f.apelidos||'').toLowerCase().includes(busca));
+
+  body.innerHTML = filtrados.length===0
+    ? '<tr><td colspan="3" style="text-align:center;color:var(--muted);font-style:italic;padding:16px;">Nenhum resultado pra essa busca.</td></tr>'
+    : filtrados.map(f=>`
+    <tr>
+      <td>${escapeHtml(f.nome)}</td>
+      <td class="contato">${escapeHtml(f.apelidos||'—')}</td>
+      <td><div class="rowactions">
+        <button class="iconbtn edit" title="Editar" onclick="abrirEditarFornecedor(${f.id})">✎</button>
+        <button class="iconbtn del" title="Excluir" onclick="confirmarExclusaoFornecedor(${f.id})">✕</button>
+      </div></td>
+    </tr>
+  `).join('');
+}
+
+// datalist usada no campo "Fornecedor" de Contas a Pagar, pra sugerir nomes já cadastrados
+// sem obrigar a escolher (continua aceitando texto livre pra não travar o fluxo)
+function atualizarDatalistFornecedores(){
+  const dl = document.getElementById('listaFornecedores');
+  if(!dl) return;
+  dl.innerHTML = fornecedoresCache.map(f=>`<option value="${escapeHtml(f.nome)}">`).join('');
+}
+
+function abrirNovoFornecedor(){
+  fornecedorEditandoId = null;
+  document.getElementById('fornecedorModalTitulo').textContent = 'Novo fornecedor';
+  document.getElementById('fornecedor_nome').value = '';
+  document.getElementById('fornecedor_apelidos').value = '';
+  document.getElementById('fornecedorErr').style.display = 'none';
+  document.getElementById('fornecedorModal').style.display = 'flex';
+}
+
+function abrirEditarFornecedor(id){
+  const f = fornecedoresCache.find(x=>x.id===id);
+  if(!f) return;
+  fornecedorEditandoId = id;
+  document.getElementById('fornecedorModalTitulo').textContent = 'Editar fornecedor';
+  document.getElementById('fornecedor_nome').value = f.nome;
+  document.getElementById('fornecedor_apelidos').value = f.apelidos || '';
+  document.getElementById('fornecedorErr').style.display = 'none';
+  document.getElementById('fornecedorModal').style.display = 'flex';
+}
+
+function fecharFornecedorModal(){
+  document.getElementById('fornecedorModal').style.display = 'none';
+}
+
+async function salvarFornecedor(){
+  const btn = document.getElementById('fornecedorSalvarBtn');
+  if(btn.disabled) return; // trava contra chamada dupla
+  const nome = document.getElementById('fornecedor_nome').value.trim();
+  const apelidos = document.getElementById('fornecedor_apelidos').value.trim();
+  const err = document.getElementById('fornecedorErr');
+  if(!nome){
+    err.textContent = 'Digite o nome do fornecedor.';
+    err.style.display = 'block';
+    return;
+  }
+  err.style.display = 'none';
+  btn.disabled = true;
+
+  if(fornecedorEditandoId){
+    const { data, error } = await sb.from('fornecedores').update({ nome, apelidos }).eq('id', fornecedorEditandoId).select().single();
+    btn.disabled = false;
+    if(error){ err.textContent = 'Erro ao salvar: ' + error.message; err.style.display = 'block'; return; }
+    const idx = fornecedoresCache.findIndex(f=>f.id===fornecedorEditandoId);
+    if(idx>-1) fornecedoresCache[idx] = data;
+  }else{
+    const { data, error } = await sb.from('fornecedores').insert({ loja: lojaAtual, nome, apelidos }).select().single();
+    btn.disabled = false;
+    if(error){ err.textContent = 'Erro ao salvar: ' + error.message; err.style.display = 'block'; return; }
+    fornecedoresCache.push(data);
+  }
+
+  renderFornecedores();
+  atualizarDatalistFornecedores();
+  fecharFornecedorModal();
+}
+
+function confirmarExclusaoFornecedor(id){
+  excluindoFornecedorId = id;
+  document.getElementById('confirmExclusaoFornecedorModal').style.display = 'flex';
+}
+function fecharConfirmacaoFornecedor(){
+  document.getElementById('confirmExclusaoFornecedorModal').style.display = 'none';
+  excluindoFornecedorId = null;
+}
+async function confirmarExclusaoFornecedorOk(){
+  if(!excluindoFornecedorId) return;
+  const { error } = await sb.from('fornecedores').delete().eq('id', excluindoFornecedorId);
+  if(!error){
+    fornecedoresCache = fornecedoresCache.filter(f=>f.id!==excluindoFornecedorId);
+    renderFornecedores();
+    atualizarDatalistFornecedores();
+  }
+  fecharConfirmacaoFornecedor();
+}
+
 async function selecionarFuncionario(id){
   bhFuncionarioAtualId = id || null;
   if(!id){
@@ -9338,7 +9548,7 @@ async function gerarRelatorioNoturno(){
     if(totalNoturno > 0 || datasJustificadas.length > 0 || datasInjustificadas.length > 0){
       linhas.push({
         nome: f.nome,
-        cargo: f.cargo || '—',
+        cargo: (f.cargo || '—').toUpperCase(),
         noturno: totalNoturno,
         noturnoConvertido: calcularMinutosNoturnosConvertidos(totalNoturno),
         datasJustificadas,
@@ -9453,7 +9663,7 @@ function exportarExcelHoras(){
   const horaOuTraco = v => v ? v.slice(0,5) : '';
   const cabecalho = [
     ['Colaborador', f.nome],
-    ['Cargo', f.cargo || '—'],
+    ['Cargo', f.cargo ? f.cargo.toUpperCase() : '—'],
     ['Escala', f.tipo_escala==='12x36' ? '12x36' : 'Normal'],
     []
   ];
@@ -9510,7 +9720,7 @@ function exportarExcelHorasResumo(){
 
   const linhas = [{
     'Colaborador': f.nome,
-    'Cargo': f.cargo || '—',
+    'Cargo': f.cargo ? f.cargo.toUpperCase() : '—',
     'Período': textoPeriodoHoras(),
     'Total noturno': fmtMinutos(totalNoturno),
     'Total noturno convertido': fmtMinutos(totalNoturnoConvertido)
@@ -9559,7 +9769,7 @@ function exportarPdfHorasResumo(){
     startY: 34,
     body: [
       ['Colaborador', f.nome],
-      ['Cargo', f.cargo || '—'],
+      ['Cargo', f.cargo ? f.cargo.toUpperCase() : '—'],
       ['Período', textoPeriodoHoras()],
       ['Total noturno', fmtMinutos(totalNoturno)],
       ['Total noturno convertido', fmtMinutos(totalNoturnoConvertido)]
@@ -9598,7 +9808,7 @@ function exportarPdfHoras(){
   doc.text('Banco de Horas — ' + f.nome, 14, 18);
   doc.setFontSize(10);
   doc.setTextColor(120);
-  doc.text((f.cargo ? 'Cargo: ' + f.cargo + '   ·   ' : '') + 'Escala: ' + (f.tipo_escala==='12x36' ? '12x36' : 'Normal') + '   ·   Gerado em ' + dataHora, 14, 25);
+  doc.text((f.cargo ? 'Cargo: ' + f.cargo.toUpperCase() + '   ·   ' : '') + 'Escala: ' + (f.tipo_escala==='12x36' ? '12x36' : 'Normal') + '   ·   Gerado em ' + dataHora, 14, 25);
 
   const horaOuTraco = v => v ? v.slice(0,5) : '—';
   const linhas = bhLinhasExibidasAtuais.map(l=>[
@@ -9637,7 +9847,7 @@ function renderBancoHoras(){
   if(!f) return;
   document.getElementById('bhCargaHoraria').textContent = fmtMinutos(f.carga_horaria_diaria_min);
   document.getElementById('bhEscala').textContent = f.tipo_escala==='12x36' ? '12x36' : 'Normal';
-  document.getElementById('bhCargo').textContent = f.cargo || '—';
+  document.getElementById('bhCargo').textContent = f.cargo ? f.cargo.toUpperCase() : '—';
 
   const ordenados = [...bhRegistros].sort((a,b)=> a.data.localeCompare(b.data));
   let acumulado = 0;
