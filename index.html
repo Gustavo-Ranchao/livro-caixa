@@ -605,6 +605,22 @@
         <div id="bhResumoGeralBody"></div>
       </div>
 
+      <div class="panel" style="margin-bottom:20px;">
+        <div class="panel-head">
+          <h2>📄 Atestados</h2>
+          <button type="button" class="importbtn" style="width:auto;margin:0;" onclick="abrirNovoAtestado()">+ Novo atestado</button>
+        </div>
+        <div style="padding:0 20px 14px;"><input class="comb-busca" id="bhAtestadosBusca" placeholder="🔍 Buscar por colaborador..." oninput="renderAtestados()"></div>
+        <div class="contest-row header" style="grid-template-columns:1.3fr 1fr 90px 1.4fr 90px;">
+          <div>Colaborador</div>
+          <div>Período</div>
+          <div style="text-align:right">Dias</div>
+          <div>Observação</div>
+          <div></div>
+        </div>
+        <div id="bhAtestadosBody"></div>
+      </div>
+
       <div class="bh-toolbar">
         <select id="bhFuncionarioSelect" onchange="selecionarFuncionario(this.value)">
           <option value="">Selecione um funcionário</option>
@@ -2055,6 +2071,39 @@
     <div class="modal-actions" style="margin-top:14px;">
       <button class="addbtn" style="background:var(--rust);" onclick="confirmarApagarTudoVendasOk()">Apagar tudo</button>
       <button class="cancelbtn" onclick="fecharApagarVendasModal()">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<div id="atestadoModal" class="modal-overlay">
+  <div class="modal-box" style="max-width:460px;">
+    <button class="modal-close" onclick="fecharAtestadoModal()">✕</button>
+    <h2>Novo atestado</h2>
+    <div class="fld">
+      <label>Colaborador</label>
+      <select id="atestado_funcionario_id"></select>
+    </div>
+    <div style="display:flex;gap:14px;">
+      <div class="fld" style="flex:1;"><label>Início</label><input id="atestado_data_inicio" type="date"></div>
+      <div class="fld" style="flex:1;"><label>Fim</label><input id="atestado_data_fim" type="date"></div>
+    </div>
+    <div class="fld"><label>Observação (opcional)</label><input id="atestado_observacao" placeholder="Ex: CID, motivo, etc."></div>
+    <div class="fld">
+      <label>Arquivo do atestado (foto ou PDF)</label>
+      <input id="atestado_arquivo" type="file" accept="image/*,.pdf,application/pdf">
+    </div>
+    <div class="formerr" id="atestadoErr">Selecione o colaborador, as datas e o arquivo do atestado.</div>
+    <button class="addbtn" id="atestadoSalvarBtn" onclick="salvarAtestado()">Salvar</button>
+  </div>
+</div>
+
+<div id="confirmAtestadoModal" class="modal-overlay">
+  <div class="modal-box" style="max-width:380px;">
+    <h2>Excluir atestado?</h2>
+    <p class="modal-sub">Isso apaga o registro e o arquivo anexado. Essa ação não pode ser desfeita.</p>
+    <div class="modal-actions">
+      <button class="addbtn" style="background:var(--rust);" onclick="confirmarExclusaoAtestadoOk()">Excluir</button>
+      <button class="cancelbtn" onclick="fecharConfirmacaoAtestado()">Cancelar</button>
     </div>
   </div>
 </div>
@@ -3675,6 +3724,7 @@ async function carregarFuncionarios(){
   bhCarregado = true;
   renderFuncionarioSelect();
   await calcularResumoSaldosBancoHoras();
+  await carregarAtestados();
 }
 
 // resumo geral: saldo de TODOS os colaboradores, igual ao alerta que já existe na tela inicial,
@@ -3717,6 +3767,155 @@ function renderResumoGeralBancoHoras(){
       <div class="campo" style="text-align:right;"><span class="lbl-mobile">Saldo</span><span style="font-family:var(--font-mono);color:${l.saldo<0?'var(--rust)':(l.saldo>0?'var(--green)':'var(--muted)')};">${fmtMinutosSinal(l.saldo)}</span></div>
     </div>
   `).join('');
+}
+
+/* ================= ATESTADOS ================= */
+
+let bhAtestadosCache = [];
+let atestadoEditandoArquivo = null;
+let excluindoAtestadoId = null;
+
+async function carregarAtestados(){
+  const { data, error } = await sb.from('bh_atestados').select('*').eq('loja', lojaAtual).order('data_inicio', { ascending: false });
+  if(error){ console.error('Erro ao carregar atestados:', error); bhAtestadosCache = []; }
+  else bhAtestadosCache = data || [];
+  renderAtestados();
+}
+
+function nomeFuncionarioPorId(id){
+  const f = bhFuncionarios.find(x=>String(x.id)===String(id));
+  return f ? f.nome : '(colaborador removido)';
+}
+
+function diasAtestado(dataInicio, dataFim){
+  const de = new Date(dataInicio + 'T00:00:00');
+  const ate = new Date(dataFim + 'T00:00:00');
+  const dias = Math.round((ate - de) / 86400000) + 1;
+  return dias > 0 ? dias : 1;
+}
+
+function renderAtestados(){
+  const el = document.getElementById('bhAtestadosBody');
+  if(!el) return;
+  if(bhAtestadosCache.length===0){
+    el.innerHTML = '<div style="text-align:center;color:var(--muted);font-style:italic;padding:20px 16px;">Nenhum atestado cadastrado ainda.</div>';
+    return;
+  }
+  const busca = (document.getElementById('bhAtestadosBusca')?.value || '').trim().toLowerCase();
+  const filtrados = bhAtestadosCache.filter(a => !busca || nomeFuncionarioPorId(a.funcionario_id).toLowerCase().includes(busca));
+
+  el.innerHTML = filtrados.length===0
+    ? '<div style="text-align:center;color:var(--muted);font-style:italic;padding:20px 16px;">Nenhum resultado pra essa busca.</div>'
+    : filtrados.map(a=>`
+    <div class="contest-row" style="grid-template-columns:1.3fr 1fr 90px 1.4fr 90px;">
+      <div class="campo"><span class="lbl-mobile">Colaborador</span><span>${escapeHtml(nomeFuncionarioPorId(a.funcionario_id))}</span></div>
+      <div class="campo"><span class="lbl-mobile">Período</span><span>${fmtData(a.data_inicio)} — ${fmtData(a.data_fim)}</span></div>
+      <div class="campo" style="text-align:right;"><span class="lbl-mobile">Dias</span><span>${diasAtestado(a.data_inicio, a.data_fim)}</span></div>
+      <div class="campo"><span class="lbl-mobile">Observação</span><span>${escapeHtml(a.observacao || '—')}</span></div>
+      <div class="campo" style="justify-content:flex-end;gap:8px;">
+        <button class="iconbtn" title="Ver arquivo" onclick="abrirArquivoAtestado('${escapeHtml(a.caminho_storage)}')">🖼️</button>
+        <button class="iconbtn del" title="Excluir" onclick="confirmarExclusaoAtestado(${a.id})">✕</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+async function abrirArquivoAtestado(caminho){
+  const { data, error } = await sb.storage.from('comprovantes').createSignedUrl(caminho, 3600);
+  if(error){ alert('Erro ao abrir o arquivo: ' + error.message); return; }
+  window.open(data.signedUrl, '_blank', 'noopener');
+}
+
+function abrirNovoAtestado(){
+  const sel = document.getElementById('atestado_funcionario_id');
+  sel.innerHTML = bhFuncionarios.map(f=>`<option value="${f.id}">${escapeHtml(f.nome)}</option>`).join('');
+  document.getElementById('atestado_data_inicio').value = '';
+  document.getElementById('atestado_data_fim').value = '';
+  document.getElementById('atestado_observacao').value = '';
+  document.getElementById('atestado_arquivo').value = '';
+  document.getElementById('atestadoErr').style.display = 'none';
+  document.getElementById('atestadoModal').style.display = 'flex';
+}
+
+function fecharAtestadoModal(){
+  document.getElementById('atestadoModal').style.display = 'none';
+}
+
+async function salvarAtestado(){
+  const btn = document.getElementById('atestadoSalvarBtn');
+  if(btn.disabled) return; // trava contra chamada dupla
+  const funcionarioId = document.getElementById('atestado_funcionario_id').value;
+  const dataInicio = document.getElementById('atestado_data_inicio').value;
+  const dataFim = document.getElementById('atestado_data_fim').value;
+  const observacao = document.getElementById('atestado_observacao').value.trim();
+  const arquivo = document.getElementById('atestado_arquivo').files[0];
+  const err = document.getElementById('atestadoErr');
+
+  if(!funcionarioId || !dataInicio || !dataFim || !arquivo){
+    err.textContent = 'Selecione o colaborador, as datas e o arquivo do atestado.';
+    err.style.display = 'block';
+    return;
+  }
+  if(dataFim < dataInicio){
+    err.textContent = 'A data de fim não pode ser antes da data de início.';
+    err.style.display = 'block';
+    return;
+  }
+  err.style.display = 'none';
+  btn.disabled = true;
+  btn.textContent = 'Salvando…';
+
+  const caminho = 'atestados/' + lojaAtual + '/' + Date.now() + '_' + Math.random().toString(36).slice(2,8) + '_' + arquivo.name;
+  const { error: erroUpload } = await sb.storage.from('comprovantes').upload(caminho, arquivo);
+  if(erroUpload){
+    btn.disabled = false;
+    btn.textContent = 'Salvar';
+    err.textContent = 'Erro ao enviar o arquivo: ' + erroUpload.message;
+    err.style.display = 'block';
+    return;
+  }
+
+  const { error: erroInsert } = await sb.from('bh_atestados').insert({
+    loja: lojaAtual,
+    funcionario_id: funcionarioId,
+    data_inicio: dataInicio,
+    data_fim: dataFim,
+    observacao: observacao || null,
+    nome_arquivo: arquivo.name,
+    caminho_storage: caminho
+  });
+
+  btn.disabled = false;
+  btn.textContent = 'Salvar';
+
+  if(erroInsert){
+    await sb.storage.from('comprovantes').remove([caminho]); // desfaz o upload já que o registro falhou
+    err.textContent = 'Erro ao salvar: ' + erroInsert.message;
+    err.style.display = 'block';
+    return;
+  }
+
+  fecharAtestadoModal();
+  await carregarAtestados();
+}
+
+function confirmarExclusaoAtestado(id){
+  excluindoAtestadoId = id;
+  document.getElementById('confirmAtestadoModal').style.display = 'flex';
+}
+function fecharConfirmacaoAtestado(){
+  document.getElementById('confirmAtestadoModal').style.display = 'none';
+  excluindoAtestadoId = null;
+}
+async function confirmarExclusaoAtestadoOk(){
+  if(!excluindoAtestadoId) return;
+  const a = bhAtestadosCache.find(x=>x.id===excluindoAtestadoId);
+  if(a){
+    await sb.storage.from('comprovantes').remove([a.caminho_storage]);
+    await sb.from('bh_atestados').delete().eq('id', a.id);
+  }
+  fecharConfirmacaoAtestado();
+  await carregarAtestados();
 }
 
 function renderFuncionarioSelect(){
