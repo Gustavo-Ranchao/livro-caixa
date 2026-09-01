@@ -5872,6 +5872,8 @@ function classificarFormaPagamentoVenda(tipo, descricao){
   const t = (tipo||'').toUpperCase();
   const d = (descricao||'').toUpperCase();
   const texto = t + ' ' + d;
+  // Pix recebido diretamente (transferência avulsa via chave), diferente do Pix pago na maquininha/QR de venda
+  if(t.includes('PIX RECEBIDO')) return 'Pix via chave';
   if(texto.includes('PIX')) return 'Pix';
   if(texto.includes('BOLETO')) return 'Boleto';
   if(t.includes('ANTECIPA')) return 'Cartão Crédito';
@@ -5922,7 +5924,7 @@ function renderFluxoCaixa(){
   });
   fluxoPorFormaLinhasAtual = porFormaLinhas;
   const bodyForma = document.getElementById('fluxoFormaBody');
-  const ORDEM_FORMAS_ENTRADA = ['Cartão Débito', 'Cartão Crédito', 'Pix', 'Boleto', 'Rendimento da conta', 'Dinheiro'];
+  const ORDEM_FORMAS_ENTRADA = ['Cartão Débito', 'Cartão Crédito', 'Pix', 'Pix via chave', 'Boleto', 'Rendimento da conta', 'Dinheiro'];
   const formas = Object.entries(porForma).sort((a,b)=>{
     const ia = ORDEM_FORMAS_ENTRADA.indexOf(a[0]);
     const ib = ORDEM_FORMAS_ENTRADA.indexOf(b[0]);
