@@ -964,19 +964,26 @@
 
       <div class="panel" id="combPagUploadWrap" style="margin-bottom:20px;">
         <div class="panel-head"><h2>Selecionar as duas planilhas</h2></div>
-        <div style="padding:0 20px 20px;display:flex;gap:16px;flex-wrap:wrap;">
+        <div style="padding:0 20px 20px;display:flex;gap:16px;flex-wrap:wrap;align-items:flex-start;">
           <label class="vendas-file-label">
             📁 Planilha de Compras (.xlsx)
             <input id="combPagComprasInput" type="file" accept=".xlsx,.xls" style="display:none;" onchange="onSelecionarComprasComb(this.files)">
           </label>
           <span id="combPagComprasStatus" style="align-self:center;font-size:12.5px;color:var(--muted);">Nenhum arquivo selecionado.</span>
+          <div style="flex-basis:100%;font-size:12px;color:var(--muted);line-height:1.5;">
+            Precisa ter, na primeira linha, colunas com esses nomes (podem vir em qualquer ordem):
+            <b>Nº Compra</b>, <b>Total da NF</b> (obrigatórias), e de preferência também <b>Nº NF</b>, <b>Razão Social</b>, <b>Nome Fantasia</b>, <b>Emissão</b> e <b>Entrada</b>.
+          </div>
         </div>
-        <div style="padding:0 20px 20px;display:flex;gap:16px;flex-wrap:wrap;">
+        <div style="padding:0 20px 20px;display:flex;gap:16px;flex-wrap:wrap;align-items:flex-start;">
           <label class="vendas-file-label">
             📁 Planilha de Pagamentos (.xlsx)
             <input id="combPagPagamentosInput" type="file" accept=".xlsx,.xls" style="display:none;" onchange="onSelecionarPagamentosComb(this.files)">
           </label>
           <span id="combPagPagamentosStatus" style="align-self:center;font-size:12.5px;color:var(--muted);">Nenhum arquivo selecionado.</span>
+          <div style="flex-basis:100%;font-size:12px;color:var(--muted);line-height:1.5;">
+            Precisa ter, na primeira linha, uma coluna chamada exatamente <b>Data</b>, uma chamada <b>Saída</b> (obrigatórias), e de preferência também <b>Descrição</b>.
+          </div>
         </div>
         <div style="padding:0 20px 20px;">
           <button class="addbtn" style="width:auto;" id="combPagBtnCombinar" onclick="executarCombinacaoPagamentos()" disabled>Combinar planilhas</button>
@@ -1392,16 +1399,20 @@
           <div class="panel-head">
             <h2>Novo lançamento em dinheiro</h2>
           </div>
-          <div class="bh-form" style="grid-template-columns:1fr 1.6fr 1fr 1fr auto;">
+          <div class="bh-form" style="grid-template-columns:0.8fr 1.3fr 1fr 1fr 1.3fr auto;">
             <div class="fld"><label>Tipo</label>
               <div class="tipo-toggle" id="dinheiroTipoToggle" style="margin:0;">
                 <button type="button" class="tipo-btn active" data-tipo="entrada" onclick="setDinheiroTipo('entrada')">Entrada</button>
                 <button type="button" class="tipo-btn" data-tipo="saida" onclick="setDinheiroTipo('saida')">Saída</button>
               </div>
             </div>
-            <div class="fld"><label>Descrição</label><input id="dinheiro_descricao" placeholder="Ex: Venda balcão, Troco motoboy" onkeydown="if(event.key==='Enter'){event.preventDefault();document.getElementById('dinheiro_data').focus();}"></div>
+            <div class="fld"><label>Descrição</label><input id="dinheiro_descricao" placeholder="Ex: Venda balcão, Troco motoboy" onkeydown="if(event.key==='Enter'){event.preventDefault();document.getElementById('dinheiro_data').focus();}" onblur="aplicarSugestaoTipoPagamento('dinheiro_descricao','dinheiro_categoria_busca','dinheiro_categoria')"></div>
             <div class="fld"><label>Data</label><input id="dinheiro_data" type="date" onkeydown="if(event.key==='Enter'){event.preventDefault();document.getElementById('dinheiro_valor').focus();}"></div>
             <div class="fld"><label>Valor (R$)</label><input id="dinheiro_valor" type="number" step="0.01" min="0" placeholder="0,00" onkeydown="if(event.key==='Enter'){event.preventDefault();salvarLancamentoDinheiro();}"></div>
+            <div class="fld"><label>Categoria (opcional)</label>
+              <input id="dinheiro_categoria_busca" list="pagCaixaTiposDatalist" placeholder="Digite pra buscar..." autocomplete="off" oninput="matchTipoPagCaixa('dinheiro_categoria_busca','dinheiro_categoria')">
+              <input type="hidden" id="dinheiro_categoria">
+            </div>
             <button class="addbtn" id="addbtnDinheiro" style="width:auto;" onclick="salvarLancamentoDinheiro()">Adicionar</button>
           </div>
           <div class="formerr" id="dinheiroErr">Preencha descrição, data e um valor maior que zero.</div>
@@ -1425,7 +1436,7 @@
           </div>
           <div class="tablewrap">
             <table class="ledger">
-              <thead><tr><th>Data</th><th>Descrição</th><th style="text-align:right">Valor</th><th></th></tr></thead>
+              <thead><tr><th>Data</th><th>Descrição</th><th>Tipo</th><th style="text-align:right">Valor</th><th></th></tr></thead>
               <tbody id="fluxoDinheiroBody"></tbody>
             </table>
           </div>
@@ -1475,10 +1486,15 @@
 
       <div class="panel" style="margin-bottom:20px;">
         <div class="panel-head"><h2>Novo pagamento</h2></div>
-        <div class="bh-form" style="grid-template-columns:1.6fr 1fr 1fr auto;">
-          <div class="fld"><label>Descrição</label><input id="novoPag_descricao" placeholder="Ex: Fornecedor, conta, etc."></div>
+        <div class="bh-form" style="grid-template-columns:1.4fr 1fr 1fr 1.4fr auto;">
+          <div class="fld"><label>Descrição</label><input id="novoPag_descricao" placeholder="Ex: Fornecedor, conta, etc." onblur="aplicarSugestaoTipoPagamento('novoPag_descricao','novoPag_tipo_busca','novoPag_tipo')"></div>
           <div class="fld"><label>Data</label><input id="novoPag_data" type="date"></div>
           <div class="fld"><label>Valor (R$)</label><input id="novoPag_valor" type="number" step="0.01" min="0" placeholder="0,00"></div>
+          <div class="fld">
+            <label>Tipo (opcional)</label>
+            <input id="novoPag_tipo_busca" list="pagCaixaTiposDatalist" placeholder="Digite pra buscar..." autocomplete="off" oninput="matchTipoPagCaixa('novoPag_tipo_busca','novoPag_tipo')">
+            <input type="hidden" id="novoPag_tipo">
+          </div>
           <button class="addbtn" style="width:auto;" onclick="salvarNovoPagamento()">Adicionar</button>
         </div>
         <div class="formerr" id="novoPagamentoErr">Preencha descrição, data e um valor maior que zero.</div>
@@ -1497,7 +1513,7 @@
         </div>
         <div class="tablewrap">
           <table class="ledger">
-            <thead><tr><th>Data</th><th>Descrição</th><th style="text-align:right">Valor</th><th></th></tr></thead>
+            <thead><tr><th>Data</th><th>Descrição</th><th>Tipo</th><th style="text-align:right">Valor</th><th></th></tr></thead>
             <tbody id="pagamentosBody"></tbody>
           </table>
         </div>
@@ -1685,6 +1701,11 @@
     <div class="fld"><label>Descrição</label><input id="pag_descricao" placeholder="Fornecedor / observação"></div>
     <div class="fld"><label>Data</label><input id="pag_data" type="date"></div>
     <div class="fld"><label>Valor (R$)</label><input id="pag_valor" type="number" step="0.01" min="0" placeholder="0,00"></div>
+    <div class="fld">
+      <label>Tipo (opcional)</label>
+      <input id="pag_tipo_busca" list="pagCaixaTiposDatalist" placeholder="Digite pra buscar..." autocomplete="off" oninput="matchTipoPagCaixa('pag_tipo_busca','pag_tipo')">
+      <input type="hidden" id="pag_tipo">
+    </div>
     <div class="formerr" id="pagamentoErr">Preencha tipo, data e um valor maior que zero.</div>
     <div class="modal-actions" style="margin-top:16px;">
       <button class="addbtn" id="pagamentoSalvarBtn" onclick="salvarEdicaoPagamento()">Salvar</button>
@@ -2029,6 +2050,10 @@
     <div class="fld"><label>Descrição</label><input id="edinheiro_descricao" placeholder="Ex: Venda balcão, Troco motoboy" onkeydown="if(event.key==='Enter'){event.preventDefault();document.getElementById('edinheiro_data').focus();}"></div>
     <div class="fld"><label>Data</label><input id="edinheiro_data" type="date" onkeydown="if(event.key==='Enter'){event.preventDefault();document.getElementById('edinheiro_valor').focus();}"></div>
     <div class="fld"><label>Valor (R$)</label><input id="edinheiro_valor" type="number" step="0.01" min="0" placeholder="0,00" onkeydown="if(event.key==='Enter'){event.preventDefault();salvarEdicaoDinheiro();}"></div>
+    <div class="fld"><label>Categoria (opcional)</label>
+      <input id="edinheiro_categoria_busca" list="pagCaixaTiposDatalist" placeholder="Digite pra buscar..." autocomplete="off" oninput="matchTipoPagCaixa('edinheiro_categoria_busca','edinheiro_categoria')">
+      <input type="hidden" id="edinheiro_categoria">
+    </div>
     <div class="formerr" id="edinheiroErr">Preencha descrição, data e um valor maior que zero.</div>
     <div class="modal-actions" style="margin-top:16px;">
       <button class="addbtn" id="edinheiroSalvarBtn" onclick="salvarEdicaoDinheiro()">Salvar</button>
@@ -5239,6 +5264,8 @@ function mudarSubAbaFluxo(aba){
 
 async function abrirFluxoCaixa(){
   projecaoJaCarregada = false;
+  await carregarTiposPagCaixaSeNecessario();
+  await carregarMemoriaGlobal();
   if(!document.getElementById('dinheiro_data').value){
     document.getElementById('dinheiro_data').value = todayStr();
   }
@@ -5333,6 +5360,7 @@ async function salvarLancamentoDinheiro(){
   const descricao = document.getElementById('dinheiro_descricao').value.trim();
   const data = document.getElementById('dinheiro_data').value;
   const valorBruto = parseFloat(document.getElementById('dinheiro_valor').value);
+  const tipoId = document.getElementById('dinheiro_categoria').value || null;
   const err = document.getElementById('dinheiroErr');
 
   if(!descricao || !data || isNaN(valorBruto) || valorBruto<=0){
@@ -5349,7 +5377,8 @@ async function salvarLancamentoDinheiro(){
     data: data,
     tipo: 'Dinheiro',
     descricao: descricao,
-    valor: valor
+    valor: valor,
+    codigo_tipo_id: tipoId
   }).select().single();
 
   btnDinheiro.disabled = false;
@@ -5360,9 +5389,13 @@ async function salvarLancamentoDinheiro(){
     return;
   }
 
+  if(tipoId) await gravarMemoriaPagCaixa(descricao, tipoId);
+
   fluxoCache.push(salvo);
   document.getElementById('dinheiro_descricao').value = '';
   document.getElementById('dinheiro_valor').value = '';
+  document.getElementById('dinheiro_categoria').value = '';
+  document.getElementById('dinheiro_categoria_busca').value = '';
   document.getElementById('dinheiro_descricao').focus();
   renderFluxoCaixa();
   await popularFiltroMesFluxo();
@@ -5384,6 +5417,9 @@ function abrirEditarDinheiro(id){
   document.getElementById('edinheiro_data').value = l.data;
   document.getElementById('edinheiro_valor').value = Math.abs(Number(l.valor));
   setEdinheiroTipo(Number(l.valor) < 0 ? 'saida' : 'entrada');
+  const tipoAtual = l.codigo_tipo_id ? pagCaixaTiposCache.find(t=>String(t.id)===String(l.codigo_tipo_id)) : null;
+  document.getElementById('edinheiro_categoria').value = l.codigo_tipo_id || '';
+  document.getElementById('edinheiro_categoria_busca').value = tipoAtual ? labelTipoPagCaixa(tipoAtual) : '';
   document.getElementById('edinheiroErr').style.display = 'none';
   document.getElementById('editDinheiroModal').style.display = 'flex';
 }
@@ -5399,6 +5435,7 @@ async function salvarEdicaoDinheiro(){
   const descricao = document.getElementById('edinheiro_descricao').value.trim();
   const data = document.getElementById('edinheiro_data').value;
   const valorBruto = parseFloat(document.getElementById('edinheiro_valor').value);
+  const tipoId = document.getElementById('edinheiro_categoria').value || null;
   const err = document.getElementById('edinheiroErr');
 
   if(!descricao || !data || isNaN(valorBruto) || valorBruto<=0){
@@ -5415,8 +5452,11 @@ async function salvarEdicaoDinheiro(){
   const { data: atualizado, error } = await sb.from('fluxo_caixa_lancamentos').update({
     descricao: descricao,
     data: data,
-    valor: valor
+    valor: valor,
+    codigo_tipo_id: tipoId
   }).eq('id', editandoDinheiroId).select().single();
+
+  if(!error && tipoId) await gravarMemoriaPagCaixa(descricao, tipoId);
 
   btn.disabled = false;
   btn.textContent = 'Salvar';
@@ -6031,6 +6071,7 @@ function renderFluxoCaixa(){
       <tr>
         <td class="data">${fmtData(l.data)}</td>
         <td class="contato">${escapeHtml(l.descricao || '—')}</td>
+        <td>${celulaTipoFluxo(l, 'dinheiro')}</td>
         <td class="valor" style="color:${Number(l.valor)<0?'var(--rust)':'var(--green)'};">${brl(l.valor)}</td>
         <td><div class="rowactions">
           <button class="iconbtn edit" title="Editar" onclick="abrirEditarDinheiro('${l.id}')">✎</button>
@@ -6881,6 +6922,8 @@ async function abrirPagamentos(){
   if(!document.getElementById('novoPag_data').value){
     document.getElementById('novoPag_data').value = todayStr();
   }
+  await carregarTiposPagCaixaSeNecessario();
+  await carregarMemoriaGlobal();
   await popularFiltroMesPagamentos();
   const mesAtual = new Date().toISOString().slice(0,7);
   document.getElementById('pagamentosFiltroMes').value = mesAtual;
@@ -6892,6 +6935,7 @@ async function salvarNovoPagamento(){
   const descricao = document.getElementById('novoPag_descricao').value.trim();
   const data = document.getElementById('novoPag_data').value;
   const valorBruto = parseFloat(document.getElementById('novoPag_valor').value);
+  const tipoId = document.getElementById('novoPag_tipo').value || null;
   const err = document.getElementById('novoPagamentoErr');
 
   if(!descricao || !data || isNaN(valorBruto) || valorBruto<=0){
@@ -6905,7 +6949,8 @@ async function salvarNovoPagamento(){
     data: data,
     tipo: 'Pagamento',
     descricao: descricao,
-    valor: -Math.abs(valorBruto)
+    valor: -Math.abs(valorBruto),
+    codigo_tipo_id: tipoId
   }).select().single();
 
   if(error){
@@ -6914,9 +6959,13 @@ async function salvarNovoPagamento(){
     return;
   }
 
+  if(tipoId) await gravarMemoriaPagCaixa(descricao, tipoId);
+
   pagamentosCache.push(salvo);
   document.getElementById('novoPag_descricao').value = '';
   document.getElementById('novoPag_valor').value = '';
+  document.getElementById('novoPag_tipo').value = '';
+  document.getElementById('novoPag_tipo_busca').value = '';
   renderPagamentos();
   await popularFiltroMesPagamentos();
 }
@@ -6999,6 +7048,7 @@ function renderPagamentos(){
       <tr>
         <td class="data">${fmtData(l.data)}</td>
         <td class="contato">${escapeHtml(l.descricao || '—')}</td>
+        <td>${celulaTipoFluxo(l, 'pagamentos')}</td>
         <td class="valor" style="color:var(--rust);">${brl(l.valor)}</td>
         <td><div class="rowactions">
           <button class="iconbtn edit" title="Editar" onclick="abrirEditarPagamento('${l.id}')">✎</button>
@@ -7009,6 +7059,38 @@ function renderPagamentos(){
   }
 }
 
+// mostra o tipo já classificado, ou — se ainda não tiver um e a memória souber uma sugestão pra
+// essa descrição — mostra um botão de confirmação de um clique (nunca salva sozinho sem confirmar)
+function celulaTipoFluxo(l, origem){
+  if(l.codigo_tipo_id){
+    const tipo = pagCaixaTiposCache.find(t=>String(t.id)===String(l.codigo_tipo_id));
+    return tipo ? escapeHtml(labelTipoPagCaixa(tipo)) : '—';
+  }
+  const chave = (l.descricao||'').trim().toLowerCase();
+  const tipoSugeridoId = chave ? mapaMemoriaGlobal[chave] : null;
+  if(tipoSugeridoId){
+    const tipo = pagCaixaTiposCache.find(t=>String(t.id)===String(tipoSugeridoId));
+    if(tipo){
+      return `<button class="filter-btn" style="padding:3px 8px;font-size:11px;color:var(--gold);" title="Sugestão baseada em classificações anteriores — clique pra confirmar" onclick="confirmarSugestaoTipoFluxo('${l.id}', '${tipo.id}', '${origem}')">💡 ${escapeHtml(labelTipoPagCaixa(tipo))}</button>`;
+    }
+  }
+  return '<span style="color:var(--muted);">—</span>';
+}
+
+async function confirmarSugestaoTipoFluxo(id, tipoId, origem){
+  const { data, error } = await sb.from('fluxo_caixa_lancamentos').update({ codigo_tipo_id: tipoId }).eq('id', id).select().single();
+  if(error){ alert('Erro ao salvar: ' + error.message); return; }
+  if(origem==='pagamentos'){
+    const idx = pagamentosCache.findIndex(l=>String(l.id)===String(id));
+    if(idx>-1) pagamentosCache[idx] = data;
+    renderPagamentos();
+  }else{
+    const idx = fluxoCache.findIndex(l=>String(l.id)===String(id));
+    if(idx>-1) fluxoCache[idx] = data;
+    renderFluxoCaixa();
+  }
+}
+
 function abrirEditarPagamento(id){
   const l = pagamentosCache.find(x=>x.id===id);
   if(!l) return;
@@ -7016,6 +7098,9 @@ function abrirEditarPagamento(id){
   document.getElementById('pag_descricao').value = l.descricao || '';
   document.getElementById('pag_data').value = l.data;
   document.getElementById('pag_valor').value = Math.abs(Number(l.valor));
+  const tipoAtual = l.codigo_tipo_id ? pagCaixaTiposCache.find(t=>String(t.id)===String(l.codigo_tipo_id)) : null;
+  document.getElementById('pag_tipo').value = l.codigo_tipo_id || '';
+  document.getElementById('pag_tipo_busca').value = tipoAtual ? labelTipoPagCaixa(tipoAtual) : '';
   document.getElementById('pagamentoErr').style.display = 'none';
   document.getElementById('editPagamentoModal').style.display = 'flex';
 }
@@ -7029,6 +7114,7 @@ async function salvarEdicaoPagamento(){
   const descricao = document.getElementById('pag_descricao').value.trim();
   const data = document.getElementById('pag_data').value;
   const valorBruto = parseFloat(document.getElementById('pag_valor').value);
+  const tipoId = document.getElementById('pag_tipo').value || null;
   const err = document.getElementById('pagamentoErr');
 
   if(!data || isNaN(valorBruto) || valorBruto<=0){
@@ -7044,8 +7130,11 @@ async function salvarEdicaoPagamento(){
   const { data: atualizado, error } = await sb.from('fluxo_caixa_lancamentos').update({
     descricao: descricao || null,
     data: data,
-    valor: -Math.abs(valorBruto)
+    valor: -Math.abs(valorBruto),
+    codigo_tipo_id: tipoId
   }).eq('id', pagamentoEditandoId).select().single();
+
+  if(!error && tipoId && descricao) await gravarMemoriaPagCaixa(descricao, tipoId);
 
   btn.disabled = false;
   btn.textContent = 'Salvar';
@@ -7139,17 +7228,50 @@ let pagCaixaBuscaTexto = '';
 let pagCaixaEditandoId = null;
 let excluindoPagCaixaId = null;
 
+// carrega os 49 códigos de tipo de pagamento uma única vez (reaproveitado por Pagamento no Caixa,
+// Pagamentos e Lançamentos em Dinheiro — é a mesma lista de códigos nos três lugares)
+async function carregarTiposPagCaixaSeNecessario(){
+  if(pagCaixaTiposCache.length>0) return;
+  const { data, error } = await sb.from('pagamentos_caixa_tipos').select('*').order('codigo');
+  pagCaixaTiposCache = error ? [] : (data || []);
+  document.getElementById('pagCaixaTiposDatalist').innerHTML = pagCaixaTiposCache.map(t=>
+    `<option value="${escapeHtml(labelTipoPagCaixa(t))}">`
+  ).join('');
+}
+
+// memória global de sugestão (descrição → código), compartilhada entre Pagamento no Caixa,
+// Pagamentos e Lançamentos em Dinheiro — quanto mais lugares alimentam ela, melhor a sugestão fica
+let mapaMemoriaGlobal = {};
+async function carregarMemoriaGlobal(){
+  const { data } = await buscarTodasLinhas((from, to) =>
+    sb.from('pagamentos_caixa_memoria').select('descricao_normalizada,codigo_tipo_id').range(from, to)
+  );
+  mapaMemoriaGlobal = {};
+  (data||[]).forEach(h=>{ mapaMemoriaGlobal[h.descricao_normalizada] = h.codigo_tipo_id; });
+}
+
+// ao sair do campo Descrição, se a memória já souber o tipo dessa descrição, preenche sozinho —
+// mas só se o campo de tipo ainda estiver vazio (nunca sobrescreve uma escolha manual) e sempre
+// deixa visível pra confirmar antes de salvar, nunca salva escondido
+function aplicarSugestaoTipoPagamento(idDescricao, idTipoBusca, idTipoHidden){
+  const jaTemTipo = document.getElementById(idTipoHidden).value;
+  if(jaTemTipo) return;
+  const descricao = document.getElementById(idDescricao).value.trim().toLowerCase();
+  if(!descricao) return;
+  const tipoId = mapaMemoriaGlobal[descricao];
+  if(!tipoId) return;
+  const tipo = pagCaixaTiposCache.find(t=>String(t.id)===String(tipoId));
+  if(!tipo) return;
+  document.getElementById(idTipoBusca).value = labelTipoPagCaixa(tipo);
+  document.getElementById(idTipoHidden).value = tipo.id;
+}
+
 async function abrirPagamentoCaixa(){
   if(!document.getElementById('pagCaixa_data').value){
     document.getElementById('pagCaixa_data').value = todayStr();
   }
-  if(pagCaixaTiposCache.length===0){
-    const { data, error } = await sb.from('pagamentos_caixa_tipos').select('*').order('codigo');
-    pagCaixaTiposCache = error ? [] : (data || []);
-    document.getElementById('pagCaixaTiposDatalist').innerHTML = pagCaixaTiposCache.map(t=>
-      `<option value="${escapeHtml(labelTipoPagCaixa(t))}">`
-    ).join('');
-  }
+  await carregarTiposPagCaixaSeNecessario();
+  await carregarMemoriaGlobal();
   await popularFiltroMesPagCaixa();
   const mesAtual = new Date().toISOString().slice(0,7);
   document.getElementById('pagCaixaFiltroMes').value = mesAtual;
@@ -7160,6 +7282,7 @@ async function abrirPagamentoCaixa(){
 async function gravarMemoriaPagCaixa(descricao, tipoId){
   const chave = descricao.trim().toLowerCase();
   if(!chave || !tipoId) return;
+  mapaMemoriaGlobal[chave] = tipoId;
   // memória compartilhada entre as duas lojas de propósito — "Água e Esgoto" é o mesmo tipo
   // de pagamento em qualquer loja, não faz sentido classificar de novo em cada uma
   await sb.from('pagamentos_caixa_memoria').upsert({
@@ -9240,6 +9363,7 @@ async function confirmarColarPagCaixa(){
     codigo_tipo_id: l.tipoId,
     atualizado_em: new Date().toISOString()
   }));
+  memoriaRegistros.forEach(m=>{ mapaMemoriaGlobal[m.descricao_normalizada] = m.codigo_tipo_id; });
   await sb.from('pagamentos_caixa_memoria').upsert(memoriaRegistros, { onConflict: 'descricao_normalizada' });
   renderPagamentoCaixa();
   await popularFiltroMesPagCaixa();
