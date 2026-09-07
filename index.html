@@ -425,6 +425,9 @@
           <button class="nav-group-header active-topo" id="navHeaderInicio" onclick="mudarViewPrincipal('inicio')">🏠 Início</button>
         </div>
         <div class="nav-group">
+          <button class="nav-group-header" id="navHeaderChecklist" onclick="mudarViewPrincipal('checklist')">✅ Checklist de Fechamento</button>
+        </div>
+        <div class="nav-group">
           <button class="nav-group-header aberto" id="navHeaderFinanceiro" onclick="toggleNavGroup('financeiro')">💰 Financeiro <span class="chevron">▾</span></button>
           <div class="nav-sub aberto" id="navGroupFinanceiro">
             <button class="nav-sub-item" data-view="contasPagar" onclick="mudarViewPrincipal('contasPagar')">Contas a pagar</button>
@@ -504,7 +507,23 @@
       </div>
     </div>
 
-    <div id="viewContasPagar" style="display:none;">
+    <div id="viewChecklist" style="display:none;">
+      <div class="comp-toolbar">
+        <label style="font-size:11px;text-transform:uppercase;letter-spacing:0.05em;color:var(--muted);">Mês</label>
+        <input id="checklistMes" type="month" onchange="mudarMesChecklist(this.value)">
+        <button type="button" class="importbtn" style="width:auto;margin:0;" onclick="abrirNovoItemChecklist()">+ Novo item do checklist</button>
+      </div>
+
+      <div class="panel" style="margin-bottom:20px;">
+        <div class="panel-head">
+          <h2>✅ Fechamento de <span id="checklistMesTexto"></span> — <span id="checklistLojaNome"></span></h2>
+          <span id="checklistProgresso" style="font-size:13px;color:var(--muted);font-weight:500;"></span>
+        </div>
+        <div id="checklistBody"></div>
+        <div class="empty" id="checklistEmpty" style="display:none;">Nenhum item cadastrado ainda. Clique em "+ Novo item do checklist" pra montar seu processo de fechamento.</div>
+      </div>
+    </div>
+
     <div class="metrics" style="flex-direction:row;margin-bottom:20px;">
       <div class="metric pagar" style="flex:0 0 220px;"><div class="lbl">A pagar (pendente)</div><div class="val" id="totalPagar">R$ 0,00</div><div class="sub" id="subPagar">0 lançamentos</div></div>
       <div class="panel" style="flex:1;padding:16px 20px;">
@@ -1873,6 +1892,27 @@
   </div>
 </div>
 
+<div id="checklistItemModal" class="modal-overlay">
+  <div class="modal-box" style="max-width:460px;">
+    <button class="modal-close" onclick="fecharChecklistItemModal()">✕</button>
+    <h2 id="checklistItemModalTitulo">Novo item do checklist</h2>
+    <div class="fld"><label>O que precisa ser feito</label><input id="checklistItem_titulo" placeholder="Ex: Conferir Combinação de Pagamentos" onkeydown="if(event.key==='Enter'){event.preventDefault();salvarItemChecklist();}"></div>
+    <div class="formerr" id="checklistItemErr">Digite o que precisa ser feito.</div>
+    <button class="addbtn" id="checklistItemSalvarBtn" onclick="salvarItemChecklist()">Salvar</button>
+  </div>
+</div>
+
+<div id="confirmExclusaoChecklistItemModal" class="modal-overlay">
+  <div class="modal-box" style="max-width:420px;">
+    <h2>Excluir item do checklist?</h2>
+    <p class="modal-sub">Isso remove o item do modelo e apaga o histórico de "feito"/observação dele em todos os meses. Essa ação não pode ser desfeita.</p>
+    <div class="modal-actions">
+      <button class="addbtn" style="background:var(--rust);" onclick="confirmarExclusaoChecklistItemOk()">Excluir</button>
+      <button class="cancelbtn" onclick="fecharConfirmacaoExclusaoChecklistItem()">Cancelar</button>
+    </div>
+  </div>
+</div>
+
 <div id="fornecedorModal" class="modal-overlay">
   <div class="modal-box" style="max-width:460px;">
     <button class="modal-close" onclick="fecharFornecedorModal()">✕</button>
@@ -2330,6 +2370,9 @@ function trocarLoja(l){
   }
   if(viewAtual === 'contasPagar' || viewAtual === 'fornecedores'){
     carregarFornecedores();
+  }
+  if(viewAtual === 'checklist'){
+    carregarChecklist();
   }
   if(viewAtual === 'despesasFixas'){
     abrirFixas();
@@ -3636,7 +3679,7 @@ function setEscala(e){
   }
 }
 
-const VIEWS = ['inicio','contasPagar','despesasFixas','comprovantes','diferencaCaixa','fluxoCaixa','pagamentos','pagamentoCaixa','vendasComCusto','bancoHoras','compras','colaboradores','fornecedores','contasBancarias','inventario','contagensEstoque','combinacaoPagamentos'];
+const VIEWS = ['inicio','checklist','contasPagar','despesasFixas','comprovantes','diferencaCaixa','fluxoCaixa','pagamentos','pagamentoCaixa','vendasComCusto','bancoHoras','compras','colaboradores','fornecedores','contasBancarias','inventario','contagensEstoque','combinacaoPagamentos'];
 let colabCarregado = false;
 
 const NAV_GROUPS = {
@@ -3676,13 +3719,14 @@ async function mudarViewPrincipal(view){
   colapsarSidebar();
 
   VIEWS.forEach(v=>{
-    const idMap = { inicio:'viewInicio', contasPagar:'viewContasPagar', despesasFixas:'viewDespesasFixas', comprovantes:'viewComprovantes', diferencaCaixa:'viewDiferencaCaixa', fluxoCaixa:'viewFluxoCaixa', pagamentos:'viewPagamentos', pagamentoCaixa:'viewPagamentoCaixa', vendasComCusto:'viewVendasComCusto', bancoHoras:'viewBancoHoras', compras:'viewCompras', colaboradores:'viewColaboradores', fornecedores:'viewFornecedores', contasBancarias:'viewContasBancarias', inventario:'viewInventario', contagensEstoque:'viewContagensEstoque', combinacaoPagamentos:'viewCombinacaoPagamentos' };
+    const idMap = { inicio:'viewInicio', checklist:'viewChecklist', contasPagar:'viewContasPagar', despesasFixas:'viewDespesasFixas', comprovantes:'viewComprovantes', diferencaCaixa:'viewDiferencaCaixa', fluxoCaixa:'viewFluxoCaixa', pagamentos:'viewPagamentos', pagamentoCaixa:'viewPagamentoCaixa', vendasComCusto:'viewVendasComCusto', bancoHoras:'viewBancoHoras', compras:'viewCompras', colaboradores:'viewColaboradores', fornecedores:'viewFornecedores', contasBancarias:'viewContasBancarias', inventario:'viewInventario', contagensEstoque:'viewContagensEstoque', combinacaoPagamentos:'viewCombinacaoPagamentos' };
     document.getElementById(idMap[v]).style.display = (v===view) ? '' : 'none';
   });
 
   document.querySelectorAll('.nav-sub-item').forEach(b=>b.classList.toggle('active', b.dataset.view===view));
 
   document.getElementById('navHeaderInicio').classList.toggle('active-topo', view==='inicio');
+  document.getElementById('navHeaderChecklist').classList.toggle('active-topo', view==='checklist');
   document.getElementById('navHeaderBancoHoras').classList.toggle('active-topo', view==='bancoHoras');
   document.getElementById('navHeaderCompras').classList.toggle('active-topo', view==='compras');
 
@@ -3711,6 +3755,8 @@ async function mudarViewPrincipal(view){
   }else if(view==='contasPagar'){
     abrirGrupoNav('financeiro');
     carregarFornecedores();
+  }else if(view==='checklist'){
+    await abrirChecklist();
   }else if(view==='vendasComCusto'){
     abrirGrupoNav('vendas');
     await abrirVendas();
@@ -9728,6 +9774,194 @@ async function confirmarExclusaoFornecedorOk(){
     atualizarDatalistFornecedores();
   }
   fecharConfirmacaoFornecedor();
+}
+
+/* ================= CHECKLIST DE FECHAMENTO ================= */
+
+let checklistMesAtual = new Date().toISOString().slice(0,7);
+let checklistItensCache = [];      // modelo (itens cadastrados)
+let checklistExecucoesCache = {};  // { item_id: { id, feito, observacao } } do mês atual
+let checklistItemEditandoId = null;
+let checklistExcluindoId = null;
+
+async function abrirChecklist(){
+  if(!checklistMesAtual) checklistMesAtual = mesAtualPadrao();
+  document.getElementById('checklistMes').value = checklistMesAtual;
+  await carregarChecklist();
+}
+
+function mudarMesChecklist(valor){
+  checklistMesAtual = valor || mesAtualPadrao();
+  carregarChecklist();
+}
+
+async function carregarChecklist(){
+  document.getElementById('checklistLojaNome').textContent = NOMES_LOJA[lojaAtual] || '';
+  const [ano, mes] = checklistMesAtual.split('-');
+  document.getElementById('checklistMesTexto').textContent = (NOMES_MES[parseInt(mes,10)-1]||'') + '/' + ano;
+
+  const { data: itens, error: erroItens } = await sb.from('checklist_itens')
+    .select('*').eq('loja', lojaAtual).eq('ativo', true).order('ordem');
+  if(erroItens){ console.error('Erro ao carregar checklist:', erroItens); checklistItensCache = []; }
+  else checklistItensCache = itens || [];
+
+  checklistExecucoesCache = {};
+  if(checklistItensCache.length>0){
+    const { data: execucoes } = await sb.from('checklist_execucoes')
+      .select('*').eq('loja', lojaAtual).eq('mes', checklistMesAtual);
+    (execucoes||[]).forEach(e=>{ checklistExecucoesCache[e.item_id] = e; });
+  }
+
+  renderChecklist();
+}
+
+function renderChecklist(){
+  const body = document.getElementById('checklistBody');
+  const empty = document.getElementById('checklistEmpty');
+
+  if(checklistItensCache.length===0){
+    body.innerHTML = '';
+    empty.style.display = 'block';
+    document.getElementById('checklistProgresso').textContent = '';
+    return;
+  }
+  empty.style.display = 'none';
+
+  const feitos = checklistItensCache.filter(it => checklistExecucoesCache[it.id]?.feito).length;
+  document.getElementById('checklistProgresso').textContent = feitos + ' de ' + checklistItensCache.length + ' concluídos';
+
+  body.innerHTML = checklistItensCache.map((it, idx)=>{
+    const exec = checklistExecucoesCache[it.id];
+    const feito = !!(exec && exec.feito);
+    return `
+    <div class="contest-row" style="grid-template-columns:36px 1.4fr 1.6fr 90px;${feito ? 'background:rgba(58,107,74,0.06);' : ''}">
+      <div class="campo"><input type="checkbox" ${feito?'checked':''} onchange="toggleChecklistFeito(${it.id}, this.checked)"></div>
+      <div class="campo"><span class="lbl-mobile">Item</span><span style="${feito?'text-decoration:line-through;color:var(--muted);':''}">${escapeHtml(it.titulo)}</span></div>
+      <div class="campo"><span class="lbl-mobile">Observação</span><input class="contest-input" style="width:100%;text-align:left;" placeholder="Observação (opcional)" value="${escapeHtml(exec?.observacao || '')}" onchange="salvarObservacaoChecklist(${it.id}, this.value)"></div>
+      <div class="campo" style="justify-content:flex-end;gap:6px;">
+        <button class="iconbtn" title="Mover pra cima" ${idx===0?'disabled':''} onclick="moverItemChecklist(${it.id}, -1)">▲</button>
+        <button class="iconbtn" title="Mover pra baixo" ${idx===checklistItensCache.length-1?'disabled':''} onclick="moverItemChecklist(${it.id}, 1)">▼</button>
+        <button class="iconbtn edit" title="Editar" onclick="abrirEditarItemChecklist(${it.id})">✎</button>
+        <button class="iconbtn del" title="Excluir" onclick="confirmarExclusaoChecklistItem(${it.id})">✕</button>
+      </div>
+    </div>
+  `;}).join('');
+}
+
+async function toggleChecklistFeito(itemId, feito){
+  const existente = checklistExecucoesCache[itemId];
+  const { data, error } = await sb.from('checklist_execucoes').upsert({
+    id: existente?.id,
+    loja: lojaAtual,
+    mes: checklistMesAtual,
+    item_id: itemId,
+    feito: feito,
+    observacao: existente?.observacao || null,
+    atualizado_em: new Date().toISOString()
+  }, { onConflict: 'loja,mes,item_id' }).select().single();
+
+  if(error){ alert('Erro ao salvar: ' + error.message); return; }
+  checklistExecucoesCache[itemId] = data;
+  renderChecklist();
+}
+
+async function salvarObservacaoChecklist(itemId, texto){
+  const existente = checklistExecucoesCache[itemId];
+  const { data, error } = await sb.from('checklist_execucoes').upsert({
+    id: existente?.id,
+    loja: lojaAtual,
+    mes: checklistMesAtual,
+    item_id: itemId,
+    feito: existente?.feito || false,
+    observacao: texto.trim() || null,
+    atualizado_em: new Date().toISOString()
+  }, { onConflict: 'loja,mes,item_id' }).select().single();
+
+  if(error){ alert('Erro ao salvar: ' + error.message); return; }
+  checklistExecucoesCache[itemId] = data;
+}
+
+async function moverItemChecklist(itemId, direcao){
+  const idx = checklistItensCache.findIndex(it=>it.id===itemId);
+  const novoIdx = idx + direcao;
+  if(novoIdx<0 || novoIdx>=checklistItensCache.length) return;
+
+  const a = checklistItensCache[idx];
+  const b = checklistItensCache[novoIdx];
+  [checklistItensCache[idx], checklistItensCache[novoIdx]] = [b, a];
+  renderChecklist();
+
+  await Promise.all([
+    sb.from('checklist_itens').update({ ordem: novoIdx }).eq('id', a.id),
+    sb.from('checklist_itens').update({ ordem: idx }).eq('id', b.id)
+  ]);
+  await carregarChecklist();
+}
+
+function abrirNovoItemChecklist(){
+  checklistItemEditandoId = null;
+  document.getElementById('checklistItemModalTitulo').textContent = 'Novo item do checklist';
+  document.getElementById('checklistItem_titulo').value = '';
+  document.getElementById('checklistItemErr').style.display = 'none';
+  document.getElementById('checklistItemModal').style.display = 'flex';
+}
+
+function abrirEditarItemChecklist(id){
+  const it = checklistItensCache.find(x=>x.id===id);
+  if(!it) return;
+  checklistItemEditandoId = id;
+  document.getElementById('checklistItemModalTitulo').textContent = 'Editar item do checklist';
+  document.getElementById('checklistItem_titulo').value = it.titulo;
+  document.getElementById('checklistItemErr').style.display = 'none';
+  document.getElementById('checklistItemModal').style.display = 'flex';
+}
+
+function fecharChecklistItemModal(){
+  document.getElementById('checklistItemModal').style.display = 'none';
+}
+
+async function salvarItemChecklist(){
+  const btn = document.getElementById('checklistItemSalvarBtn');
+  if(btn.disabled) return; // trava contra chamada dupla
+  const titulo = document.getElementById('checklistItem_titulo').value.trim();
+  const err = document.getElementById('checklistItemErr');
+  if(!titulo){
+    err.textContent = 'Digite o que precisa ser feito.';
+    err.style.display = 'block';
+    return;
+  }
+  err.style.display = 'none';
+  btn.disabled = true;
+
+  if(checklistItemEditandoId){
+    const { error } = await sb.from('checklist_itens').update({ titulo }).eq('id', checklistItemEditandoId);
+    btn.disabled = false;
+    if(error){ err.textContent = 'Erro ao salvar: ' + error.message; err.style.display = 'block'; return; }
+  }else{
+    const proximaOrdem = checklistItensCache.length>0 ? Math.max(...checklistItensCache.map(i=>i.ordem||0)) + 1 : 0;
+    const { error } = await sb.from('checklist_itens').insert({ loja: lojaAtual, titulo, ordem: proximaOrdem });
+    btn.disabled = false;
+    if(error){ err.textContent = 'Erro ao salvar: ' + error.message; err.style.display = 'block'; return; }
+  }
+
+  fecharChecklistItemModal();
+  await carregarChecklist();
+}
+
+function confirmarExclusaoChecklistItem(id){
+  checklistExcluindoId = id;
+  document.getElementById('confirmExclusaoChecklistItemModal').style.display = 'flex';
+}
+function fecharConfirmacaoExclusaoChecklistItem(){
+  document.getElementById('confirmExclusaoChecklistItemModal').style.display = 'none';
+  checklistExcluindoId = null;
+}
+async function confirmarExclusaoChecklistItemOk(){
+  if(!checklistExcluindoId) return;
+  const { error } = await sb.from('checklist_itens').delete().eq('id', checklistExcluindoId);
+  fecharConfirmacaoExclusaoChecklistItem();
+  if(error){ alert('Erro ao excluir: ' + error.message); return; }
+  await carregarChecklist();
 }
 
 async function selecionarFuncionario(id){
