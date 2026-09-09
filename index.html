@@ -5244,6 +5244,7 @@ let fluxoContasCache = [];
 let fluxoContaAtivaId = CONTA_SEM_ID;
 let fluxoCache = [];
 let fluxoExtratoAtual = [];
+let fluxoExtratoTodasContasAtual = []; // usado no Relatório único, que junta TODAS as contas, não só a aba aberta
 let fluxoDinheiroAtual = [];
 let fluxoFormasAtual = [];
 let fluxoPorFormaLinhasAtual = {};
@@ -5955,12 +5956,15 @@ function mudarPeriodoDinheiro(){
   carregarFluxoCaixa();
 }
 
-function classificarFormaPagamentoVenda(tipo, descricao){
+function classificarFormaPagamentoVenda(tipo, descricao, ehContaComVendas){
   const t = (tipo||'').toUpperCase();
   const d = (descricao||'').toUpperCase();
   const texto = t + ' ' + d;
-  // Pix recebido diretamente (transferência avulsa via chave), diferente do Pix pago na maquininha/QR de venda
-  if(t.includes('PIX RECEBIDO')) return 'Pix via chave';
+  // "Pix via chave" só existe em contas que também têm o tipo "VENDAS" (padrão PagSeguro/maquininha) —
+  // nessas contas, "PIX RECEBIDO" é uma transferência avulsa separada das vendas.
+  // Em contas de banco comum (Sicoob, etc.) não existe essa distinção — lá, todo Pix recebido é só "Pix",
+  // mesmo que o histórico do banco diga "PIX RECEBIDO" (é assim que o banco descreve qualquer Pix, venda ou não).
+  if(ehContaComVendas && t.includes('PIX RECEBIDO')) return 'Pix via chave';
   if(texto.includes('PIX')) return 'Pix';
   if(texto.includes('BOLETO')) return 'Boleto';
   if(t.includes('ANTECIPA')) return 'Cartão Crédito';
@@ -5990,6 +5994,7 @@ function renderFluxoCaixa(){
 
   // "Total de Entradas e Saídas" e Projeção somam TODAS as contas juntas, não só a conta ativa
   const todosExtratoContas = fluxoCache.filter(l=>l.tipo!=='Dinheiro');
+  fluxoExtratoTodasContasAtual = todosExtratoContas; // também usado no Relatório único (PDF/Excel completo)
   const totalEntradasTodasContas = todosExtratoContas.filter(l=>Number(l.valor)>0).reduce((s,l)=>s+Number(l.valor), 0);
   const totalSaidasTodasContas = todosExtratoContas.filter(l=>Number(l.valor)<0).reduce((s,l)=>s+Math.abs(Number(l.valor)), 0);
 
@@ -5998,13 +6003,15 @@ function renderFluxoCaixa(){
   document.getElementById('fluxoSaldoLiquido').textContent = brl(saldo);
 
   const entradasClassificaveis = fluxoCache.filter(l=>Number(l.valor)>0);
+  // detecta quais contas têm o padrão PagSeguro (tipo "VENDAS"), pra só nessas separar "Pix via chave"
+  const contasComVendas = new Set(fluxoCache.filter(l=>(l.tipo||'').toUpperCase()==='VENDAS').map(l=>l.conta_id));
   const porForma = {};
   const porFormaLinhas = {};
   entradasClassificaveis.forEach(v=>{
     let forma;
     if((v.tipo||'').toUpperCase().includes('RENDIMENTO DA CONTA')) forma = 'Rendimento da conta';
     else if(v.tipo==='Dinheiro') forma = 'Dinheiro';
-    else forma = classificarFormaPagamentoVenda(v.tipo, v.descricao);
+    else forma = classificarFormaPagamentoVenda(v.tipo, v.descricao, contasComVendas.has(v.conta_id));
     porForma[forma] = (porForma[forma]||0) + Number(v.valor);
     if(!porFormaLinhas[forma]) porFormaLinhas[forma] = [];
     porFormaLinhas[forma].push(v);
@@ -6308,7 +6315,7 @@ function exportarPdfTotalFluxo(){
 /* ---------- Relatório único (extrato + dinheiro juntos) ---------- */
 
 function montarListaFluxoCompleto(){
-  return [...fluxoExtratoAtual, ...fluxoDinheiroAtual]
+  return [...fluxoExtratoTodasContasAtual, ...fluxoDinheiroAtual]
     .slice()
     .sort((a,b)=> a.data.localeCompare(b.data));
 }
@@ -6320,8 +6327,8 @@ function exportarExcelFluxoCompleto(){
 
   const dinheiroEnt = fluxoDinheiroAtual.filter(l=>Number(l.valor)>0).reduce((s,l)=>s+Number(l.valor),0);
   const dinheiroSai = fluxoDinheiroAtual.filter(l=>Number(l.valor)<0).reduce((s,l)=>s+Math.abs(Number(l.valor)),0);
-  const extratoEnt = fluxoExtratoAtual.filter(l=>Number(l.valor)>0).reduce((s,l)=>s+Number(l.valor),0);
-  const extratoSai = fluxoExtratoAtual.filter(l=>Number(l.valor)<0).reduce((s,l)=>s+Math.abs(Number(l.valor)),0);
+  const extratoEnt = fluxoExtratoTodasContasAtual.filter(l=>Number(l.valor)>0).reduce((s,l)=>s+Number(l.valor),0);
+  const extratoSai = fluxoExtratoTodasContasAtual.filter(l=>Number(l.valor)<0).reduce((s,l)=>s+Math.abs(Number(l.valor)),0);
 
   const resumo = [
     ['Período', textoPeriodoFluxo()],
@@ -6335,7 +6342,7 @@ function exportarExcelFluxoCompleto(){
   const cabecalho = ['Data','Origem','Tipo','Descrição','Valor'];
   const linhas = todos.map(l=>[
     fmtData(l.data),
-    l.tipo==='Dinheiro' ? 'Dinheiro' : 'Extrato bancário',
+    l.tipo==='Dinheiro' ? 'Dinheiro' : nomeDaContaFluxo(l.conta_id || CONTA_SEM_ID),
     l.tipo,
     l.descricao || '—',
     brl(l.valor)
@@ -6356,8 +6363,8 @@ function exportarPdfFluxoCompleto(){
 
   const dinheiroEnt = fluxoDinheiroAtual.filter(l=>Number(l.valor)>0).reduce((s,l)=>s+Number(l.valor),0);
   const dinheiroSai = fluxoDinheiroAtual.filter(l=>Number(l.valor)<0).reduce((s,l)=>s+Math.abs(Number(l.valor)),0);
-  const extratoEnt = fluxoExtratoAtual.filter(l=>Number(l.valor)>0).reduce((s,l)=>s+Number(l.valor),0);
-  const extratoSai = fluxoExtratoAtual.filter(l=>Number(l.valor)<0).reduce((s,l)=>s+Math.abs(Number(l.valor)),0);
+  const extratoEnt = fluxoExtratoTodasContasAtual.filter(l=>Number(l.valor)>0).reduce((s,l)=>s+Number(l.valor),0);
+  const extratoSai = fluxoExtratoTodasContasAtual.filter(l=>Number(l.valor)<0).reduce((s,l)=>s+Math.abs(Number(l.valor)),0);
 
   doc.autoTable({
     startY: 32,
@@ -6374,7 +6381,7 @@ function exportarPdfFluxoCompleto(){
     theme: 'grid'
   });
 
-  const corpo = todos.map(l=>[fmtData(l.data), l.tipo==='Dinheiro'?'Dinheiro':'Extrato', l.tipo, l.descricao||'—', brl(l.valor)]);
+  const corpo = todos.map(l=>[fmtData(l.data), l.tipo==='Dinheiro'?'Dinheiro':nomeDaContaFluxo(l.conta_id || CONTA_SEM_ID), l.tipo, l.descricao||'—', brl(l.valor)]);
   const totalEnt = todos.filter(l=>Number(l.valor)>0).reduce((s,l)=>s+Number(l.valor),0);
   const totalSai = todos.filter(l=>Number(l.valor)<0).reduce((s,l)=>s+Math.abs(Number(l.valor)),0);
   doc.autoTable({
@@ -9852,7 +9859,6 @@ function renderChecklist(){
 async function toggleChecklistFeito(itemId, feito){
   const existente = checklistExecucoesCache[itemId];
   const { data, error } = await sb.from('checklist_execucoes').upsert({
-    id: existente?.id,
     loja: lojaAtual,
     mes: checklistMesAtual,
     item_id: itemId,
@@ -9869,7 +9875,6 @@ async function toggleChecklistFeito(itemId, feito){
 async function salvarObservacaoChecklist(itemId, texto){
   const existente = checklistExecucoesCache[itemId];
   const { data, error } = await sb.from('checklist_execucoes').upsert({
-    id: existente?.id,
     loja: lojaAtual,
     mes: checklistMesAtual,
     item_id: itemId,
