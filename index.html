@@ -1428,9 +1428,9 @@
             </div>
             <div class="fld"><label>Descrição</label><input id="dinheiro_descricao" placeholder="Ex: Venda balcão, Troco motoboy" onkeydown="if(event.key==='Enter'){event.preventDefault();document.getElementById('dinheiro_data').focus();}" onblur="aplicarSugestaoTipoPagamento('dinheiro_descricao','dinheiro_categoria_busca','dinheiro_categoria')"></div>
             <div class="fld"><label>Data</label><input id="dinheiro_data" type="date" onkeydown="if(event.key==='Enter'){event.preventDefault();document.getElementById('dinheiro_valor').focus();}"></div>
-            <div class="fld"><label>Valor (R$)</label><input id="dinheiro_valor" type="number" step="0.01" min="0" placeholder="0,00" onkeydown="if(event.key==='Enter'){event.preventDefault();salvarLancamentoDinheiro();}"></div>
+            <div class="fld"><label>Valor (R$)</label><input id="dinheiro_valor" type="number" step="0.01" min="0" placeholder="0,00" onkeydown="if(event.key==='Enter'){event.preventDefault();document.getElementById('dinheiro_categoria_busca').focus();document.getElementById('dinheiro_categoria_busca').select();}"></div>
             <div class="fld"><label>Categoria (opcional)</label>
-              <input id="dinheiro_categoria_busca" list="pagCaixaTiposDatalist" placeholder="Digite pra buscar..." autocomplete="off" oninput="matchTipoPagCaixa('dinheiro_categoria_busca','dinheiro_categoria')">
+              <input id="dinheiro_categoria_busca" list="pagCaixaTiposDatalist" placeholder="Digite pra buscar..." autocomplete="off" oninput="matchTipoPagCaixa('dinheiro_categoria_busca','dinheiro_categoria')" onkeydown="if(event.key==='Enter'){event.preventDefault();matchTipoPagCaixa('dinheiro_categoria_busca','dinheiro_categoria');salvarLancamentoDinheiro();}">
               <input type="hidden" id="dinheiro_categoria">
             </div>
             <button class="addbtn" id="addbtnDinheiro" style="width:auto;" onclick="salvarLancamentoDinheiro()">Adicionar</button>
@@ -2090,9 +2090,9 @@
     </div>
     <div class="fld"><label>Descrição</label><input id="edinheiro_descricao" placeholder="Ex: Venda balcão, Troco motoboy" onkeydown="if(event.key==='Enter'){event.preventDefault();document.getElementById('edinheiro_data').focus();}"></div>
     <div class="fld"><label>Data</label><input id="edinheiro_data" type="date" onkeydown="if(event.key==='Enter'){event.preventDefault();document.getElementById('edinheiro_valor').focus();}"></div>
-    <div class="fld"><label>Valor (R$)</label><input id="edinheiro_valor" type="number" step="0.01" min="0" placeholder="0,00" onkeydown="if(event.key==='Enter'){event.preventDefault();salvarEdicaoDinheiro();}"></div>
+    <div class="fld"><label>Valor (R$)</label><input id="edinheiro_valor" type="number" step="0.01" min="0" placeholder="0,00" onkeydown="if(event.key==='Enter'){event.preventDefault();document.getElementById('edinheiro_categoria_busca').focus();document.getElementById('edinheiro_categoria_busca').select();}"></div>
     <div class="fld"><label>Categoria (opcional)</label>
-      <input id="edinheiro_categoria_busca" list="pagCaixaTiposDatalist" placeholder="Digite pra buscar..." autocomplete="off" oninput="matchTipoPagCaixa('edinheiro_categoria_busca','edinheiro_categoria')">
+      <input id="edinheiro_categoria_busca" list="pagCaixaTiposDatalist" placeholder="Digite pra buscar..." autocomplete="off" oninput="matchTipoPagCaixa('edinheiro_categoria_busca','edinheiro_categoria')" onkeydown="if(event.key==='Enter'){event.preventDefault();matchTipoPagCaixa('edinheiro_categoria_busca','edinheiro_categoria');salvarEdicaoDinheiro();}">
       <input type="hidden" id="edinheiro_categoria">
     </div>
     <div class="formerr" id="edinheiroErr">Preencha descrição, data e um valor maior que zero.</div>
