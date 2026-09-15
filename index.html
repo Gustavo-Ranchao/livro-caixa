@@ -1991,7 +1991,7 @@
     <h2>Confirmar pagamento?</h2>
     <p class="modal-sub" id="confirmPagamentoCaixaTexto">Isso vai marcar essas contas como pagas.</p>
     <div class="modal-actions">
-      <button class="addbtn" onclick="confirmarPagamentoCaixaOk()">Confirmar</button>
+      <button class="addbtn" id="confirmPagamentoCaixaBtn" onclick="confirmarPagamentoCaixaOk()">Confirmar</button>
       <button class="cancelbtn" onclick="fecharConfirmacaoPagamentoCaixa()">Cancelar</button>
     </div>
   </div>
@@ -2099,6 +2099,22 @@
     <div class="modal-actions" style="margin-top:16px;">
       <button class="addbtn" id="edinheiroSalvarBtn" onclick="salvarEdicaoDinheiro()">Salvar</button>
       <button class="cancelbtn" onclick="fecharEditarDinheiro()">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<div id="editExtratoModal" class="modal-overlay">
+  <div class="modal-box" style="max-width:420px;">
+    <button class="modal-close" onclick="fecharEditarExtrato()">✕</button>
+    <h2>Editar lançamento do extrato</h2>
+    <div class="fld"><label>Data</label><input id="editExtrato_data" type="text" disabled style="background:var(--paper2);"></div>
+    <div class="fld"><label>Tipo (original do banco)</label><input id="editExtrato_tipo" type="text" disabled style="background:var(--paper2);"></div>
+    <div class="fld"><label>Valor</label><input id="editExtrato_valor" type="text" disabled style="background:var(--paper2);"></div>
+    <div class="fld"><label>Descrição</label><input id="editExtrato_descricao" placeholder="Ex: nome do fornecedor" onkeydown="if(event.key==='Enter'){event.preventDefault();salvarEdicaoExtrato();}"></div>
+    <div class="formerr" id="editExtratoErr">Erro ao salvar.</div>
+    <div class="modal-actions" style="margin-top:16px;">
+      <button class="addbtn" id="editExtratoSalvarBtn" onclick="salvarEdicaoExtrato()">Salvar</button>
+      <button class="cancelbtn" onclick="fecharEditarExtrato()">Cancelar</button>
     </div>
   </div>
 </div>
@@ -2901,6 +2917,7 @@ async function addLancamento(){
   document.getElementById('f_contato').value = '';
   document.getElementById('f_valor').value = '';
   document.getElementById('f_venc').value = '';
+  document.getElementById('f_contato').focus();
   render();
 }
 
@@ -2933,6 +2950,34 @@ async function sincronizarPagamentoDinheiro(item){
     valor: -Math.abs(Number(item.valor)),
     lancamento_origem_id: item.id
   });
+}
+
+// versão em lote — usada ao confirmar várias contas de uma vez (ex: "Já paguei essas contas").
+// faz só 2 idas ao banco no total (1 select + 1 insert), não importa quantas contas tenham
+// sido confirmadas, em vez de ficar indo e voltando uma conta de cada vez (o que deixava a
+// tela travada por muito tempo com listas grandes)
+async function sincronizarPagamentosDinheiroEmLote(itens){
+  if(itens.length===0) return;
+  const idsOrigem = itens.map(it=>it.id);
+  const { data: existentes } = await sb.from('fluxo_caixa_lancamentos')
+    .select('lancamento_origem_id')
+    .in('lancamento_origem_id', idsOrigem);
+  const jaSincronizados = new Set((existentes||[]).map(e=>e.lancamento_origem_id));
+
+  const novos = itens
+    .filter(it=>!jaSincronizados.has(it.id))
+    .map(it=>({
+      loja: it.loja,
+      data: it.data_pagamento || todayStr(),
+      tipo: 'Dinheiro',
+      descricao: it.contato || it.descricao,
+      valor: -Math.abs(Number(it.valor)),
+      lancamento_origem_id: it.id
+    }));
+
+  if(novos.length>0){
+    await sb.from('fluxo_caixa_lancamentos').insert(novos);
+  }
 }
 
 async function setFormaPagamento(id, forma){
@@ -3141,11 +3186,16 @@ function fecharConfirmacaoPagamentoCaixa(){
 }
 
 async function confirmarPagamentoCaixaOk(){
+  const btn = document.getElementById('confirmPagamentoCaixaBtn');
+  if(btn.disabled) return; // trava contra clique duplo
   const forma = formaPagamentoCaixaPendente;
   if(!forma) return;
   const dados = lancamentosDaLoja().filter(x=>x.tipo==='pagar' && x.status!=='pago' && x.forma_pagamento===forma);
   const ids = dados.map(x=>x.id);
   if(ids.length===0){ fecharConfirmacaoPagamentoCaixa(); return; }
+
+  btn.disabled = true;
+  btn.textContent = 'Confirmando…';
 
   const hoje = todayStr();
   const { data: atualizados, error } = await sb.from('lancamentos')
@@ -3160,11 +3210,12 @@ async function confirmarPagamentoCaixaOk(){
     });
     render();
     if(forma==='dinheiro'){
-      for(const item of atualizados){
-        await sincronizarPagamentoDinheiro(item);
-      }
+      await sincronizarPagamentosDinheiroEmLote(atualizados);
     }
   }
+
+  btn.disabled = false;
+  btn.textContent = 'Confirmar';
   fecharConfirmacaoPagamentoCaixa();
 }
 
@@ -5477,6 +5528,57 @@ function fecharEditarDinheiro(){
   editandoDinheiroId = null;
 }
 
+// edição da descrição de um lançamento do extrato bancário (útil pra corrigir
+// saídas que caem em "Sem descrição" — bancos como o Sicoob nem sempre trazem
+// o nome de quem foi pago em toda transação)
+let editandoExtratoId = null;
+function abrirEditarExtrato(id){
+  const l = fluxoCache.find(x=>x.id===id);
+  if(!l) return;
+  editandoExtratoId = id;
+  document.getElementById('editExtrato_data').value = fmtData(l.data);
+  document.getElementById('editExtrato_tipo').value = l.tipo || '—';
+  document.getElementById('editExtrato_valor').value = brl(l.valor);
+  document.getElementById('editExtrato_descricao').value = l.descricao || '';
+  document.getElementById('editExtratoErr').style.display = 'none';
+  document.getElementById('editExtratoModal').style.display = 'flex';
+  setTimeout(()=>document.getElementById('editExtrato_descricao').focus(), 50);
+}
+
+function fecharEditarExtrato(){
+  document.getElementById('editExtratoModal').style.display = 'none';
+  editandoExtratoId = null;
+}
+
+async function salvarEdicaoExtrato(){
+  const btn = document.getElementById('editExtratoSalvarBtn');
+  if(btn.disabled) return; // trava contra chamada dupla
+  const descricao = document.getElementById('editExtrato_descricao').value.trim().toUpperCase();
+  const err = document.getElementById('editExtratoErr');
+
+  btn.disabled = true;
+  btn.textContent = 'Salvando…';
+
+  const { data: atualizado, error } = await sb.from('fluxo_caixa_lancamentos')
+    .update({ descricao: descricao || null })
+    .eq('id', editandoExtratoId)
+    .select().single();
+
+  btn.disabled = false;
+  btn.textContent = 'Salvar';
+
+  if(error){
+    err.textContent = 'Erro ao salvar: ' + error.message;
+    err.style.display = 'block';
+    return;
+  }
+
+  const idx = fluxoCache.findIndex(l=>l.id===editandoExtratoId);
+  if(idx>-1) fluxoCache[idx] = atualizado;
+  fecharEditarExtrato();
+  renderFluxoCaixa();
+}
+
 async function salvarEdicaoDinheiro(){
   const btnTravado = document.getElementById('edinheiroSalvarBtn');
   if(btnTravado.disabled) return; // trava contra chamada dupla
@@ -6081,7 +6183,10 @@ function renderFluxoCaixa(){
         <td>${escapeHtml(l.tipo)}</td>
         <td class="contato">${escapeHtml(l.descricao || '—')}</td>
         <td class="valor" style="color:${Number(l.valor)<0?'var(--rust)':'var(--green)'};">${brl(l.valor)}</td>
-        <td><button class="iconbtn del" title="Excluir" onclick="confirmarExclusaoFluxo('${l.id}')">✕</button></td>
+        <td><div class="rowactions">
+          <button class="iconbtn edit" title="Editar descrição" onclick="abrirEditarExtrato('${l.id}')">✎</button>
+          <button class="iconbtn del" title="Excluir" onclick="confirmarExclusaoFluxo('${l.id}')">✕</button>
+        </div></td>
       </tr>
     `).join('');
   }
