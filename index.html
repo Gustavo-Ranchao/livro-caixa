@@ -6706,9 +6706,9 @@ function renderCompras(){
       <div class="campo"><span class="lbl-mobile">Embalagem</span>${embalagemLabel}</div>
       <div class="campo"><span class="lbl-mobile">Mín. (un)</span>${p.estoque_min_unidades ?? 0}</div>
       <div class="campo"><span class="lbl-mobile">Mín. (emb)</span>${p.estoque_min_caixas ?? 0}</div>
-      <div class="campo"><span class="lbl-mobile">Atual (un)</span><input class="comprar-input" type="number" min="0" step="1" value="${p.estoque_atual_unidades ?? 0}" onchange="atualizarEstoqueAtual('${p.id}', 'estoque_atual_unidades', this.value)"></div>
-      <div class="campo"><span class="lbl-mobile">Atual (emb)</span><input class="comprar-input" type="number" min="0" step="1" value="${p.estoque_atual_caixas ?? 0}" onchange="atualizarEstoqueAtual('${p.id}', 'estoque_atual_caixas', this.value)"></div>
-      <div class="campo"><span class="lbl-mobile">Comprar</span><input class="comprar-input ${temFalta?'tem-falta':''}" type="number" min="0" step="1" value="${p.quantidade_comprar ?? 0}" onchange="atualizarQuantidadeComprar('${p.id}', this.value)"></div>
+      <div class="campo"><span class="lbl-mobile">Atual (un)</span><input class="comprar-input" data-compra-campo="estoque_atual_unidades" data-produto-id="${p.id}" type="number" min="0" step="1" value="${p.estoque_atual_unidades ?? 0}" onchange="atualizarEstoqueAtual('${p.id}', 'estoque_atual_unidades', this.value)" onkeydown="avancarCompraAoEnter(event, '${p.id}', 'estoque_atual_unidades')"></div>
+      <div class="campo"><span class="lbl-mobile">Atual (emb)</span><input class="comprar-input" data-compra-campo="estoque_atual_caixas" data-produto-id="${p.id}" type="number" min="0" step="1" value="${p.estoque_atual_caixas ?? 0}" onchange="atualizarEstoqueAtual('${p.id}', 'estoque_atual_caixas', this.value)" onkeydown="avancarCompraAoEnter(event, '${p.id}', 'estoque_atual_caixas')"></div>
+      <div class="campo"><span class="lbl-mobile">Comprar</span><input class="comprar-input ${temFalta?'tem-falta':''}" data-compra-campo="quantidade_comprar" data-produto-id="${p.id}" type="number" min="0" step="1" value="${p.quantidade_comprar ?? 0}" onchange="atualizarQuantidadeComprar('${p.id}', this.value)" onkeydown="avancarCompraAoEnter(event, '${p.id}', 'quantidade_comprar')"></div>
       <div class="campo"><span class="lbl-mobile">Ações</span><div class="rowactions">
         <button class="iconbtn edit" title="Editar" onclick="abrirEditarProduto('${p.id}')">✎</button>
         <button class="iconbtn del" title="Excluir" onclick="confirmarExclusaoProduto('${p.id}')">✕</button>
@@ -6839,14 +6839,43 @@ async function atualizarQuantidadeComprar(id, valor){
   }
 }
 
+async function avancarCompraAoEnter(event, id, campo){
+  if(event.key !== 'Enter') return;
+  event.preventDefault();
+
+  const campos = Array.from(document.querySelectorAll(`[data-compra-campo="${campo}"]`));
+  const indiceAtual = campos.findIndex(input=>input.dataset.produtoId===id);
+  const proximoId = indiceAtual >= 0 && indiceAtual < campos.length - 1
+    ? campos[indiceAtual + 1].dataset.produtoId
+    : null;
+  const valor = event.currentTarget.value;
+
+  if(campo === 'quantidade_comprar'){
+    await atualizarQuantidadeComprar(id, valor);
+  }else{
+    await atualizarEstoqueAtual(id, campo, valor);
+  }
+
+  if(proximoId){
+    const proximoCampo = document.querySelector(`[data-compra-campo="${campo}"][data-produto-id="${proximoId}"]`);
+    if(proximoCampo){
+      proximoCampo.focus();
+      proximoCampo.select();
+    }
+  }
+}
+
 async function atualizarEstoqueAtual(id, campo, valor){
   const num = parseFloat(valor);
   const v = isNaN(num) || num<0 ? 0 : num;
   const p = comprasProdutos.find(x=>x.id===id);
 
   const atualizacao = { [campo]: v, revisado: true };
-  if(campo === 'estoque_atual_caixas' && p){
-    atualizacao.quantidade_comprar = Math.max(0, Number(p.estoque_min_caixas||0) - v);
+  if(p){
+    const estoqueMinimo = campo === 'estoque_atual_unidades'
+      ? Number(p.estoque_min_unidades||0)
+      : Number(p.estoque_min_caixas||0);
+    atualizacao.quantidade_comprar = Math.max(0, estoqueMinimo - v);
   }
 
   const { error } = await sb.from('compras_produtos').update(atualizacao).eq('id', id);
