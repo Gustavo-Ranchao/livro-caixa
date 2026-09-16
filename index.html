@@ -6706,9 +6706,9 @@ function renderCompras(){
       <div class="campo"><span class="lbl-mobile">Embalagem</span>${embalagemLabel}</div>
       <div class="campo"><span class="lbl-mobile">Mín. (un)</span>${p.estoque_min_unidades ?? 0}</div>
       <div class="campo"><span class="lbl-mobile">Mín. (emb)</span>${p.estoque_min_caixas ?? 0}</div>
-      <div class="campo"><span class="lbl-mobile">Atual (un)</span><input class="comprar-input" data-compra-campo="estoque_atual_unidades" data-produto-id="${p.id}" type="number" min="0" step="1" value="${p.estoque_atual_unidades ?? 0}" onchange="atualizarEstoqueAtual('${p.id}', 'estoque_atual_unidades', this.value)" onkeydown="avancarCompraAoEnter(event, '${p.id}', 'estoque_atual_unidades')"></div>
-      <div class="campo"><span class="lbl-mobile">Atual (emb)</span><input class="comprar-input" data-compra-campo="estoque_atual_caixas" data-produto-id="${p.id}" type="number" min="0" step="1" value="${p.estoque_atual_caixas ?? 0}" onchange="atualizarEstoqueAtual('${p.id}', 'estoque_atual_caixas', this.value)" onkeydown="avancarCompraAoEnter(event, '${p.id}', 'estoque_atual_caixas')"></div>
-      <div class="campo"><span class="lbl-mobile">Comprar</span><input class="comprar-input ${temFalta?'tem-falta':''}" data-compra-campo="quantidade_comprar" data-produto-id="${p.id}" type="number" min="0" step="1" value="${p.quantidade_comprar ?? 0}" onchange="atualizarQuantidadeComprar('${p.id}', this.value)" onkeydown="avancarCompraAoEnter(event, '${p.id}', 'quantidade_comprar')"></div>
+      <div class="campo"><span class="lbl-mobile">Atual (un)</span><input class="comprar-input" data-compra-campo="estoque_atual_unidades" data-produto-id="${p.id}" type="number" min="0" step="1" value="${p.estoque_atual_unidades ?? 0}" onblur="atualizarEstoqueAtual('${p.id}', 'estoque_atual_unidades', this.value)" onkeydown="avancarCompraAoEnter(event, '${p.id}', 'estoque_atual_unidades')"></div>
+      <div class="campo"><span class="lbl-mobile">Atual (emb)</span><input class="comprar-input" data-compra-campo="estoque_atual_caixas" data-produto-id="${p.id}" type="number" min="0" step="1" value="${p.estoque_atual_caixas ?? 0}" onblur="atualizarEstoqueAtual('${p.id}', 'estoque_atual_caixas', this.value)" onkeydown="avancarCompraAoEnter(event, '${p.id}', 'estoque_atual_caixas')"></div>
+      <div class="campo"><span class="lbl-mobile">Comprar</span><input class="comprar-input ${temFalta?'tem-falta':''}" data-compra-campo="quantidade_comprar" data-produto-id="${p.id}" type="number" min="0" step="1" value="${p.quantidade_comprar ?? 0}" onblur="atualizarQuantidadeComprar('${p.id}', this.value)" onkeydown="avancarCompraAoEnter(event, '${p.id}', 'quantidade_comprar')"></div>
       <div class="campo"><span class="lbl-mobile">Ações</span><div class="rowactions">
         <button class="iconbtn edit" title="Editar" onclick="abrirEditarProduto('${p.id}')">✎</button>
         <button class="iconbtn del" title="Excluir" onclick="confirmarExclusaoProduto('${p.id}')">✕</button>
@@ -6831,37 +6831,33 @@ async function confirmarZerarComprarOk(){
 async function atualizarQuantidadeComprar(id, valor){
   const num = parseFloat(valor);
   const v = isNaN(num) || num<0 ? 0 : num;
-  const { error } = await sb.from('compras_produtos').update({ quantidade_comprar: v }).eq('id', id);
-  if(!error){
-    const p = comprasProdutos.find(x=>x.id===id);
-    if(p) p.quantidade_comprar = v;
-    renderCompras();
+  const p = comprasProdutos.find(x=>x.id===id);
+  if(p) p.quantidade_comprar = v;
+  const input = document.querySelector(`[data-compra-campo="quantidade_comprar"][data-produto-id="${id}"]`);
+  if(input){
+    input.value = v;
+    input.classList.toggle('tem-falta', v > 0);
   }
+  const { error } = await sb.from('compras_produtos').update({ quantidade_comprar: v }).eq('id', id);
+  if(error) console.error('Erro ao salvar quantidade a comprar:', error);
 }
 
-async function avancarCompraAoEnter(event, id, campo){
+function avancarCompraAoEnter(event, id, campo){
   if(event.key !== 'Enter') return;
   event.preventDefault();
+  event.stopPropagation();
 
   const campos = Array.from(document.querySelectorAll(`[data-compra-campo="${campo}"]`));
   const indiceAtual = campos.findIndex(input=>input.dataset.produtoId===id);
-  const proximoId = indiceAtual >= 0 && indiceAtual < campos.length - 1
-    ? campos[indiceAtual + 1].dataset.produtoId
+  const proximoCampo = indiceAtual >= 0 && indiceAtual < campos.length - 1
+    ? campos[indiceAtual + 1]
     : null;
-  const valor = event.currentTarget.value;
 
-  if(campo === 'quantidade_comprar'){
-    await atualizarQuantidadeComprar(id, valor);
+  if(proximoCampo){
+    proximoCampo.focus({ preventScroll: true });
+    proximoCampo.select();
   }else{
-    await atualizarEstoqueAtual(id, campo, valor);
-  }
-
-  if(proximoId){
-    const proximoCampo = document.querySelector(`[data-compra-campo="${campo}"][data-produto-id="${proximoId}"]`);
-    if(proximoCampo){
-      proximoCampo.focus();
-      proximoCampo.select();
-    }
+    event.currentTarget.blur();
   }
 }
 
@@ -6878,12 +6874,16 @@ async function atualizarEstoqueAtual(id, campo, valor){
     atualizacao.quantidade_comprar = Math.max(0, estoqueMinimo - v);
   }
 
-  const { error } = await sb.from('compras_produtos').update(atualizacao).eq('id', id);
-  if(!error && p){
+  if(p){
     Object.assign(p, atualizacao);
-    renderComprasNav();
-    renderCompras();
+    const inputComprar = document.querySelector(`[data-compra-campo="quantidade_comprar"][data-produto-id="${id}"]`);
+    if(inputComprar){
+      inputComprar.value = atualizacao.quantidade_comprar;
+      inputComprar.classList.toggle('tem-falta', atualizacao.quantidade_comprar > 0);
+    }
   }
+  const { error } = await sb.from('compras_produtos').update(atualizacao).eq('id', id);
+  if(error) console.error('Erro ao salvar estoque atual:', error);
 }
 
 function popularSelectEmpresaProduto(selecionarId){
