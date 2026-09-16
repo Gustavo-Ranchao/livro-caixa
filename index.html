@@ -3,6 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="referrer" content="strict-origin-when-cross-origin">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'self'; object-src 'none'; form-action 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://cdn.sheetjs.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob: https://qgpkswienjhfkbipiwio.supabase.co; connect-src 'self' https://qgpkswienjhfkbipiwio.supabase.co wss://qgpkswienjhfkbipiwio.supabase.co; worker-src 'self' blob:; manifest-src 'self'; upgrade-insecure-requests">
 <title>Livro-Caixa</title>
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#26332b">
@@ -14,9 +16,9 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.8/dist/umd/supabase.js" crossorigin="anonymous"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js" crossorigin="anonymous"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.23/jspdf.plugin.autotable.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
@@ -52,47 +54,50 @@
 
   /* ---------- App shell ---------- */
   .shell{display:none;min-height:100vh;}
-  .shell.on{display:grid;grid-template-columns:340px 1fr;}
-  @media (min-width:901px){
-    .shell.on.sidebar-collapsed{grid-template-columns:0 1fr;}
-  }
-  .shell.sidebar-collapsed .sidebar{display:none;}
-  .sidebar-colapsar-btn{background:transparent;border:none;color:var(--muted);font-size:15px;cursor:pointer;padding:4px 6px;border-radius:6px;flex-shrink:0;}
-  .sidebar-colapsar-btn:hover{background:#fff;color:var(--ink);}
-  .sidebar-reabrir-btn{position:fixed;top:16px;left:16px;z-index:60;background:var(--ink);color:var(--paper);border:none;border-radius:8px;width:40px;height:40px;font-size:16px;cursor:pointer;box-shadow:0 2px 10px rgba(0,0,0,0.18);align-items:center;justify-content:center;}
-  .sidebar-reabrir-btn:hover{background:var(--gold);}
-
-  .sidebar{background:var(--paper2);border-right:1px solid var(--paper3);position:sticky;top:0;height:100vh;display:flex;flex-direction:column;}
-  .sidebar-top{padding:28px 26px 16px;overflow-y:auto;flex:1;min-height:0;}
-  .brand{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:2px;}
+  .shell.on{display:block;}
+  .top-navigation{position:sticky;top:0;z-index:40;background:var(--paper2);border-bottom:1px solid var(--paper3);box-shadow:0 3px 14px rgba(38,51,43,.07);}
+  .top-navigation-head{display:flex;align-items:center;gap:22px;padding:12px clamp(18px,3vw,42px);border-bottom:1px solid var(--paper3);}
+  .brand{display:flex;align-items:baseline;justify-content:space-between;flex-shrink:0;}
   .brand h1{font-family:var(--font-voice);font-weight:700;font-size:24px;margin:0;letter-spacing:-0.2px;}
   .brand .mark{width:10px;height:10px;border-radius:50%;background:var(--gold);}
-  input#empresaNome{font-family:var(--font-voice);font-size:13px;font-style:italic;color:var(--muted);border:none;background:transparent;border-bottom:1px dashed var(--line);padding:2px 0;width:100%;outline:none;margin-bottom:22px;}
+  input#empresaNome{font-family:var(--font-voice);font-size:13px;font-style:italic;color:var(--muted);border:none;background:transparent;border-bottom:1px dashed var(--line);padding:4px 0;width:min(220px,22vw);outline:none;}
   input#empresaNome:focus{border-bottom-color:var(--gold);}
 
-  .loja-toggle{display:flex;gap:6px;margin-bottom:22px;background:#fff;border:1px solid var(--paper3);border-radius:8px;padding:4px;}
+  .loja-toggle{display:flex;gap:6px;background:#fff;border:1px solid var(--paper3);border-radius:8px;padding:4px;min-width:210px;}
   .loja-btn{flex:1;font-family:var(--font-sans);font-size:12px;font-weight:500;padding:8px 6px;border:none;background:transparent;color:var(--muted);cursor:pointer;border-radius:6px;transition:.15s;}
   .loja-btn.active{background:var(--ink);color:var(--paper);}
 
-  .app-nav{display:flex;flex-direction:column;gap:4px;}
-  .nav-group-header{width:100%;text-align:left;display:flex;align-items:center;justify-content:space-between;font-family:var(--font-sans);font-size:13.5px;font-weight:600;padding:11px 12px;border:none;background:transparent;color:var(--ink);cursor:pointer;border-radius:7px;transition:background .15s;}
-  .nav-group-header:hover{background:#fff;}
-  .nav-group-header.active-topo{background:#fff;color:var(--ink);}
-  .nav-group-header .chevron{font-size:10px;color:var(--muted);transition:transform .15s;}
-  .nav-group-header.aberto .chevron{transform:rotate(180deg);}
-  .nav-sub{display:none;flex-direction:column;gap:2px;padding:2px 0 8px 14px;}
-  .nav-sub.aberto{display:flex;}
-  .nav-sub-item{width:100%;text-align:left;font-family:var(--font-sans);font-size:13px;padding:9px 12px;border:none;border-left:2px solid var(--paper3);background:transparent;color:var(--muted);cursor:pointer;border-radius:0 6px 6px 0;transition:.15s;}
-  .nav-sub-item:hover{color:var(--ink);background:#fff;}
-  .nav-sub-item.active{color:var(--ink);font-weight:600;border-left-color:var(--gold);background:#fff;}
+  .top-categories{display:flex;align-items:center;gap:2px;padding:0 clamp(12px,3vw,36px);background:#fff;border-bottom:1px solid var(--paper3);overflow-x:auto;scrollbar-width:thin;}
+  .top-category-btn{flex:0 0 auto;font-family:var(--font-sans);font-size:12px;font-weight:600;color:var(--muted);background:transparent;border:none;border-bottom:3px solid transparent;padding:11px 14px 9px;cursor:pointer;white-space:nowrap;}
+  .top-category-btn:hover{color:var(--ink);background:var(--paper);}
+  .top-category-btn.active{color:var(--ink);border-bottom-color:var(--gold);background:var(--paper2);}
+  .top-modules{display:none;align-items:stretch;gap:1px;padding:0 clamp(12px,3vw,36px);background:var(--paper2);overflow-x:auto;scrollbar-width:thin;}
+  .top-modules.open{display:flex;}
+  .top-module-btn{display:none;flex:0 0 132px;min-height:68px;align-items:center;justify-content:center;flex-direction:column;gap:4px;font-family:var(--font-sans);font-size:11.5px;font-weight:600;line-height:1.15;text-align:center;color:var(--ink);background:#fff;border:none;border-right:1px solid var(--paper3);border-bottom:3px solid transparent;padding:8px 10px;cursor:pointer;}
+  .top-module-btn.visible{display:flex;}
+  .top-module-btn:hover{background:var(--paper);}
+  .top-module-btn.active{background:var(--ink);color:var(--paper);border-bottom-color:var(--gold);}
+  .top-module-icon{font-size:22px;line-height:1;}
+  .module-context-bar{display:none;align-items:center;justify-content:flex-end;gap:10px;margin-bottom:20px;padding:10px 14px;background:#fff;border:1px solid var(--paper3);border-radius:9px;position:relative;}
+  .module-context-label{font-family:var(--font-sans);font-size:12px;font-weight:600;color:var(--muted);}
+  .codigo-loja-input{width:150px;font-family:var(--font-mono);font-size:13px;padding:9px 11px;border:1px solid var(--line);border-radius:6px;background:var(--paper);color:var(--ink);}
+  .codigo-loja-input:focus{outline:none;border-color:var(--gold);box-shadow:0 0 0 2px rgba(196,161,78,.12);}
+  .nome-loja-selecionada{min-width:92px;font-family:var(--font-sans);font-size:13px;font-weight:600;color:var(--ink);}
+  .abrir-lojas-btn{font-family:var(--font-mono);font-size:11px;padding:8px 10px;border:1px solid var(--line);border-radius:6px;background:var(--paper2);color:var(--muted);cursor:pointer;}
+  .abrir-lojas-btn:hover{border-color:var(--gold);color:var(--ink);}
+  .lista-lojas-popup{display:none;position:absolute;right:14px;top:52px;width:280px;padding:8px;background:#fff;border:1px solid var(--paper3);border-radius:8px;box-shadow:0 10px 25px rgba(38,51,43,.16);z-index:30;}
+  .lista-lojas-popup.open{display:block;}
+  .lista-lojas-popup button{width:100%;display:flex;justify-content:space-between;align-items:center;padding:10px 12px;border:none;border-radius:6px;background:transparent;font-family:var(--font-sans);font-size:13px;color:var(--ink);cursor:pointer;}
+  .lista-lojas-popup button:hover{background:var(--paper2);}
+  .lista-lojas-popup .codigo{font-family:var(--font-mono);font-weight:700;color:var(--gold);}
 
-  .perfil{position:relative;border-top:1px solid var(--paper3);padding:10px 16px;flex-shrink:0;background:var(--paper2);}
-  .perfil-bar{width:100%;display:flex;align-items:center;gap:10px;background:none;border:none;padding:8px 6px;cursor:pointer;border-radius:8px;transition:background .15s;}
+  .perfil{position:relative;margin-left:auto;flex-shrink:0;}
+  .perfil-bar{display:flex;align-items:center;gap:10px;background:none;border:none;padding:7px 8px;cursor:pointer;border-radius:8px;transition:background .15s;}
   .perfil-bar:hover{background:#fff;}
   .avatar-circle{flex-shrink:0;display:flex;align-items:center;justify-content:center;width:32px;height:32px;border-radius:50%;background:var(--ink);color:var(--paper);font-family:var(--font-voice);font-weight:600;font-size:13px;}
   .perfil-bar-nome{flex:1;text-align:left;font-family:var(--font-sans);font-size:12.5px;font-weight:500;color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
   .perfil-chevron{color:var(--muted);font-size:11px;}
-  .perfil-menu{display:none;position:absolute;bottom:64px;left:16px;right:16px;background:#fff;border:1px solid var(--paper3);border-radius:8px;padding:14px 16px;z-index:20;box-shadow:0 -6px 18px rgba(38,51,43,0.14);}
+  .perfil-menu{display:none;position:absolute;top:48px;right:0;width:260px;background:#fff;border:1px solid var(--paper3);border-radius:8px;padding:14px 16px;z-index:50;box-shadow:0 8px 22px rgba(38,51,43,0.14);}
   .perfil-menu.open{display:block;}
   .perfil-nome{font-family:var(--font-voice);font-size:15px;font-weight:600;color:var(--ink);}
   .perfil-email{font-family:var(--font-mono);font-size:11px;color:var(--muted);margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
@@ -165,14 +170,6 @@
   #colabTable1 th, #colabTable2 th, #contasBancariasTable th{text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:0.05em;color:var(--muted);font-weight:500;padding:8px 16px;background:var(--paper2);}
   #colabTable1 td, #colabTable2 td, #contasBancariasTable td{padding:10px 16px;border-top:1px solid var(--paper3);}
   @media (max-width:900px){ .colab-body{grid-template-columns:1fr;} }
-  .inicio-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:24px;}
-  @media (max-width:900px){ .inicio-grid{grid-template-columns:1fr;} }
-  .inicio-linha{display:flex;justify-content:space-between;align-items:baseline;padding:8px 0;border-top:1px solid var(--paper3);}
-  .inicio-linha:first-child{border-top:none;}
-  .inicio-linha .lbl{font-size:12.5px;color:var(--muted);}
-  .inicio-linha .val{font-family:var(--font-mono);font-size:14px;font-weight:600;}
-  .inicio-vazio{color:var(--muted);font-style:italic;font-size:13px;}
-
   #fluxoFormaTable, #fluxoFornecedorTable{width:100%;border-collapse:collapse;font-size:12.5px;}
   .compras-nav{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;}
   .compras-chip{font-family:var(--font-sans);font-size:12.5px;padding:7px 14px;border:1px solid var(--line);border-radius:20px;background:#fff;color:var(--muted);cursor:pointer;transition:.15s;}
@@ -242,7 +239,7 @@
   .cancelbtn:hover{border-color:var(--ink);color:var(--ink);}
 
   /* ---------- Main ---------- */
-  .main{padding:clamp(20px,3vw,44px);min-width:0;grid-column:2;}
+  .main{padding:clamp(20px,3vw,44px);min-width:0;max-width:1700px;margin:0 auto;}
   .app-tabs{display:flex;gap:8px;margin-bottom:22px;border-bottom:1px solid var(--paper3);}
   .app-tab{font-family:var(--font-sans);font-size:13.5px;font-weight:500;padding:10px 6px;margin-bottom:-1px;border:none;border-bottom:2px solid transparent;background:none;color:var(--muted);cursor:pointer;}
   .app-tab.active{color:var(--ink);border-bottom-color:var(--gold);}
@@ -358,11 +355,14 @@
   .painel-total.receber .valor-total{color:var(--green);}
 
   @media (max-width:900px){
-    .shell.on{grid-template-columns:1fr;}
-    .shell.on.sidebar-collapsed{grid-template-columns:1fr;}
-    .sidebar{position:relative;height:auto;border-right:none;border-bottom:1px solid var(--paper3);}
-    .sidebar-top{overflow-y:visible;flex:none;}
-    .main{grid-column:1;}
+    .top-navigation{position:relative;}
+    .top-navigation-head{flex-wrap:wrap;gap:10px;padding:12px 16px;}
+    input#empresaNome{width:calc(100% - 150px);order:2;}
+    .perfil{order:1;}
+    .top-category-btn{font-size:11.5px;padding-left:11px;padding-right:11px;}
+    .top-module-btn{flex-basis:112px;min-height:62px;}
+    .module-context-bar{justify-content:space-between;}
+    .codigo-loja-input{width:130px;}
   }
   @media (max-width:640px){
     .fld-row{grid-template-columns:1fr;}
@@ -406,104 +406,68 @@
 </div>
 
 <div id="app" class="shell">
-  <button id="sidebarReabrirBtn" class="sidebar-reabrir-btn" onclick="toggleSidebar()" title="Mostrar menu" style="display:none;">☰</button>
-  <div class="sidebar">
-    <div class="sidebar-top">
+  <header class="top-navigation">
+    <div class="top-navigation-head">
       <div class="brand">
         <span style="display:flex;align-items:baseline;gap:6px;"><h1>Livro-Caixa</h1><span class="mark"></span></span>
-        <button id="sidebarColapsarBtn" class="sidebar-colapsar-btn" onclick="toggleSidebar()" title="Esconder menu">☰</button>
       </div>
       <input id="empresaNome" placeholder="Nome da loja" value="">
 
-      <div class="loja-toggle" id="lojaToggle">
-        <button type="button" class="loja-btn active" data-loja="loja1" onclick="trocarLoja('loja1')">Loja 01</button>
-        <button type="button" class="loja-btn" data-loja="loja2" onclick="trocarLoja('loja2')">Loja 02</button>
-      </div>
-
-      <div class="app-nav">
-        <div class="nav-group">
-          <button class="nav-group-header active-topo" id="navHeaderInicio" onclick="mudarViewPrincipal('inicio')">🏠 Início</button>
+      <div class="perfil" id="perfilWrap">
+        <div class="perfil-menu" id="perfilMenu">
+          <div class="perfil-nome" id="perfilNome">—</div>
+          <div class="perfil-email" id="perfilEmail">—</div>
+          <hr>
+          <button id="logoutBtn" onclick="fazerLogout()">Sair</button>
         </div>
-        <div class="nav-group">
-          <button class="nav-group-header" id="navHeaderChecklist" onclick="mudarViewPrincipal('checklist')">✅ Checklist de Fechamento</button>
-        </div>
-        <div class="nav-group">
-          <button class="nav-group-header aberto" id="navHeaderFinanceiro" onclick="toggleNavGroup('financeiro')">💰 Financeiro <span class="chevron">▾</span></button>
-          <div class="nav-sub aberto" id="navGroupFinanceiro">
-            <button class="nav-sub-item" data-view="contasPagar" onclick="mudarViewPrincipal('contasPagar')">Contas a pagar</button>
-            <button class="nav-sub-item" data-view="despesasFixas" onclick="mudarViewPrincipal('despesasFixas')">Despesas fixas</button>
-            <button class="nav-sub-item" data-view="comprovantes" onclick="mudarViewPrincipal('comprovantes')">Comprovantes</button>
-            <button class="nav-sub-item" data-view="diferencaCaixa" onclick="mudarViewPrincipal('diferencaCaixa')">Diferença de Caixa</button>
-            <button class="nav-sub-item" data-view="fluxoCaixa" onclick="mudarViewPrincipal('fluxoCaixa')">Fluxo de Caixa</button>
-            <button class="nav-sub-item" data-view="pagamentos" onclick="mudarViewPrincipal('pagamentos')">Pagamentos</button>
-            <button class="nav-sub-item" data-view="pagamentoCaixa" onclick="mudarViewPrincipal('pagamentoCaixa')">Pagamento no Caixa</button>
-            <button class="nav-sub-item" data-view="combinacaoPagamentos" onclick="mudarViewPrincipal('combinacaoPagamentos')">Combinação de Pagamentos</button>
-          </div>
-        </div>
-        <div class="nav-group">
-          <button class="nav-group-header" id="navHeaderVendas" onclick="toggleNavGroup('vendas')">📊 Vendas <span class="chevron">▾</span></button>
-          <div class="nav-sub" id="navGroupVendas">
-            <button class="nav-sub-item" data-view="vendasComCusto" onclick="mudarViewPrincipal('vendasComCusto')">Vendas com Custo</button>
-          </div>
-        </div>
-        <div class="nav-group">
-          <button class="nav-group-header" id="navHeaderBancoHoras" onclick="mudarViewPrincipal('bancoHoras')">🕐 Banco de Horas</button>
-        </div>
-        <div class="nav-group">
-          <button class="nav-group-header" id="navHeaderCompras" onclick="mudarViewPrincipal('compras')">🛒 Compras</button>
-        </div>
-        <div class="nav-group">
-          <button class="nav-group-header aberto" id="navHeaderEstoque" onclick="toggleNavGroup('estoque')">📦 Estoque <span class="chevron">▾</span></button>
-          <div class="nav-sub aberto" id="navGroupEstoque">
-            <button class="nav-sub-item" data-view="inventario" onclick="mudarViewPrincipal('inventario')">Inventário</button>
-            <button class="nav-sub-item" data-view="contagensEstoque" onclick="mudarViewPrincipal('contagensEstoque')">Contagens de Estoque</button>
-          </div>
-        </div>
-        <div class="nav-group">
-          <button class="nav-group-header" id="navHeaderConfig" onclick="toggleNavGroup('config')">⚙️ Configurações <span class="chevron">▾</span></button>
-          <div class="nav-sub" id="navGroupConfig">
-            <button class="nav-sub-item" data-view="colaboradores" onclick="mudarViewPrincipal('colaboradores')">Colaboradores</button>
-            <button class="nav-sub-item" data-view="fornecedores" onclick="mudarViewPrincipal('fornecedores')">Fornecedores</button>
-            <button class="nav-sub-item" data-view="contasBancarias" onclick="mudarViewPrincipal('contasBancarias')">Contas Bancárias</button>
-          </div>
-        </div>
+        <button class="perfil-bar" id="avatarBtn" onclick="toggleMenuPerfil()">
+          <span class="avatar-circle" id="avatarCircle">?</span>
+          <span class="perfil-bar-nome" id="perfilBarNome">Carregando…</span>
+          <span class="perfil-chevron">⌄</span>
+        </button>
       </div>
     </div>
 
-    <div class="perfil" id="perfilWrap">
-      <div class="perfil-menu" id="perfilMenu">
-        <div class="perfil-nome" id="perfilNome">—</div>
-        <div class="perfil-email" id="perfilEmail">—</div>
-        <hr>
-        <button id="logoutBtn" onclick="fazerLogout()">Sair</button>
-      </div>
-      <button class="perfil-bar" id="avatarBtn" onclick="toggleMenuPerfil()">
-        <span class="avatar-circle" id="avatarCircle">?</span>
-        <span class="perfil-bar-nome" id="perfilBarNome">Carregando…</span>
-        <span class="perfil-chevron">⌃</span>
-      </button>
-    </div>
-  </div>
+    <nav class="top-categories" aria-label="Categorias do sistema">
+      <button class="top-category-btn" data-category="financeiro" onclick="selecionarCategoria('financeiro')">💰 Financeiro</button>
+      <button class="top-category-btn" data-category="vendas" onclick="selecionarCategoria('vendas')">📊 Vendas</button>
+      <button class="top-category-btn" data-category="comprasEstoque" onclick="selecionarCategoria('comprasEstoque')">📦 Compras e Estoque</button>
+      <button class="top-category-btn" data-category="equipe" onclick="selecionarCategoria('equipe')">👥 Equipe</button>
+      <button class="top-category-btn" data-category="cadastros" onclick="selecionarCategoria('cadastros')">🗂️ Cadastros</button>
+      <button class="top-category-btn" data-category="checklist" onclick="selecionarCategoria('checklist')">✅ Checklist</button>
+    </nav>
+
+    <nav class="top-modules" aria-label="Módulos do sistema">
+      <button class="top-module-btn" data-category="financeiro" data-view="contasPagar" onclick="mudarViewPrincipal('contasPagar')"><span class="top-module-icon">📅</span>Contas a pagar</button>
+      <button class="top-module-btn" data-category="financeiro" data-view="despesasFixas" onclick="mudarViewPrincipal('despesasFixas')"><span class="top-module-icon">📌</span>Despesas fixas</button>
+      <button class="top-module-btn" data-category="financeiro" data-view="comprovantes" onclick="mudarViewPrincipal('comprovantes')"><span class="top-module-icon">🧾</span>Comprovantes</button>
+      <button class="top-module-btn" data-category="financeiro" data-view="diferencaCaixa" onclick="mudarViewPrincipal('diferencaCaixa')"><span class="top-module-icon">⚖️</span>Diferença de Caixa</button>
+      <button class="top-module-btn" data-category="financeiro" data-view="fluxoCaixa" onclick="mudarViewPrincipal('fluxoCaixa')"><span class="top-module-icon">💹</span>Fluxo de Caixa</button>
+      <button class="top-module-btn" data-category="financeiro" data-view="pagamentos" onclick="mudarViewPrincipal('pagamentos')"><span class="top-module-icon">💳</span>Pagamentos</button>
+      <button class="top-module-btn" data-category="financeiro" data-view="pagamentoCaixa" onclick="mudarViewPrincipal('pagamentoCaixa')"><span class="top-module-icon">💵</span>Pagamento no Caixa</button>
+      <button class="top-module-btn" data-category="financeiro" data-view="combinacaoPagamentos" onclick="mudarViewPrincipal('combinacaoPagamentos')"><span class="top-module-icon">🔗</span>Combinação</button>
+      <button class="top-module-btn" data-category="vendas" data-view="vendasComCusto" onclick="mudarViewPrincipal('vendasComCusto')"><span class="top-module-icon">📊</span>Vendas com Custo</button>
+      <button class="top-module-btn" data-category="comprasEstoque" data-view="compras" onclick="mudarViewPrincipal('compras')"><span class="top-module-icon">🛒</span>Compras</button>
+      <button class="top-module-btn" data-category="comprasEstoque" data-view="inventario" onclick="mudarViewPrincipal('inventario')"><span class="top-module-icon">📦</span>Inventário</button>
+      <button class="top-module-btn" data-category="comprasEstoque" data-view="contagensEstoque" onclick="mudarViewPrincipal('contagensEstoque')"><span class="top-module-icon">🔢</span>Contagens de Estoque</button>
+      <button class="top-module-btn" data-category="equipe" data-view="bancoHoras" onclick="mudarViewPrincipal('bancoHoras')"><span class="top-module-icon">🕐</span>Banco de Horas</button>
+      <button class="top-module-btn" data-category="equipe" data-view="colaboradores" onclick="mudarViewPrincipal('colaboradores')"><span class="top-module-icon">👥</span>Colaboradores</button>
+      <button class="top-module-btn" data-category="cadastros" data-view="fornecedores" onclick="mudarViewPrincipal('fornecedores')"><span class="top-module-icon">🚚</span>Fornecedores</button>
+      <button class="top-module-btn" data-category="cadastros" data-view="contasBancarias" onclick="mudarViewPrincipal('contasBancarias')"><span class="top-module-icon">🏦</span>Contas Bancárias</button>
+      <button class="top-module-btn" data-category="checklist" data-view="checklist" onclick="mudarViewPrincipal('checklist')"><span class="top-module-icon">✅</span>Checklist de Fechamento</button>
+    </nav>
+  </header>
 
   <div class="main">
-    <div id="viewInicio">
-      <div class="inicio-grid">
-        <div class="panel" style="cursor:pointer;" onclick="mudarViewPrincipal('contasPagar')">
-          <div class="colab-col-head"><span>📋 Contas a pagar</span></div>
-          <div id="inicioContasPagar" style="padding:18px 20px;font-size:13px;color:var(--muted);">Carregando…</div>
-        </div>
-        <div class="panel" style="cursor:pointer;" onclick="mudarViewPrincipal('fluxoCaixa')">
-          <div class="colab-col-head"><span>💰 Fluxo de caixa</span></div>
-          <div id="inicioFluxoCaixa" style="padding:18px 20px;font-size:13px;color:var(--muted);">Carregando…</div>
-        </div>
-        <div class="panel" style="cursor:pointer;" onclick="mudarViewPrincipal('bancoHoras')">
-          <div class="colab-col-head"><span>🕐 Banco de horas</span></div>
-          <div id="inicioBancoHoras" style="padding:18px 20px;font-size:13px;color:var(--muted);">Carregando…</div>
-        </div>
-        <div class="panel" style="cursor:pointer;" onclick="mudarViewPrincipal('vendasComCusto')">
-          <div class="colab-col-head"><span>📊 Vendas</span></div>
-          <div id="inicioVendas" style="padding:18px 20px;font-size:13px;color:var(--muted);">Carregando…</div>
-        </div>
+    <div class="module-context-bar" id="moduleContextBar">
+      <label class="module-context-label" for="codigoLojaModulo">Código da loja:</label>
+      <input class="codigo-loja-input" id="codigoLojaModulo" type="text" inputmode="numeric" list="codigosLoja" maxlength="2" placeholder="01 ou 02" onchange="selecionarLojaPorCodigo(this.value)" onkeydown="atalhoCodigoLoja(event)">
+      <datalist id="codigosLoja"><option value="01">Loja 01</option><option value="02">Loja 02</option></datalist>
+      <span class="nome-loja-selecionada" id="nomeLojaSelecionada">—</span>
+      <button type="button" class="abrir-lojas-btn" onclick="abrirListaLojas()" title="Abrir lista de lojas">Insert</button>
+      <div class="lista-lojas-popup" id="listaLojasPopup">
+        <button type="button" onclick="escolherLojaLista('01')"><span><span class="codigo">01</span> — Loja 01</span><span>›</span></button>
+        <button type="button" onclick="escolherLojaLista('02')"><span><span class="codigo">02</span> — Loja 02</span><span>›</span></button>
       </div>
     </div>
 
@@ -1140,7 +1104,7 @@
       </div>
 
       <label class="comp-upload" id="compUploadArea">
-        <input id="compFileInput" type="file" accept="image/*,.pdf" multiple onchange="onSelecionarComprovantes(this.files)">
+        <input id="compFileInput" type="file" accept=".jpg,.jpeg,.png,.webp,.pdf" multiple onchange="onSelecionarComprovantes(this.files)">
         📎 Clique aqui ou arraste fotos/PDFs de comprovantes para enviar
       </label>
 
@@ -2172,7 +2136,7 @@
     <div class="fld"><label>Observação (opcional)</label><input id="atestado_observacao" placeholder="Ex: CID, motivo, etc."></div>
     <div class="fld">
       <label>Arquivo do atestado (foto ou PDF)</label>
-      <input id="atestado_arquivo" type="file" accept="image/*,.pdf,application/pdf">
+      <input id="atestado_arquivo" type="file" accept=".jpg,.jpeg,.png,.webp,.pdf">
     </div>
     <div class="formerr" id="atestadoErr">Selecione o colaborador, as datas e o arquivo do atestado.</div>
     <button class="addbtn" id="atestadoSalvarBtn" onclick="salvarAtestado()">Salvar</button>
@@ -2373,7 +2337,10 @@ let caixaIniciais = { loja1: 0, loja2: 0 };
 function trocarLoja(l){
   lojaAtual = l;
   try{ localStorage.setItem('lojaAtual', l); }catch(e){}
-  document.querySelectorAll('.loja-btn').forEach(b=>b.classList.toggle('active', b.dataset.loja===l));
+  const campoCodigoLoja = document.getElementById('codigoLojaModulo');
+  if(campoCodigoLoja) campoCodigoLoja.value = l==='loja2' ? '02' : '01';
+  const nomeLoja = document.getElementById('nomeLojaSelecionada');
+  if(nomeLoja) nomeLoja.textContent = l==='loja2' ? 'Loja 02' : 'Loja 01';
   document.getElementById('caixaInicial').value = formatarCampoMoeda(caixaIniciais[l] || 0);
   render();
 
@@ -2445,8 +2412,45 @@ function trocarLoja(l){
   if(viewAtual === 'combinacaoPagamentos'){
     abrirCombinacaoPagamentos();
   }
-  if(viewAtual === 'inicio'){
-    abrirInicio();
+}
+
+function selecionarLojaPorCodigo(valor){
+  const digitado = String(valor || '').trim();
+  const codigo = digitado==='1' ? '01' : (digitado==='2' ? '02' : digitado);
+  if(codigo==='01'){
+    trocarLoja('loja1');
+  }else if(codigo==='02'){
+    trocarLoja('loja2');
+  }else{
+    const campo = document.getElementById('codigoLojaModulo');
+    if(campo){
+      campo.value = '';
+      campo.focus();
+    }
+    document.getElementById('nomeLojaSelecionada').textContent = '—';
+    alert('Informe o código 01 ou 02.');
+  }
+}
+
+function abrirListaLojas(){
+  document.getElementById('listaLojasPopup').classList.toggle('open');
+}
+
+function escolherLojaLista(codigo){
+  document.getElementById('listaLojasPopup').classList.remove('open');
+  document.getElementById('codigoLojaModulo').value = codigo;
+  selecionarLojaPorCodigo(codigo);
+}
+
+function atalhoCodigoLoja(event){
+  if(event.key==='Insert'){
+    event.preventDefault();
+    abrirListaLojas();
+  }else if(event.key==='Enter'){
+    event.preventDefault();
+    event.currentTarget.blur();
+  }else if(event.key==='Escape'){
+    document.getElementById('listaLojasPopup').classList.remove('open');
   }
 }
 
@@ -2599,7 +2603,13 @@ function initSupabase(){
     document.getElementById('li_err').style.display = 'block';
     return false;
   }
-  sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+    auth: {
+      persistSession: true,
+      autoRefreshToken: true,
+      detectSessionInUrl: false
+    }
+  });
   return true;
 }
 
@@ -2677,6 +2687,10 @@ document.addEventListener('click', (e)=>{
   const wrap = document.getElementById('perfilWrap');
   if(wrap && !wrap.contains(e.target)){
     document.getElementById('perfilMenu').classList.remove('open');
+  }
+  const contextoLoja = document.getElementById('moduleContextBar');
+  if(contextoLoja && !contextoLoja.contains(e.target)){
+    document.getElementById('listaLojasPopup').classList.remove('open');
   }
 });
 
@@ -2758,124 +2772,6 @@ async function carregarDados(){
   document.getElementById('caixaInicial').value = formatarCampoMoeda(caixaIniciais[lojaAtual] || 0);
 
   render();
-  await abrirInicio();
-}
-
-async function abrirInicio(){
-  await Promise.all([
-    renderInicioContasPagar(),
-    renderInicioFluxoCaixa(),
-    renderInicioBancoHoras(),
-    renderInicioVendas()
-  ]);
-}
-
-async function renderInicioContasPagar(){
-  const el = document.getElementById('inicioContasPagar');
-  const hoje = todayStr();
-  const daqui7dias = new Date();
-  daqui7dias.setDate(daqui7dias.getDate() + 6);
-  const daqui7diasStr = daqui7dias.toISOString().slice(0,10);
-
-  const pendentes = (lancamentos||[]).filter(l=>l.tipo==='pagar' && l.status!=='pago' && l.loja===lojaAtual);
-  const vencidas = pendentes.filter(l=>l.vencimento < hoje);
-  const estaSemana = pendentes.filter(l=>l.vencimento >= hoje && l.vencimento <= daqui7diasStr);
-
-  const totalVencidas = vencidas.reduce((s,l)=>s+Number(l.valor),0);
-  const totalSemana = estaSemana.reduce((s,l)=>s+Number(l.valor),0);
-
-  el.innerHTML = `
-    <div class="inicio-linha"><span class="lbl">Vencendo essa semana</span><span class="val" style="color:var(--gold);">${estaSemana.length} · ${brl(totalSemana)}</span></div>
-    <div class="inicio-linha"><span class="lbl">Já vencidas</span><span class="val" style="color:${vencidas.length>0?'var(--rust)':'var(--green)'};">${vencidas.length} · ${brl(totalVencidas)}</span></div>
-  `;
-}
-
-async function renderInicioFluxoCaixa(){
-  const el = document.getElementById('inicioFluxoCaixa');
-  const hoje = new Date();
-  const anoMes = hoje.getFullYear() + '-' + String(hoje.getMonth()+1).padStart(2,'0');
-  const primeiroDia = anoMes + '-01';
-
-  const [{ data: saldos }, { data: mesLancamentos }] = await Promise.all([
-    sb.from('fluxo_caixa_saldos').select('*').eq('loja', lojaAtual).order('data', { ascending: false }).limit(1),
-    buscarTodasLinhas((from, to)=>
-      sb.from('fluxo_caixa_lancamentos').select('valor,tipo').eq('loja', lojaAtual).gte('data', primeiroDia).range(from, to)
-    ).then(r=>({ data: r.data }))
-  ]);
-
-  const somenteExtrato = (mesLancamentos||[]).filter(l=>l.tipo!=='Dinheiro');
-  const saldoExtrato = (saldos && saldos.length>0) ? saldos[0] : null;
-  const entradas = somenteExtrato.filter(l=>Number(l.valor)>0).reduce((s,l)=>s+Number(l.valor),0);
-  const saidas = somenteExtrato.filter(l=>Number(l.valor)<0).reduce((s,l)=>s+Math.abs(Number(l.valor)),0);
-  const saldoLiquidoMes = entradas - saidas;
-
-  el.innerHTML = `
-    <div class="inicio-linha"><span class="lbl">Saldo (extrato)</span><span class="val">${saldoExtrato ? brl(saldoExtrato.saldo) : '—'}</span></div>
-    <div class="inicio-linha"><span class="lbl">Líquido do mês</span><span class="val" style="color:${saldoLiquidoMes<0?'var(--rust)':'var(--green)'};">${brl(saldoLiquidoMes)}</span></div>
-  `;
-}
-
-async function renderInicioBancoHoras(){
-  const el = document.getElementById('inicioBancoHoras');
-  const { data: funcs } = await sb.from('bh_funcionarios').select('*').eq('loja', lojaAtual).eq('ativo', true);
-
-  if(!funcs || funcs.length===0){
-    el.innerHTML = '<span class="inicio-vazio">Nenhum colaborador cadastrado.</span>';
-    return;
-  }
-
-  const LIMITE_ALERTA = -120; // -2h
-  const alertas = [];
-
-  for(const f of funcs){
-    const { data: registros } = await sb.from('bh_registros').select('*').eq('funcionario_id', f.id);
-    let acumulado = 0;
-    (registros||[]).forEach(reg=>{
-      let trabalhado;
-      if(reg.tipo_dia==='falta_justificada') trabalhado = f.carga_horaria_diaria_min;
-      else if(reg.tipo_dia==='falta_injustificada') trabalhado = reg.descontar_falta ? 0 : f.carga_horaria_diaria_min;
-      else trabalhado = calcularMinutosTrabalhados(reg);
-      acumulado += trabalhado - f.carga_horaria_diaria_min;
-    });
-    if(acumulado <= LIMITE_ALERTA){
-      alertas.push({ nome: f.nome, saldo: acumulado });
-    }
-  }
-
-  if(alertas.length===0){
-    el.innerHTML = '<span class="inicio-vazio">Nenhum colaborador com saldo muito negativo.</span>';
-    return;
-  }
-
-  alertas.sort((a,b)=>a.saldo-b.saldo);
-  el.innerHTML = alertas.map(a=>`
-    <div class="inicio-linha"><span class="lbl">${escapeHtml(a.nome)}</span><span class="val" style="color:var(--rust);">${fmtMinutosSinal(a.saldo)}</span></div>
-  `).join('');
-}
-
-async function renderInicioVendas(){
-  const el = document.getElementById('inicioVendas');
-  const hoje = new Date();
-  const anoMes = hoje.getFullYear() + '-' + String(hoje.getMonth()+1).padStart(2,'0');
-  const primeiroDia = anoMes + '-01';
-
-  const { data, error } = await buscarTodasLinhas((from, to)=>
-    sb.from('vendas_itens').select('valor_venda,custo').eq('loja', lojaAtual).gte('data', primeiroDia).range(from, to)
-  );
-
-  if(error || !data || data.length===0){
-    el.innerHTML = '<span class="inicio-vazio">Nenhuma venda importada esse mês ainda.</span>';
-    return;
-  }
-
-  const totalVendido = data.reduce((s,v)=>s+Number(v.valor_venda),0);
-  const totalCusto = data.reduce((s,v)=>s+Number(v.custo),0);
-  const lucro = totalVendido - totalCusto;
-
-  el.innerHTML = `
-    <div class="inicio-linha"><span class="lbl">Vendido no mês</span><span class="val" style="color:var(--green);">${brl(totalVendido)}</span></div>
-    <div class="inicio-linha"><span class="lbl">Lucro bruto do mês</span><span class="val" style="color:${lucro<0?'var(--rust)':'var(--green)'};">${brl(lucro)}</span></div>
-  `;
 }
 
 function mostrarErroCarregamento(msg){
@@ -3087,6 +2983,43 @@ function statusEfetivo(it){
 function escapeHtml(s){
   if(!s) return '';
   return s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+const LIMITE_DOCUMENTO_BYTES = 15 * 1024 * 1024;
+const LIMITE_PLANILHA_BYTES = 20 * 1024 * 1024;
+
+function extensaoArquivo(nome){
+  const partes = String(nome || '').toLowerCase().split('.');
+  return partes.length > 1 ? '.' + partes.pop() : '';
+}
+
+function nomeArquivoSeguro(nome){
+  const original = String(nome || 'arquivo').normalize('NFKC');
+  const partes = original.split('.');
+  const ext = partes.length > 1 ? '.' + partes.pop().replace(/[^a-zA-Z0-9]/g, '').slice(0,10) : '';
+  const base = partes.join('.').replace(/[\\/\x00-\x1f\x7f<>:"|?*]+/g, '_').replace(/\s+/g, '_').replace(/\.+/g, '.').slice(0,100) || 'arquivo';
+  return base + ext.toLowerCase();
+}
+
+function validarArquivoLocal(arquivo, categoria){
+  if(!arquivo) return 'Nenhum arquivo foi selecionado.';
+  const ext = extensaoArquivo(arquivo.name);
+  const permitidas = categoria === 'planilha' ? ['.xlsx', '.xls', '.csv'] : ['.jpg', '.jpeg', '.png', '.webp', '.pdf'];
+  const limite = categoria === 'planilha' ? LIMITE_PLANILHA_BYTES : LIMITE_DOCUMENTO_BYTES;
+  if(!permitidas.includes(ext)) return 'Tipo de arquivo não permitido: ' + arquivo.name;
+  if(arquivo.size <= 0) return 'O arquivo está vazio: ' + arquivo.name;
+  if(arquivo.size > limite) return 'O arquivo "' + arquivo.name + '" excede o limite de ' + Math.round(limite / 1024 / 1024) + ' MB.';
+  const tipo = String(arquivo.type || '').toLowerCase();
+  if(tipo.includes('svg') || tipo.includes('html') || tipo.includes('javascript')) return 'Conteúdo de arquivo não permitido: ' + arquivo.name;
+  return '';
+}
+
+function validarListaArquivos(fileList, categoria){
+  for(const arquivo of Array.from(fileList || [])){
+    const erro = validarArquivoLocal(arquivo, categoria);
+    if(erro) return erro;
+  }
+  return '';
 }
 
 function obterItensPagarFiltrados(){
@@ -3708,7 +3641,7 @@ async function confirmarImport(){
 
 /* ================= BANCO DE HORAS ================= */
 
-let viewAtual = 'inicio';
+let viewAtual = null;
 let usuarioEmailAtual = null;
 let bhCarregado = false;
 let bhFuncionarios = [];
@@ -3731,108 +3664,97 @@ function setEscala(e){
   }
 }
 
-const VIEWS = ['inicio','checklist','contasPagar','despesasFixas','comprovantes','diferencaCaixa','fluxoCaixa','pagamentos','pagamentoCaixa','vendasComCusto','bancoHoras','compras','colaboradores','fornecedores','contasBancarias','inventario','contagensEstoque','combinacaoPagamentos'];
+const VIEWS = ['checklist','contasPagar','despesasFixas','comprovantes','diferencaCaixa','fluxoCaixa','pagamentos','pagamentoCaixa','vendasComCusto','bancoHoras','compras','colaboradores','fornecedores','contasBancarias','inventario','contagensEstoque','combinacaoPagamentos'];
 let colabCarregado = false;
 
-const NAV_GROUPS = {
-  financeiro: { header: 'navHeaderFinanceiro', sub: 'navGroupFinanceiro' },
-  vendas: { header: 'navHeaderVendas', sub: 'navGroupVendas' },
-  estoque: { header: 'navHeaderEstoque', sub: 'navGroupEstoque' },
-  config: { header: 'navHeaderConfig', sub: 'navGroupConfig' }
+const CATEGORIA_POR_VIEW = {
+  contasPagar:'financeiro', despesasFixas:'financeiro', comprovantes:'financeiro',
+  diferencaCaixa:'financeiro', fluxoCaixa:'financeiro', pagamentos:'financeiro',
+  pagamentoCaixa:'financeiro', combinacaoPagamentos:'financeiro',
+  vendasComCusto:'vendas',
+  compras:'comprasEstoque', inventario:'comprasEstoque', contagensEstoque:'comprasEstoque',
+  bancoHoras:'equipe', colaboradores:'equipe',
+  fornecedores:'cadastros', contasBancarias:'cadastros',
+  checklist:'checklist'
 };
+const VIEW_IDS = { checklist:'viewChecklist', contasPagar:'viewContasPagar', despesasFixas:'viewDespesasFixas', comprovantes:'viewComprovantes', diferencaCaixa:'viewDiferencaCaixa', fluxoCaixa:'viewFluxoCaixa', pagamentos:'viewPagamentos', pagamentoCaixa:'viewPagamentoCaixa', vendasComCusto:'viewVendasComCusto', bancoHoras:'viewBancoHoras', compras:'viewCompras', colaboradores:'viewColaboradores', fornecedores:'viewFornecedores', contasBancarias:'viewContasBancarias', inventario:'viewInventario', contagensEstoque:'viewContagensEstoque', combinacaoPagamentos:'viewCombinacaoPagamentos' };
 
-function toggleSidebar(){
-  const shell = document.getElementById('app');
-  const colapsado = shell.classList.toggle('sidebar-collapsed');
-  document.getElementById('sidebarReabrirBtn').style.display = colapsado ? 'flex' : 'none';
-}
-function colapsarSidebar(){
-  document.getElementById('app').classList.add('sidebar-collapsed');
-  document.getElementById('sidebarReabrirBtn').style.display = 'flex';
+let categoriaMenuAberta = null;
+
+function selecionarCategoria(categoria){
+  viewAtual = null;
+  VIEWS.forEach(v=>document.getElementById(VIEW_IDS[v]).style.display = 'none');
+  document.getElementById('moduleContextBar').style.display = 'none';
+  document.querySelectorAll('.top-module-btn').forEach(btn=>btn.classList.remove('active'));
+  categoriaMenuAberta = categoriaMenuAberta===categoria ? null : categoria;
+  document.querySelectorAll('.top-category-btn').forEach(btn=>{
+    btn.classList.toggle('active', btn.dataset.category===categoria);
+  });
+  document.querySelectorAll('.top-module-btn').forEach(btn=>{
+    btn.classList.toggle('visible', categoriaMenuAberta===categoria && btn.dataset.category===categoria);
+  });
+  document.querySelector('.top-modules').classList.toggle('open', !!categoriaMenuAberta);
 }
 
-function toggleNavGroup(grupo){
-  const g = NAV_GROUPS[grupo];
-  const sub = document.getElementById(g.sub);
-  const header = document.getElementById(g.header);
-  const abrir = !sub.classList.contains('aberto');
-  sub.classList.toggle('aberto', abrir);
-  header.classList.toggle('aberto', abrir);
-}
-
-function abrirGrupoNav(grupo){
-  const g = NAV_GROUPS[grupo];
-  document.getElementById(g.sub).classList.add('aberto');
-  document.getElementById(g.header).classList.add('aberto');
+function fecharMenuModulos(view){
+  const categoria = CATEGORIA_POR_VIEW[view] || 'financeiro';
+  categoriaMenuAberta = null;
+  document.querySelectorAll('.top-category-btn').forEach(btn=>{
+    btn.classList.toggle('active', btn.dataset.category===categoria);
+  });
+  document.querySelectorAll('.top-module-btn').forEach(btn=>btn.classList.remove('visible'));
+  document.querySelector('.top-modules').classList.remove('open');
 }
 
 async function mudarViewPrincipal(view){
   viewAtual = view;
-  colapsarSidebar();
+  fecharMenuModulos(view);
+  const barraContexto = document.getElementById('moduleContextBar');
+  barraContexto.style.display = 'flex';
+  document.getElementById('codigoLojaModulo').value = lojaAtual==='loja2' ? '02' : '01';
+  document.getElementById('nomeLojaSelecionada').textContent = lojaAtual==='loja2' ? 'Loja 02' : 'Loja 01';
 
   VIEWS.forEach(v=>{
-    const idMap = { inicio:'viewInicio', checklist:'viewChecklist', contasPagar:'viewContasPagar', despesasFixas:'viewDespesasFixas', comprovantes:'viewComprovantes', diferencaCaixa:'viewDiferencaCaixa', fluxoCaixa:'viewFluxoCaixa', pagamentos:'viewPagamentos', pagamentoCaixa:'viewPagamentoCaixa', vendasComCusto:'viewVendasComCusto', bancoHoras:'viewBancoHoras', compras:'viewCompras', colaboradores:'viewColaboradores', fornecedores:'viewFornecedores', contasBancarias:'viewContasBancarias', inventario:'viewInventario', contagensEstoque:'viewContagensEstoque', combinacaoPagamentos:'viewCombinacaoPagamentos' };
-    document.getElementById(idMap[v]).style.display = (v===view) ? '' : 'none';
+    document.getElementById(VIEW_IDS[v]).style.display = (v===view) ? '' : 'none';
   });
 
-  document.querySelectorAll('.nav-sub-item').forEach(b=>b.classList.toggle('active', b.dataset.view===view));
+  document.querySelectorAll('.top-module-btn').forEach(b=>b.classList.toggle('active', b.dataset.view===view));
 
-  document.getElementById('navHeaderInicio').classList.toggle('active-topo', view==='inicio');
-  document.getElementById('navHeaderChecklist').classList.toggle('active-topo', view==='checklist');
-  document.getElementById('navHeaderBancoHoras').classList.toggle('active-topo', view==='bancoHoras');
-  document.getElementById('navHeaderCompras').classList.toggle('active-topo', view==='compras');
-
-  if(view==='inicio'){
-    await abrirInicio();
-  }else if(view==='despesasFixas'){
-    abrirGrupoNav('financeiro');
+  if(view==='despesasFixas'){
     await abrirFixas();
   }else if(view==='comprovantes'){
-    abrirGrupoNav('financeiro');
     await abrirComprovantes();
   }else if(view==='diferencaCaixa'){
-    abrirGrupoNav('financeiro');
     await abrirDiferencaCaixa();
   }else if(view==='fluxoCaixa'){
-    abrirGrupoNav('financeiro');
     document.getElementById('loadingScreen').style.display = 'flex';
     await abrirFluxoCaixa();
     document.getElementById('loadingScreen').style.display = 'none';
   }else if(view==='pagamentos'){
-    abrirGrupoNav('financeiro');
     await abrirPagamentos();
   }else if(view==='pagamentoCaixa'){
-    abrirGrupoNav('financeiro');
     await abrirPagamentoCaixa();
   }else if(view==='contasPagar'){
-    abrirGrupoNav('financeiro');
     carregarFornecedores();
   }else if(view==='checklist'){
     await abrirChecklist();
   }else if(view==='vendasComCusto'){
-    abrirGrupoNav('vendas');
     await abrirVendas();
   }else if(view==='bancoHoras'){
     if(!bhCarregado) await carregarFuncionarios();
   }else if(view==='compras'){
     await carregarCompras();
   }else if(view==='colaboradores'){
-    abrirGrupoNav('config');
     await carregarColaboradores();
   }else if(view==='fornecedores'){
-    abrirGrupoNav('config');
     await carregarFornecedores();
   }else if(view==='contasBancarias'){
-    abrirGrupoNav('config');
     await carregarContasBancarias();
   }else if(view==='inventario'){
-    abrirGrupoNav('estoque');
     await abrirInventario();
   }else if(view==='contagensEstoque'){
-    abrirGrupoNav('estoque');
     await abrirContagensEstoque();
   }else if(view==='combinacaoPagamentos'){
-    abrirGrupoNav('financeiro');
     abrirCombinacaoPagamentos();
   }
 }
@@ -3936,7 +3858,7 @@ function renderAtestados(){
       <div class="campo" style="text-align:right;"><span class="lbl-mobile">Dias</span><span>${diasAtestado(a.data_inicio, a.data_fim)}</span></div>
       <div class="campo"><span class="lbl-mobile">Observação</span><span>${escapeHtml(a.observacao || '—')}</span></div>
       <div class="campo" style="justify-content:flex-end;gap:8px;">
-        <button class="iconbtn" title="Ver arquivo" onclick="abrirArquivoAtestado('${escapeHtml(a.caminho_storage)}')">🖼️</button>
+        <button class="iconbtn" title="Ver arquivo" data-caminho="${escapeHtml(a.caminho_storage)}" onclick="abrirArquivoAtestado(this.dataset.caminho)">🖼️</button>
         <button class="iconbtn del" title="Excluir" onclick="confirmarExclusaoAtestado(${a.id})">✕</button>
       </div>
     </div>
@@ -3979,6 +3901,12 @@ async function salvarAtestado(){
     err.style.display = 'block';
     return;
   }
+  const erroArquivo = validarArquivoLocal(arquivo, 'documento');
+  if(erroArquivo){
+    err.textContent = erroArquivo;
+    err.style.display = 'block';
+    return;
+  }
   if(dataFim < dataInicio){
     err.textContent = 'A data de fim não pode ser antes da data de início.';
     err.style.display = 'block';
@@ -3988,7 +3916,7 @@ async function salvarAtestado(){
   btn.disabled = true;
   btn.textContent = 'Salvando…';
 
-  const caminho = 'atestados/' + lojaAtual + '/' + Date.now() + '_' + Math.random().toString(36).slice(2,8) + '_' + arquivo.name;
+  const caminho = 'atestados/' + lojaAtual + '/' + Date.now() + '_' + Math.random().toString(36).slice(2,8) + '_' + nomeArquivoSeguro(arquivo.name);
   const { error: erroUpload } = await sb.storage.from('comprovantes').upload(caminho, arquivo);
   if(erroUpload){
     btn.disabled = false;
@@ -4245,12 +4173,14 @@ async function renderComprovantesGrid(){
 async function onSelecionarComprovantes(fileList){
   const arquivos = Array.from(fileList || []);
   if(arquivos.length===0) return;
+  const erroArquivos = validarListaArquivos(arquivos, 'documento');
+  if(erroArquivos){ alert(erroArquivos); document.getElementById('compFileInput').value = ''; return; }
 
   abrirProgresso('Enviando comprovante(s)…');
 
   for(let i=0; i<arquivos.length; i++){
     const arquivo = arquivos[i];
-    const caminho = lojaAtual + '/' + compMesAtual + '/' + Date.now() + '_' + Math.random().toString(36).slice(2,8) + '_' + arquivo.name;
+    const caminho = lojaAtual + '/' + compMesAtual + '/' + Date.now() + '_' + Math.random().toString(36).slice(2,8) + '_' + nomeArquivoSeguro(arquivo.name);
     const { error: erroUpload } = await sb.storage.from('comprovantes').upload(caminho, arquivo);
     if(erroUpload){
       alert('Erro ao enviar "' + arquivo.name + '": ' + erroUpload.message);
@@ -4849,6 +4779,8 @@ function extrairDataDoNomeArquivo(nome){
 async function onSelecionarArquivosVendas(fileList){
   const arquivos = Array.from(fileList || []);
   if(arquivos.length===0) return;
+  const erroArquivos = validarListaArquivos(arquivos, 'planilha');
+  if(erroArquivos){ alert(erroArquivos); document.getElementById('vendasFileInput').value = ''; return; }
   if(!window.XLSX){
     alert('Não foi possível carregar o leitor de planilhas. Recarregue a página e tente de novo.');
     return;
@@ -5829,6 +5761,8 @@ function processarExtratoFormatoMercadoPago(linhas, idxCabecalho, cabecalhoTexto
 async function onSelecionarArquivosFluxo(fileList){
   const arquivos = Array.from(fileList || []);
   if(arquivos.length===0) return;
+  const erroArquivos = validarListaArquivos(arquivos, 'planilha');
+  if(erroArquivos){ alert(erroArquivos); document.getElementById('fluxoFileInput').value = ''; return; }
   if(!window.XLSX){
     alert('Não foi possível carregar o leitor de planilhas. Recarregue a página e tente de novo.');
     return;
@@ -8167,6 +8101,8 @@ async function onSelecionarContagemEstoque(fileList){
   contEstParsed = null;
 
   if(!arquivo) return;
+  const erroArquivo = validarArquivoLocal(arquivo, 'planilha');
+  if(erroArquivo){ err.textContent = erroArquivo; err.style.display = 'block'; document.getElementById('contEstFileInput').value = ''; return; }
   document.getElementById('contEstUploadStatus').textContent = arquivo.name;
 
   if(!window.XLSX){
@@ -8597,6 +8533,8 @@ function parseDataComb(valor){
 async function onSelecionarComprasComb(fileList){
   const file = fileList[0];
   if(!file) return;
+  const erroArquivo = validarArquivoLocal(file, 'planilha');
+  if(erroArquivo){ alert(erroArquivo); document.getElementById('combPagComprasInput').value = ''; return; }
   if(!window.XLSX){ alert('Não foi possível carregar o leitor de planilhas. Recarregue a página e tente de novo.'); return; }
 
   const buffer = await file.arrayBuffer();
@@ -8642,6 +8580,8 @@ async function onSelecionarComprasComb(fileList){
 async function onSelecionarPagamentosComb(fileList){
   const file = fileList[0];
   if(!file) return;
+  const erroArquivo = validarArquivoLocal(file, 'planilha');
+  if(erroArquivo){ alert(erroArquivo); document.getElementById('combPagPagamentosInput').value = ''; return; }
   if(!window.XLSX){ alert('Não foi possível carregar o leitor de planilhas. Recarregue a página e tente de novo.'); return; }
 
   const buffer = await file.arrayBuffer();
