@@ -210,6 +210,12 @@
 
   .comp-toolbar{display:flex;gap:12px;align-items:center;margin-bottom:20px;flex-wrap:wrap;}
   .comp-toolbar input[type="month"]{font-family:var(--font-sans);font-size:13px;padding:9px 12px;border:1px solid var(--paper3);border-radius:8px;background:#fff;color:var(--ink);}
+  .comp-email-btn{background:var(--ink)!important;color:#fff!important;border-color:var(--ink)!important;}
+  .comp-email-resumo{font-size:12px;color:var(--muted);line-height:1.55;padding:11px 13px;background:var(--paper);border:1px solid var(--paper3);border-radius:8px;margin-bottom:15px;}
+  .comp-email-status{display:none;font-size:12px;line-height:1.5;padding:10px 12px;border-radius:7px;margin-top:12px;}
+  .comp-email-status.info{display:block;color:#1e40af;background:#e8f0ff;border:1px solid #bfdbfe;}
+  .comp-email-status.erro{display:block;color:#991b1b;background:#fee2e2;border:1px solid #fecaca;}
+  .comp-email-status.sucesso{display:block;color:#166534;background:#dcfce7;border:1px solid #bbf7d0;}
   .comp-upload{display:block;border:2px dashed var(--line);border-radius:10px;padding:24px;text-align:center;color:var(--muted);font-size:13px;cursor:pointer;background:#fff;transition:.15s;margin-bottom:20px;}
 
   .vendas-toolbar{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:20px;background:#fff;border:1px solid var(--paper3);border-radius:10px;padding:16px 20px;}
@@ -1180,6 +1186,7 @@
         <label style="font-size:11px;text-transform:uppercase;letter-spacing:0.05em;color:var(--muted);">Mês</label>
         <input id="compMes" type="month" onchange="mudarMesComprovantes(this.value)">
         <button type="button" class="filter-btn foto-btn" onclick="baixarTodosComprovantes()" title="Baixar todos os comprovantes desse mês em um .zip">🗜️ Baixar tudo (.zip)</button>
+        <button type="button" class="filter-btn comp-email-btn" onclick="abrirEnvioComprovantes()" title="Enviar os comprovantes anexados por e-mail">✉️ Enviar por e-mail</button>
       </div>
 
       <label class="comp-upload" id="compUploadArea">
@@ -2262,6 +2269,23 @@
     <div class="modal-actions">
       <button class="addbtn" style="background:var(--rust);" onclick="confirmarExclusaoComprovanteOk()">Excluir</button>
       <button class="cancelbtn" onclick="fecharConfirmacaoComprovante()">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<div id="enviarComprovantesModal" class="modal-overlay">
+  <div class="modal-box" style="max-width:620px;">
+    <button class="modal-close" onclick="fecharEnvioComprovantes()">✕</button>
+    <h2>Enviar comprovantes por e-mail</h2>
+    <p class="modal-sub">Os comprovantes serão compactados e enviados como anexos. Se necessário, o sistema dividirá o conteúdo em mais de um e-mail.</p>
+    <div id="compEmailResumo" class="comp-email-resumo"></div>
+    <div class="fld"><label>E-mail da contabilidade</label><input id="compEmailDestinatario" class="sem-maiuscula" type="email" maxlength="180" placeholder="contabilidade@empresa.com"></div>
+    <div class="fld"><label>Assunto</label><input id="compEmailAssunto" class="sem-maiuscula" maxlength="180"></div>
+    <div class="fld"><label>Mensagem</label><textarea id="compEmailMensagem" class="sem-maiuscula" style="width:100%;min-height:130px;resize:vertical;font-family:var(--font-sans);font-size:13px;line-height:1.5;padding:11px 12px;border:1px solid var(--line);border-radius:7px;background:#fff;color:var(--ink);"></textarea></div>
+    <div id="compEmailStatus" class="comp-email-status"></div>
+    <div class="modal-actions" style="margin-top:18px;">
+      <button id="compEmailEnviarBtn" class="addbtn" onclick="enviarComprovantesPorEmail()">Enviar comprovantes</button>
+      <button class="cancelbtn" onclick="fecharEnvioComprovantes()">Cancelar</button>
     </div>
   </div>
 </div>
@@ -4410,6 +4434,183 @@ async function baixarTodosComprovantes(){
   link.click();
   URL.revokeObjectURL(link.href);
   setTimeout(fecharProgresso, 400);
+}
+
+const COMP_EMAIL_PARTE_ALVO_BYTES = 14 * 1024 * 1024;
+const COMP_EMAIL_ARQUIVO_MAX_BYTES = 18 * 1024 * 1024;
+
+function rotuloMesComprovantes(chave){
+  const partes = String(chave || '').split('-');
+  if(partes.length!==2) return chave || '';
+  const indice = Number(partes[1]) - 1;
+  return (NOMES_MES[indice] || partes[1]) + ' de ' + partes[0];
+}
+
+function nomeLojaParaEmail(){
+  return NOMES_LOJA[lojaAtual] || (lojaAtual==='loja2' ? 'Loja 02' : 'Loja 01');
+}
+
+function atualizarStatusEmail(tipo, texto){
+  const el = document.getElementById('compEmailStatus');
+  el.className = 'comp-email-status' + (tipo ? ' ' + tipo : '');
+  el.textContent = texto || '';
+}
+
+function abrirEnvioComprovantes(){
+  if(compCache.length===0){
+    alert('Não há comprovantes nesse mês para enviar.');
+    return;
+  }
+  const tamanhoTotal = compCache.reduce((soma, item)=>soma + Number(item.tamanho_bytes || 0), 0);
+  const tamanhoMb = (tamanhoTotal / (1024 * 1024)).toFixed(1).replace('.', ',');
+  const loja = nomeLojaParaEmail();
+  const mes = rotuloMesComprovantes(compMesAtual);
+  document.getElementById('compEmailResumo').textContent = compCache.length + ' comprovante(s) · ' + tamanhoMb + ' MB antes da compactação · ' + loja + ' · ' + mes;
+  document.getElementById('compEmailDestinatario').value = localStorage.getItem('compEmailDestinatario') || '';
+  document.getElementById('compEmailAssunto').value = 'Comprovantes - ' + loja + ' - ' + mes;
+  document.getElementById('compEmailMensagem').value = 'Boa tarde,\n\nEm anexo, envio os comprovantes referentes a ' + mes + ', da ' + loja + '.\n\nAtenciosamente,\nRanchão Bebidas';
+  atualizarStatusEmail('', '');
+  document.getElementById('compEmailEnviarBtn').disabled = false;
+  document.getElementById('enviarComprovantesModal').style.display = 'flex';
+  setTimeout(()=>document.getElementById('compEmailDestinatario').focus(), 50);
+}
+
+function fecharEnvioComprovantes(){
+  const btn = document.getElementById('compEmailEnviarBtn');
+  if(btn && btn.disabled) return;
+  document.getElementById('enviarComprovantesModal').style.display = 'none';
+}
+
+function nomeArquivoZipComprovantes(numeroParte, totalPartes){
+  const loja = nomeLojaParaEmail().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'');
+  const sufixo = totalPartes>1 ? '-parte-' + numeroParte + '-de-' + totalPartes : '';
+  return 'comprovantes-' + loja + '-' + compMesAtual + sufixo + '.zip';
+}
+
+function nomeUnicoNoZip(nome, usados){
+  let candidato = nome || 'comprovante';
+  let contador = 2;
+  const ponto = candidato.lastIndexOf('.');
+  const base = ponto>0 ? candidato.slice(0,ponto) : candidato;
+  const extensao = ponto>0 ? candidato.slice(ponto) : '';
+  while(usados.has(candidato.toLowerCase())){
+    candidato = base + '-' + contador + extensao;
+    contador++;
+  }
+  usados.add(candidato.toLowerCase());
+  return candidato;
+}
+
+async function baixarArquivosParaEmail(){
+  const arquivos = [];
+  const total = compCache.length;
+  for(let i=0;i<compCache.length;i++){
+    const c = compCache[i];
+    const { data: urlData, error } = await sb.storage.from('comprovantes').createSignedUrl(c.caminho_storage, 3600);
+    if(error || !urlData || !urlData.signedUrl) throw new Error('Não foi possível acessar "' + c.nome_arquivo + '".');
+    const resp = await fetch(urlData.signedUrl);
+    if(!resp.ok) throw new Error('Falha ao baixar "' + c.nome_arquivo + '" para o envio.');
+    const blob = await resp.blob();
+    if(blob.size > COMP_EMAIL_ARQUIVO_MAX_BYTES){
+      throw new Error('O arquivo "' + c.nome_arquivo + '" sozinho ultrapassa 18 MB. Reduza esse arquivo antes de enviar.');
+    }
+    arquivos.push({ nome: c.nome_arquivo, blob });
+    atualizarProgresso(((i+1)/total)*55);
+  }
+  return arquivos;
+}
+
+function separarArquivosEmPartes(arquivos){
+  const partes = [];
+  let atual = [];
+  let tamanhoAtual = 0;
+  for(const arquivo of arquivos){
+    if(atual.length>0 && tamanhoAtual + arquivo.blob.size > COMP_EMAIL_PARTE_ALVO_BYTES){
+      partes.push(atual);
+      atual = [];
+      tamanhoAtual = 0;
+    }
+    atual.push(arquivo);
+    tamanhoAtual += arquivo.blob.size;
+  }
+  if(atual.length) partes.push(atual);
+  return partes;
+}
+
+async function compactarPartesParaEmail(partes){
+  const resultados = [];
+  for(let i=0;i<partes.length;i++){
+    const zip = new JSZip();
+    const usados = new Set();
+    for(const arquivo of partes[i]) zip.file(nomeUnicoNoZip(arquivo.nome, usados), arquivo.blob);
+    const blob = await zip.generateAsync({ type:'blob', compression:'DEFLATE', compressionOptions:{ level:6 } });
+    if(blob.size > COMP_EMAIL_ARQUIVO_MAX_BYTES){
+      throw new Error('Uma das partes compactadas ultrapassou 18 MB. Tente reduzir algum comprovante grande.');
+    }
+    resultados.push(blob);
+    atualizarProgresso(55 + ((i+1)/partes.length)*20);
+  }
+  return resultados;
+}
+
+async function enviarParteComprovantes(formData){
+  const { data: sessaoData } = await sb.auth.getSession();
+  const token = sessaoData && sessaoData.session ? sessaoData.session.access_token : null;
+  if(!token) throw new Error('Sua sessão expirou. Entre novamente no sistema.');
+  const resposta = await fetch(SUPABASE_URL + '/functions/v1/enviar-comprovantes', {
+    method:'POST',
+    headers:{ 'Authorization':'Bearer ' + token, 'apikey':SUPABASE_ANON_KEY },
+    body:formData
+  });
+  let retorno = {};
+  try{ retorno = await resposta.json(); }catch(e){}
+  if(!resposta.ok) throw new Error(retorno.error || retorno.message || 'O serviço de e-mail recusou o envio.');
+  return retorno;
+}
+
+async function enviarComprovantesPorEmail(){
+  if(!window.JSZip){ alert('Não foi possível carregar o recurso de compactação. Recarregue a página.'); return; }
+  const destinatario = document.getElementById('compEmailDestinatario').value.trim();
+  const assunto = document.getElementById('compEmailAssunto').value.trim();
+  const mensagem = document.getElementById('compEmailMensagem').value.trim();
+  if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(destinatario)){ atualizarStatusEmail('erro','Informe um e-mail válido.'); return; }
+  if(!assunto){ atualizarStatusEmail('erro','Informe o assunto do e-mail.'); return; }
+  if(compCache.length===0){ atualizarStatusEmail('erro','Não há comprovantes para enviar.'); return; }
+
+  localStorage.setItem('compEmailDestinatario', destinatario);
+  const btn = document.getElementById('compEmailEnviarBtn');
+  btn.disabled = true;
+  atualizarStatusEmail('info','Preparando os anexos. Não feche esta tela.');
+  abrirProgresso('Preparando anexos para o e-mail…');
+  let enviados = 0;
+  try{
+    const arquivos = await baixarArquivosParaEmail();
+    const grupos = separarArquivosEmPartes(arquivos);
+    const zips = await compactarPartesParaEmail(grupos);
+    for(let i=0;i<zips.length;i++){
+      abrirProgresso('Enviando e-mail ' + (i+1) + ' de ' + zips.length + '…');
+      atualizarProgresso(75 + (i/zips.length)*25);
+      const form = new FormData();
+      form.append('destinatario', destinatario);
+      form.append('assunto', assunto);
+      form.append('mensagem', mensagem);
+      form.append('parte_atual', String(i+1));
+      form.append('total_partes', String(zips.length));
+      form.append('arquivo', zips[i], nomeArquivoZipComprovantes(i+1, zips.length));
+      await enviarParteComprovantes(form);
+      enviados++;
+      atualizarProgresso(75 + ((i+1)/zips.length)*25);
+    }
+    atualizarProgresso(100);
+    fecharProgresso();
+    atualizarStatusEmail('sucesso', zips.length===1 ? 'E-mail enviado com sucesso.' : zips.length + ' e-mails enviados com sucesso, cada um com uma parte dos comprovantes.');
+  }catch(erro){
+    fecharProgresso();
+    const prefixo = enviados>0 ? enviados + ' parte(s) foram enviadas antes do erro. ' : '';
+    atualizarStatusEmail('erro', prefixo + (erro.message || 'Não foi possível enviar os comprovantes.'));
+  }finally{
+    btn.disabled = false;
+  }
 }
 
 /* ================= DIFERENÇA DE CAIXA ================= */
