@@ -426,6 +426,19 @@
   .loginwrap button{background:#2563eb;box-shadow:0 3px 8px rgba(37,99,235,.2);}
   .loginwrap input{background:#fff;border-color:#c7d3e3;}
   .loginwrap input:focus{border-color:#2563eb;box-shadow:0 0 0 3px rgba(37,99,235,.12);}
+  .duvidas-toolbar{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:20px;}
+  .duvidas-toolbar .searchbar{margin:0;}
+  .duvidas-toolbar select{min-width:190px;font-family:var(--font-sans);font-size:13px;padding:11px 13px;border:1px solid #c7d3e3;border-radius:8px;background:#fff;color:var(--ink);}
+  .duvidas-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:16px;}
+  .duvida-card{display:flex;flex-direction:column;gap:10px;min-height:190px;padding:20px;background:#fff;border:1px solid #d9e2ef;border-radius:12px;box-shadow:0 3px 12px rgba(23,35,60,.055);}
+  .duvida-card-top{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;}
+  .duvida-card h3{font-size:16px;line-height:1.35;margin:0;color:var(--ink);}
+  .duvida-categoria{display:inline-flex;align-items:center;width:max-content;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;padding:4px 8px;border-radius:999px;background:#e8f0ff;color:#1e40af;}
+  .duvida-conteudo{font-size:13px;line-height:1.55;color:#475569;white-space:pre-wrap;overflow-wrap:anywhere;}
+  .duvida-palavras{margin-top:auto;font-size:11px;color:var(--muted);}
+  .duvida-acoes{display:flex;gap:6px;flex-shrink:0;}
+  #duvida_conteudo{width:100%;min-height:170px;resize:vertical;font-family:var(--font-sans);font-size:13px;line-height:1.5;padding:11px 12px;border:1px solid var(--line);border-radius:7px;background:#fff;color:var(--ink);}
+  #duvida_conteudo:focus{outline:none;border-color:#2563eb;box-shadow:0 0 0 3px rgba(37,99,235,.12);}
 </style>
 </head>
 <body>
@@ -489,6 +502,7 @@
       <button class="top-category-btn" data-category="equipe" onclick="selecionarCategoria('equipe')">👥 Equipe</button>
       <button class="top-category-btn" data-category="cadastros" onclick="selecionarCategoria('cadastros')">🗂️ Cadastros</button>
       <button class="top-category-btn" data-category="checklist" onclick="selecionarCategoria('checklist')">✅ Checklist</button>
+      <button class="top-category-btn" data-category="duvidas" onclick="selecionarCategoria('duvidas')">❓ Dúvidas</button>
     </nav>
 
     <nav class="top-modules" aria-label="Módulos do sistema">
@@ -509,6 +523,7 @@
       <button class="top-module-btn" data-category="cadastros" data-view="fornecedores" onclick="mudarViewPrincipal('fornecedores')"><span class="top-module-icon">🚚</span>Fornecedores</button>
       <button class="top-module-btn" data-category="cadastros" data-view="contasBancarias" onclick="mudarViewPrincipal('contasBancarias')"><span class="top-module-icon">🏦</span>Contas Bancárias</button>
       <button class="top-module-btn" data-category="checklist" data-view="checklist" onclick="mudarViewPrincipal('checklist')"><span class="top-module-icon">✅</span>Checklist de Fechamento</button>
+      <button class="top-module-btn" data-category="duvidas" data-view="duvidas" onclick="mudarViewPrincipal('duvidas')"><span class="top-module-icon">❓</span>Dúvidas e Informações</button>
     </nav>
   </header>
 
@@ -540,6 +555,16 @@
         <div id="checklistBody"></div>
         <div class="empty" id="checklistEmpty" style="display:none;">Nenhum item cadastrado ainda. Clique em "+ Novo item do checklist" pra montar seu processo de fechamento.</div>
       </div>
+    </div>
+
+    <div id="viewDuvidas" style="display:none;">
+      <div class="duvidas-toolbar">
+        <div class="searchbar"><input id="duvidasBusca" class="sem-maiuscula" placeholder="🔍 Pesquisar por título, conteúdo ou palavra-chave..." oninput="renderDuvidas()"></div>
+        <select id="duvidasFiltroCategoria" onchange="renderDuvidas()"><option value="">Todas as categorias</option></select>
+        <button type="button" class="addbtn" style="width:auto;padding:11px 18px;" onclick="abrirNovaDuvida()">+ Nova informação</button>
+      </div>
+      <div class="duvidas-grid" id="duvidasBody"></div>
+      <div class="empty" id="duvidasEmpty" style="display:none;">Nenhuma informação encontrada.</div>
     </div>
 
     <div id="viewContasPagar" style="display:none;">
@@ -2333,6 +2358,35 @@
   </div>
 </div>
 
+<div id="duvidaModal" class="modal-overlay">
+  <div class="modal-box" style="max-width:680px;">
+    <button class="modal-close" onclick="fecharDuvidaModal()">✕</button>
+    <h2 id="duvidaModalTitulo">Nova informação</h2>
+    <p class="modal-sub">Cadastre uma orientação para consultar posteriormente.</p>
+    <div class="fld"><label>Título</label><input id="duvida_titulo" class="sem-maiuscula" maxlength="180" placeholder="Ex: Como conferir o fechamento do caixa?"></div>
+    <div class="fld"><label>Categoria</label><input id="duvida_categoria" class="sem-maiuscula" list="duvidasCategoriasLista" maxlength="80" placeholder="Ex: Financeiro"></div>
+    <datalist id="duvidasCategoriasLista"><option value="Financeiro"><option value="Compras"><option value="Estoque"><option value="Equipe"><option value="Sistema"><option value="Delivery"><option value="Fiscal"><option value="Outros"></datalist>
+    <div class="fld"><label>Conteúdo</label><textarea id="duvida_conteudo" class="sem-maiuscula" maxlength="10000" placeholder="Descreva a informação, orientação ou procedimento..."></textarea></div>
+    <div class="fld"><label>Palavras-chave</label><input id="duvida_palavras" class="sem-maiuscula" maxlength="300" placeholder="Ex: caixa, fechamento, diferença"></div>
+    <div class="formerr" id="duvidaErr"></div>
+    <div class="modal-actions" style="margin-top:16px;">
+      <button class="addbtn" id="duvidaSalvarBtn" onclick="salvarDuvida()">Salvar</button>
+      <button class="cancelbtn" onclick="fecharDuvidaModal()">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<div id="confirmDuvidaModal" class="modal-overlay">
+  <div class="modal-box" style="max-width:380px;">
+    <h2>Excluir informação?</h2>
+    <p class="modal-sub">Essa ação não pode ser desfeita.</p>
+    <div class="modal-actions">
+      <button class="addbtn" style="background:var(--rust);" onclick="confirmarExclusaoDuvidaOk()">Excluir</button>
+      <button class="cancelbtn" onclick="fecharConfirmacaoDuvida()">Cancelar</button>
+    </div>
+  </div>
+</div>
+
 <script>
 const SUPABASE_URL = 'https://qgpkswienjhfkbipiwio.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFncGtzd2llbmpoZmtiaXBpd2lvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODMxMDc5MzAsImV4cCI6MjA5ODY4MzkzMH0._y0hAaadVIyNHCN3wQRnNRyr62BgBKkyy29OSYvQ8Go';
@@ -2411,6 +2465,9 @@ function trocarLoja(l){
   }
   if(viewAtual === 'checklist'){
     carregarChecklist();
+  }
+  if(viewAtual === 'duvidas'){
+    abrirDuvidas();
   }
   if(viewAtual === 'despesasFixas'){
     abrirFixas();
@@ -3718,7 +3775,7 @@ function setEscala(e){
   }
 }
 
-const VIEWS = ['checklist','contasPagar','despesasFixas','comprovantes','diferencaCaixa','fluxoCaixa','pagamentos','pagamentoCaixa','vendasComCusto','bancoHoras','compras','colaboradores','fornecedores','contasBancarias','inventario','contagensEstoque','combinacaoPagamentos'];
+const VIEWS = ['checklist','duvidas','contasPagar','despesasFixas','comprovantes','diferencaCaixa','fluxoCaixa','pagamentos','pagamentoCaixa','vendasComCusto','bancoHoras','compras','colaboradores','fornecedores','contasBancarias','inventario','contagensEstoque','combinacaoPagamentos'];
 let colabCarregado = false;
 
 const CATEGORIA_POR_VIEW = {
@@ -3729,9 +3786,9 @@ const CATEGORIA_POR_VIEW = {
   compras:'comprasEstoque', inventario:'comprasEstoque', contagensEstoque:'comprasEstoque',
   bancoHoras:'equipe', colaboradores:'equipe',
   fornecedores:'cadastros', contasBancarias:'cadastros',
-  checklist:'checklist'
+  checklist:'checklist', duvidas:'duvidas'
 };
-const VIEW_IDS = { checklist:'viewChecklist', contasPagar:'viewContasPagar', despesasFixas:'viewDespesasFixas', comprovantes:'viewComprovantes', diferencaCaixa:'viewDiferencaCaixa', fluxoCaixa:'viewFluxoCaixa', pagamentos:'viewPagamentos', pagamentoCaixa:'viewPagamentoCaixa', vendasComCusto:'viewVendasComCusto', bancoHoras:'viewBancoHoras', compras:'viewCompras', colaboradores:'viewColaboradores', fornecedores:'viewFornecedores', contasBancarias:'viewContasBancarias', inventario:'viewInventario', contagensEstoque:'viewContagensEstoque', combinacaoPagamentos:'viewCombinacaoPagamentos' };
+const VIEW_IDS = { checklist:'viewChecklist', duvidas:'viewDuvidas', contasPagar:'viewContasPagar', despesasFixas:'viewDespesasFixas', comprovantes:'viewComprovantes', diferencaCaixa:'viewDiferencaCaixa', fluxoCaixa:'viewFluxoCaixa', pagamentos:'viewPagamentos', pagamentoCaixa:'viewPagamentoCaixa', vendasComCusto:'viewVendasComCusto', bancoHoras:'viewBancoHoras', compras:'viewCompras', colaboradores:'viewColaboradores', fornecedores:'viewFornecedores', contasBancarias:'viewContasBancarias', inventario:'viewInventario', contagensEstoque:'viewContagensEstoque', combinacaoPagamentos:'viewCombinacaoPagamentos' };
 
 let categoriaMenuAberta = null;
 
@@ -3805,6 +3862,8 @@ async function mudarViewPrincipal(view){
     carregarFornecedores();
   }else if(view==='checklist'){
     await abrirChecklist();
+  }else if(view==='duvidas'){
+    await abrirDuvidas();
   }else if(view==='vendasComCusto'){
     await abrirVendas();
   }else if(view==='bancoHoras'){
@@ -9923,6 +9982,163 @@ async function confirmarExclusaoFornecedorOk(){
     atualizarDatalistFornecedores();
   }
   fecharConfirmacaoFornecedor();
+}
+
+/* ================= DÚVIDAS E INFORMAÇÕES ================= */
+
+let duvidasCache = [];
+let duvidaEditandoId = null;
+let duvidaExcluindoId = null;
+
+function normalizarBuscaDuvida(valor){
+  return String(valor || '').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim();
+}
+
+async function abrirDuvidas(){
+  const body = document.getElementById('duvidasBody');
+  const empty = document.getElementById('duvidasEmpty');
+  body.innerHTML = '<div style="color:var(--muted);font-size:13px;">Carregando informações…</div>';
+  empty.style.display = 'none';
+  const { data, error } = await sb.from('duvidas').select('*').eq('loja', lojaAtual).order('atualizado_em', { ascending:false });
+  if(error){
+    console.error('Erro ao carregar dúvidas:', error);
+    duvidasCache = [];
+    body.innerHTML = '';
+    empty.textContent = error.code==='42P01' ? 'O módulo ainda precisa ser ativado no Supabase. Execute o arquivo modulo_duvidas_supabase.sql.' : 'Não foi possível carregar as informações.';
+    empty.style.display = 'block';
+    return;
+  }
+  duvidasCache = data || [];
+  atualizarFiltroCategoriasDuvidas();
+  renderDuvidas();
+}
+
+function atualizarFiltroCategoriasDuvidas(){
+  const select = document.getElementById('duvidasFiltroCategoria');
+  const atual = select.value;
+  const categorias = [...new Set(duvidasCache.map(d=>String(d.categoria || '').trim()).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'pt-BR'));
+  select.innerHTML = '<option value="">Todas as categorias</option>' + categorias.map(c=>`<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join('');
+  if(categorias.includes(atual)) select.value = atual;
+}
+
+function renderDuvidas(){
+  const body = document.getElementById('duvidasBody');
+  const empty = document.getElementById('duvidasEmpty');
+  if(!body || !empty) return;
+  const busca = normalizarBuscaDuvida(document.getElementById('duvidasBusca')?.value);
+  const categoria = document.getElementById('duvidasFiltroCategoria')?.value || '';
+  const filtradas = duvidasCache.filter(d=>{
+    if(categoria && String(d.categoria || '')!==categoria) return false;
+    if(!busca) return true;
+    return normalizarBuscaDuvida([d.titulo,d.categoria,d.conteudo,d.palavras_chave].join(' ')).includes(busca);
+  });
+  if(filtradas.length===0){
+    body.innerHTML = '';
+    empty.textContent = duvidasCache.length===0 ? 'Nenhuma informação cadastrada. Clique em “+ Nova informação” para começar.' : 'Nenhuma informação encontrada para essa pesquisa.';
+    empty.style.display = 'block';
+    return;
+  }
+  empty.style.display = 'none';
+  body.innerHTML = filtradas.map(d=>`
+    <article class="duvida-card">
+      <div class="duvida-card-top">
+        <div>
+          <span class="duvida-categoria">${escapeHtml(d.categoria || 'Sem categoria')}</span>
+          <h3 style="margin-top:9px;">${escapeHtml(d.titulo)}</h3>
+        </div>
+        <div class="duvida-acoes">
+          <button class="iconbtn edit" title="Editar" onclick="abrirEditarDuvida(${Number(d.id)})">✎</button>
+          <button class="iconbtn del" title="Excluir" onclick="confirmarExclusaoDuvida(${Number(d.id)})">✕</button>
+        </div>
+      </div>
+      <div class="duvida-conteudo">${escapeHtml(d.conteudo)}</div>
+      ${d.palavras_chave ? `<div class="duvida-palavras">🏷️ ${escapeHtml(d.palavras_chave)}</div>` : ''}
+    </article>
+  `).join('');
+}
+
+function abrirNovaDuvida(){
+  duvidaEditandoId = null;
+  document.getElementById('duvidaModalTitulo').textContent = 'Nova informação';
+  document.getElementById('duvida_titulo').value = '';
+  document.getElementById('duvida_categoria').value = '';
+  document.getElementById('duvida_conteudo').value = '';
+  document.getElementById('duvida_palavras').value = '';
+  document.getElementById('duvidaErr').style.display = 'none';
+  document.getElementById('duvidaModal').style.display = 'flex';
+  setTimeout(()=>document.getElementById('duvida_titulo').focus(), 50);
+}
+
+function abrirEditarDuvida(id){
+  const d = duvidasCache.find(x=>Number(x.id)===Number(id));
+  if(!d) return;
+  duvidaEditandoId = id;
+  document.getElementById('duvidaModalTitulo').textContent = 'Editar informação';
+  document.getElementById('duvida_titulo').value = d.titulo || '';
+  document.getElementById('duvida_categoria').value = d.categoria || '';
+  document.getElementById('duvida_conteudo').value = d.conteudo || '';
+  document.getElementById('duvida_palavras').value = d.palavras_chave || '';
+  document.getElementById('duvidaErr').style.display = 'none';
+  document.getElementById('duvidaModal').style.display = 'flex';
+}
+
+function fecharDuvidaModal(){
+  document.getElementById('duvidaModal').style.display = 'none';
+  duvidaEditandoId = null;
+}
+
+async function salvarDuvida(){
+  const btn = document.getElementById('duvidaSalvarBtn');
+  if(btn.disabled) return;
+  const titulo = document.getElementById('duvida_titulo').value.trim();
+  const categoria = document.getElementById('duvida_categoria').value.trim();
+  const conteudo = document.getElementById('duvida_conteudo').value.trim();
+  const palavras = document.getElementById('duvida_palavras').value.trim();
+  const err = document.getElementById('duvidaErr');
+  if(!titulo || !categoria || !conteudo){
+    err.textContent = 'Preencha o título, a categoria e o conteúdo.';
+    err.style.display = 'block';
+    return;
+  }
+  err.style.display = 'none';
+  btn.disabled = true;
+  btn.textContent = 'Salvando…';
+  const registro = { loja:lojaAtual, titulo, categoria, conteudo, palavras_chave:palavras || null, atualizado_em:new Date().toISOString() };
+  let resultado;
+  if(duvidaEditandoId){
+    resultado = await sb.from('duvidas').update(registro).eq('id', duvidaEditandoId).eq('loja', lojaAtual).select().single();
+  }else{
+    resultado = await sb.from('duvidas').insert(registro).select().single();
+  }
+  btn.disabled = false;
+  btn.textContent = 'Salvar';
+  if(resultado.error){
+    err.textContent = 'Erro ao salvar: ' + resultado.error.message;
+    err.style.display = 'block';
+    return;
+  }
+  fecharDuvidaModal();
+  await abrirDuvidas();
+}
+
+function confirmarExclusaoDuvida(id){
+  duvidaExcluindoId = id;
+  document.getElementById('confirmDuvidaModal').style.display = 'flex';
+}
+
+function fecharConfirmacaoDuvida(){
+  document.getElementById('confirmDuvidaModal').style.display = 'none';
+  duvidaExcluindoId = null;
+}
+
+async function confirmarExclusaoDuvidaOk(){
+  if(!duvidaExcluindoId) return;
+  const { error } = await sb.from('duvidas').delete().eq('id', duvidaExcluindoId).eq('loja', lojaAtual);
+  if(error){ alert('Erro ao excluir: ' + error.message); return; }
+  duvidasCache = duvidasCache.filter(d=>Number(d.id)!==Number(duvidaExcluindoId));
+  fecharConfirmacaoDuvida();
+  atualizarFiltroCategoriasDuvidas();
+  renderDuvidas();
 }
 
 /* ================= CHECKLIST DE FECHAMENTO ================= */
