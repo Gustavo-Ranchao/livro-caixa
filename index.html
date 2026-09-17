@@ -2466,9 +2466,6 @@ function trocarLoja(l){
   if(viewAtual === 'checklist'){
     carregarChecklist();
   }
-  if(viewAtual === 'duvidas'){
-    abrirDuvidas();
-  }
   if(viewAtual === 'despesasFixas'){
     abrirFixas();
   }
@@ -3834,9 +3831,11 @@ async function mudarViewPrincipal(view){
   viewAtual = view;
   fecharMenuModulos(view);
   const barraContexto = document.getElementById('moduleContextBar');
-  barraContexto.style.display = 'flex';
-  document.getElementById('codigoLojaModulo').value = lojaAtual==='loja2' ? '02' : '01';
-  document.getElementById('nomeLojaSelecionada').textContent = lojaAtual==='loja2' ? 'Loja 02' : 'Loja 01';
+  barraContexto.style.display = view==='duvidas' ? 'none' : 'flex';
+  if(view!=='duvidas'){
+    document.getElementById('codigoLojaModulo').value = lojaAtual==='loja2' ? '02' : '01';
+    document.getElementById('nomeLojaSelecionada').textContent = lojaAtual==='loja2' ? 'Loja 02' : 'Loja 01';
+  }
 
   VIEWS.forEach(v=>{
     document.getElementById(VIEW_IDS[v]).style.display = (v===view) ? '' : 'none';
@@ -9999,7 +9998,7 @@ async function abrirDuvidas(){
   const empty = document.getElementById('duvidasEmpty');
   body.innerHTML = '<div style="color:var(--muted);font-size:13px;">Carregando informações…</div>';
   empty.style.display = 'none';
-  const { data, error } = await sb.from('duvidas').select('*').eq('loja', lojaAtual).order('atualizado_em', { ascending:false });
+  const { data, error } = await sb.from('duvidas').select('*').eq('loja', 'geral').order('atualizado_em', { ascending:false });
   if(error){
     console.error('Erro ao carregar dúvidas:', error);
     duvidasCache = [];
@@ -10103,10 +10102,10 @@ async function salvarDuvida(){
   err.style.display = 'none';
   btn.disabled = true;
   btn.textContent = 'Salvando…';
-  const registro = { loja:lojaAtual, titulo, categoria, conteudo, palavras_chave:palavras || null, atualizado_em:new Date().toISOString() };
+  const registro = { loja:'geral', titulo, categoria, conteudo, palavras_chave:palavras || null, atualizado_em:new Date().toISOString() };
   let resultado;
   if(duvidaEditandoId){
-    resultado = await sb.from('duvidas').update(registro).eq('id', duvidaEditandoId).eq('loja', lojaAtual).select().single();
+    resultado = await sb.from('duvidas').update(registro).eq('id', duvidaEditandoId).eq('loja', 'geral').select().single();
   }else{
     resultado = await sb.from('duvidas').insert(registro).select().single();
   }
@@ -10133,7 +10132,7 @@ function fecharConfirmacaoDuvida(){
 
 async function confirmarExclusaoDuvidaOk(){
   if(!duvidaExcluindoId) return;
-  const { error } = await sb.from('duvidas').delete().eq('id', duvidaExcluindoId).eq('loja', lojaAtual);
+  const { error } = await sb.from('duvidas').delete().eq('id', duvidaExcluindoId).eq('loja', 'geral');
   if(error){ alert('Erro ao excluir: ' + error.message); return; }
   duvidasCache = duvidasCache.filter(d=>Number(d.id)!==Number(duvidaExcluindoId));
   fecharConfirmacaoDuvida();
