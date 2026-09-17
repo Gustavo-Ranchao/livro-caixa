@@ -5,14 +5,14 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="referrer" content="strict-origin-when-cross-origin">
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'self'; object-src 'none'; form-action 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://cdn.sheetjs.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob: https://qgpkswienjhfkbipiwio.supabase.co; connect-src 'self' https://qgpkswienjhfkbipiwio.supabase.co wss://qgpkswienjhfkbipiwio.supabase.co; worker-src 'self' blob:; manifest-src 'self'; upgrade-insecure-requests">
-<title>Livro-Caixa</title>
+<title>Ranchão Bebidas</title>
 <link rel="manifest" href="manifest.json">
-<meta name="theme-color" content="#26332b">
+<meta name="theme-color" content="#17233c">
 <link rel="icon" href="icon-192.png">
 <link rel="apple-touch-icon" href="icon-192.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="Livro-Caixa">
+<meta name="apple-mobile-web-app-title" content="Ranchão Bebidas">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -24,10 +24,10 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <style>
   :root{
-    --ink:#26332b; --paper:#f3eee0; --paper2:#e9e1cb; --paper3:#ded4b8;
-    --line:#cdc0a0; --green:#2f6b4f; --green-bg:#e2ece2; --rust:#a3432d;
-    --rust-bg:#f4e1da; --gold:#9c7a2b; --muted:#7a715d;
-    --font-voice:'Fraunces',serif; --font-sans:'IBM Plex Sans',sans-serif; --font-mono:'IBM Plex Mono',monospace;
+    --ink:#17233c; --paper:#f4f7fb; --paper2:#eaf0f8; --paper3:#d8e1ee;
+    --line:#b9c7da; --green:#16805f; --green-bg:#e1f3ec; --rust:#b43c4b;
+    --rust-bg:#fae7ea; --gold:#2563eb; --muted:#64748b;
+    --font-voice:'IBM Plex Sans',sans-serif; --font-sans:'IBM Plex Sans',sans-serif; --font-mono:'IBM Plex Mono',monospace;
   }
   *{box-sizing:border-box;}
   html,body{margin:0;height:100%;}
@@ -59,6 +59,9 @@
   .top-navigation-head{display:flex;align-items:center;gap:22px;padding:12px clamp(18px,3vw,42px);border-bottom:1px solid var(--paper3);}
   .brand{display:flex;align-items:baseline;justify-content:space-between;flex-shrink:0;}
   .brand h1{font-family:var(--font-voice);font-weight:700;font-size:24px;margin:0;letter-spacing:-0.2px;}
+  .brand-home{display:flex;align-items:center;padding:3px 6px 3px 0;border:none;background:transparent;color:inherit;border-radius:7px;cursor:pointer;}
+  .brand-home:hover{opacity:.86;}
+  .brand-home:focus-visible{outline:2px solid #93c5fd;outline-offset:4px;}
   .brand .mark{width:10px;height:10px;border-radius:50%;background:var(--gold);}
   input#empresaNome{font-family:var(--font-voice);font-size:13px;font-style:italic;color:var(--muted);border:none;background:transparent;border-bottom:1px dashed var(--line);padding:4px 0;width:min(220px,22vw);outline:none;}
   input#empresaNome:focus{border-bottom-color:var(--gold);}
@@ -67,10 +70,10 @@
   .loja-btn{flex:1;font-family:var(--font-sans);font-size:12px;font-weight:500;padding:8px 6px;border:none;background:transparent;color:var(--muted);cursor:pointer;border-radius:6px;transition:.15s;}
   .loja-btn.active{background:var(--ink);color:var(--paper);}
 
-  .top-categories{display:flex;align-items:center;gap:2px;padding:0 clamp(12px,3vw,36px);background:#fff;border-bottom:1px solid var(--paper3);overflow-x:auto;scrollbar-width:thin;}
-  .top-category-btn{flex:0 0 auto;font-family:var(--font-sans);font-size:12px;font-weight:600;color:var(--muted);background:transparent;border:none;border-bottom:3px solid transparent;padding:11px 14px 9px;cursor:pointer;white-space:nowrap;}
-  .top-category-btn:hover{color:var(--ink);background:var(--paper);}
-  .top-category-btn.active{color:var(--ink);border-bottom-color:var(--gold);background:var(--paper2);}
+  .top-categories{display:flex;align-items:center;gap:8px;padding:7px clamp(12px,3vw,36px);background:#fff;border-bottom:1px solid var(--paper3);overflow-x:auto;scrollbar-width:thin;}
+  .top-category-btn{display:flex;align-items:center;justify-content:center;flex:0 0 auto;min-height:50px;font-family:var(--font-sans);font-size:14px;font-weight:600;color:var(--muted);background:transparent;border:1px solid transparent;border-bottom:3px solid transparent;border-radius:8px;padding:13px 20px 11px;cursor:pointer;white-space:nowrap;transition:background .15s,color .15s,border-color .15s,transform .15s;}
+  .top-category-btn:hover{color:var(--ink);background:var(--paper);border-color:var(--paper3);transform:translateY(-1px);}
+  .top-category-btn.active{color:var(--paper);border-color:var(--ink);border-bottom-color:var(--gold);background:var(--ink);box-shadow:0 3px 9px rgba(38,51,43,.15);}
   .top-modules{display:none;align-items:stretch;gap:1px;padding:0 clamp(12px,3vw,36px);background:var(--paper2);overflow-x:auto;scrollbar-width:thin;}
   .top-modules.open{display:flex;}
   .top-module-btn{display:none;flex:0 0 132px;min-height:68px;align-items:center;justify-content:center;flex-direction:column;gap:4px;font-family:var(--font-sans);font-size:11.5px;font-weight:600;line-height:1.15;text-align:center;color:var(--ink);background:#fff;border:none;border-right:1px solid var(--paper3);border-bottom:3px solid transparent;padding:8px 10px;cursor:pointer;}
@@ -359,7 +362,8 @@
     .top-navigation-head{flex-wrap:wrap;gap:10px;padding:12px 16px;}
     input#empresaNome{width:calc(100% - 150px);order:2;}
     .perfil{order:1;}
-    .top-category-btn{font-size:11.5px;padding-left:11px;padding-right:11px;}
+    .top-categories{gap:5px;padding-top:6px;padding-bottom:6px;}
+    .top-category-btn{min-height:44px;font-size:12.5px;padding:10px 13px 8px;}
     .top-module-btn{flex-basis:112px;min-height:62px;}
     .module-context-bar{justify-content:space-between;}
     .codigo-loja-input{width:130px;}
@@ -372,6 +376,56 @@
     table.ledger td{display:flex;justify-content:space-between;padding:4px 20px;white-space:normal;overflow:visible;text-overflow:clip;}
     td.valor{justify-content:flex-end;}
   }
+
+  /* ---------- Tema corporativo azul ---------- */
+  body{background:linear-gradient(180deg,#eef3f9 0,#f7f9fc 240px,#f4f7fb 100%);}
+  .loadingScreen{background:#f4f7fb;color:var(--muted);}
+  .top-navigation{background:#fff;border-bottom-color:#cbd6e5;box-shadow:0 5px 20px rgba(23,35,60,.10);}
+  .top-navigation-head{background:linear-gradient(135deg,#17233c 0%,#20365e 100%);border-bottom:none;}
+  .brand h1{color:#fff;letter-spacing:-.35px;}
+  .brand .mark{background:#60a5fa;box-shadow:0 0 0 4px rgba(96,165,250,.15);}
+  input#empresaNome{color:#dbeafe;border-bottom-color:rgba(255,255,255,.32);}
+  input#empresaNome::placeholder{color:#9fb1ca;}
+  input#empresaNome:focus{border-bottom-color:#60a5fa;}
+  .perfil-bar{color:#fff;}
+  .perfil-bar:hover{background:rgba(255,255,255,.10);}
+  .avatar-circle{background:#2563eb;color:#fff;box-shadow:0 0 0 3px rgba(255,255,255,.13);}
+  .perfil-bar-nome{color:#f8fafc;}
+  .perfil-chevron{color:#bfdbfe;}
+  .perfil-menu{border-color:#d7e1ee;border-radius:12px;box-shadow:0 16px 38px rgba(15,23,42,.18);}
+
+  .top-categories{background:#fff;border-bottom-color:#d8e1ee;}
+  .top-category-btn{color:#5d6c82;}
+  .top-category-btn:hover{color:#17233c;background:#eef4ff;border-color:#d6e3f5;}
+  .top-category-btn.active{color:#fff;background:#1e40af;border-color:#1e40af;border-bottom-color:#60a5fa;box-shadow:0 5px 12px rgba(30,64,175,.22);}
+  .top-modules{background:#eaf0f8;padding-top:6px;padding-bottom:6px;gap:6px;}
+  .top-module-btn{border:1px solid #d8e1ee;border-radius:9px;background:#fff;box-shadow:0 1px 2px rgba(23,35,60,.04);}
+  .top-module-btn:hover{background:#f4f8ff;border-color:#a9c1e4;}
+  .top-module-btn.active{background:#2563eb;color:#fff;border-color:#2563eb;border-bottom-color:#93c5fd;box-shadow:0 5px 12px rgba(37,99,235,.22);}
+
+  .main{padding-top:30px;}
+  .module-context-bar,.panel,.formcard,.metric,.colab-col,.comp-card{border-color:#d9e2ef;box-shadow:0 3px 12px rgba(23,35,60,.055);}
+  .module-context-bar{border-radius:12px;}
+  .panel,.colab-col,.comp-card{border-radius:12px;}
+  .panel-head{background:linear-gradient(180deg,#fff 0%,#fbfdff 100%);}
+  .panel-head h2,.formcard h2,.modal-box h2,.colab-col-head,.caixa-col-head{letter-spacing:-.15px;color:#17233c;}
+  table.ledger thead th,#fixasTable th,#importPreviewTable th,#fixaImportPreviewTable th,#bhImportPreviewTable th{background:#edf3fb;color:#52647c;font-weight:600;}
+  table.ledger tbody tr:hover{background:#f2f7ff;}
+
+  .fld input,.fld select,.searchbar input,.comb-busca,.bh-toolbar select,.codigo-loja-input,#filtroMes{background:#fff;border-color:#c7d3e3;border-radius:7px;}
+  .fld input:focus,.fld select:focus,.searchbar input:focus,.comb-busca:focus,.bh-toolbar select:focus,.codigo-loja-input:focus,#filtroMes:focus{border-color:#2563eb;box-shadow:0 0 0 3px rgba(37,99,235,.12);}
+  .addbtn{background:#2563eb;color:#fff;border-radius:7px;box-shadow:0 2px 5px rgba(37,99,235,.18);}
+  .addbtn:hover{background:#1d4ed8;opacity:1;}
+  .importbtn:hover{border-color:#2563eb;color:#2563eb;background:#f3f7ff;}
+  .filter-btn.active{background:#1e40af;border-color:#1e40af;color:#fff;}
+  .app-tab.active{color:#1d4ed8;border-bottom-color:#2563eb;font-weight:600;}
+  .compras-chip.active{background:#2563eb!important;border-color:#2563eb!important;color:#fff!important;}
+  .modal-overlay{background:rgba(15,23,42,.55);backdrop-filter:blur(2px);}
+  .modal-box{border:1px solid #d8e1ee;border-radius:14px;box-shadow:0 24px 70px rgba(15,23,42,.25);}
+  .loginwrap{border-color:#d7e1ee;border-radius:14px;box-shadow:0 20px 55px rgba(23,35,60,.12);}
+  .loginwrap button{background:#2563eb;box-shadow:0 3px 8px rgba(37,99,235,.2);}
+  .loginwrap input{background:#fff;border-color:#c7d3e3;}
+  .loginwrap input:focus{border-color:#2563eb;box-shadow:0 0 0 3px rgba(37,99,235,.12);}
 </style>
 </head>
 <body>
@@ -390,7 +444,7 @@
 
 <div id="loginScreen" class="loginshell" style="display:none;">
   <div class="loginwrap">
-    <h1>Livro-Caixa</h1>
+    <h1>Ranchão Bebidas</h1>
     <p class="sub">Entre com o e-mail e senha da sua conta.</p>
     <label>E-mail</label>
     <input id="li_email" type="email" placeholder="voce@empresa.com">
@@ -409,9 +463,9 @@
   <header class="top-navigation">
     <div class="top-navigation-head">
       <div class="brand">
-        <span style="display:flex;align-items:baseline;gap:6px;"><h1>Livro-Caixa</h1><span class="mark"></span></span>
+        <button type="button" class="brand-home" onclick="voltarAoInicio()" title="Voltar ao início" aria-label="Voltar ao início"><h1>Ranchão Bebidas</h1></button>
       </div>
-      <input id="empresaNome" placeholder="Nome da loja" value="">
+      <input id="empresaNome" type="hidden" value="">
 
       <div class="perfil" id="perfilWrap">
         <div class="perfil-menu" id="perfilMenu">
@@ -3694,6 +3748,19 @@ function selecionarCategoria(categoria){
     btn.classList.toggle('visible', categoriaMenuAberta===categoria && btn.dataset.category===categoria);
   });
   document.querySelector('.top-modules').classList.toggle('open', !!categoriaMenuAberta);
+}
+
+function voltarAoInicio(){
+  viewAtual = null;
+  categoriaMenuAberta = null;
+  VIEWS.forEach(v=>document.getElementById(VIEW_IDS[v]).style.display = 'none');
+  document.getElementById('moduleContextBar').style.display = 'none';
+  document.querySelectorAll('.top-category-btn').forEach(btn=>btn.classList.remove('active'));
+  document.querySelectorAll('.top-module-btn').forEach(btn=>btn.classList.remove('active','visible'));
+  document.querySelector('.top-modules').classList.remove('open');
+  document.getElementById('listaLojasPopup').classList.remove('open');
+  document.getElementById('perfilMenu').classList.remove('open');
+  window.scrollTo({ top:0, behavior:'smooth' });
 }
 
 function fecharMenuModulos(view){
