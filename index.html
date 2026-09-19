@@ -1355,6 +1355,8 @@
           <input id="deliveryFileInput" type="file" accept=".xlsx,.xls" multiple style="display:none;" onchange="onSelecionarArquivosDelivery(this.files)">
         </label>
         <span style="font-size:12px;color:var(--muted);">Selecione a planilha Relatórios de Entregas. Vendas repetidas não serão duplicadas.</span>
+        <button type="button" class="filter-btn" style="border-color:var(--rust);color:var(--rust);margin-left:auto;" onclick="abrirExclusaoDelivery('periodo')">🗑 Excluir por período</button>
+        <button type="button" class="filter-btn" style="border-color:var(--rust);color:var(--rust);" onclick="abrirExclusaoDelivery('tudo')">🗑 Excluir tudo (loja atual)</button>
       </div>
 
       <div id="deliveryPreviewWrap" class="panel" style="display:none;margin-bottom:20px;padding:18px 20px;">
@@ -2464,6 +2466,25 @@
     <div class="modal-actions">
       <button class="addbtn" style="background:var(--rust);" onclick="confirmarExclusaoDuvidaOk()">Excluir</button>
       <button class="cancelbtn" onclick="fecharConfirmacaoDuvida()">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<div id="excluirDeliveryModal" class="modal-overlay">
+  <div class="modal-box" style="max-width:520px;">
+    <button class="modal-close" onclick="fecharExclusaoDelivery()">✕</button>
+    <h2 id="excluirDeliveryTitulo">Excluir vendas delivery</h2>
+    <p class="modal-sub" id="excluirDeliveryDescricao"></p>
+    <div id="excluirDeliveryPeriodo" class="fld-row">
+      <div class="fld"><label>Data inicial</label><input id="excluirDeliveryDe" type="date" onchange="atualizarContagemExclusaoDelivery()"></div>
+      <div class="fld"><label>Data final</label><input id="excluirDeliveryAte" type="date" onchange="atualizarContagemExclusaoDelivery()"></div>
+    </div>
+    <p class="modal-sub" id="excluirDeliveryContagem" style="min-height:20px;margin-top:10px;"></p>
+    <div class="fld"><label>Para confirmar, digite APAGAR</label><input id="excluirDeliveryConfirmacao" class="sem-maiuscula" autocomplete="off" placeholder="APAGAR"></div>
+    <div class="formerr" id="excluirDeliveryErro"></div>
+    <div class="modal-actions" style="margin-top:16px;">
+      <button class="addbtn" id="excluirDeliveryBtn" style="background:var(--rust);" onclick="confirmarExclusaoDelivery()">Excluir vendas</button>
+      <button class="cancelbtn" onclick="fecharExclusaoDelivery()">Cancelar</button>
     </div>
   </div>
 </div>
@@ -5046,14 +5067,16 @@ function vendasDeliveryDoPeriodo(){
 function agruparClientesDelivery(vendas){
   const grupos=new Map();
   const ultimaGlobal=new Map();
-  deliveryCache.filter(v=>v.telefone_valido&&v.telefone_normalizado).forEach(v=>{
-    const tel=v.telefone_normalizado;
-    if(!ultimaGlobal.has(tel)||String(v.data_venda)>String(ultimaGlobal.get(tel))) ultimaGlobal.set(tel,v.data_venda);
+  deliveryCache.forEach(v=>{
+    const chave=chaveClienteDelivery(v);
+    if(chave && (!ultimaGlobal.has(chave)||String(v.data_venda)>String(ultimaGlobal.get(chave)))) ultimaGlobal.set(chave,v.data_venda);
   });
-  vendas.filter(v=>v.telefone_valido&&v.telefone_normalizado).forEach(v=>{
-    const tel=v.telefone_normalizado;
-    if(!grupos.has(tel)) grupos.set(tel,{telefone:tel,pedidos:0,total:0,vendas:[],nome:'Cliente',endereco:'',ultimaPeriodo:null,ultimaGlobal:ultimaGlobal.get(tel)||v.data_venda});
-    const g=grupos.get(tel);
+  vendas.forEach(v=>{
+    const chave=chaveClienteDelivery(v);
+    if(!chave) return;
+    const porTelefone=chave.startsWith('tel:');
+    if(!grupos.has(chave)) grupos.set(chave,{chave,telefone:porTelefone?v.telefone_normalizado:null,tipoIdentificacao:porTelefone?'telefone':'ifood_nome',pedidos:0,total:0,vendas:[],nome:'Cliente',endereco:'',ultimaPeriodo:null,ultimaGlobal:ultimaGlobal.get(chave)||v.data_venda});
+    const g=grupos.get(chave);
     g.pedidos++;
     g.total+=Number(v.valor_venda)||0;
     g.vendas.push(v);
@@ -5061,10 +5084,19 @@ function agruparClientesDelivery(vendas){
       g.ultimaPeriodo=v.data_venda;
       g.nome=v.nome||'Cliente';
       g.endereco=v.endereco||'';
-      g.telefoneOriginal=v.telefone_original||tel;
+      g.telefoneOriginal=v.telefone_original||g.telefone||'';
     }
   });
   return Array.from(grupos.values()).map(g=>({...g,ticket:g.pedidos?g.total/g.pedidos:0,diasSemComprar:diasDesdeDelivery(g.ultimaGlobal)}));
+}
+
+function chaveClienteDelivery(venda){
+  if(venda.telefone_valido && venda.telefone_normalizado) return 'tel:'+venda.telefone_normalizado;
+  if(String(venda.origem||'').toUpperCase()==='IFOOD'){
+    const nome=normalizarCabecalhoDelivery(venda.nome).replace(/[^A-Z0-9 ]/g,'').replace(/\s+/g,' ').trim();
+    if(nome && nome!=='CLIENTE') return 'ifood:'+nome;
+  }
+  return null;
 }
 
 function renderDelivery(){
@@ -5084,8 +5116,8 @@ function renderDelivery(){
   const recorrencia=document.getElementById('deliveryFiltroRecorrencia').value;
   let grupos=gruposTodos.filter(g=>{
     if(busca){
-      const alvo=[g.nome,g.telefone,g.telefoneOriginal,g.endereco].join(' ').toLowerCase();
-      if(!alvo.includes(busca) && !(buscaDigitos && g.telefone.includes(buscaDigitos))) return false;
+      const alvo=[g.nome,g.telefone||'',g.telefoneOriginal||'',g.endereco].join(' ').toLowerCase();
+      if(!alvo.includes(busca) && !(buscaDigitos && g.telefone && g.telefone.includes(buscaDigitos))) return false;
     }
     if(recorrencia==='uma' && g.pedidos!==1) return false;
     if(recorrencia==='duas' && g.pedidos<2) return false;
@@ -5099,9 +5131,9 @@ function renderDelivery(){
   grupos.sort((a,b)=>ordem==='valor' ? b.total-a.total : ordem==='recente' ? String(b.ultimaGlobal).localeCompare(String(a.ultimaGlobal)) : (b.pedidos-a.pedidos)||(b.total-a.total));
 
   const body=document.getElementById('deliveryRankingBody');
-  body.innerHTML=grupos.map((g,i)=>`<tr class="delivery-ranking-row" onclick="abrirHistoricoDelivery('${g.telefone}')">
+  body.innerHTML=grupos.map((g,i)=>`<tr class="delivery-ranking-row" onclick="abrirHistoricoDelivery('${g.chave}')">
     <td>${i+1}</td><td><strong>${escapeHtml(g.nome)}</strong><br><span style="font-size:11px;color:var(--muted);">${escapeHtml(g.endereco||'')}</span></td>
-    <td class="delivery-phone">${formatarTelefoneDelivery(g.telefone)}</td><td style="text-align:right;font-family:var(--font-mono);">${g.pedidos}</td>
+    <td class="delivery-phone">${g.tipoIdentificacao==='telefone' ? formatarTelefoneDelivery(g.telefone) : '<span class="delivery-badge">iFood · pelo nome</span>'}</td><td style="text-align:right;font-family:var(--font-mono);">${g.pedidos}</td>
     <td style="text-align:right;font-family:var(--font-mono);font-weight:600;">${brl(g.total)}</td><td style="text-align:right;font-family:var(--font-mono);">${brl(g.ticket)}</td>
     <td>${dataHoraDelivery(g.ultimaGlobal)}</td><td>${g.diasSemComprar} dia(s)</td></tr>`).join('');
   document.getElementById('deliveryEmpty').style.display=grupos.length?'none':'block';
@@ -5119,14 +5151,96 @@ function limparFiltrosDelivery(){
   renderDelivery();
 }
 
-function abrirHistoricoDelivery(telefone){
-  const vendas=deliveryCache.filter(v=>v.telefone_normalizado===telefone).sort((a,b)=>String(b.data_venda).localeCompare(String(a.data_venda)));
+let deliveryExclusaoTipo='periodo';
+
+async function abrirExclusaoDelivery(tipo){
+  deliveryExclusaoTipo=tipo==='tudo'?'tudo':'periodo';
+  const periodo=document.getElementById('excluirDeliveryPeriodo');
+  const loja=NOMES_LOJA[lojaAtual]||'loja atual';
+  document.getElementById('excluirDeliveryConfirmacao').value='';
+  document.getElementById('excluirDeliveryErro').style.display='none';
+  if(deliveryExclusaoTipo==='tudo'){
+    document.getElementById('excluirDeliveryTitulo').textContent='Excluir todas as vendas delivery';
+    document.getElementById('excluirDeliveryDescricao').textContent='Serão excluídas somente as vendas delivery da '+loja+'. Os dados das outras lojas e dos outros módulos não serão alterados.';
+    periodo.style.display='none';
+  }else{
+    document.getElementById('excluirDeliveryTitulo').textContent='Excluir vendas delivery por período';
+    document.getElementById('excluirDeliveryDescricao').textContent='Escolha o período que foi importado na loja errada. A exclusão será feita somente na '+loja+'.';
+    periodo.style.display='flex';
+    document.getElementById('excluirDeliveryDe').value=document.getElementById('deliveryFiltroDe').value||'';
+    document.getElementById('excluirDeliveryAte').value=document.getElementById('deliveryFiltroAte').value||'';
+  }
+  document.getElementById('excluirDeliveryModal').style.display='flex';
+  await atualizarContagemExclusaoDelivery();
+}
+
+function fecharExclusaoDelivery(){
+  document.getElementById('excluirDeliveryModal').style.display='none';
+}
+
+async function atualizarContagemExclusaoDelivery(){
+  const info=document.getElementById('excluirDeliveryContagem');
+  if(deliveryExclusaoTipo==='periodo'){
+    const de=document.getElementById('excluirDeliveryDe').value;
+    const ate=document.getElementById('excluirDeliveryAte').value;
+    if(!de||!ate){ info.textContent='Informe a data inicial e a data final.'; return; }
+    if(de>ate){ info.textContent='A data inicial não pode ser maior que a data final.'; return; }
+  }
+  info.textContent='Contando vendas…';
+  let consulta=sb.from('vendas_delivery').select('id',{count:'exact',head:true}).eq('loja',lojaAtual);
+  if(deliveryExclusaoTipo==='periodo'){
+    consulta=consulta.gte('data_venda',document.getElementById('excluirDeliveryDe').value+'T00:00:00').lte('data_venda',document.getElementById('excluirDeliveryAte').value+'T23:59:59.999');
+  }
+  const {count,error}=await consulta;
+  info.textContent=error?'Não foi possível contar as vendas.':(count||0)+' venda(s) serão excluída(s).';
+}
+
+async function confirmarExclusaoDelivery(){
+  const erro=document.getElementById('excluirDeliveryErro');
+  erro.style.display='none';
+  if(document.getElementById('excluirDeliveryConfirmacao').value.trim().toUpperCase()!=='APAGAR'){
+    erro.textContent='Digite APAGAR para confirmar.';
+    erro.style.display='block';
+    return;
+  }
+  let de='',ate='';
+  if(deliveryExclusaoTipo==='periodo'){
+    de=document.getElementById('excluirDeliveryDe').value;
+    ate=document.getElementById('excluirDeliveryAte').value;
+    if(!de||!ate||de>ate){
+      erro.textContent='Informe um período válido.';
+      erro.style.display='block';
+      return;
+    }
+  }
+  const btn=document.getElementById('excluirDeliveryBtn');
+  btn.disabled=true;
+  btn.textContent='Excluindo…';
+  let consulta=sb.from('vendas_delivery').delete().eq('loja',lojaAtual);
+  if(deliveryExclusaoTipo==='periodo') consulta=consulta.gte('data_venda',de+'T00:00:00').lte('data_venda',ate+'T23:59:59.999');
+  const {error}=await consulta;
+  btn.disabled=false;
+  btn.textContent='Excluir vendas';
+  if(error){
+    erro.textContent='Erro ao excluir: '+error.message;
+    erro.style.display='block';
+    return;
+  }
+  fecharExclusaoDelivery();
+  await popularFiltroMesDelivery();
+  await carregarDelivery();
+  alert(deliveryExclusaoTipo==='tudo'?'Todas as vendas delivery da loja atual foram excluídas.':'As vendas delivery do período foram excluídas.');
+}
+
+function abrirHistoricoDelivery(chave){
+  const vendas=deliveryCache.filter(v=>chaveClienteDelivery(v)===chave).sort((a,b)=>String(b.data_venda).localeCompare(String(a.data_venda)));
   if(!vendas.length) return;
   const recente=vendas[0];
   const antiga=vendas[vendas.length-1];
   const total=vendas.reduce((s,v)=>s+(Number(v.valor_venda)||0),0);
   document.getElementById('deliveryHistoricoTitulo').textContent=recente.nome||'Cliente delivery';
-  document.getElementById('deliveryHistoricoContato').textContent=formatarTelefoneDelivery(telefone)+(recente.endereco?' · '+recente.endereco:'');
+  const identificacao=chave.startsWith('tel:') ? formatarTelefoneDelivery(recente.telefone_normalizado) : 'Cliente identificado pelo nome no iFood';
+  document.getElementById('deliveryHistoricoContato').textContent=identificacao+(recente.endereco?' · '+recente.endereco:'');
   document.getElementById('deliveryHistPedidos').textContent=vendas.length;
   document.getElementById('deliveryHistTotal').textContent=brl(total);
   document.getElementById('deliveryHistPrimeira').textContent=dataHoraDelivery(antiga.data_venda);
