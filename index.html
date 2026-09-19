@@ -3982,7 +3982,7 @@ function valorHibrido(automatico, manual){
 async function buscarDadosControleEstoqueMes(mes){
   const { de, ate } = intervaloMesControleEstoque(mes);
   const [vendasRes, comprasRes, inventariosRes, ajusteRes] = await Promise.all([
-    buscarTodasLinhas((from,to)=>sb.from('vendas_itens').select('valor,custo').eq('loja',lojaAtual).gte('data',de).lte('data',ate).range(from,to)),
+    buscarTodasLinhas((from,to)=>sb.from('vendas_itens').select('valor_venda,custo').eq('loja',lojaAtual).gte('data',de).lte('data',ate).range(from,to)),
     buscarTodasLinhas((from,to)=>sb.from('comb_pag_compras').select('valor,bonificacao').eq('loja',lojaAtual).eq('mes',mes).range(from,to)),
     buscarTodasLinhas((from,to)=>sb.from('estoque_inventarios').select('data,estoque_inicial,negativos,sobras,faltas,vencidos').eq('loja',lojaAtual).gte('data',de).lte('data',ate).order('data',{ascending:true}).range(from,to)),
     sb.from('controle_estoque_mensal').select('*').eq('loja',lojaAtual).eq('mes',mes).maybeSingle()
@@ -4012,7 +4012,7 @@ async function buscarDadosControleEstoqueMes(mes){
     bonificacoes: compras.filter(x=>!!x.bonificacao).reduce((s,x)=>s+Number(x.valor||0),0),
     estoqueFinal: estoqueFinalAuto,
     cmv: vendas.reduce((s,x)=>s+Number(x.custo||0),0),
-    receita: vendas.reduce((s,x)=>s+Number(x.valor||0),0)
+    receita: vendas.reduce((s,x)=>s+Number(x.valor_venda||0),0)
   };
   const valores = {
     estoqueInicial: valorHibrido(automaticos.estoqueInicial, ajuste?.estoque_inicial_manual),
@@ -4098,7 +4098,7 @@ async function carregarControleEstoque(){
     renderControleEstoque();
   }catch(error){
     console.error('Erro ao carregar controle de estoque:',error);
-    alert('Não foi possível carregar o Controle de Estoque. Verifique sua conexão e os dados do período.');
+    alert('Não foi possível carregar o Controle de Estoque. Detalhes: ' + (error?.message || 'verifique sua conexão e os dados do período.'));
   }finally{
     document.getElementById('loadingScreen').style.display = 'none';
   }
