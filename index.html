@@ -461,6 +461,8 @@
   .ce-toolbar{display:flex;align-items:flex-end;justify-content:space-between;gap:14px;flex-wrap:wrap;margin-bottom:20px;}
   .ce-toolbar-left,.ce-toolbar-actions{display:flex;align-items:flex-end;gap:10px;flex-wrap:wrap;}
   .ce-toolbar .fld{min-width:180px;}
+  .ce-toolbar-left .fld{margin-bottom:0;}
+  .ce-toolbar-left .importbtn{height:39px;padding:9px 14px;display:inline-flex;align-items:center;justify-content:center;}
   .ce-header{background:linear-gradient(135deg,#17233c,#243b63);color:#fff;border-radius:14px;padding:22px 24px;margin-bottom:18px;box-shadow:0 8px 24px rgba(23,35,60,.15);}
   .ce-header h2{font-size:22px;margin:0 0 7px;color:#fff;}
   .ce-header-meta{display:flex;gap:18px;flex-wrap:wrap;font-size:12px;color:#dbe7fa;}
@@ -473,7 +475,7 @@
   .ce-card-value{font-size:25px;line-height:1.15;font-weight:700;color:#17233c;margin:18px 0 10px;letter-spacing:-.4px;}
   .ce-card-detail{font-size:11px;line-height:1.35;color:#718096;display:flex;justify-content:space-between;gap:8px;}
   .ce-source{display:inline-flex;align-items:center;padding:3px 7px;border-radius:999px;background:#edf3fb;color:#52647c;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;}
-  .ce-source.manual{background:#fff3d6;color:#925f00;}
+  .ce-source.manual{background:#fff3d6;color:#925f00;}.ce-source.pendente{background:#feecec;color:#a83232;}
   .ce-variation.positive{color:#16794b;font-weight:600;}.ce-variation.negative{color:#b13b3b;font-weight:600;}
   .ce-info{font-size:12px;color:#52647c;margin-top:15px;padding:12px 14px;border:1px solid #dbe5f1;background:#f7faff;border-radius:9px;}
   .ce-modal-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
@@ -970,7 +972,7 @@
         <div class="ce-header-meta"><span id="controleEstoqueLoja">—</span><span id="controleEstoquePeriodo">—</span><span id="controleEstoqueAtualizado">—</span></div>
       </div>
       <div class="ce-grid" id="controleEstoqueCards"></div>
-      <div class="ce-info">Os valores são calculados automaticamente com Inventários, Compras e Vendas com Custo. Use <b>Ajustar valores</b> apenas quando precisar substituir um cálculo neste mês; campos em branco continuam automáticos.</div>
+      <div class="ce-info"><b>Preenchimento manual:</b> selecione o mês e a loja, clique em <b>Ajustar valores</b> e informe os dados do período. Lucro bruto e margem são calculados automaticamente a partir da receita e do CMV informados.</div>
     </div>
 
     <div id="viewInventario" style="display:none;">
@@ -2562,18 +2564,18 @@
     <button class="modal-close" onclick="fecharAjustesControleEstoque()">✕</button>
     <h2>Ajustar valores do mês</h2>
     <p class="modal-sub" id="controleEstoqueModalPeriodo">—</p>
-    <div class="ce-modal-help">Preencha somente o que deseja corrigir manualmente. Se deixar um campo vazio, o sistema continuará usando o valor calculado automaticamente.</div>
+    <div class="ce-modal-help">Informe os valores do período. Campos vazios serão considerados como zero. O lucro bruto e a margem serão calculados automaticamente.</div>
     <div class="ce-modal-grid">
-      <div class="fld"><label>Estoque inicial (R$)</label><input id="ce_estoque_inicial" type="number" min="0" step="0.01" placeholder="Automático"></div>
-      <div class="fld"><label>Compras totais (R$)</label><input id="ce_compras" type="number" min="0" step="0.01" placeholder="Automático"></div>
-      <div class="fld"><label>Bonificações (R$)</label><input id="ce_bonificacoes" type="number" min="0" step="0.01" placeholder="Automático"></div>
-      <div class="fld"><label>Estoque final (R$)</label><input id="ce_estoque_final" type="number" min="0" step="0.01" placeholder="Automático"></div>
-      <div class="fld"><label>CMV (R$)</label><input id="ce_cmv" type="number" min="0" step="0.01" placeholder="Automático"></div>
-      <div class="fld"><label>Receita total (R$)</label><input id="ce_receita" type="number" min="0" step="0.01" placeholder="Automático"></div>
+      <div class="fld"><label>Estoque inicial (R$)</label><input id="ce_estoque_inicial" type="number" min="0" step="0.01" placeholder="0,00"></div>
+      <div class="fld"><label>Compras totais (R$)</label><input id="ce_compras" type="number" min="0" step="0.01" placeholder="0,00"></div>
+      <div class="fld"><label>Bonificações (R$)</label><input id="ce_bonificacoes" type="number" min="0" step="0.01" placeholder="0,00"></div>
+      <div class="fld"><label>Estoque final (R$)</label><input id="ce_estoque_final" type="number" min="0" step="0.01" placeholder="0,00"></div>
+      <div class="fld"><label>CMV (R$)</label><input id="ce_cmv" type="number" min="0" step="0.01" placeholder="0,00"></div>
+      <div class="fld"><label>Receita total (R$)</label><input id="ce_receita" type="number" min="0" step="0.01" placeholder="0,00"></div>
     </div>
     <div class="formerr" id="controleEstoqueErr"></div>
     <div class="modal-actions" style="margin-top:18px;justify-content:space-between;">
-      <button class="cancelbtn" style="color:var(--rust);" onclick="restaurarAutomaticoControleEstoque()">Restaurar tudo automático</button>
+      <button class="cancelbtn" style="color:var(--rust);" onclick="limparValoresControleEstoque()">Limpar valores do mês</button>
       <div style="display:flex;gap:8px;"><button class="addbtn" id="controleEstoqueSalvarBtn" onclick="salvarAjustesControleEstoque()">Salvar</button><button class="cancelbtn" onclick="fecharAjustesControleEstoque()">Cancelar</button></div>
     </div>
   </div>
@@ -3980,57 +3982,29 @@ function valorHibrido(automatico, manual){
 }
 
 async function buscarDadosControleEstoqueMes(mes){
-  const { de, ate } = intervaloMesControleEstoque(mes);
-  const [vendasRes, comprasRes, inventariosRes, ajusteRes] = await Promise.all([
-    buscarTodasLinhas((from,to)=>sb.from('vendas_itens').select('valor_venda,custo').eq('loja',lojaAtual).gte('data',de).lte('data',ate).range(from,to)),
-    buscarTodasLinhas((from,to)=>sb.from('comb_pag_compras').select('valor,bonificacao').eq('loja',lojaAtual).eq('mes',mes).range(from,to)),
-    buscarTodasLinhas((from,to)=>sb.from('estoque_inventarios').select('data,estoque_inicial,negativos,sobras,faltas,vencidos').eq('loja',lojaAtual).gte('data',de).lte('data',ate).order('data',{ascending:true}).range(from,to)),
-    sb.from('controle_estoque_mensal').select('*').eq('loja',lojaAtual).eq('mes',mes).maybeSingle()
-  ]);
-
-  const errosBase = [vendasRes.error, comprasRes.error, inventariosRes.error].filter(Boolean);
-  if(errosBase.length) throw errosBase[0];
-
+  const ajusteRes = await sb.from('controle_estoque_mensal').select('*').eq('loja',lojaAtual).eq('mes',mes).maybeSingle();
   let ajuste = ajusteRes.data || null;
   if(ajusteRes.error){
     controleEstoqueTabelaDisponivel = false;
-    ajuste = null;
-    console.warn('Tabela de ajustes do controle de estoque indisponível:', ajusteRes.error);
+    throw ajusteRes.error;
   }
-
-  const vendas = vendasRes.data || [];
-  const compras = comprasRes.data || [];
-  const inventarios = inventariosRes.data || [];
-  const primeiroInventario = inventarios[0] || null;
-  const ultimoInventario = inventarios[inventarios.length-1] || null;
-  const estoqueFinalAuto = ultimoInventario
-    ? Number(ultimoInventario.estoque_inicial||0) + calcularResultadoInventario(ultimoInventario.sobras,ultimoInventario.faltas,ultimoInventario.vencidos,ultimoInventario.negativos)
-    : 0;
-  const automaticos = {
-    estoqueInicial: primeiroInventario ? Number(primeiroInventario.estoque_inicial||0) : 0,
-    compras: compras.filter(x=>!x.bonificacao).reduce((s,x)=>s+Number(x.valor||0),0),
-    bonificacoes: compras.filter(x=>!!x.bonificacao).reduce((s,x)=>s+Number(x.valor||0),0),
-    estoqueFinal: estoqueFinalAuto,
-    cmv: vendas.reduce((s,x)=>s+Number(x.custo||0),0),
-    receita: vendas.reduce((s,x)=>s+Number(x.valor_venda||0),0)
-  };
   const valores = {
-    estoqueInicial: valorHibrido(automaticos.estoqueInicial, ajuste?.estoque_inicial_manual),
-    compras: valorHibrido(automaticos.compras, ajuste?.compras_manual),
-    bonificacoes: valorHibrido(automaticos.bonificacoes, ajuste?.bonificacoes_manual),
-    estoqueFinal: valorHibrido(automaticos.estoqueFinal, ajuste?.estoque_final_manual),
-    cmv: valorHibrido(automaticos.cmv, ajuste?.cmv_manual),
-    receita: valorHibrido(automaticos.receita, ajuste?.receita_manual)
+    estoqueInicial: Number(ajuste?.estoque_inicial_manual||0),
+    compras: Number(ajuste?.compras_manual||0),
+    bonificacoes: Number(ajuste?.bonificacoes_manual||0),
+    estoqueFinal: Number(ajuste?.estoque_final_manual||0),
+    cmv: Number(ajuste?.cmv_manual||0),
+    receita: Number(ajuste?.receita_manual||0)
   };
   valores.lucro = valores.receita - valores.cmv;
   valores.margem = valores.receita > 0 ? valores.lucro / valores.receita * 100 : 0;
-  return { mes, automaticos, valores, ajuste, primeiroInventario, ultimoInventario };
+  return { mes, valores, ajuste };
 }
 
 function fonteControleEstoque(chave){
   const mapa = {estoqueInicial:'estoque_inicial_manual',compras:'compras_manual',bonificacoes:'bonificacoes_manual',estoqueFinal:'estoque_final_manual',cmv:'cmv_manual',receita:'receita_manual'};
   const campo = mapa[chave];
-  return campo && controleEstoqueAtual?.ajuste?.[campo]!==null && controleEstoqueAtual?.ajuste?.[campo]!==undefined ? 'manual' : 'automático';
+  return campo && controleEstoqueAtual?.ajuste?.[campo]!==null && controleEstoqueAtual?.ajuste?.[campo]!==undefined ? 'manual' : 'pendente';
 }
 
 function variacaoControleEstoque(atual, anterior){
@@ -4051,7 +4025,7 @@ function cardControleEstoque(titulo, chave, icone, cor, formato, detalhe){
   return `<div class="ce-card" style="--ce-accent:${cor}">
     <div class="ce-card-top"><span class="ce-card-title">${titulo}</span><span class="ce-card-icon">${icone}</span></div>
     <div class="ce-card-value">${valorTexto}</div>
-    <div class="ce-card-detail"><span class="ce-variation ${classeVariacao}">${detalhe || variacao}</span><span class="ce-source ${fonte==='manual'?'manual':''}">${fonte}</span></div>
+    <div class="ce-card-detail"><span class="ce-variation ${classeVariacao}">${detalhe || variacao}</span><span class="ce-source ${fonte==='manual'?'manual':(fonte==='pendente'?'pendente':'')}">${fonte}</span></div>
   </div>`;
 }
 
@@ -4060,8 +4034,8 @@ function renderControleEstoque(){
   document.getElementById('controleEstoqueLoja').textContent = NOMES_LOJA[lojaAtual] || lojaAtual;
   document.getElementById('controleEstoquePeriodo').textContent = rotuloMesControleEstoque(controleEstoqueMesAtual);
   document.getElementById('controleEstoqueAtualizado').textContent = 'Atualizado em ' + new Date().toLocaleString('pt-BR',{dateStyle:'short',timeStyle:'short'});
-  const inicialDetalhe = controleEstoqueAtual.primeiroInventario ? 'Inventário de '+fmtData(controleEstoqueAtual.primeiroInventario.data) : 'Sem inventário no mês';
-  const finalDetalhe = controleEstoqueAtual.ultimoInventario ? 'Inventário de '+fmtData(controleEstoqueAtual.ultimoInventario.data) : 'Sem inventário no mês';
+  const inicialDetalhe = fonteControleEstoque('estoqueInicial')==='manual' ? variacaoControleEstoque(controleEstoqueAtual.valores.estoqueInicial,controleEstoqueAnterior?.valores?.estoqueInicial) : 'Informe o valor do mês';
+  const finalDetalhe = fonteControleEstoque('estoqueFinal')==='manual' ? variacaoControleEstoque(controleEstoqueAtual.valores.estoqueFinal,controleEstoqueAnterior?.valores?.estoqueFinal) : 'Informe o valor do mês';
   document.getElementById('controleEstoqueCards').innerHTML =
     cardControleEstoque('Estoque inicial','estoqueInicial','📦','#2563eb','moeda',inicialDetalhe) +
     cardControleEstoque('Compras totais','compras','🛒','#7c3aed','moeda') +
@@ -4120,10 +4094,10 @@ function abrirAjustesControleEstoque(){
   preencher('ce_receita',a.receita_manual);
   document.getElementById('controleEstoqueModalPeriodo').textContent = (NOMES_LOJA[lojaAtual]||'')+' — '+rotuloMesControleEstoque(controleEstoqueMesAtual);
   document.getElementById('controleEstoqueErr').style.display = 'none';
-  document.getElementById('controleEstoqueModal').classList.add('on');
+  document.getElementById('controleEstoqueModal').style.display = 'flex';
 }
 
-function fecharAjustesControleEstoque(){ document.getElementById('controleEstoqueModal').classList.remove('on'); }
+function fecharAjustesControleEstoque(){ document.getElementById('controleEstoqueModal').style.display = 'none'; }
 
 function numeroManualControleEstoque(id){
   const valor = document.getElementById(id).value;
@@ -4151,10 +4125,10 @@ async function salvarAjustesControleEstoque(){
   await carregarControleEstoque();
 }
 
-async function restaurarAutomaticoControleEstoque(){
-  if(!confirm('Remover todos os ajustes manuais deste mês e voltar aos cálculos automáticos?')) return;
+async function limparValoresControleEstoque(){
+  if(!confirm('Apagar todos os valores informados neste mês?')) return;
   const {error}=await sb.from('controle_estoque_mensal').delete().eq('loja',lojaAtual).eq('mes',controleEstoqueMesAtual);
-  if(error){ alert('Não foi possível restaurar os valores automáticos.'); return; }
+  if(error){ alert('Não foi possível limpar os valores deste mês.'); return; }
   fecharAjustesControleEstoque();
   await carregarControleEstoque();
 }
@@ -4192,7 +4166,7 @@ function exportarPdfControleEstoque(){
     const anterior=percentual?Number(l[2]||0).toLocaleString('pt-BR',{minimumFractionDigits:2})+'%':brl(l[2]||0);
     return [l[0],atual,anterior,variacaoControleEstoque(l[1],l[2]),l[3]];
   }),theme:'grid',headStyles:{fillColor:[37,99,235]},styles:{fontSize:10,cellPadding:4},columnStyles:{1:{halign:'right'},2:{halign:'right'}}});
-  doc.setTextColor(90,105,125); doc.setFontSize(8); doc.text('Valores automáticos calculados a partir de Inventários, Compras e Vendas com Custo.',14,doc.internal.pageSize.height-9);
+  doc.setTextColor(90,105,125); doc.setFontSize(8); doc.text('Valores informados manualmente no Controle de Estoque.',14,doc.internal.pageSize.height-9);
   doc.save(`controle-estoque-${lojaAtual}-${controleEstoqueMesAtual}.pdf`);
 }
 
