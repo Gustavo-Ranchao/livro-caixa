@@ -210,12 +210,6 @@
 
   .comp-toolbar{display:flex;gap:12px;align-items:center;margin-bottom:20px;flex-wrap:wrap;}
   .comp-toolbar input[type="month"]{font-family:var(--font-sans);font-size:13px;padding:9px 12px;border:1px solid var(--paper3);border-radius:8px;background:#fff;color:var(--ink);}
-  .comp-email-btn{background:var(--ink)!important;color:#fff!important;border-color:var(--ink)!important;}
-  .comp-email-resumo{font-size:12px;color:var(--muted);line-height:1.55;padding:11px 13px;background:var(--paper);border:1px solid var(--paper3);border-radius:8px;margin-bottom:15px;}
-  .comp-email-status{display:none;font-size:12px;line-height:1.5;padding:10px 12px;border-radius:7px;margin-top:12px;}
-  .comp-email-status.info{display:block;color:#1e40af;background:#e8f0ff;border:1px solid #bfdbfe;}
-  .comp-email-status.erro{display:block;color:#991b1b;background:#fee2e2;border:1px solid #fecaca;}
-  .comp-email-status.sucesso{display:block;color:#166534;background:#dcfce7;border:1px solid #bbf7d0;}
   .comp-upload{display:block;border:2px dashed var(--line);border-radius:10px;padding:24px;text-align:center;color:var(--muted);font-size:13px;cursor:pointer;background:#fff;transition:.15s;margin-bottom:20px;}
 
   .vendas-toolbar{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:20px;background:#fff;border:1px solid var(--paper3);border-radius:10px;padding:16px 20px;}
@@ -223,6 +217,25 @@
   .vendas-toolbar input[type="date"]{font-family:var(--font-sans);font-size:13px;padding:8px 10px;border:1px solid var(--line);border-radius:6px;background:var(--paper);color:var(--ink);}
   .vendas-file-label{display:inline-flex;align-items:center;gap:6px;font-family:var(--font-sans);font-size:13px;font-weight:500;padding:9px 16px;border-radius:6px;background:var(--ink);color:var(--paper);cursor:pointer;}
   .vendas-file-label:hover{opacity:0.9;}
+  .delivery-filtros{display:flex;align-items:flex-end;gap:12px;flex-wrap:wrap;margin-bottom:20px;padding:16px 20px;background:#fff;border:1px solid var(--paper3);border-radius:10px;}
+  .delivery-filtro{display:flex;flex-direction:column;gap:5px;min-width:135px;}
+  .delivery-filtro.busca{flex:1;min-width:230px;}
+  .delivery-filtro label{font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);}
+  .delivery-filtro input,.delivery-filtro select{font-family:var(--font-sans);font-size:13px;padding:8px 10px;border:1px solid var(--line);border-radius:6px;background:#fff;color:var(--ink);}
+  .delivery-ranking-row{cursor:pointer;}
+  .delivery-ranking-row:hover td{background:#f4f8ff;}
+  .delivery-phone{font-family:var(--font-mono);white-space:nowrap;}
+  .delivery-badge{display:inline-flex;align-items:center;padding:3px 7px;border-radius:999px;font-size:10px;font-weight:600;background:#eaf0f8;color:#334155;white-space:nowrap;}
+  .delivery-badge.ativa{background:#dcfce7;color:#166534;}
+  .delivery-badge.sem-status{background:#fef3c7;color:#92400e;}
+  .delivery-import-resumo{display:grid;grid-template-columns:repeat(5,minmax(105px,1fr));gap:10px;margin:14px 0;}
+  .delivery-import-resumo div{padding:10px 12px;background:var(--paper);border:1px solid var(--paper3);border-radius:8px;}
+  .delivery-import-resumo span{display:block;font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin-bottom:3px;}
+  .delivery-import-resumo strong{font-family:var(--font-mono);font-size:16px;}
+  .delivery-historico-cabecalho{display:grid;grid-template-columns:repeat(4,minmax(120px,1fr));gap:10px;margin:14px 0 18px;}
+  .delivery-historico-cabecalho div{padding:10px 12px;background:var(--paper);border:1px solid var(--paper3);border-radius:8px;}
+  .delivery-historico-cabecalho span{display:block;font-size:10px;text-transform:uppercase;color:var(--muted);margin-bottom:3px;}
+  @media(max-width:760px){.delivery-import-resumo{grid-template-columns:repeat(2,1fr)}.delivery-historico-cabecalho{grid-template-columns:repeat(2,1fr)}}
   .comp-upload:hover, .comp-upload.arrastando{border-color:var(--gold);color:var(--gold);background:#fbf3e0;}
   .comp-upload input{display:none;}
   .comp-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:16px;}
@@ -521,6 +534,7 @@
       <button class="top-module-btn" data-category="financeiro" data-view="pagamentoCaixa" onclick="mudarViewPrincipal('pagamentoCaixa')"><span class="top-module-icon">💵</span>Pagamento no Caixa</button>
       <button class="top-module-btn" data-category="financeiro" data-view="combinacaoPagamentos" onclick="mudarViewPrincipal('combinacaoPagamentos')"><span class="top-module-icon">🔗</span>Combinação</button>
       <button class="top-module-btn" data-category="vendas" data-view="vendasComCusto" onclick="mudarViewPrincipal('vendasComCusto')"><span class="top-module-icon">📊</span>Vendas com Custo</button>
+      <button class="top-module-btn" data-category="vendas" data-view="vendasDelivery" onclick="mudarViewPrincipal('vendasDelivery')"><span class="top-module-icon">🛵</span>Vendas Delivery</button>
       <button class="top-module-btn" data-category="comprasEstoque" data-view="compras" onclick="mudarViewPrincipal('compras')"><span class="top-module-icon">🛒</span>Compras</button>
       <button class="top-module-btn" data-category="comprasEstoque" data-view="inventario" onclick="mudarViewPrincipal('inventario')"><span class="top-module-icon">📦</span>Inventário</button>
       <button class="top-module-btn" data-category="comprasEstoque" data-view="contagensEstoque" onclick="mudarViewPrincipal('contagensEstoque')"><span class="top-module-icon">🔢</span>Contagens de Estoque</button>
@@ -1186,7 +1200,6 @@
         <label style="font-size:11px;text-transform:uppercase;letter-spacing:0.05em;color:var(--muted);">Mês</label>
         <input id="compMes" type="month" onchange="mudarMesComprovantes(this.value)">
         <button type="button" class="filter-btn foto-btn" onclick="baixarTodosComprovantes()" title="Baixar todos os comprovantes desse mês em um .zip">🗜️ Baixar tudo (.zip)</button>
-        <button type="button" class="filter-btn comp-email-btn" onclick="abrirEnvioComprovantes()" title="Enviar os comprovantes anexados por e-mail">✉️ Enviar por e-mail</button>
       </div>
 
       <label class="comp-upload" id="compUploadArea">
@@ -1332,6 +1345,67 @@
             <tbody id="vendasProdutoBody"></tbody>
           </table>
         </div>
+      </div>
+    </div>
+
+    <div id="viewVendasDelivery" style="display:none;">
+      <div class="vendas-toolbar">
+        <label class="vendas-file-label">
+          📁 Importar venda(s) delivery
+          <input id="deliveryFileInput" type="file" accept=".xlsx,.xls" multiple style="display:none;" onchange="onSelecionarArquivosDelivery(this.files)">
+        </label>
+        <span style="font-size:12px;color:var(--muted);">Selecione a planilha Relatórios de Entregas. Vendas repetidas não serão duplicadas.</span>
+      </div>
+
+      <div id="deliveryPreviewWrap" class="panel" style="display:none;margin-bottom:20px;padding:18px 20px;">
+        <div class="panel-head" style="margin-bottom:4px;"><h2>Conferência da importação</h2></div>
+        <div id="deliveryPreviewArquivos" style="font-size:12px;color:var(--muted);"></div>
+        <div class="delivery-import-resumo">
+          <div><span>Vendas encontradas</span><strong id="deliveryPrevTotal">0</strong></div>
+          <div><span>Vendas ativas</span><strong id="deliveryPrevAtivas">0</strong></div>
+          <div><span>Sem observação</span><strong id="deliveryPrevSemStatus">0</strong></div>
+          <div><span>Celulares válidos</span><strong id="deliveryPrevValidos">0</strong></div>
+          <div><span>Sem celular válido</span><strong id="deliveryPrevInvalidos">0</strong></div>
+        </div>
+        <p id="deliveryPreviewAviso" class="modal-sub"></p>
+        <div class="modal-actions" style="margin-top:14px;">
+          <button class="addbtn" id="deliveryImportConfirmBtn" style="width:auto;" onclick="confirmarImportDelivery()">Confirmar importação</button>
+          <button class="cancelbtn" onclick="cancelarImportDelivery()">Cancelar</button>
+        </div>
+      </div>
+
+      <div class="delivery-filtros">
+        <div class="delivery-filtro"><label>Mês</label><select id="deliveryFiltroMes" onchange="mudarMesDelivery(this.value)"><option value="todos">Todos os meses</option></select></div>
+        <div class="delivery-filtro"><label>De</label><input id="deliveryFiltroDe" type="date" onchange="carregarDelivery()"></div>
+        <div class="delivery-filtro"><label>Até</label><input id="deliveryFiltroAte" type="date" onchange="carregarDelivery()"></div>
+        <div class="delivery-filtro"><label>Status</label><select id="deliveryFiltroStatus" onchange="renderDelivery()"><option value="todos">Todas as vendas</option><option value="ativa">Vendas ativas</option><option value="sem_status">Sem observação</option><option value="outros">Outros status</option></select></div>
+        <div class="delivery-filtro"><label>Origem</label><select id="deliveryFiltroOrigem" onchange="renderDelivery()"><option value="todos">Todas</option><option value="TELEFONE">Telefone</option><option value="IFOOD">iFood</option></select></div>
+        <div class="delivery-filtro"><label>Clientes</label><select id="deliveryFiltroRecorrencia" onchange="renderDelivery()"><option value="todos">Todos</option><option value="uma">1 compra</option><option value="duas">2 ou mais</option><option value="tres">3 ou mais</option><option value="inativo30">Sem comprar há 30 dias</option><option value="inativo60">Sem comprar há 60 dias</option><option value="inativo90">Sem comprar há 90 dias</option></select></div>
+        <div class="delivery-filtro"><label>Ordenar por</label><select id="deliveryOrdenacao" onchange="renderDelivery()"><option value="pedidos">Mais pedidos</option><option value="valor">Maior valor gasto</option><option value="recente">Compra mais recente</option></select></div>
+        <div class="delivery-filtro busca"><label>Pesquisar cliente</label><input id="deliveryBusca" class="sem-maiuscula" placeholder="Nome, celular ou endereço" oninput="renderDelivery()"></div>
+        <button type="button" class="filter-btn" onclick="limparFiltrosDelivery()">Limpar</button>
+      </div>
+
+      <div class="bh-resumo">
+        <div class="metric"><div class="lbl">Vendas no período</div><div class="val" id="deliveryTotalPedidos">0</div></div>
+        <div class="metric"><div class="lbl">Valor vendido</div><div class="val" id="deliveryValorVendido">R$ 0,00</div></div>
+        <div class="metric"><div class="lbl">Clientes identificados</div><div class="val" id="deliveryTotalClientes">0</div></div>
+        <div class="metric"><div class="lbl">Clientes recorrentes</div><div class="val" id="deliveryClientesRecorrentes">0</div></div>
+        <div class="metric"><div class="lbl">Ticket médio</div><div class="val" id="deliveryTicketMedio">R$ 0,00</div></div>
+        <div class="metric"><div class="lbl">Sem celular válido</div><div class="val" id="deliverySemCelular">0</div></div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-head">
+          <div><h2>Ranking de clientes delivery</h2><p style="font-size:12px;color:var(--muted);margin-top:4px;">Clique em um cliente para consultar todo o histórico.</p></div>
+        </div>
+        <div class="tablewrap">
+          <table class="ledger">
+            <thead><tr><th>#</th><th>Cliente</th><th>Celular</th><th style="text-align:right">Pedidos</th><th style="text-align:right">Total</th><th style="text-align:right">Ticket médio</th><th>Última compra</th><th>Dias sem comprar</th></tr></thead>
+            <tbody id="deliveryRankingBody"></tbody>
+          </table>
+        </div>
+        <div class="empty" id="deliveryEmpty" style="display:none;">Nenhum cliente encontrado com os filtros selecionados.</div>
       </div>
     </div>
 
@@ -2273,23 +2347,6 @@
   </div>
 </div>
 
-<div id="enviarComprovantesModal" class="modal-overlay">
-  <div class="modal-box" style="max-width:620px;">
-    <button class="modal-close" onclick="fecharEnvioComprovantes()">✕</button>
-    <h2>Enviar comprovantes por e-mail</h2>
-    <p class="modal-sub">Os comprovantes serão compactados e enviados como anexos. Se necessário, o sistema dividirá o conteúdo em mais de um e-mail.</p>
-    <div id="compEmailResumo" class="comp-email-resumo"></div>
-    <div class="fld"><label>E-mail da contabilidade</label><input id="compEmailDestinatario" class="sem-maiuscula" type="email" maxlength="180" placeholder="contabilidade@empresa.com"></div>
-    <div class="fld"><label>Assunto</label><input id="compEmailAssunto" class="sem-maiuscula" maxlength="180"></div>
-    <div class="fld"><label>Mensagem</label><textarea id="compEmailMensagem" class="sem-maiuscula" style="width:100%;min-height:130px;resize:vertical;font-family:var(--font-sans);font-size:13px;line-height:1.5;padding:11px 12px;border:1px solid var(--line);border-radius:7px;background:#fff;color:var(--ink);"></textarea></div>
-    <div id="compEmailStatus" class="comp-email-status"></div>
-    <div class="modal-actions" style="margin-top:18px;">
-      <button id="compEmailEnviarBtn" class="addbtn" onclick="enviarComprovantesPorEmail()">Enviar comprovantes</button>
-      <button class="cancelbtn" onclick="fecharEnvioComprovantes()">Cancelar</button>
-    </div>
-  </div>
-</div>
-
 <div id="relatorioNoturnoModal" class="modal-overlay">
   <div class="modal-box" style="max-width:860px;">
     <button class="modal-close" onclick="fecharRelatorioNoturno()">✕</button>
@@ -2411,6 +2468,27 @@
   </div>
 </div>
 
+<div id="deliveryHistoricoModal" class="modal-overlay">
+  <div class="modal-box" style="max-width:920px;">
+    <button class="modal-close" onclick="fecharHistoricoDelivery()">✕</button>
+    <h2 id="deliveryHistoricoTitulo">Histórico do cliente</h2>
+    <p class="modal-sub" id="deliveryHistoricoContato"></p>
+    <div class="delivery-historico-cabecalho">
+      <div><span>Total de pedidos</span><strong id="deliveryHistPedidos">0</strong></div>
+      <div><span>Total comprado</span><strong id="deliveryHistTotal">R$ 0,00</strong></div>
+      <div><span>Primeira compra</span><strong id="deliveryHistPrimeira">—</strong></div>
+      <div><span>Última compra</span><strong id="deliveryHistUltima">—</strong></div>
+    </div>
+    <div class="tablewrap" style="max-height:430px;overflow:auto;">
+      <table class="ledger">
+        <thead><tr><th>Data</th><th>Venda</th><th>Status</th><th>Origem</th><th>Entrega</th><th>Endereço</th><th style="text-align:right">Valor</th></tr></thead>
+        <tbody id="deliveryHistoricoBody"></tbody>
+      </table>
+    </div>
+    <div class="modal-actions"><button class="cancelbtn" onclick="fecharHistoricoDelivery()">Fechar</button></div>
+  </div>
+</div>
+
 <script>
 const SUPABASE_URL = 'https://qgpkswienjhfkbipiwio.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFncGtzd2llbmpoZmtiaXBpd2lvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODMxMDc5MzAsImV4cCI6MjA5ODY4MzkzMH0._y0hAaadVIyNHCN3wQRnNRyr62BgBKkyy29OSYvQ8Go';
@@ -2506,6 +2584,9 @@ function trocarLoja(l){
       mudarMesVendas(mesAtual);
     });
     atualizarUltimoDiaVendas();
+  }
+  if(viewAtual === 'vendasDelivery'){
+    abrirVendasDelivery();
   }
   if(viewAtual === 'fluxoCaixa'){
     sb.from('fluxo_caixa_contas').select('*').eq('loja', lojaAtual).order('ordem').order('nome').then(async ({data, error})=>{
@@ -3796,20 +3877,20 @@ function setEscala(e){
   }
 }
 
-const VIEWS = ['checklist','duvidas','contasPagar','despesasFixas','comprovantes','diferencaCaixa','fluxoCaixa','pagamentos','pagamentoCaixa','vendasComCusto','bancoHoras','compras','colaboradores','fornecedores','contasBancarias','inventario','contagensEstoque','combinacaoPagamentos'];
+const VIEWS = ['checklist','duvidas','contasPagar','despesasFixas','comprovantes','diferencaCaixa','fluxoCaixa','pagamentos','pagamentoCaixa','vendasComCusto','vendasDelivery','bancoHoras','compras','colaboradores','fornecedores','contasBancarias','inventario','contagensEstoque','combinacaoPagamentos'];
 let colabCarregado = false;
 
 const CATEGORIA_POR_VIEW = {
   contasPagar:'financeiro', despesasFixas:'financeiro', comprovantes:'financeiro',
   diferencaCaixa:'financeiro', fluxoCaixa:'financeiro', pagamentos:'financeiro',
   pagamentoCaixa:'financeiro', combinacaoPagamentos:'financeiro',
-  vendasComCusto:'vendas',
+  vendasComCusto:'vendas', vendasDelivery:'vendas',
   compras:'comprasEstoque', inventario:'comprasEstoque', contagensEstoque:'comprasEstoque',
   bancoHoras:'equipe', colaboradores:'equipe',
   fornecedores:'cadastros', contasBancarias:'cadastros',
   checklist:'checklist', duvidas:'duvidas'
 };
-const VIEW_IDS = { checklist:'viewChecklist', duvidas:'viewDuvidas', contasPagar:'viewContasPagar', despesasFixas:'viewDespesasFixas', comprovantes:'viewComprovantes', diferencaCaixa:'viewDiferencaCaixa', fluxoCaixa:'viewFluxoCaixa', pagamentos:'viewPagamentos', pagamentoCaixa:'viewPagamentoCaixa', vendasComCusto:'viewVendasComCusto', bancoHoras:'viewBancoHoras', compras:'viewCompras', colaboradores:'viewColaboradores', fornecedores:'viewFornecedores', contasBancarias:'viewContasBancarias', inventario:'viewInventario', contagensEstoque:'viewContagensEstoque', combinacaoPagamentos:'viewCombinacaoPagamentos' };
+const VIEW_IDS = { checklist:'viewChecklist', duvidas:'viewDuvidas', contasPagar:'viewContasPagar', despesasFixas:'viewDespesasFixas', comprovantes:'viewComprovantes', diferencaCaixa:'viewDiferencaCaixa', fluxoCaixa:'viewFluxoCaixa', pagamentos:'viewPagamentos', pagamentoCaixa:'viewPagamentoCaixa', vendasComCusto:'viewVendasComCusto', vendasDelivery:'viewVendasDelivery', bancoHoras:'viewBancoHoras', compras:'viewCompras', colaboradores:'viewColaboradores', fornecedores:'viewFornecedores', contasBancarias:'viewContasBancarias', inventario:'viewInventario', contagensEstoque:'viewContagensEstoque', combinacaoPagamentos:'viewCombinacaoPagamentos' };
 
 let categoriaMenuAberta = null;
 
@@ -3889,6 +3970,8 @@ async function mudarViewPrincipal(view){
     await abrirDuvidas();
   }else if(view==='vendasComCusto'){
     await abrirVendas();
+  }else if(view==='vendasDelivery'){
+    await abrirVendasDelivery();
   }else if(view==='bancoHoras'){
     if(!bhCarregado) await carregarFuncionarios();
   }else if(view==='compras'){
@@ -4436,183 +4519,6 @@ async function baixarTodosComprovantes(){
   setTimeout(fecharProgresso, 400);
 }
 
-const COMP_EMAIL_PARTE_ALVO_BYTES = 14 * 1024 * 1024;
-const COMP_EMAIL_ARQUIVO_MAX_BYTES = 18 * 1024 * 1024;
-
-function rotuloMesComprovantes(chave){
-  const partes = String(chave || '').split('-');
-  if(partes.length!==2) return chave || '';
-  const indice = Number(partes[1]) - 1;
-  return (NOMES_MES[indice] || partes[1]) + ' de ' + partes[0];
-}
-
-function nomeLojaParaEmail(){
-  return NOMES_LOJA[lojaAtual] || (lojaAtual==='loja2' ? 'Loja 02' : 'Loja 01');
-}
-
-function atualizarStatusEmail(tipo, texto){
-  const el = document.getElementById('compEmailStatus');
-  el.className = 'comp-email-status' + (tipo ? ' ' + tipo : '');
-  el.textContent = texto || '';
-}
-
-function abrirEnvioComprovantes(){
-  if(compCache.length===0){
-    alert('Não há comprovantes nesse mês para enviar.');
-    return;
-  }
-  const tamanhoTotal = compCache.reduce((soma, item)=>soma + Number(item.tamanho_bytes || 0), 0);
-  const tamanhoMb = (tamanhoTotal / (1024 * 1024)).toFixed(1).replace('.', ',');
-  const loja = nomeLojaParaEmail();
-  const mes = rotuloMesComprovantes(compMesAtual);
-  document.getElementById('compEmailResumo').textContent = compCache.length + ' comprovante(s) · ' + tamanhoMb + ' MB antes da compactação · ' + loja + ' · ' + mes;
-  document.getElementById('compEmailDestinatario').value = localStorage.getItem('compEmailDestinatario') || '';
-  document.getElementById('compEmailAssunto').value = 'Comprovantes - ' + loja + ' - ' + mes;
-  document.getElementById('compEmailMensagem').value = 'Boa tarde,\n\nEm anexo, envio os comprovantes referentes a ' + mes + ', da ' + loja + '.\n\nAtenciosamente,\nRanchão Bebidas';
-  atualizarStatusEmail('', '');
-  document.getElementById('compEmailEnviarBtn').disabled = false;
-  document.getElementById('enviarComprovantesModal').style.display = 'flex';
-  setTimeout(()=>document.getElementById('compEmailDestinatario').focus(), 50);
-}
-
-function fecharEnvioComprovantes(){
-  const btn = document.getElementById('compEmailEnviarBtn');
-  if(btn && btn.disabled) return;
-  document.getElementById('enviarComprovantesModal').style.display = 'none';
-}
-
-function nomeArquivoZipComprovantes(numeroParte, totalPartes){
-  const loja = nomeLojaParaEmail().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'');
-  const sufixo = totalPartes>1 ? '-parte-' + numeroParte + '-de-' + totalPartes : '';
-  return 'comprovantes-' + loja + '-' + compMesAtual + sufixo + '.zip';
-}
-
-function nomeUnicoNoZip(nome, usados){
-  let candidato = nome || 'comprovante';
-  let contador = 2;
-  const ponto = candidato.lastIndexOf('.');
-  const base = ponto>0 ? candidato.slice(0,ponto) : candidato;
-  const extensao = ponto>0 ? candidato.slice(ponto) : '';
-  while(usados.has(candidato.toLowerCase())){
-    candidato = base + '-' + contador + extensao;
-    contador++;
-  }
-  usados.add(candidato.toLowerCase());
-  return candidato;
-}
-
-async function baixarArquivosParaEmail(){
-  const arquivos = [];
-  const total = compCache.length;
-  for(let i=0;i<compCache.length;i++){
-    const c = compCache[i];
-    const { data: urlData, error } = await sb.storage.from('comprovantes').createSignedUrl(c.caminho_storage, 3600);
-    if(error || !urlData || !urlData.signedUrl) throw new Error('Não foi possível acessar "' + c.nome_arquivo + '".');
-    const resp = await fetch(urlData.signedUrl);
-    if(!resp.ok) throw new Error('Falha ao baixar "' + c.nome_arquivo + '" para o envio.');
-    const blob = await resp.blob();
-    if(blob.size > COMP_EMAIL_ARQUIVO_MAX_BYTES){
-      throw new Error('O arquivo "' + c.nome_arquivo + '" sozinho ultrapassa 18 MB. Reduza esse arquivo antes de enviar.');
-    }
-    arquivos.push({ nome: c.nome_arquivo, blob });
-    atualizarProgresso(((i+1)/total)*55);
-  }
-  return arquivos;
-}
-
-function separarArquivosEmPartes(arquivos){
-  const partes = [];
-  let atual = [];
-  let tamanhoAtual = 0;
-  for(const arquivo of arquivos){
-    if(atual.length>0 && tamanhoAtual + arquivo.blob.size > COMP_EMAIL_PARTE_ALVO_BYTES){
-      partes.push(atual);
-      atual = [];
-      tamanhoAtual = 0;
-    }
-    atual.push(arquivo);
-    tamanhoAtual += arquivo.blob.size;
-  }
-  if(atual.length) partes.push(atual);
-  return partes;
-}
-
-async function compactarPartesParaEmail(partes){
-  const resultados = [];
-  for(let i=0;i<partes.length;i++){
-    const zip = new JSZip();
-    const usados = new Set();
-    for(const arquivo of partes[i]) zip.file(nomeUnicoNoZip(arquivo.nome, usados), arquivo.blob);
-    const blob = await zip.generateAsync({ type:'blob', compression:'DEFLATE', compressionOptions:{ level:6 } });
-    if(blob.size > COMP_EMAIL_ARQUIVO_MAX_BYTES){
-      throw new Error('Uma das partes compactadas ultrapassou 18 MB. Tente reduzir algum comprovante grande.');
-    }
-    resultados.push(blob);
-    atualizarProgresso(55 + ((i+1)/partes.length)*20);
-  }
-  return resultados;
-}
-
-async function enviarParteComprovantes(formData){
-  const { data: sessaoData } = await sb.auth.getSession();
-  const token = sessaoData && sessaoData.session ? sessaoData.session.access_token : null;
-  if(!token) throw new Error('Sua sessão expirou. Entre novamente no sistema.');
-  const resposta = await fetch(SUPABASE_URL + '/functions/v1/enviar-comprovantes', {
-    method:'POST',
-    headers:{ 'Authorization':'Bearer ' + token, 'apikey':SUPABASE_ANON_KEY },
-    body:formData
-  });
-  let retorno = {};
-  try{ retorno = await resposta.json(); }catch(e){}
-  if(!resposta.ok) throw new Error(retorno.error || retorno.message || 'O serviço de e-mail recusou o envio.');
-  return retorno;
-}
-
-async function enviarComprovantesPorEmail(){
-  if(!window.JSZip){ alert('Não foi possível carregar o recurso de compactação. Recarregue a página.'); return; }
-  const destinatario = document.getElementById('compEmailDestinatario').value.trim();
-  const assunto = document.getElementById('compEmailAssunto').value.trim();
-  const mensagem = document.getElementById('compEmailMensagem').value.trim();
-  if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(destinatario)){ atualizarStatusEmail('erro','Informe um e-mail válido.'); return; }
-  if(!assunto){ atualizarStatusEmail('erro','Informe o assunto do e-mail.'); return; }
-  if(compCache.length===0){ atualizarStatusEmail('erro','Não há comprovantes para enviar.'); return; }
-
-  localStorage.setItem('compEmailDestinatario', destinatario);
-  const btn = document.getElementById('compEmailEnviarBtn');
-  btn.disabled = true;
-  atualizarStatusEmail('info','Preparando os anexos. Não feche esta tela.');
-  abrirProgresso('Preparando anexos para o e-mail…');
-  let enviados = 0;
-  try{
-    const arquivos = await baixarArquivosParaEmail();
-    const grupos = separarArquivosEmPartes(arquivos);
-    const zips = await compactarPartesParaEmail(grupos);
-    for(let i=0;i<zips.length;i++){
-      abrirProgresso('Enviando e-mail ' + (i+1) + ' de ' + zips.length + '…');
-      atualizarProgresso(75 + (i/zips.length)*25);
-      const form = new FormData();
-      form.append('destinatario', destinatario);
-      form.append('assunto', assunto);
-      form.append('mensagem', mensagem);
-      form.append('parte_atual', String(i+1));
-      form.append('total_partes', String(zips.length));
-      form.append('arquivo', zips[i], nomeArquivoZipComprovantes(i+1, zips.length));
-      await enviarParteComprovantes(form);
-      enviados++;
-      atualizarProgresso(75 + ((i+1)/zips.length)*25);
-    }
-    atualizarProgresso(100);
-    fecharProgresso();
-    atualizarStatusEmail('sucesso', zips.length===1 ? 'E-mail enviado com sucesso.' : zips.length + ' e-mails enviados com sucesso, cada um com uma parte dos comprovantes.');
-  }catch(erro){
-    fecharProgresso();
-    const prefixo = enviados>0 ? enviados + ' parte(s) foram enviadas antes do erro. ' : '';
-    atualizarStatusEmail('erro', prefixo + (erro.message || 'Não foi possível enviar os comprovantes.'));
-  }finally{
-    btn.disabled = false;
-  }
-}
-
 /* ================= DIFERENÇA DE CAIXA ================= */
 
 let difColaboradores = [];
@@ -4858,6 +4764,382 @@ async function confirmarExclusaoDiferencaOk(){
   }
   fecharConfirmacaoDiferenca();
 }
+
+/* ================= VENDAS DELIVERY ================= */
+
+let deliveryCache = [];
+let deliveryImportacao = [];
+let deliveryDuplicadosSelecao = 0;
+
+function normalizarCabecalhoDelivery(valor){
+  return String(valor || '').normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim().toUpperCase().replace(/\s+/g,' ');
+}
+
+function textoDelivery(valor, limite){
+  if(valor===null || valor===undefined) return '';
+  return String(valor).trim().slice(0, limite || 1000);
+}
+
+function normalizarTelefoneDelivery(valor){
+  const original = textoDelivery(valor, 180);
+  let numero = original.replace(/\D/g,'');
+  if(numero.startsWith('55') && (numero.length===12 || numero.length===13)) numero = numero.slice(2);
+  const valido = (numero.length===10 || numero.length===11) && !numero.startsWith('0800');
+  return { original, normalizado: valido ? numero : null, valido };
+}
+
+function dataExcelDelivery(valor){
+  if(valor instanceof Date && !isNaN(valor)){
+    return valor.getFullYear() + '-' + String(valor.getMonth()+1).padStart(2,'0') + '-' + String(valor.getDate()).padStart(2,'0') + 'T' + String(valor.getHours()).padStart(2,'0') + ':' + String(valor.getMinutes()).padStart(2,'0') + ':' + String(valor.getSeconds()).padStart(2,'0');
+  }
+  if(typeof valor === 'number' && window.XLSX && XLSX.SSF){
+    const p = XLSX.SSF.parse_date_code(valor);
+    if(p) return String(p.y).padStart(4,'0') + '-' + String(p.m).padStart(2,'0') + '-' + String(p.d).padStart(2,'0') + 'T' + String(p.H||0).padStart(2,'0') + ':' + String(p.M||0).padStart(2,'0') + ':' + String(Math.floor(p.S||0)).padStart(2,'0');
+  }
+  const texto = textoDelivery(valor, 60);
+  if(!texto) return null;
+  const br = texto.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})(?:\s+(\d{1,2}):(\d{2})(?::(\d{2}))?)?/);
+  if(br) return br[3] + '-' + br[2].padStart(2,'0') + '-' + br[1].padStart(2,'0') + 'T' + String(br[4]||0).padStart(2,'0') + ':' + String(br[5]||0).padStart(2,'0') + ':' + String(br[6]||0).padStart(2,'0');
+  const iso = texto.replace(' ', 'T').match(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2})?/);
+  return iso ? iso[0].slice(0,19) : null;
+}
+
+function localizarCabecalhoDelivery(linhas){
+  const maximo = Math.min(linhas.length, 30);
+  for(let i=0;i<maximo;i++){
+    const cab = (linhas[i] || []).map(normalizarCabecalhoDelivery);
+    if(cab.includes('VENDA') && cab.includes('NOME') && cab.includes('DATA') && cab.includes('TELEFONE') && cab.includes('VALOR VENDA')) return { indice:i, cabecalho:cab };
+  }
+  return null;
+}
+
+async function onSelecionarArquivosDelivery(fileList){
+  const arquivos = Array.from(fileList || []);
+  if(!arquivos.length) return;
+  const erroArquivos = validarListaArquivos(arquivos, 'planilha');
+  if(erroArquivos){ alert(erroArquivos); document.getElementById('deliveryFileInput').value=''; return; }
+  if(!window.XLSX){ alert('Não foi possível carregar o leitor de planilhas. Recarregue a página.'); return; }
+
+  abrirProgresso('Lendo vendas delivery…');
+  const unicas = new Map();
+  const nomesArquivos = [];
+  deliveryDuplicadosSelecao = 0;
+
+  try{
+    for(let a=0;a<arquivos.length;a++){
+      const arquivo = arquivos[a];
+      const wb = XLSX.read(await arquivo.arrayBuffer(), { type:'array', cellDates:false });
+      let encontradosArquivo = 0;
+      for(const nomeAba of wb.SheetNames){
+        const linhas = XLSX.utils.sheet_to_json(wb.Sheets[nomeAba], { header:1, raw:true, defval:'' });
+        const achado = localizarCabecalhoDelivery(linhas);
+        if(!achado) continue;
+        const cab = achado.cabecalho;
+        const indice = nome=>cab.indexOf(nome);
+        const idxVenda = indice('VENDA');
+        const idxNome = indice('NOME');
+        const idxData = indice('DATA');
+        const idxEndereco = indice('ENDERECO');
+        const idxTelefone = indice('TELEFONE');
+        const idxOrigem = indice('ORIGEM');
+        const idxEntrega = indice('TIPO ENTREGA');
+        const idxCobranca = indice('TIPO COBRANCA');
+        const idxStatus = indice('STATUS');
+        const idxValor = indice('VALOR VENDA');
+
+        for(let i=achado.indice+1;i<linhas.length;i++){
+          const linha = linhas[i] || [];
+          const numero = parseNumeroVenda(linha[idxVenda]);
+          const dataVenda = dataExcelDelivery(linha[idxData]);
+          const valor = parseNumeroVenda(linha[idxValor]);
+          if(numero===null || !dataVenda || valor===null) continue;
+          const telefone = normalizarTelefoneDelivery(idxTelefone>=0 ? linha[idxTelefone] : '');
+          const statusTexto = idxStatus>=0 ? textoDelivery(linha[idxStatus],80).toUpperCase() : '';
+          const registro = {
+            loja:lojaAtual,
+            numero_venda:Math.trunc(numero),
+            nome:idxNome>=0 ? textoDelivery(linha[idxNome],300) || null : null,
+            data_venda:dataVenda,
+            endereco:idxEndereco>=0 ? textoDelivery(linha[idxEndereco],1000) || null : null,
+            telefone_original:telefone.original || null,
+            telefone_normalizado:telefone.normalizado,
+            telefone_valido:telefone.valido,
+            origem:idxOrigem>=0 ? textoDelivery(linha[idxOrigem],80).toUpperCase() || null : null,
+            tipo_entrega:idxEntrega>=0 ? textoDelivery(linha[idxEntrega],80).toUpperCase() || null : null,
+            tipo_cobranca:idxCobranca>=0 ? textoDelivery(linha[idxCobranca],120).toUpperCase() || null : null,
+            status:statusTexto || null,
+            valor_venda:Number(valor.toFixed(2)),
+            arquivo_origem:textoDelivery(arquivo.name,260)
+          };
+          const chave = String(registro.numero_venda);
+          if(unicas.has(chave)) deliveryDuplicadosSelecao++;
+          unicas.set(chave, registro);
+          encontradosArquivo++;
+        }
+      }
+      nomesArquivos.push(arquivo.name + ' (' + encontradosArquivo + ' venda(s))');
+      atualizarProgresso(((a+1)/arquivos.length)*95);
+    }
+  }catch(erro){
+    fecharProgresso();
+    alert('Não foi possível ler a planilha: ' + (erro.message || erro));
+    cancelarImportDelivery();
+    return;
+  }
+
+  deliveryImportacao = Array.from(unicas.values());
+  atualizarProgresso(100);
+  setTimeout(fecharProgresso,200);
+  if(!deliveryImportacao.length){
+    alert('Não encontrei uma tabela com as colunas Venda, Nome, Data, Telefone e Valor Venda.');
+    cancelarImportDelivery();
+    return;
+  }
+  const ativas = deliveryImportacao.filter(v=>v.status==='VENDA ATIVA').length;
+  const semStatus = deliveryImportacao.filter(v=>!v.status).length;
+  const validos = deliveryImportacao.filter(v=>v.telefone_valido).length;
+  document.getElementById('deliveryPreviewArquivos').textContent = nomesArquivos.join(' · ');
+  document.getElementById('deliveryPrevTotal').textContent = deliveryImportacao.length;
+  document.getElementById('deliveryPrevAtivas').textContent = ativas;
+  document.getElementById('deliveryPrevSemStatus').textContent = semStatus;
+  document.getElementById('deliveryPrevValidos').textContent = validos;
+  document.getElementById('deliveryPrevInvalidos').textContent = deliveryImportacao.length-validos;
+  document.getElementById('deliveryPreviewAviso').textContent = 'Todas as vendas serão salvas. As que não possuem celular válido entram nos totais, mas não formam um cliente no ranking.' + (deliveryDuplicadosSelecao ? ' ' + deliveryDuplicadosSelecao + ' venda(s) repetida(s) dentro dos arquivos foram unificadas.' : '');
+  document.getElementById('deliveryPreviewWrap').style.display='block';
+}
+
+function cancelarImportDelivery(){
+  deliveryImportacao=[];
+  deliveryDuplicadosSelecao=0;
+  const input=document.getElementById('deliveryFileInput');
+  if(input) input.value='';
+  document.getElementById('deliveryPreviewWrap').style.display='none';
+}
+
+async function confirmarImportDelivery(){
+  if(!deliveryImportacao.length) return;
+  const btn=document.getElementById('deliveryImportConfirmBtn');
+  btn.disabled=true;
+  btn.textContent='Importando…';
+  abrirProgresso('Salvando vendas delivery…');
+  let inseridas=0;
+  try{
+    const tamanho=250;
+    for(let i=0;i<deliveryImportacao.length;i+=tamanho){
+      const lote=deliveryImportacao.slice(i,i+tamanho);
+      const {data,error}=await sb.from('vendas_delivery').upsert(lote,{onConflict:'loja,numero_venda',ignoreDuplicates:true}).select('id');
+      if(error) throw error;
+      inseridas+=(data||[]).length;
+      atualizarProgresso(Math.min(100,((i+lote.length)/deliveryImportacao.length)*100));
+    }
+    const ignoradas=deliveryImportacao.length-inseridas;
+    cancelarImportDelivery();
+    await popularFiltroMesDelivery();
+    await carregarDelivery();
+    fecharProgresso();
+    alert(inseridas + ' venda(s) importada(s).' + (ignoradas>0 ? ' ' + ignoradas + ' já existiam e não foram duplicadas.' : ''));
+  }catch(erro){
+    fecharProgresso();
+    const detalhe=String(erro.message||erro);
+    alert((detalhe.includes('vendas_delivery') ? 'A tabela do módulo ainda não existe. Execute primeiro o arquivo SQL no Supabase.\n\n' : 'Erro ao importar: ') + detalhe);
+  }finally{
+    btn.disabled=false;
+    btn.textContent='Confirmar importação';
+  }
+}
+
+async function popularFiltroMesDelivery(){
+  const {data,error}=await buscarTodasLinhas((from,to)=>sb.from('vendas_delivery').select('data_venda').eq('loja',lojaAtual).order('data_venda',{ascending:false}).range(from,to));
+  if(error){ console.error('Erro ao carregar meses do delivery:',error); return []; }
+  const meses=Array.from(new Set((data||[]).map(v=>String(v.data_venda).slice(0,7)).filter(Boolean))).sort().reverse();
+  const sel=document.getElementById('deliveryFiltroMes');
+  const anterior=sel.value||'todos';
+  sel.innerHTML='<option value="todos">Todos os meses</option>'+meses.map(chave=>{
+    const partes=chave.split('-');
+    return `<option value="${chave}">${NOMES_MES[Number(partes[1])-1]} ${partes[0]}</option>`;
+  }).join('');
+  sel.value=meses.includes(anterior)||anterior==='todos'?anterior:(meses[0]||'todos');
+  return meses;
+}
+
+function mudarMesDelivery(valor){
+  if(valor==='todos'){
+    document.getElementById('deliveryFiltroDe').value='';
+    document.getElementById('deliveryFiltroAte').value='';
+  }else{
+    const partes=valor.split('-');
+    const ultimo=new Date(Number(partes[0]),Number(partes[1]),0).getDate();
+    document.getElementById('deliveryFiltroDe').value=valor+'-01';
+    document.getElementById('deliveryFiltroAte').value=valor+'-'+String(ultimo).padStart(2,'0');
+  }
+  carregarDelivery();
+}
+
+async function abrirVendasDelivery(){
+  const meses=await popularFiltroMesDelivery();
+  const sel=document.getElementById('deliveryFiltroMes');
+  if(meses.length && (sel.value==='todos' || !meses.includes(sel.value))) sel.value=meses[0];
+  mudarMesDelivery(sel.value || 'todos');
+}
+
+async function carregarDelivery(){
+  const {data,error}=await buscarTodasLinhas((from,to)=>sb.from('vendas_delivery').select('*').eq('loja',lojaAtual).order('data_venda',{ascending:false}).range(from,to));
+  if(error){
+    console.error('Erro ao carregar vendas delivery:',error);
+    deliveryCache=[];
+    renderDelivery();
+    if(String(error.message||'').includes('vendas_delivery')) alert('Execute o arquivo modulo_vendas_delivery_supabase.sql no Supabase para ativar este módulo.');
+    return;
+  }
+  deliveryCache=(data||[]).map(v=>({...v,valor_venda:Number(v.valor_venda)||0}));
+  renderDelivery();
+}
+
+function dataSomenteDelivery(valor){ return String(valor||'').slice(0,10); }
+
+function statusDelivery(valor){
+  const status=String(valor||'').trim().toUpperCase();
+  if(!status) return 'sem_status';
+  if(status==='VENDA ATIVA') return 'ativa';
+  return 'outros';
+}
+
+function rotuloStatusDelivery(valor){ return valor ? String(valor) : 'SEM OBSERVAÇÃO'; }
+
+function formatarTelefoneDelivery(numero){
+  const n=String(numero||'');
+  if(n.length===11) return '('+n.slice(0,2)+') '+n.slice(2,7)+'-'+n.slice(7);
+  if(n.length===10) return '('+n.slice(0,2)+') '+n.slice(2,6)+'-'+n.slice(6);
+  return n||'—';
+}
+
+function dataHoraDelivery(valor){
+  const t=String(valor||'');
+  if(!t) return '—';
+  const data=t.slice(0,10);
+  const hora=t.slice(11,16);
+  return fmtData(data)+(hora ? ' '+hora : '');
+}
+
+function diasDesdeDelivery(valor){
+  const data=new Date(dataSomenteDelivery(valor)+'T12:00:00');
+  if(isNaN(data)) return 0;
+  const hoje=new Date(); hoje.setHours(12,0,0,0);
+  return Math.max(0,Math.floor((hoje-data)/86400000));
+}
+
+function vendasDeliveryDoPeriodo(){
+  const de=document.getElementById('deliveryFiltroDe').value;
+  const ate=document.getElementById('deliveryFiltroAte').value;
+  const filtroStatus=document.getElementById('deliveryFiltroStatus').value;
+  const origem=document.getElementById('deliveryFiltroOrigem').value;
+  return deliveryCache.filter(v=>{
+    const data=dataSomenteDelivery(v.data_venda);
+    if(de && data<de) return false;
+    if(ate && data>ate) return false;
+    if(filtroStatus!=='todos' && statusDelivery(v.status)!==filtroStatus) return false;
+    if(origem!=='todos' && String(v.origem||'').toUpperCase()!==origem) return false;
+    return true;
+  });
+}
+
+function agruparClientesDelivery(vendas){
+  const grupos=new Map();
+  const ultimaGlobal=new Map();
+  deliveryCache.filter(v=>v.telefone_valido&&v.telefone_normalizado).forEach(v=>{
+    const tel=v.telefone_normalizado;
+    if(!ultimaGlobal.has(tel)||String(v.data_venda)>String(ultimaGlobal.get(tel))) ultimaGlobal.set(tel,v.data_venda);
+  });
+  vendas.filter(v=>v.telefone_valido&&v.telefone_normalizado).forEach(v=>{
+    const tel=v.telefone_normalizado;
+    if(!grupos.has(tel)) grupos.set(tel,{telefone:tel,pedidos:0,total:0,vendas:[],nome:'Cliente',endereco:'',ultimaPeriodo:null,ultimaGlobal:ultimaGlobal.get(tel)||v.data_venda});
+    const g=grupos.get(tel);
+    g.pedidos++;
+    g.total+=Number(v.valor_venda)||0;
+    g.vendas.push(v);
+    if(!g.ultimaPeriodo||String(v.data_venda)>String(g.ultimaPeriodo)){
+      g.ultimaPeriodo=v.data_venda;
+      g.nome=v.nome||'Cliente';
+      g.endereco=v.endereco||'';
+      g.telefoneOriginal=v.telefone_original||tel;
+    }
+  });
+  return Array.from(grupos.values()).map(g=>({...g,ticket:g.pedidos?g.total/g.pedidos:0,diasSemComprar:diasDesdeDelivery(g.ultimaGlobal)}));
+}
+
+function renderDelivery(){
+  const vendas=vendasDeliveryDoPeriodo();
+  const gruposTodos=agruparClientesDelivery(vendas);
+  const valorTotal=vendas.reduce((s,v)=>s+(Number(v.valor_venda)||0),0);
+  const semCelular=vendas.filter(v=>!v.telefone_valido).length;
+  document.getElementById('deliveryTotalPedidos').textContent=vendas.length;
+  document.getElementById('deliveryValorVendido').textContent=brl(valorTotal);
+  document.getElementById('deliveryTotalClientes').textContent=gruposTodos.length;
+  document.getElementById('deliveryClientesRecorrentes').textContent=gruposTodos.filter(g=>g.pedidos>=2).length;
+  document.getElementById('deliveryTicketMedio').textContent=brl(vendas.length?valorTotal/vendas.length:0);
+  document.getElementById('deliverySemCelular').textContent=semCelular;
+
+  const busca=document.getElementById('deliveryBusca').value.trim().toLowerCase();
+  const buscaDigitos=busca.replace(/\D/g,'');
+  const recorrencia=document.getElementById('deliveryFiltroRecorrencia').value;
+  let grupos=gruposTodos.filter(g=>{
+    if(busca){
+      const alvo=[g.nome,g.telefone,g.telefoneOriginal,g.endereco].join(' ').toLowerCase();
+      if(!alvo.includes(busca) && !(buscaDigitos && g.telefone.includes(buscaDigitos))) return false;
+    }
+    if(recorrencia==='uma' && g.pedidos!==1) return false;
+    if(recorrencia==='duas' && g.pedidos<2) return false;
+    if(recorrencia==='tres' && g.pedidos<3) return false;
+    if(recorrencia==='inativo30' && g.diasSemComprar<30) return false;
+    if(recorrencia==='inativo60' && g.diasSemComprar<60) return false;
+    if(recorrencia==='inativo90' && g.diasSemComprar<90) return false;
+    return true;
+  });
+  const ordem=document.getElementById('deliveryOrdenacao').value;
+  grupos.sort((a,b)=>ordem==='valor' ? b.total-a.total : ordem==='recente' ? String(b.ultimaGlobal).localeCompare(String(a.ultimaGlobal)) : (b.pedidos-a.pedidos)||(b.total-a.total));
+
+  const body=document.getElementById('deliveryRankingBody');
+  body.innerHTML=grupos.map((g,i)=>`<tr class="delivery-ranking-row" onclick="abrirHistoricoDelivery('${g.telefone}')">
+    <td>${i+1}</td><td><strong>${escapeHtml(g.nome)}</strong><br><span style="font-size:11px;color:var(--muted);">${escapeHtml(g.endereco||'')}</span></td>
+    <td class="delivery-phone">${formatarTelefoneDelivery(g.telefone)}</td><td style="text-align:right;font-family:var(--font-mono);">${g.pedidos}</td>
+    <td style="text-align:right;font-family:var(--font-mono);font-weight:600;">${brl(g.total)}</td><td style="text-align:right;font-family:var(--font-mono);">${brl(g.ticket)}</td>
+    <td>${dataHoraDelivery(g.ultimaGlobal)}</td><td>${g.diasSemComprar} dia(s)</td></tr>`).join('');
+  document.getElementById('deliveryEmpty').style.display=grupos.length?'none':'block';
+}
+
+function limparFiltrosDelivery(){
+  document.getElementById('deliveryFiltroMes').value='todos';
+  document.getElementById('deliveryFiltroDe').value='';
+  document.getElementById('deliveryFiltroAte').value='';
+  document.getElementById('deliveryFiltroStatus').value='todos';
+  document.getElementById('deliveryFiltroOrigem').value='todos';
+  document.getElementById('deliveryFiltroRecorrencia').value='todos';
+  document.getElementById('deliveryOrdenacao').value='pedidos';
+  document.getElementById('deliveryBusca').value='';
+  renderDelivery();
+}
+
+function abrirHistoricoDelivery(telefone){
+  const vendas=deliveryCache.filter(v=>v.telefone_normalizado===telefone).sort((a,b)=>String(b.data_venda).localeCompare(String(a.data_venda)));
+  if(!vendas.length) return;
+  const recente=vendas[0];
+  const antiga=vendas[vendas.length-1];
+  const total=vendas.reduce((s,v)=>s+(Number(v.valor_venda)||0),0);
+  document.getElementById('deliveryHistoricoTitulo').textContent=recente.nome||'Cliente delivery';
+  document.getElementById('deliveryHistoricoContato').textContent=formatarTelefoneDelivery(telefone)+(recente.endereco?' · '+recente.endereco:'');
+  document.getElementById('deliveryHistPedidos').textContent=vendas.length;
+  document.getElementById('deliveryHistTotal').textContent=brl(total);
+  document.getElementById('deliveryHistPrimeira').textContent=dataHoraDelivery(antiga.data_venda);
+  document.getElementById('deliveryHistUltima').textContent=dataHoraDelivery(recente.data_venda);
+  document.getElementById('deliveryHistoricoBody').innerHTML=vendas.map(v=>{
+    const tipo=statusDelivery(v.status);
+    const classe=tipo==='ativa'?'ativa':tipo==='sem_status'?'sem-status':'';
+    return `<tr><td>${dataHoraDelivery(v.data_venda)}</td><td>${escapeHtml(String(v.numero_venda))}</td><td><span class="delivery-badge ${classe}">${escapeHtml(rotuloStatusDelivery(v.status))}</span></td><td>${escapeHtml(v.origem||'—')}</td><td>${escapeHtml(v.tipo_entrega||'—')}</td><td>${escapeHtml(v.endereco||'—')}</td><td style="text-align:right;font-family:var(--font-mono);font-weight:600;">${brl(v.valor_venda)}</td></tr>`;
+  }).join('');
+  document.getElementById('deliveryHistoricoModal').style.display='flex';
+}
+
+function fecharHistoricoDelivery(){ document.getElementById('deliveryHistoricoModal').style.display='none'; }
 
 /* ================= VENDAS COM CUSTO ================= */
 
