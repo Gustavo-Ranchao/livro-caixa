@@ -475,13 +475,26 @@
   .ce-card-value{font-size:25px;line-height:1.15;font-weight:700;color:#17233c;margin:18px 0 10px;letter-spacing:-.4px;}
   .ce-card-detail{font-size:11px;line-height:1.35;color:#718096;display:flex;justify-content:space-between;gap:8px;}
   .ce-source{display:inline-flex;align-items:center;padding:3px 7px;border-radius:999px;background:#edf3fb;color:#52647c;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;}
-  .ce-source.manual{background:#fff3d6;color:#925f00;}.ce-source.pendente{background:#feecec;color:#a83232;}
+  .ce-source.manual{background:#fff3d6;color:#925f00;}.ce-source.pendente{background:#feecec;color:#a83232;}.ce-source.herdado{background:#e7f2ff;color:#1d5c9d;}
   .ce-variation.positive{color:#16794b;font-weight:600;}.ce-variation.negative{color:#b13b3b;font-weight:600;}
   .ce-info{font-size:12px;color:#52647c;margin-top:15px;padding:12px 14px;border:1px solid #dbe5f1;background:#f7faff;border-radius:9px;}
   .ce-modal-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
   .ce-modal-help{font-size:12px;line-height:1.5;color:#607089;background:#f3f7fc;border-radius:8px;padding:10px 12px;margin-bottom:15px;}
+  #ce_estoque_inicial[readonly],#ce_cmv_calculado[readonly]{background:#eef3f8;color:#43546b;cursor:not-allowed;}
   @media(max-width:1050px){.ce-grid{grid-template-columns:repeat(2,minmax(190px,1fr));}}
   @media(max-width:620px){.ce-grid,.ce-modal-grid{grid-template-columns:1fr;}.ce-toolbar-actions{width:100%;}.ce-toolbar-actions button{flex:1;}.ce-card{min-height:130px;}}
+  .rec-toolbar{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:18px;}
+  .rec-form-grid{display:grid;grid-template-columns:1.35fr .8fr 1fr;gap:12px 14px;padding:0 20px 4px;}
+  .rec-span-2{grid-column:span 2;}.rec-span-3{grid-column:1/-1;}
+  .rec-extenso{font-size:11px;color:#1d5c9d;margin-top:5px;line-height:1.4;min-height:16px;}
+  .rec-preview{margin:12px 20px 18px;padding:20px 22px;border:1px solid #d8e2ee;border-radius:10px;background:#fbfdff;color:#26364c;font-family:Georgia,serif;font-size:14px;line-height:1.8;text-align:justify;}
+  .rec-preview strong{color:#17233c;}.rec-actions{display:flex;gap:9px;flex-wrap:wrap;padding:0 20px 20px;}
+  .rec-config-status{font-size:12px;color:#607089;display:flex;align-items:center;gap:6px;}.rec-config-status.ok{color:#16794b;}
+  .rec-history-filters{display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:0 20px 14px;}
+  .rec-history-filters input{font-family:var(--font-sans);font-size:13px;padding:9px 11px;border:1px solid var(--line);border-radius:7px;background:#fff;color:var(--ink);}
+  .rec-config-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+  .rec-config-grid .full{grid-column:1/-1;}
+  @media(max-width:760px){.rec-form-grid,.rec-config-grid{grid-template-columns:1fr;}.rec-span-2,.rec-span-3,.rec-config-grid .full{grid-column:auto;}.rec-preview{margin-left:14px;margin-right:14px;}.rec-actions{padding-left:14px;padding-right:14px;}}
 </style>
 </head>
 <body>
@@ -557,6 +570,7 @@
       <button class="top-module-btn" data-category="financeiro" data-view="pagamentos" onclick="mudarViewPrincipal('pagamentos')"><span class="top-module-icon">💳</span>Pagamentos</button>
       <button class="top-module-btn" data-category="financeiro" data-view="pagamentoCaixa" onclick="mudarViewPrincipal('pagamentoCaixa')"><span class="top-module-icon">💵</span>Pagamento no Caixa</button>
       <button class="top-module-btn" data-category="financeiro" data-view="combinacaoPagamentos" onclick="mudarViewPrincipal('combinacaoPagamentos')"><span class="top-module-icon">🔗</span>Combinação</button>
+      <button class="top-module-btn" data-category="financeiro" data-view="contratos" onclick="mudarViewPrincipal('contratos')"><span class="top-module-icon">📄</span>Contratos</button>
       <button class="top-module-btn" data-category="vendas" data-view="vendasComCusto" onclick="mudarViewPrincipal('vendasComCusto')"><span class="top-module-icon">📊</span>Vendas com Custo</button>
       <button class="top-module-btn" data-category="vendas" data-view="vendasDelivery" onclick="mudarViewPrincipal('vendasDelivery')"><span class="top-module-icon">🛵</span>Vendas Delivery</button>
       <button class="top-module-btn" data-category="comprasEstoque" data-view="compras" onclick="mudarViewPrincipal('compras')"><span class="top-module-icon">🛒</span>Compras</button>
@@ -610,6 +624,35 @@
       </div>
       <div class="duvidas-grid" id="duvidasBody"></div>
       <div class="empty" id="duvidasEmpty" style="display:none;">Nenhuma informação encontrada.</div>
+    </div>
+
+    <div id="viewContratos" style="display:none;">
+      <div class="rec-toolbar">
+        <div><h2 style="margin:0 0 4px;font-size:20px;color:#17233c;">Recibos</h2><div class="rec-config-status" id="recConfigStatus">⚙ Configure os dados padrão desta loja</div></div>
+        <button type="button" class="filter-btn foto-btn" onclick="abrirConfiguracaoRecibos()">⚙ Configurações do recibo</button>
+      </div>
+
+      <div class="panel" style="margin-bottom:20px;">
+        <div class="panel-head"><h2>Novo recibo</h2></div>
+        <div class="rec-form-grid">
+          <div class="fld"><label>Empresa ou pessoa pagadora</label><input id="rec_pagador_nome" placeholder="Nome de quem efetuou o pagamento" oninput="atualizarPreviaRecibo()"></div>
+          <div class="fld"><label>CPF/CNPJ do pagador (opcional)</label><input id="rec_pagador_documento" placeholder="CPF ou CNPJ" oninput="atualizarPreviaRecibo()"></div>
+          <div class="fld"><label>Data</label><input id="rec_data" type="date" onchange="atualizarPreviaRecibo()"></div>
+          <div class="fld rec-span-2"><label>Endereço do pagador</label><input id="rec_pagador_endereco" placeholder="Rua, número, bairro e cidade" oninput="atualizarPreviaRecibo()"></div>
+          <div class="fld"><label>Valor (R$)</label><input id="rec_valor" type="number" min="0.01" step="0.01" placeholder="0,00" oninput="atualizarPreviaRecibo()"><div class="rec-extenso" id="recValorExtenso"></div></div>
+          <div class="fld rec-span-3"><label>Referente a</label><input id="rec_referencia" placeholder="Ex.: prestação de serviços referente ao mês..." oninput="atualizarPreviaRecibo()"></div>
+        </div>
+        <div class="rec-preview" id="recPreviaTexto">Preencha os dados para visualizar o texto do recibo.</div>
+        <div class="formerr" id="recErr" style="margin:0 20px 12px;"></div>
+        <div class="rec-actions"><button class="addbtn" style="width:auto;" onclick="salvarRecibo(true)">Salvar e gerar PDF</button><button class="cancelbtn" onclick="gerarPdfReciboFormulario()">Visualizar PDF sem salvar</button><button class="cancelbtn" onclick="limparFormularioRecibo()">Limpar</button></div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-head"><h2>Histórico de recibos</h2></div>
+        <div class="rec-history-filters"><input id="recBusca" style="flex:1;min-width:220px;" placeholder="🔍 Buscar por pagador ou referência..." oninput="renderRecibos()"><input id="recFiltroMes" type="month" onchange="carregarRecibos()"><button class="cancelbtn" onclick="limparFiltroRecibos()">Todos</button></div>
+        <div class="tablewrap"><table class="ledger"><thead><tr><th>Nº</th><th>Data</th><th>Pagador</th><th>Referente a</th><th style="text-align:right;">Valor</th><th></th></tr></thead><tbody id="recBody"></tbody></table></div>
+        <div class="empty" id="recEmpty" style="display:none;">Nenhum recibo encontrado para esta loja.</div>
+      </div>
     </div>
 
     <div id="viewContasPagar" style="display:none;">
@@ -972,7 +1015,7 @@
         <div class="ce-header-meta"><span id="controleEstoqueLoja">—</span><span id="controleEstoquePeriodo">—</span><span id="controleEstoqueAtualizado">—</span></div>
       </div>
       <div class="ce-grid" id="controleEstoqueCards"></div>
-      <div class="ce-info"><b>Preenchimento manual:</b> informe estoque inicial, compras, bonificações, estoque final e receita. O sistema calcula automaticamente o <b>CMV = estoque inicial + compras − bonificações − estoque final</b>, além do lucro bruto e da margem.</div>
+      <div class="ce-info"><b>Continuidade mensal:</b> o estoque final de um mês torna-se automaticamente o estoque inicial do mês seguinte. Informe compras, bonificações, estoque final e receita; o sistema calcula o <b>CMV = estoque inicial + compras − bonificações − estoque final</b>, o lucro bruto e a margem.</div>
     </div>
 
     <div id="viewInventario" style="display:none;">
@@ -2566,7 +2609,7 @@
     <p class="modal-sub" id="controleEstoqueModalPeriodo">—</p>
     <div class="ce-modal-help">Informe os valores do período. Campos vazios serão considerados como zero. O CMV, o lucro bruto e a margem serão calculados automaticamente.</div>
     <div class="ce-modal-grid">
-      <div class="fld"><label>Estoque inicial (R$)</label><input id="ce_estoque_inicial" type="number" min="0" step="0.01" placeholder="0,00" oninput="recalcularCmvFormularioControle()"></div>
+      <div class="fld"><label id="ceEstoqueInicialLabel">Estoque inicial (R$)</label><input id="ce_estoque_inicial" type="number" min="0" step="0.01" placeholder="0,00" oninput="recalcularCmvFormularioControle()"></div>
       <div class="fld"><label>Compras totais (R$)</label><input id="ce_compras" type="number" min="0" step="0.01" placeholder="0,00" oninput="recalcularCmvFormularioControle()"></div>
       <div class="fld"><label>Bonificações (R$)</label><input id="ce_bonificacoes" type="number" min="0" step="0.01" placeholder="0,00" oninput="recalcularCmvFormularioControle()"></div>
       <div class="fld"><label>Estoque final (R$)</label><input id="ce_estoque_final" type="number" min="0" step="0.01" placeholder="0,00" oninput="recalcularCmvFormularioControle()"></div>
@@ -2578,6 +2621,28 @@
       <button class="cancelbtn" style="color:var(--rust);" onclick="limparValoresControleEstoque()">Limpar valores do mês</button>
       <div style="display:flex;gap:8px;"><button class="addbtn" id="controleEstoqueSalvarBtn" onclick="salvarAjustesControleEstoque()">Salvar</button><button class="cancelbtn" onclick="fecharAjustesControleEstoque()">Cancelar</button></div>
     </div>
+  </div>
+</div>
+
+<div id="recConfigModal" class="modal-overlay">
+  <div class="modal-box" style="max-width:760px;">
+    <button class="modal-close" onclick="fecharConfiguracaoRecibos()">✕</button>
+    <h2>Configurações dos recibos</h2>
+    <p class="modal-sub">Dados padrão exclusivos da <strong id="recConfigLojaNome">loja</strong>. Eles poderão ser alterados em cada novo recibo.</p>
+    <div class="rec-config-grid">
+      <div class="fld"><label>Nome de quem recebe</label><input id="rec_cfg_recebedor_nome" placeholder="Nome completo ou razão social"></div>
+      <div class="fld"><label>CPF/CNPJ de quem recebe</label><input id="rec_cfg_recebedor_documento" placeholder="CPF ou CNPJ"></div>
+      <div class="fld full"><label>Endereço de quem recebe</label><input id="rec_cfg_recebedor_endereco" placeholder="Endereço completo"></div>
+      <div class="fld"><label>Cidade</label><input id="rec_cfg_cidade" placeholder="Ex.: Inimutaba"></div>
+      <div class="fld"><label>Estado</label><input id="rec_cfg_estado" maxlength="2" placeholder="MG"></div>
+      <div class="fld"><label>Pagador padrão</label><input id="rec_cfg_pagador_nome" placeholder="Empresa ou pessoa mais utilizada"></div>
+      <div class="fld"><label>CPF/CNPJ do pagador padrão</label><input id="rec_cfg_pagador_documento" placeholder="Opcional"></div>
+      <div class="fld full"><label>Endereço do pagador padrão</label><input id="rec_cfg_pagador_endereco" placeholder="Endereço completo"></div>
+      <div class="fld full"><label>Referência padrão</label><input id="rec_cfg_referencia" placeholder="Ex.: serviços prestados"></div>
+      <div class="fld full"><label>Observação no rodapé (opcional)</label><input id="rec_cfg_observacao" placeholder="Texto adicional para o recibo"></div>
+    </div>
+    <div class="formerr" id="recConfigErr"></div>
+    <div class="modal-actions" style="margin-top:16px;"><button class="addbtn" id="recConfigSalvarBtn" onclick="salvarConfiguracaoRecibos()">Salvar configurações</button><button class="cancelbtn" onclick="fecharConfiguracaoRecibos()">Cancelar</button></div>
   </div>
 </div>
 
@@ -2707,6 +2772,9 @@ function trocarLoja(l){
   }
   if(viewAtual === 'controleEstoque'){
     carregarControleEstoque();
+  }
+  if(viewAtual === 'contratos'){
+    abrirContratos();
   }
   if(viewAtual === 'contagensEstoque'){
     abrirContagensEstoque();
@@ -3947,6 +4015,260 @@ async function confirmarImport(){
   }
 }
 
+/* ================= CONTRATOS E RECIBOS ================= */
+
+let recibosConfig = null;
+let recibosCache = [];
+
+function grupoNumeroExtenso(n){
+  const u=['','um','dois','três','quatro','cinco','seis','sete','oito','nove'];
+  const d10=['dez','onze','doze','treze','quatorze','quinze','dezesseis','dezessete','dezoito','dezenove'];
+  const dz=['','','vinte','trinta','quarenta','cinquenta','sessenta','setenta','oitenta','noventa'];
+  const ct=['','cento','duzentos','trezentos','quatrocentos','quinhentos','seiscentos','setecentos','oitocentos','novecentos'];
+  n=Math.floor(n);
+  if(n===100) return 'cem';
+  const partes=[];
+  const c=Math.floor(n/100), resto=n%100;
+  if(c) partes.push(ct[c]);
+  if(resto>=10 && resto<20) partes.push(d10[resto-10]);
+  else{
+    const dez=Math.floor(resto/10), un=resto%10;
+    if(dez) partes.push(dz[dez]);
+    if(un) partes.push(u[un]);
+  }
+  return partes.join(' e ');
+}
+
+function inteiroPorExtenso(n){
+  n=Math.floor(Math.abs(n));
+  if(n===0) return 'zero';
+  const classes=[
+    {valor:1000000000,singular:'bilhão',plural:'bilhões'},
+    {valor:1000000,singular:'milhão',plural:'milhões'},
+    {valor:1000,singular:'mil',plural:'mil'},
+    {valor:1,singular:'',plural:''}
+  ];
+  const partes=[];
+  classes.forEach(c=>{
+    const qtd=Math.floor(n/c.valor);
+    if(!qtd) return;
+    n%=c.valor;
+    if(c.valor===1000 && qtd===1) partes.push('mil');
+    else{
+      const texto=grupoNumeroExtenso(qtd);
+      const classe=qtd===1?c.singular:c.plural;
+      partes.push((texto+' '+classe).trim());
+    }
+  });
+  if(partes.length<=1) return partes[0]||'zero';
+  return partes.slice(0,-1).join(', ')+' e '+partes[partes.length-1];
+}
+
+function valorPorExtenso(valor){
+  const total=Math.round((Number(valor)||0)*100);
+  const reais=Math.floor(total/100), centavos=total%100;
+  const partes=[];
+  if(reais){
+    const unidade=reais===1?' real':(reais>=1000000&&reais%1000000===0?' de reais':' reais');
+    partes.push(inteiroPorExtenso(reais)+unidade);
+  }
+  if(centavos) partes.push(inteiroPorExtenso(centavos)+' '+(centavos===1?'centavo':'centavos'));
+  return partes.length?partes.join(' e '):'zero reais';
+}
+
+function dataPorExtensoRecibo(data){
+  if(!data) return '';
+  const d=new Date(data+'T12:00:00');
+  return d.getDate()+' de '+NOMES_MES[d.getMonth()].toLowerCase()+' de '+d.getFullYear();
+}
+
+function dadosFormularioRecibo(){
+  const valor=Number(document.getElementById('rec_valor').value||0);
+  return {
+    pagador_nome:document.getElementById('rec_pagador_nome').value.trim(),
+    pagador_documento:document.getElementById('rec_pagador_documento').value.trim(),
+    pagador_endereco:document.getElementById('rec_pagador_endereco').value.trim(),
+    data_recibo:document.getElementById('rec_data').value,
+    valor:valor,
+    valor_extenso:valorPorExtenso(valor),
+    referencia:document.getElementById('rec_referencia').value.trim(),
+    cidade:(recibosConfig&&recibosConfig.cidade)||'',
+    estado:(recibosConfig&&recibosConfig.estado)||'',
+    recebedor_nome:(recibosConfig&&recibosConfig.recebedor_nome)||'',
+    recebedor_documento:(recibosConfig&&recibosConfig.recebedor_documento)||'',
+    recebedor_endereco:(recibosConfig&&recibosConfig.recebedor_endereco)||'',
+    observacao_rodape:(recibosConfig&&recibosConfig.observacao_rodape)||''
+  };
+}
+
+function textoRecibo(d){
+  const doc=d.pagador_documento?' (CPF/CNPJ '+d.pagador_documento+')':'';
+  return 'Recebi de '+(d.pagador_nome||'[PAGADOR]')+doc+', no endereço '+(d.pagador_endereco||'[ENDEREÇO]')+', a quantia de '+brl(d.valor)+' ('+d.valor_extenso+'), referente a '+(d.referencia||'[REFERÊNCIA]')+'.';
+}
+
+function atualizarPreviaRecibo(){
+  const d=dadosFormularioRecibo();
+  document.getElementById('recValorExtenso').textContent=d.valor>0?d.valor_extenso:'';
+  const local=[d.cidade,d.estado].filter(Boolean).join(' - ');
+  document.getElementById('recPreviaTexto').innerHTML='<strong>RECIBO</strong><br><br>'+escapeHtml(textoRecibo(d))+'<br><br>'+escapeHtml(local+(local?', ':'')+dataPorExtensoRecibo(d.data_recibo))+'.';
+}
+
+async function abrirContratos(){
+  if(!document.getElementById('rec_data').value) document.getElementById('rec_data').value=todayStr();
+  await carregarConfiguracaoRecibos();
+  await carregarRecibos();
+  atualizarPreviaRecibo();
+}
+
+async function carregarConfiguracaoRecibos(){
+  const {data,error}=await sb.from('recibos_configuracoes').select('*').eq('loja',lojaAtual).maybeSingle();
+  if(error){
+    console.error('Erro ao carregar configurações de recibos:',error);
+    recibosConfig=null;
+    document.getElementById('recConfigStatus').textContent='⚠ Execute o SQL do módulo no Supabase';
+    document.getElementById('recConfigStatus').classList.remove('ok');
+    return;
+  }
+  recibosConfig=data||null;
+  const status=document.getElementById('recConfigStatus');
+  status.textContent=recibosConfig&&recibosConfig.recebedor_nome?'✓ Configuração desta loja pronta':'⚙ Configure os dados padrão desta loja';
+  status.classList.toggle('ok',!!(recibosConfig&&recibosConfig.recebedor_nome));
+  preencherFormularioComConfigRecibos();
+}
+
+function preencherFormularioComConfigRecibos(){
+  if(!recibosConfig) return;
+  document.getElementById('rec_pagador_nome').value=recibosConfig.pagador_nome_padrao||'';
+  document.getElementById('rec_pagador_documento').value=recibosConfig.pagador_documento_padrao||'';
+  document.getElementById('rec_pagador_endereco').value=recibosConfig.pagador_endereco_padrao||'';
+  document.getElementById('rec_referencia').value=recibosConfig.referencia_padrao||'';
+}
+
+function abrirConfiguracaoRecibos(){
+  const c=recibosConfig||{};
+  const mapa={
+    rec_cfg_recebedor_nome:'recebedor_nome',rec_cfg_recebedor_documento:'recebedor_documento',
+    rec_cfg_recebedor_endereco:'recebedor_endereco',rec_cfg_cidade:'cidade',rec_cfg_estado:'estado',
+    rec_cfg_pagador_nome:'pagador_nome_padrao',rec_cfg_pagador_documento:'pagador_documento_padrao',
+    rec_cfg_pagador_endereco:'pagador_endereco_padrao',rec_cfg_referencia:'referencia_padrao',
+    rec_cfg_observacao:'observacao_rodape'
+  };
+  Object.keys(mapa).forEach(id=>document.getElementById(id).value=c[mapa[id]]||'');
+  document.getElementById('recConfigLojaNome').textContent=NOMES_LOJA[lojaAtual]||lojaAtual;
+  document.getElementById('recConfigErr').style.display='none';
+  document.getElementById('recConfigModal').style.display='flex';
+}
+
+function fecharConfiguracaoRecibos(){ document.getElementById('recConfigModal').style.display='none'; }
+
+async function salvarConfiguracaoRecibos(){
+  const payload={
+    loja:lojaAtual,
+    recebedor_nome:document.getElementById('rec_cfg_recebedor_nome').value.trim(),
+    recebedor_documento:document.getElementById('rec_cfg_recebedor_documento').value.trim()||null,
+    recebedor_endereco:document.getElementById('rec_cfg_recebedor_endereco').value.trim()||null,
+    cidade:document.getElementById('rec_cfg_cidade').value.trim(),
+    estado:document.getElementById('rec_cfg_estado').value.trim().toUpperCase()||null,
+    pagador_nome_padrao:document.getElementById('rec_cfg_pagador_nome').value.trim()||null,
+    pagador_documento_padrao:document.getElementById('rec_cfg_pagador_documento').value.trim()||null,
+    pagador_endereco_padrao:document.getElementById('rec_cfg_pagador_endereco').value.trim()||null,
+    referencia_padrao:document.getElementById('rec_cfg_referencia').value.trim()||null,
+    observacao_rodape:document.getElementById('rec_cfg_observacao').value.trim()||null
+  };
+  if(!payload.recebedor_nome||!payload.cidade){
+    const e=document.getElementById('recConfigErr');e.textContent='Informe pelo menos o nome de quem recebe e a cidade.';e.style.display='block';return;
+  }
+  const btn=document.getElementById('recConfigSalvarBtn');btn.disabled=true;btn.textContent='Salvando…';
+  const {data,error}=await sb.from('recibos_configuracoes').upsert(payload,{onConflict:'loja'}).select().single();
+  btn.disabled=false;btn.textContent='Salvar configurações';
+  if(error){const e=document.getElementById('recConfigErr');e.textContent='Não foi possível salvar. Confirme se executou o SQL do módulo.';e.style.display='block';console.error(error);return;}
+  recibosConfig=data;fecharConfiguracaoRecibos();preencherFormularioComConfigRecibos();atualizarPreviaRecibo();
+  const status=document.getElementById('recConfigStatus');status.textContent='✓ Configuração desta loja pronta';status.classList.add('ok');
+}
+
+function validarDadosRecibo(d){
+  if(!recibosConfig||!d.recebedor_nome||!d.cidade) return 'Configure primeiro os dados de quem recebe e a cidade.';
+  if(!d.pagador_nome||!d.pagador_endereco||!d.data_recibo||!d.referencia||!(d.valor>0)) return 'Preencha pagador, endereço, data, valor e referência.';
+  return '';
+}
+
+async function salvarRecibo(baixarPdf){
+  const d=dadosFormularioRecibo(), erro=validarDadosRecibo(d);
+  const e=document.getElementById('recErr');
+  if(erro){e.textContent=erro;e.style.display='block';return;}
+  e.style.display='none';
+  const {data,error}=await sb.from('recibos').insert(Object.assign({loja:lojaAtual},d)).select().single();
+  if(error){e.textContent='Não foi possível salvar o recibo. Confirme se executou o SQL do módulo.';e.style.display='block';console.error(error);return;}
+  recibosCache.unshift(data);
+  renderRecibos();
+  if(baixarPdf) gerarPdfRecibo(data);
+  limparFormularioRecibo();
+}
+
+function gerarPdfReciboFormulario(){
+  const d=dadosFormularioRecibo(), erro=validarDadosRecibo(d);
+  const e=document.getElementById('recErr');
+  if(erro){e.textContent=erro;e.style.display='block';return;}
+  e.style.display='none';gerarPdfRecibo(d);
+}
+
+function gerarPdfRecibo(d){
+  if(!window.jspdf||!window.jspdf.jsPDF){alert('Não foi possível carregar o recurso de PDF.');return;}
+  const jsPDF=window.jspdf.jsPDF, doc=new jsPDF({unit:'mm',format:'a4'});
+  doc.setDrawColor(35,55,84);doc.setLineWidth(.5);doc.roundedRect(16,18,178,245,3,3);
+  doc.setFont('helvetica','bold');doc.setFontSize(22);doc.setTextColor(23,35,60);doc.text('RECIBO',105,38,{align:'center'});
+  if(d.id){doc.setFontSize(9);doc.setFont('helvetica','normal');doc.setTextColor(90,105,125);doc.text('Nº '+d.id,30,51);}
+  doc.setFontSize(12);doc.setFont('helvetica','normal');doc.text('Valor: '+brl(d.valor),178,52,{align:'right'});
+  doc.setDrawColor(210,220,232);doc.line(28,59,182,59);
+  doc.setFontSize(12);doc.setTextColor(35,48,65);
+  const linhas=doc.splitTextToSize(textoRecibo(d),150);doc.text(linhas,30,78,{align:'justify',maxWidth:150,lineHeightFactor:1.65});
+  const local=[d.cidade,d.estado].filter(Boolean).join(' - ');
+  doc.text(local+', '+dataPorExtensoRecibo(d.data_recibo)+'.',180,150,{align:'right'});
+  doc.setDrawColor(80,95,115);doc.line(55,196,155,196);
+  doc.setFont('helvetica','bold');doc.text(d.recebedor_nome||'',105,204,{align:'center'});
+  doc.setFont('helvetica','normal');doc.setFontSize(10);
+  if(d.recebedor_documento) doc.text('CPF/CNPJ: '+d.recebedor_documento,105,211,{align:'center'});
+  if(d.recebedor_endereco) doc.text(doc.splitTextToSize(d.recebedor_endereco,120),105,217,{align:'center'});
+  if(d.observacao_rodape){doc.setFontSize(8);doc.setTextColor(90,105,125);doc.text(doc.splitTextToSize(d.observacao_rodape,150),30,244);}
+  doc.save('recibo-'+(d.id||'novo')+'-'+d.data_recibo+'.pdf');
+}
+
+async function carregarRecibos(){
+  let q=sb.from('recibos').select('*').eq('loja',lojaAtual);
+  const mes=document.getElementById('recFiltroMes').value;
+  if(mes){const p=mes.split('-'),ultimo=new Date(Number(p[0]),Number(p[1]),0).getDate();q=q.gte('data_recibo',mes+'-01').lte('data_recibo',mes+'-'+String(ultimo).padStart(2,'0'));}
+  const {data,error}=await q.order('data_recibo',{ascending:false}).order('id',{ascending:false});
+  if(error){console.error('Erro ao carregar recibos:',error);recibosCache=[];}else recibosCache=data||[];
+  renderRecibos();
+}
+
+function renderRecibos(){
+  const busca=(document.getElementById('recBusca').value||'').toLowerCase().trim();
+  const lista=recibosCache.filter(r=>!busca||String(r.pagador_nome||'').toLowerCase().includes(busca)||String(r.referencia||'').toLowerCase().includes(busca));
+  const body=document.getElementById('recBody'),empty=document.getElementById('recEmpty');
+  empty.style.display=lista.length?'none':'block';
+  body.innerHTML=lista.map(r=>'<tr><td>#'+r.id+'</td><td>'+fmtData(r.data_recibo)+'</td><td>'+escapeHtml(r.pagador_nome)+'</td><td>'+escapeHtml(r.referencia)+'</td><td class="valor">'+brl(r.valor)+'</td><td><div class="rowactions"><button class="iconbtn" title="PDF" onclick="baixarPdfReciboHistorico('+r.id+')">PDF</button><button class="iconbtn edit" title="Duplicar" onclick="duplicarRecibo('+r.id+')">⧉</button><button class="iconbtn del" title="Excluir" onclick="excluirRecibo('+r.id+')">✕</button></div></td></tr>').join('');
+}
+
+function baixarPdfReciboHistorico(id){const r=recibosCache.find(x=>Number(x.id)===Number(id));if(r)gerarPdfRecibo(r);}
+function duplicarRecibo(id){
+  const r=recibosCache.find(x=>Number(x.id)===Number(id));if(!r)return;
+  document.getElementById('rec_pagador_nome').value=r.pagador_nome||'';
+  document.getElementById('rec_pagador_documento').value=r.pagador_documento||'';
+  document.getElementById('rec_pagador_endereco').value=r.pagador_endereco||'';
+  document.getElementById('rec_valor').value=r.valor||'';
+  document.getElementById('rec_referencia').value=r.referencia||'';
+  document.getElementById('rec_data').value=todayStr();atualizarPreviaRecibo();window.scrollTo({top:0,behavior:'smooth'});
+}
+async function excluirRecibo(id){
+  if(!confirm('Excluir este recibo do histórico?'))return;
+  const {error}=await sb.from('recibos').delete().eq('id',id).eq('loja',lojaAtual);
+  if(error){alert('Não foi possível excluir o recibo.');return;}
+  recibosCache=recibosCache.filter(r=>Number(r.id)!==Number(id));renderRecibos();
+}
+function limparFormularioRecibo(){document.getElementById('rec_valor').value='';document.getElementById('rec_data').value=todayStr();preencherFormularioComConfigRecibos();document.getElementById('recErr').style.display='none';atualizarPreviaRecibo();}
+function limparFiltroRecibos(){document.getElementById('recFiltroMes').value='';document.getElementById('recBusca').value='';carregarRecibos();}
+
 /* ================= CONTROLE DE ESTOQUE ================= */
 
 let controleEstoqueMesAtual = '';
@@ -3995,13 +4317,30 @@ async function buscarDadosControleEstoqueMes(mes){
     estoqueFinal: Number(ajuste?.estoque_final_manual||0),
     receita: Number(ajuste?.receita_manual||0)
   };
-  valores.cmv = valores.estoqueInicial + valores.compras - valores.bonificacoes - valores.estoqueFinal;
-  valores.lucro = valores.receita - valores.cmv;
-  valores.margem = valores.receita > 0 ? valores.lucro / valores.receita * 100 : 0;
-  return { mes, valores, ajuste };
+  const dados = { mes, valores, ajuste, estoqueInicialHerdado:false };
+  recalcularDerivadosControleEstoque(dados);
+  return dados;
+}
+
+function recalcularDerivadosControleEstoque(dados){
+  dados.valores.cmv = dados.valores.estoqueInicial + dados.valores.compras - dados.valores.bonificacoes - dados.valores.estoqueFinal;
+  dados.valores.lucro = dados.valores.receita - dados.valores.cmv;
+  dados.valores.margem = dados.valores.receita > 0 ? dados.valores.lucro / dados.valores.receita * 100 : 0;
+}
+
+function herdarEstoqueInicialControleEstoque(dados, mesAnterior){
+  const finalAnteriorInformado = mesAnterior?.ajuste?.estoque_final_manual;
+  if(finalAnteriorInformado!==null && finalAnteriorInformado!==undefined){
+    dados.valores.estoqueInicial = Number(mesAnterior.valores.estoqueFinal||0);
+    dados.estoqueInicialHerdado = true;
+  }else{
+    dados.estoqueInicialHerdado = false;
+  }
+  recalcularDerivadosControleEstoque(dados);
 }
 
 function fonteControleEstoque(chave){
+  if(chave==='estoqueInicial' && controleEstoqueAtual?.estoqueInicialHerdado) return 'herdado';
   if(chave==='cmv') return 'calculado';
   const mapa = {estoqueInicial:'estoque_inicial_manual',compras:'compras_manual',bonificacoes:'bonificacoes_manual',estoqueFinal:'estoque_final_manual',receita:'receita_manual'};
   const campo = mapa[chave];
@@ -4026,7 +4365,7 @@ function cardControleEstoque(titulo, chave, icone, cor, formato, detalhe){
   return `<div class="ce-card" style="--ce-accent:${cor}">
     <div class="ce-card-top"><span class="ce-card-title">${titulo}</span><span class="ce-card-icon">${icone}</span></div>
     <div class="ce-card-value">${valorTexto}</div>
-    <div class="ce-card-detail"><span class="ce-variation ${classeVariacao}">${detalhe || variacao}</span><span class="ce-source ${fonte==='manual'?'manual':(fonte==='pendente'?'pendente':'')}">${fonte}</span></div>
+    <div class="ce-card-detail"><span class="ce-variation ${classeVariacao}">${detalhe || variacao}</span><span class="ce-source ${fonte==='manual'?'manual':(fonte==='pendente'?'pendente':(fonte==='herdado'?'herdado':''))}">${fonte}</span></div>
   </div>`;
 }
 
@@ -4035,7 +4374,7 @@ function renderControleEstoque(){
   document.getElementById('controleEstoqueLoja').textContent = NOMES_LOJA[lojaAtual] || lojaAtual;
   document.getElementById('controleEstoquePeriodo').textContent = rotuloMesControleEstoque(controleEstoqueMesAtual);
   document.getElementById('controleEstoqueAtualizado').textContent = 'Atualizado em ' + new Date().toLocaleString('pt-BR',{dateStyle:'short',timeStyle:'short'});
-  const inicialDetalhe = fonteControleEstoque('estoqueInicial')==='manual' ? variacaoControleEstoque(controleEstoqueAtual.valores.estoqueInicial,controleEstoqueAnterior?.valores?.estoqueInicial) : 'Informe o valor do mês';
+  const inicialDetalhe = controleEstoqueAtual.estoqueInicialHerdado ? 'Estoque final de '+rotuloMesControleEstoque(controleEstoqueAnterior.mes) : (fonteControleEstoque('estoqueInicial')==='manual' ? variacaoControleEstoque(controleEstoqueAtual.valores.estoqueInicial,controleEstoqueAnterior?.valores?.estoqueInicial) : 'Informe o valor do mês');
   const finalDetalhe = fonteControleEstoque('estoqueFinal')==='manual' ? variacaoControleEstoque(controleEstoqueAtual.valores.estoqueFinal,controleEstoqueAnterior?.valores?.estoqueFinal) : 'Informe o valor do mês';
   document.getElementById('controleEstoqueCards').innerHTML =
     cardControleEstoque('Estoque inicial','estoqueInicial','📦','#2563eb','moeda',inicialDetalhe) +
@@ -4066,10 +4405,16 @@ async function carregarControleEstoque(){
   document.getElementById('loadingScreen').style.display = 'flex';
   controleEstoqueTabelaDisponivel = true;
   try{
-    [controleEstoqueAtual, controleEstoqueAnterior] = await Promise.all([
+    const mesAnterior = mesAnteriorControleEstoque(controleEstoqueMesAtual);
+    const mesRetrasado = mesAnteriorControleEstoque(mesAnterior);
+    let controleEstoqueRetrasado;
+    [controleEstoqueAtual, controleEstoqueAnterior, controleEstoqueRetrasado] = await Promise.all([
       buscarDadosControleEstoqueMes(controleEstoqueMesAtual),
-      buscarDadosControleEstoqueMes(mesAnteriorControleEstoque(controleEstoqueMesAtual))
+      buscarDadosControleEstoqueMes(mesAnterior),
+      buscarDadosControleEstoqueMes(mesRetrasado)
     ]);
+    herdarEstoqueInicialControleEstoque(controleEstoqueAnterior, controleEstoqueRetrasado);
+    herdarEstoqueInicialControleEstoque(controleEstoqueAtual, controleEstoqueAnterior);
     renderControleEstoque();
   }catch(error){
     console.error('Erro ao carregar controle de estoque:',error);
@@ -4087,12 +4432,22 @@ function abrirAjustesControleEstoque(){
   }
   const a = controleEstoqueAtual.ajuste || {};
   const preencher = (id,valor)=>document.getElementById(id).value = valor===null || valor===undefined ? '' : valor;
-  preencher('ce_estoque_inicial',a.estoque_inicial_manual);
+  const campoInicial = document.getElementById('ce_estoque_inicial');
+  const labelInicial = document.getElementById('ceEstoqueInicialLabel');
+  if(controleEstoqueAtual.estoqueInicialHerdado){
+    campoInicial.value = controleEstoqueAtual.valores.estoqueInicial;
+    campoInicial.readOnly = true;
+    labelInicial.textContent = 'Estoque inicial — vindo do mês anterior';
+  }else{
+    preencher('ce_estoque_inicial',a.estoque_inicial_manual);
+    campoInicial.readOnly = false;
+    labelInicial.textContent = 'Estoque inicial (R$)';
+  }
   preencher('ce_compras',a.compras_manual);
   preencher('ce_bonificacoes',a.bonificacoes_manual);
   preencher('ce_estoque_final',a.estoque_final_manual);
   preencher('ce_receita',a.receita_manual);
-  const inicial = Number(a.estoque_inicial_manual||0), compras = Number(a.compras_manual||0), bonificacoes = Number(a.bonificacoes_manual||0), final = Number(a.estoque_final_manual||0);
+  const inicial = Number(campoInicial.value||0), compras = Number(a.compras_manual||0), bonificacoes = Number(a.bonificacoes_manual||0), final = Number(a.estoque_final_manual||0);
   document.getElementById('ce_cmv_calculado').value = brl(inicial + compras - bonificacoes - final);
   document.getElementById('controleEstoqueModalPeriodo').textContent = (NOMES_LOJA[lojaAtual]||'')+' — '+rotuloMesControleEstoque(controleEstoqueMesAtual);
   document.getElementById('controleEstoqueErr').style.display = 'none';
@@ -4117,7 +4472,7 @@ function recalcularCmvFormularioControle(){
 async function salvarAjustesControleEstoque(){
   const payload = {
     loja:lojaAtual, mes:controleEstoqueMesAtual,
-    estoque_inicial_manual:numeroManualControleEstoque('ce_estoque_inicial'),
+    estoque_inicial_manual:controleEstoqueAtual.estoqueInicialHerdado ? null : numeroManualControleEstoque('ce_estoque_inicial'),
     compras_manual:numeroManualControleEstoque('ce_compras'),
     bonificacoes_manual:numeroManualControleEstoque('ce_bonificacoes'),
     estoque_final_manual:numeroManualControleEstoque('ce_estoque_final'),
@@ -4205,20 +4560,20 @@ function setEscala(e){
   }
 }
 
-const VIEWS = ['checklist','duvidas','contasPagar','despesasFixas','comprovantes','diferencaCaixa','fluxoCaixa','pagamentos','pagamentoCaixa','vendasComCusto','vendasDelivery','bancoHoras','compras','colaboradores','fornecedores','contasBancarias','inventario','controleEstoque','contagensEstoque','combinacaoPagamentos'];
+const VIEWS = ['checklist','duvidas','contasPagar','despesasFixas','comprovantes','diferencaCaixa','fluxoCaixa','pagamentos','pagamentoCaixa','contratos','vendasComCusto','vendasDelivery','bancoHoras','compras','colaboradores','fornecedores','contasBancarias','inventario','controleEstoque','contagensEstoque','combinacaoPagamentos'];
 let colabCarregado = false;
 
 const CATEGORIA_POR_VIEW = {
   contasPagar:'financeiro', despesasFixas:'financeiro', comprovantes:'financeiro',
   diferencaCaixa:'financeiro', fluxoCaixa:'financeiro', pagamentos:'financeiro',
-  pagamentoCaixa:'financeiro', combinacaoPagamentos:'financeiro',
+  pagamentoCaixa:'financeiro', combinacaoPagamentos:'financeiro', contratos:'financeiro',
   vendasComCusto:'vendas', vendasDelivery:'vendas',
   compras:'comprasEstoque', inventario:'comprasEstoque', controleEstoque:'comprasEstoque', contagensEstoque:'comprasEstoque',
   bancoHoras:'equipe', colaboradores:'equipe',
   fornecedores:'cadastros', contasBancarias:'cadastros',
   checklist:'checklist', duvidas:'duvidas'
 };
-const VIEW_IDS = { checklist:'viewChecklist', duvidas:'viewDuvidas', contasPagar:'viewContasPagar', despesasFixas:'viewDespesasFixas', comprovantes:'viewComprovantes', diferencaCaixa:'viewDiferencaCaixa', fluxoCaixa:'viewFluxoCaixa', pagamentos:'viewPagamentos', pagamentoCaixa:'viewPagamentoCaixa', vendasComCusto:'viewVendasComCusto', vendasDelivery:'viewVendasDelivery', bancoHoras:'viewBancoHoras', compras:'viewCompras', colaboradores:'viewColaboradores', fornecedores:'viewFornecedores', contasBancarias:'viewContasBancarias', inventario:'viewInventario', controleEstoque:'viewControleEstoque', contagensEstoque:'viewContagensEstoque', combinacaoPagamentos:'viewCombinacaoPagamentos' };
+const VIEW_IDS = { checklist:'viewChecklist', duvidas:'viewDuvidas', contasPagar:'viewContasPagar', despesasFixas:'viewDespesasFixas', comprovantes:'viewComprovantes', diferencaCaixa:'viewDiferencaCaixa', fluxoCaixa:'viewFluxoCaixa', pagamentos:'viewPagamentos', pagamentoCaixa:'viewPagamentoCaixa', contratos:'viewContratos', vendasComCusto:'viewVendasComCusto', vendasDelivery:'viewVendasDelivery', bancoHoras:'viewBancoHoras', compras:'viewCompras', colaboradores:'viewColaboradores', fornecedores:'viewFornecedores', contasBancarias:'viewContasBancarias', inventario:'viewInventario', controleEstoque:'viewControleEstoque', contagensEstoque:'viewContagensEstoque', combinacaoPagamentos:'viewCombinacaoPagamentos' };
 
 let categoriaMenuAberta = null;
 
@@ -4290,6 +4645,8 @@ async function mudarViewPrincipal(view){
     await abrirPagamentos();
   }else if(view==='pagamentoCaixa'){
     await abrirPagamentoCaixa();
+  }else if(view==='contratos'){
+    await abrirContratos();
   }else if(view==='contasPagar'){
     carregarFornecedores();
   }else if(view==='checklist'){
