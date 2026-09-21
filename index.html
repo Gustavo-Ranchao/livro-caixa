@@ -1479,7 +1479,7 @@
           </div>
         </div>
         <div class="bh-resumo" id="vendasComparativoResumo" style="display:none;padding:0 20px 16px;">
-          <div class="metric"><div class="lbl">Vendido no mês anterior</div><div class="val" id="vendasAnteriorTotal">R$ 0,00</div></div>
+          <div class="metric"><div class="lbl" id="vendasAnteriorLabel">Vendido no mesmo período anterior</div><div class="val" id="vendasAnteriorTotal">R$ 0,00</div></div>
           <div class="metric"><div class="lbl">Variação geral</div><div class="val" id="vendasVariacaoGeral">0%</div></div>
           <div class="metric"><div class="lbl">Categoria que mais cresceu</div><div class="val" id="vendasMaisCresceu" style="font-size:14px;">—</div></div>
           <div class="metric"><div class="lbl">Categoria que mais caiu</div><div class="val" id="vendasMaisCaiu" style="font-size:14px;">—</div></div>
@@ -6874,11 +6874,14 @@ async function carregarVendas(){
   }
   vendasCacheMesAnterior = [];
   vendasMesComparacao = '';
+  vendasPeriodoComparacaoTexto = '';
   const mesSelecionado = document.getElementById('vendasFiltroMes').value;
   if(mesSelecionado && mesSelecionado!=='todos'){
     const [ano,mes]=mesSelecionado.split('-').map(Number),anterior=new Date(ano,mes-2,1),anoAnt=anterior.getFullYear(),mesAnt=String(anterior.getMonth()+1).padStart(2,'0');
     vendasMesComparacao=anoAnt+'-'+mesAnt;
-    const ultimoAnt=new Date(anoAnt,anterior.getMonth()+1,0).getDate(),deAnt=vendasMesComparacao+'-01',ateAnt=vendasMesComparacao+'-'+String(ultimoAnt).padStart(2,'0');
+    const datasAtuais=vendasCache.map(v=>v.data).filter(d=>d&&d.startsWith(mesSelecionado)).sort(),ultimoAtual=new Date(ano,mes,0).getDate(),hoje=todayStr(),diaLimite=datasAtuais.length?Number(datasAtuais[datasAtuais.length-1].slice(8,10)):(hoje.startsWith(mesSelecionado)?Number(hoje.slice(8,10)):ultimoAtual);
+    const ultimoAnt=new Date(anoAnt,anterior.getMonth()+1,0).getDate(),diaAnt=Math.min(diaLimite,ultimoAnt),deAnt=vendasMesComparacao+'-01',ateAnt=vendasMesComparacao+'-'+String(diaAnt).padStart(2,'0');
+    vendasPeriodoComparacaoTexto=fmtData(deAnt)+' a '+fmtData(ateAnt);
     const respostaAnterior=await buscarTodasLinhas((from,to)=>sb.from('vendas_itens').select('*').eq('loja',lojaAtual).gte('data',deAnt).lte('data',ateAnt).order('data').range(from,to));
     if(respostaAnterior.error)console.error('Erro ao carregar mês anterior:',respostaAnterior.error);else vendasCacheMesAnterior=respostaAnterior.data||[];
   }
@@ -6897,6 +6900,7 @@ let vendasCatOrdemAsc = false;
 let vendasCategoriaAtual = [];
 let vendasCacheMesAnterior = [];
 let vendasMesComparacao = '';
+let vendasPeriodoComparacaoTexto = '';
 let vendasProdOrdenarPor = 'lucro';
 let vendasProdOrdemAsc = false;
 let vendasProdutoAtual = [];
@@ -6924,7 +6928,7 @@ function exportarExcelVendasCategoria(){
   const linhasAoa = [
     ['Vendas por Categoria — ' + nomeLoja],
     ['Período: ' + textoPeriodoVendas()],
-    [vendasMesComparacao ? 'Comparação: mês anterior ('+NOMES_MES[Number(vendasMesComparacao.slice(5,7))-1]+' '+vendasMesComparacao.slice(0,4)+')' : 'Comparação mensal indisponível'],
+    [vendasMesComparacao ? 'Comparação com o mesmo período anterior: '+vendasPeriodoComparacaoTexto : 'Comparação mensal indisponível'],
     [],
     ['Categoria', 'Vendido', 'Variação vendas', 'Custo', 'Lucro', 'Variação lucro', 'Margem', 'Variação margem'],
     ...vendasCategoriaAtual.map(c=>[c.nome, brl(c.vendido), vendasMesComparacao?textoVariacaoVendas(c.variacaoVenda,c.nova):'—', brl(c.custo), brl(c.lucro), vendasMesComparacao?textoVariacaoVendas(c.variacaoLucro,c.nova):'—', c.margem.toFixed(1) + '%', vendasMesComparacao?textoVariacaoVendas(c.variacaoMargem,c.nova):'—'])
@@ -6960,7 +6964,7 @@ function exportarPdfVendasCategoria(){
   doc.setFontSize(10);
   doc.setTextColor(120);
   doc.text('Período: ' + textoPeriodoVendas() + '   ·   Gerado em ' + dataHora, 14, 25);
-  if(vendasMesComparacao)doc.text('Comparação com '+NOMES_MES[Number(vendasMesComparacao.slice(5,7))-1]+' de '+vendasMesComparacao.slice(0,4),14,30);
+  if(vendasMesComparacao)doc.text('Comparação com o mesmo período anterior: '+vendasPeriodoComparacaoTexto,14,30);
 
   const linhas = vendasCategoriaAtual.map(c=>[
     c.nome, brl(c.vendido), vendasMesComparacao?textoVariacaoVendas(c.variacaoVenda,c.nova):'—', brl(c.custo), brl(c.lucro), vendasMesComparacao?textoVariacaoVendas(c.variacaoLucro,c.nova):'—', c.margem.toFixed(1) + '%', vendasMesComparacao?textoVariacaoVendas(c.variacaoMargem,c.nova):'—'
@@ -7089,7 +7093,7 @@ function renderVendasDashboard(){
 
   const resumo=document.getElementById('vendasComparativoResumo'),totalAnterior=vendasCacheMesAnterior.reduce((s,v)=>s+Number(v.valor_venda),0),variacaoGeral=variacaoPercentualVendas(totalVendido,totalAnterior),comparaveis=listaCategorias.filter(c=>!c.nova&&c.variacaoVenda!==null);
   resumo.style.display=vendasMesComparacao?'grid':'none';
-  if(vendasMesComparacao){document.getElementById('vendasAnteriorTotal').textContent=brl(totalAnterior);const vg=document.getElementById('vendasVariacaoGeral');vg.textContent=textoVariacaoVendas(variacaoGeral,totalAnterior===0&&totalVendido>0);vg.style.color=corVariacaoVendas(variacaoGeral);const maior=[...comparaveis].sort((a,b)=>b.variacaoVenda-a.variacaoVenda)[0],menor=[...comparaveis].sort((a,b)=>a.variacaoVenda-b.variacaoVenda)[0];document.getElementById('vendasMaisCresceu').textContent=maior&&maior.variacaoVenda>0?maior.nome+' ('+textoVariacaoVendas(maior.variacaoVenda,false)+')':'—';document.getElementById('vendasMaisCaiu').textContent=menor&&menor.variacaoVenda<0?menor.nome+' ('+textoVariacaoVendas(menor.variacaoVenda,false)+')':'—';}
+  if(vendasMesComparacao){document.getElementById('vendasAnteriorLabel').textContent='Vendido de '+vendasPeriodoComparacaoTexto;document.getElementById('vendasAnteriorTotal').textContent=brl(totalAnterior);const vg=document.getElementById('vendasVariacaoGeral');vg.textContent=textoVariacaoVendas(variacaoGeral,totalAnterior===0&&totalVendido>0);vg.style.color=corVariacaoVendas(variacaoGeral);const maior=[...comparaveis].sort((a,b)=>b.variacaoVenda-a.variacaoVenda)[0],menor=[...comparaveis].sort((a,b)=>a.variacaoVenda-b.variacaoVenda)[0];document.getElementById('vendasMaisCresceu').textContent=maior&&maior.variacaoVenda>0?maior.nome+' ('+textoVariacaoVendas(maior.variacaoVenda,false)+')':'—';document.getElementById('vendasMaisCaiu').textContent=menor&&menor.variacaoVenda<0?menor.nome+' ('+textoVariacaoVendas(menor.variacaoVenda,false)+')':'—';}
 
   const bodyCat = document.getElementById('vendasCategoriaBody');
   if(listaCategorias.length===0){
