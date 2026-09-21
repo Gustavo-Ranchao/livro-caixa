@@ -12087,7 +12087,7 @@ async function gerarRelatorioNoturno(){
     (registros||[]).forEach(reg=>{
       if(reg.tipo_dia === 'falta_justificada'){ datasJustificadas.push(reg.data); return; }
       if(reg.tipo_dia === 'falta_injustificada'){ datasInjustificadas.push(reg.data); return; }
-      if(reg.trabalhou_feriado){ datasFeriadosTrabalhados.push(reg.data); return; }
+      if(reg.trabalhou_feriado) datasFeriadosTrabalhados.push(reg.data);
       totalNoturno += calcularMinutosNoturnos(reg);
     });
     datasJustificadas.sort();
@@ -12411,10 +12411,7 @@ function renderBancoHoras(){
   let acumulado = 0;
   const linhas = ordenados.map(reg=>{
     let trabalhado, noturno;
-    if(reg.trabalhou_feriado){
-      trabalhado = f.carga_horaria_diaria_min;
-      noturno = 0;
-    }else if(reg.tipo_dia === 'falta_justificada'){
+    if(reg.tipo_dia === 'falta_justificada'){
       trabalhado = f.carga_horaria_diaria_min;
       noturno = 0;
     }else if(reg.tipo_dia === 'falta_injustificada'){
@@ -12476,7 +12473,6 @@ function renderBancoHoras(){
 
   const horaOuTraco = v => v ? v.slice(0,5) : '—';
   const rotuloFalta = reg => {
-    if(reg.trabalhou_feriado) return '<span style="color:var(--green);font-weight:700;">Trabalhou no feriado</span>';
     if(reg.tipo_dia==='falta_justificada') return '<span style="color:var(--muted);font-weight:600;">Falta justificada</span>';
     if(reg.tipo_dia==='falta_injustificada') return reg.descontar_falta
       ? '<span style="color:var(--rust);font-weight:600;">Falta injust. (descontada)</span>'
@@ -12485,8 +12481,9 @@ function renderBancoHoras(){
   };
   body.innerHTML = linhasExibidas.slice().reverse().map(l=>{
     const falta = rotuloFalta(l.reg);
+    const feriado = l.reg.trabalhou_feriado ? '<div style="color:var(--green);font-size:10px;font-weight:700;margin-top:3px;">FERIADO</div>' : '';
     return `<tr>
-      <td class="data">${fmtData(l.reg.data)}</td>
+      <td class="data">${fmtData(l.reg.data)}${feriado}</td>
       <td class="data" ${falta ? 'colspan="4"' : ''}>${falta || horaOuTraco(l.reg.entrada1)}</td>
       ${falta ? '' : `
       <td class="data">${horaOuTraco(l.reg.saida1)}</td>
@@ -12614,7 +12611,7 @@ function setBhTipoDia(tipo){
   bhTipoDiaAtual = tipo;
   document.querySelectorAll('#bhTipoDiaToggle .tipo-btn').forEach(b=>b.classList.toggle('active', b.dataset.tipodia===tipo));
 
-  const ehFalta = tipo!=='normal';
+  const ehFalta = tipo==='falta_justificada' || tipo==='falta_injustificada';
   ['bh_fld_e1','bh_fld_s1','bh_fld_e2','bh_fld_s2'].forEach(id=>{
     document.getElementById(id).style.display = ehFalta ? 'none' : '';
   });
@@ -12739,7 +12736,7 @@ async function salvarRegistroHoras(){
   const e2 = document.getElementById('bh_e2').value;
   const s2 = document.getElementById('bh_s2').value;
   const err = document.getElementById('bhFormErr');
-  const ehFalta = bhTipoDiaAtual !== 'normal';
+  const ehFalta = bhTipoDiaAtual==='falta_justificada' || bhTipoDiaAtual==='falta_injustificada';
 
   if(!bhFuncionarioAtualId){
     err.textContent = 'Selecione um funcionário primeiro.';
