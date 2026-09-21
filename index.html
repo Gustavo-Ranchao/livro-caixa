@@ -1478,6 +1478,12 @@
             <button class="filter-btn foto-btn" onclick="exportarPdfVendasCategoria()" title="Baixar como PDF">📄 PDF</button>
           </div>
         </div>
+        <div class="bh-resumo" id="vendasComparativoResumo" style="display:none;padding:0 20px 16px;">
+          <div class="metric"><div class="lbl">Vendido no mês anterior</div><div class="val" id="vendasAnteriorTotal">R$ 0,00</div></div>
+          <div class="metric"><div class="lbl">Variação geral</div><div class="val" id="vendasVariacaoGeral">0%</div></div>
+          <div class="metric"><div class="lbl">Categoria que mais cresceu</div><div class="val" id="vendasMaisCresceu" style="font-size:14px;">—</div></div>
+          <div class="metric"><div class="lbl">Categoria que mais caiu</div><div class="val" id="vendasMaisCaiu" style="font-size:14px;">—</div></div>
+        </div>
         <div class="tablewrap">
           <table class="ledger">
             <thead id="vendasCategoriaHead"></thead>
@@ -6866,6 +6872,16 @@ async function carregarVendas(){
   }else{
     vendasCache = data || [];
   }
+  vendasCacheMesAnterior = [];
+  vendasMesComparacao = '';
+  const mesSelecionado = document.getElementById('vendasFiltroMes').value;
+  if(mesSelecionado && mesSelecionado!=='todos'){
+    const [ano,mes]=mesSelecionado.split('-').map(Number),anterior=new Date(ano,mes-2,1),anoAnt=anterior.getFullYear(),mesAnt=String(anterior.getMonth()+1).padStart(2,'0');
+    vendasMesComparacao=anoAnt+'-'+mesAnt;
+    const ultimoAnt=new Date(anoAnt,anterior.getMonth()+1,0).getDate(),deAnt=vendasMesComparacao+'-01',ateAnt=vendasMesComparacao+'-'+String(ultimoAnt).padStart(2,'0');
+    const respostaAnterior=await buscarTodasLinhas((from,to)=>sb.from('vendas_itens').select('*').eq('loja',lojaAtual).gte('data',deAnt).lte('data',ateAnt).order('data').range(from,to));
+    if(respostaAnterior.error)console.error('Erro ao carregar mês anterior:',respostaAnterior.error);else vendasCacheMesAnterior=respostaAnterior.data||[];
+  }
   renderVendasDashboard();
 }
 
@@ -6879,6 +6895,8 @@ function limparFiltroVendas(){
 let vendasCatOrdenarPor = 'vendido';
 let vendasCatOrdemAsc = false;
 let vendasCategoriaAtual = [];
+let vendasCacheMesAnterior = [];
+let vendasMesComparacao = '';
 let vendasProdOrdenarPor = 'lucro';
 let vendasProdOrdemAsc = false;
 let vendasProdutoAtual = [];
@@ -6906,12 +6924,13 @@ function exportarExcelVendasCategoria(){
   const linhasAoa = [
     ['Vendas por Categoria — ' + nomeLoja],
     ['Período: ' + textoPeriodoVendas()],
+    [vendasMesComparacao ? 'Comparação: mês anterior ('+NOMES_MES[Number(vendasMesComparacao.slice(5,7))-1]+' '+vendasMesComparacao.slice(0,4)+')' : 'Comparação mensal indisponível'],
     [],
-    ['Categoria', 'Vendido', 'Custo', 'Lucro', 'Margem'],
-    ...vendasCategoriaAtual.map(c=>[c.nome, brl(c.vendido), brl(c.custo), brl(c.lucro), c.margem.toFixed(1) + '%'])
+    ['Categoria', 'Vendido', 'Variação vendas', 'Custo', 'Lucro', 'Variação lucro', 'Margem', 'Variação margem'],
+    ...vendasCategoriaAtual.map(c=>[c.nome, brl(c.vendido), vendasMesComparacao?textoVariacaoVendas(c.variacaoVenda,c.nova):'—', brl(c.custo), brl(c.lucro), vendasMesComparacao?textoVariacaoVendas(c.variacaoLucro,c.nova):'—', c.margem.toFixed(1) + '%', vendasMesComparacao?textoVariacaoVendas(c.variacaoMargem,c.nova):'—'])
   ];
   const planilha = XLSX.utils.aoa_to_sheet(linhasAoa);
-  planilha['!cols'] = [{wch:24},{wch:14},{wch:14},{wch:14},{wch:10}];
+  planilha['!cols'] = [{wch:24},{wch:14},{wch:18},{wch:14},{wch:14},{wch:17},{wch:12},{wch:18}];
   const livro = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(livro, planilha, 'Vendas por Categoria');
 
@@ -6930,7 +6949,7 @@ function exportarPdfVendasCategoria(){
     return;
   }
   const { jsPDF } = window.jspdf;
-  const doc = new jsPDF();
+  const doc = new jsPDF({orientation:'landscape'});
 
   const agora = new Date();
   const dataHora = fmtData(agora.toISOString().slice(0,10)) + ' ' + agora.toTimeString().slice(0,5);
@@ -6941,21 +6960,23 @@ function exportarPdfVendasCategoria(){
   doc.setFontSize(10);
   doc.setTextColor(120);
   doc.text('Período: ' + textoPeriodoVendas() + '   ·   Gerado em ' + dataHora, 14, 25);
+  if(vendasMesComparacao)doc.text('Comparação com '+NOMES_MES[Number(vendasMesComparacao.slice(5,7))-1]+' de '+vendasMesComparacao.slice(0,4),14,30);
 
   const linhas = vendasCategoriaAtual.map(c=>[
-    c.nome, brl(c.vendido), brl(c.custo), brl(c.lucro), c.margem.toFixed(1) + '%'
+    c.nome, brl(c.vendido), vendasMesComparacao?textoVariacaoVendas(c.variacaoVenda,c.nova):'—', brl(c.custo), brl(c.lucro), vendasMesComparacao?textoVariacaoVendas(c.variacaoLucro,c.nova):'—', c.margem.toFixed(1) + '%', vendasMesComparacao?textoVariacaoVendas(c.variacaoMargem,c.nova):'—'
   ]);
   const totalVendido = vendasCategoriaAtual.reduce((s,c)=>s+c.vendido, 0);
   const totalCusto = vendasCategoriaAtual.reduce((s,c)=>s+c.custo, 0);
   const totalLucro = totalVendido - totalCusto;
   const margemGeral = totalVendido>0 ? (totalLucro/totalVendido*100) : 0;
+  const totalVendidoAnterior=vendasCategoriaAtual.reduce((s,c)=>s+c.vendidoAnterior,0),totalLucroAnterior=vendasCategoriaAtual.reduce((s,c)=>s+c.lucroAnterior,0),margemAnterior=totalVendidoAnterior>0?totalLucroAnterior/totalVendidoAnterior*100:0;
 
   doc.autoTable({
-    startY: 32,
-    head: [['Categoria','Vendido','Custo','Lucro','Margem']],
+    startY: vendasMesComparacao?36:32,
+    head: [['Categoria','Vendido','Var. vendas','Custo','Lucro','Var. lucro','Margem','Var. margem']],
     body: linhas,
-    foot: [['TOTAL', brl(totalVendido), brl(totalCusto), brl(totalLucro), margemGeral.toFixed(1) + '%']],
-    styles: { fontSize: 9, cellPadding: 3 },
+    foot: [['TOTAL', brl(totalVendido), vendasMesComparacao?textoVariacaoVendas(variacaoPercentualVendas(totalVendido,totalVendidoAnterior),totalVendidoAnterior===0&&totalVendido>0):'—', brl(totalCusto), brl(totalLucro), vendasMesComparacao?textoVariacaoVendas(variacaoPercentualVendas(totalLucro,totalLucroAnterior),false):'—', margemGeral.toFixed(1) + '%', vendasMesComparacao?textoVariacaoVendas(variacaoPercentualVendas(margemGeral,margemAnterior),false):'—']],
+    styles: { fontSize: 8, cellPadding: 2.5 },
     headStyles: { fillColor: [38, 51, 43] },
     footStyles: { fillColor: [233, 225, 203], textColor: 20, fontStyle: 'bold' }
   });
@@ -6968,10 +6989,21 @@ function exportarPdfVendasCategoria(){
 const CAMPOS_VENDAS_CAT = [
   { chave:'nome', label:'Categoria', align:'left' },
   { chave:'vendido', label:'Vendido', align:'right' },
+  { chave:'variacaoVenda', label:'Var. vendas', align:'right' },
   { chave:'custo', label:'Custo', align:'right' },
   { chave:'lucro', label:'Lucro', align:'right' },
-  { chave:'margem', label:'Margem', align:'right' }
+  { chave:'variacaoLucro', label:'Var. lucro', align:'right' },
+  { chave:'margem', label:'Margem', align:'right' },
+  { chave:'variacaoMargem', label:'Var. margem', align:'right' }
 ];
+
+function variacaoPercentualVendas(atual,anterior){
+  atual=Number(atual)||0;anterior=Number(anterior)||0;
+  if(anterior===0)return atual===0?0:null;
+  return ((atual-anterior)/Math.abs(anterior))*100;
+}
+function textoVariacaoVendas(valor,nova){if(nova)return 'Nova categoria';if(valor===null)return '—';return (valor>0?'+':'')+valor.toFixed(1)+'%';}
+function corVariacaoVendas(valor){return valor===null?'var(--gold)':valor>0?'var(--green)':valor<0?'var(--rust)':'var(--muted)';}
 
 function ordenarVendasCategoria(campo){
   if(vendasCatOrdenarPor === campo){
@@ -7031,17 +7063,18 @@ function renderVendasDashboard(){
   document.getElementById('vendasLucroTotal').textContent = brl(lucro);
   document.getElementById('vendasMargemMedia').textContent = margem.toFixed(1) + '%';
 
-  const porCategoria = {};
-  vendasCache.forEach(v=>{
+  const agregarCategorias = lista=>{
+    const mapa={};
+    lista.forEach(v=>{
     const cat = v.categoria || 'Sem categoria';
-    if(!porCategoria[cat]) porCategoria[cat] = { vendido:0, custo:0 };
-    porCategoria[cat].vendido += Number(v.valor_venda);
-    porCategoria[cat].custo += Number(v.custo);
+      if(!mapa[cat]) mapa[cat]={vendido:0,custo:0};mapa[cat].vendido+=Number(v.valor_venda);mapa[cat].custo+=Number(v.custo);
+    });return mapa;
+  };
+  const porCategoria=agregarCategorias(vendasCache),porCategoriaAnterior=agregarCategorias(vendasCacheMesAnterior),nomesCategorias=new Set([...Object.keys(porCategoria),...Object.keys(porCategoriaAnterior)]);
+  let listaCategorias=Array.from(nomesCategorias).map(nome=>{
+    const d=porCategoria[nome]||{vendido:0,custo:0},a=porCategoriaAnterior[nome]||{vendido:0,custo:0},lucro=d.vendido-d.custo,lucroAnterior=a.vendido-a.custo,margem=d.vendido>0?lucro/d.vendido*100:0,margemAnterior=a.vendido>0?lucroAnterior/a.vendido*100:0,nova=a.vendido===0&&d.vendido>0;
+    return {nome,vendido:d.vendido,custo:d.custo,lucro,margem,vendidoAnterior:a.vendido,lucroAnterior,margemAnterior,nova,variacaoVenda:variacaoPercentualVendas(d.vendido,a.vendido),variacaoLucro:variacaoPercentualVendas(lucro,lucroAnterior),variacaoMargem:variacaoPercentualVendas(margem,margemAnterior)};
   });
-  let listaCategorias = Object.entries(porCategoria).map(([nome, d])=>({
-    nome, vendido: d.vendido, custo: d.custo, lucro: d.vendido-d.custo,
-    margem: d.vendido>0 ? ((d.vendido-d.custo)/d.vendido*100) : 0
-  }));
 
   listaCategorias.sort((a,b)=>{
     const va = a[vendasCatOrdenarPor], vb = b[vendasCatOrdenarPor];
@@ -7054,17 +7087,24 @@ function renderVendasDashboard(){
   vendasCategoriaAtual = listaCategorias;
   renderVendasCategoriaHead();
 
+  const resumo=document.getElementById('vendasComparativoResumo'),totalAnterior=vendasCacheMesAnterior.reduce((s,v)=>s+Number(v.valor_venda),0),variacaoGeral=variacaoPercentualVendas(totalVendido,totalAnterior),comparaveis=listaCategorias.filter(c=>!c.nova&&c.variacaoVenda!==null);
+  resumo.style.display=vendasMesComparacao?'grid':'none';
+  if(vendasMesComparacao){document.getElementById('vendasAnteriorTotal').textContent=brl(totalAnterior);const vg=document.getElementById('vendasVariacaoGeral');vg.textContent=textoVariacaoVendas(variacaoGeral,totalAnterior===0&&totalVendido>0);vg.style.color=corVariacaoVendas(variacaoGeral);const maior=[...comparaveis].sort((a,b)=>b.variacaoVenda-a.variacaoVenda)[0],menor=[...comparaveis].sort((a,b)=>a.variacaoVenda-b.variacaoVenda)[0];document.getElementById('vendasMaisCresceu').textContent=maior&&maior.variacaoVenda>0?maior.nome+' ('+textoVariacaoVendas(maior.variacaoVenda,false)+')':'—';document.getElementById('vendasMaisCaiu').textContent=menor&&menor.variacaoVenda<0?menor.nome+' ('+textoVariacaoVendas(menor.variacaoVenda,false)+')':'—';}
+
   const bodyCat = document.getElementById('vendasCategoriaBody');
   if(listaCategorias.length===0){
-    bodyCat.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--muted);font-style:italic;padding:20px;">Nenhuma venda no período.</td></tr>';
+    bodyCat.innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--muted);font-style:italic;padding:20px;">Nenhuma venda no período.</td></tr>';
   }else{
     bodyCat.innerHTML = listaCategorias.map(c=>`
       <tr>
         <td>${escapeHtml(c.nome)}</td>
         <td class="valor">${brl(c.vendido)}</td>
+        <td class="valor" style="color:${corVariacaoVendas(c.variacaoVenda)};font-weight:600;">${vendasMesComparacao?textoVariacaoVendas(c.variacaoVenda,c.nova):'—'}</td>
         <td class="valor">${brl(c.custo)}</td>
         <td class="valor" style="color:var(--green);">${brl(c.lucro)}</td>
+        <td class="valor" style="color:${corVariacaoVendas(c.variacaoLucro)};font-weight:600;">${vendasMesComparacao?textoVariacaoVendas(c.variacaoLucro,c.nova):'—'}</td>
         <td class="valor">${c.margem.toFixed(1)}%</td>
+        <td class="valor" style="color:${corVariacaoVendas(c.variacaoMargem)};font-weight:600;">${vendasMesComparacao?textoVariacaoVendas(c.variacaoMargem,c.nova):'—'}</td>
       </tr>
     `).join('');
   }
