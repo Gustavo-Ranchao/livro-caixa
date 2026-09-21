@@ -495,6 +495,9 @@
   .holerite-total strong{display:block;font-size:18px;margin-top:4px;}
   .holerite-total.liquido{background:#eaf7ef;border-color:#a8d5b8;color:#185f38;}
   .holerite-aviso{margin:0 20px 14px;padding:10px 12px;border-radius:8px;background:#fff8e7;color:#765817;font-size:12px;}
+  .orc-item-row{display:grid;grid-template-columns:minmax(220px,2.2fr) 90px 130px 130px 38px;gap:10px;align-items:end;padding:0 20px 10px;}
+  .orc-item-row .fld{margin:0;}.orc-total-item{height:42px;display:flex;align-items:center;justify-content:flex-end;font-family:var(--font-mono);font-weight:700;}
+  .orc-resumo{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:14px 20px 18px;}.orc-resumo>div{padding:12px;border:1px solid var(--line);border-radius:9px;background:#f8fafc;}.orc-resumo span{display:block;font-size:10px;text-transform:uppercase;color:var(--muted);}.orc-resumo strong{display:block;margin-top:4px;font-size:17px;}.orc-resumo .total{background:#eaf7ef;border-color:#a8d5b8;color:#185f38;}
   .rec-form-grid{display:grid;grid-template-columns:1.35fr .8fr 1fr;gap:12px 14px;padding:0 20px 4px;}
   .rec-span-2{grid-column:span 2;}.rec-span-3{grid-column:1/-1;}
   .rec-extenso{font-size:11px;color:#1d5c9d;margin-top:5px;line-height:1.4;min-height:16px;}
@@ -505,7 +508,7 @@
   .rec-history-filters input{font-family:var(--font-sans);font-size:13px;padding:9px 11px;border:1px solid var(--line);border-radius:7px;background:#fff;color:var(--ink);}
   .rec-config-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
   .rec-config-grid .full{grid-column:1/-1;}
-  @media(max-width:760px){.rec-form-grid,.rec-config-grid{grid-template-columns:1fr;}.rec-span-2,.rec-span-3,.rec-config-grid .full{grid-column:auto;}.rec-preview{margin-left:14px;margin-right:14px;}.rec-actions{padding-left:14px;padding-right:14px;}.holerite-row{grid-template-columns:1fr 1fr;}.holerite-resumo{grid-template-columns:1fr;}.contratos-tabs{overflow-x:auto;}}
+  @media(max-width:760px){.rec-form-grid,.rec-config-grid{grid-template-columns:1fr;}.rec-span-2,.rec-span-3,.rec-config-grid .full{grid-column:auto;}.rec-preview{margin-left:14px;margin-right:14px;}.rec-actions{padding-left:14px;padding-right:14px;}.holerite-row{grid-template-columns:1fr 1fr;}.holerite-resumo{grid-template-columns:1fr;}.contratos-tabs{overflow-x:auto;}.orc-item-row{grid-template-columns:1fr 1fr;padding:0 14px 12px;}.orc-resumo{grid-template-columns:1fr 1fr;margin-left:14px;margin-right:14px;}}
 </style>
 </head>
 <body>
@@ -584,6 +587,7 @@
       <button class="top-module-btn" data-category="financeiro" data-view="contratos" onclick="mudarViewPrincipal('contratos')"><span class="top-module-icon">📄</span>Contratos</button>
       <button class="top-module-btn" data-category="vendas" data-view="vendasComCusto" onclick="mudarViewPrincipal('vendasComCusto')"><span class="top-module-icon">📊</span>Vendas com Custo</button>
       <button class="top-module-btn" data-category="vendas" data-view="vendasDelivery" onclick="mudarViewPrincipal('vendasDelivery')"><span class="top-module-icon">🛵</span>Vendas Delivery</button>
+      <button class="top-module-btn" data-category="vendas" data-view="orcamentos" onclick="mudarViewPrincipal('orcamentos')"><span class="top-module-icon">📝</span>Orçamentos</button>
       <button class="top-module-btn" data-category="comprasEstoque" data-view="compras" onclick="mudarViewPrincipal('compras')"><span class="top-module-icon">🛒</span>Compras</button>
       <button class="top-module-btn" data-category="comprasEstoque" data-view="inventario" onclick="mudarViewPrincipal('inventario')"><span class="top-module-icon">📦</span>Inventário</button>
       <button class="top-module-btn" data-category="comprasEstoque" data-view="controleEstoque" onclick="mudarViewPrincipal('controleEstoque')"><span class="top-module-icon">📈</span>Controle de Estoque</button>
@@ -1557,6 +1561,43 @@
           </table>
         </div>
         <div class="empty" id="deliveryEmpty" style="display:none;">Nenhum cliente encontrado com os filtros selecionados.</div>
+      </div>
+    </div>
+
+    <div id="viewOrcamentos" style="display:none;">
+      <div class="rec-toolbar">
+        <div><h2 style="margin:0 0 4px;font-size:20px;color:#17233c;">Orçamentos</h2><div class="rec-config-status">Crie propostas comerciais formais e salve o histórico por loja.</div></div>
+        <button class="addbtn" style="width:auto;" onclick="novoOrcamento()">+ Novo orçamento</button>
+      </div>
+
+      <div class="panel" style="margin-bottom:20px;">
+        <div class="panel-head"><h2 id="orcFormTitulo">Novo orçamento</h2><span id="orcNumeroPrevia" style="font-family:var(--font-mono);color:var(--muted);"></span></div>
+        <div class="rec-form-grid">
+          <div class="fld"><label>Nome do cliente</label><input id="orc_cliente_nome" placeholder="Nome ou empresa"></div>
+          <div class="fld"><label>Telefone / WhatsApp</label><input id="orc_cliente_telefone" placeholder="(38) 99999-9999"></div>
+          <div class="fld"><label>CPF/CNPJ (opcional)</label><input id="orc_cliente_documento" placeholder="CPF ou CNPJ"></div>
+          <div class="fld"><label>Data de emissão</label><input id="orc_data" type="date"></div>
+          <div class="fld"><label>Válido até</label><input id="orc_validade" type="date"></div>
+          <div class="fld"><label>Forma de pagamento</label><input id="orc_pagamento" placeholder="Ex.: PIX, dinheiro ou cartão"></div>
+        </div>
+        <div class="panel-head" style="padding-bottom:8px;"><h2>Produtos</h2><button class="cancelbtn" onclick="adicionarItemOrcamento()">+ Adicionar produto</button></div>
+        <div id="orcItens"></div>
+        <div class="rec-form-grid" style="padding-top:10px;">
+          <div class="fld"><label>Desconto total (R$)</label><input id="orc_desconto" type="number" min="0" step="0.01" value="0" oninput="calcularOrcamento()"></div>
+          <div class="fld"><label>Frete / entrega (R$)</label><input id="orc_entrega" type="number" min="0" step="0.01" value="0" oninput="calcularOrcamento()"></div>
+          <div class="fld"><label>Status</label><select id="orc_status"><option value="aberto">Em aberto</option><option value="aprovado">Aprovado</option><option value="recusado">Recusado</option><option value="vencido">Vencido</option></select></div>
+          <div class="fld rec-span-3"><label>Observações e condições</label><textarea id="orc_observacoes" rows="3" placeholder="Ex.: entrega após confirmação; preços válidos até a data indicada."></textarea></div>
+        </div>
+        <div class="orc-resumo"><div><span>Itens</span><strong id="orcQtdItens">0</strong></div><div><span>Subtotal</span><strong id="orcSubtotal">R$ 0,00</strong></div><div><span>Desconto + entrega</span><strong id="orcAjustes">R$ 0,00</strong></div><div class="total"><span>Total do orçamento</span><strong id="orcTotal">R$ 0,00</strong></div></div>
+        <div class="formerr" id="orcErr" style="margin:0 20px 12px;"></div>
+        <div class="rec-actions"><button class="addbtn" style="width:auto;" onclick="salvarOrcamento(true)">Salvar e gerar PDF</button><button class="cancelbtn" onclick="gerarPdfOrcamentoFormulario()">Visualizar PDF sem salvar</button><button class="cancelbtn" onclick="novoOrcamento()">Limpar</button></div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-head"><h2>Histórico de orçamentos</h2></div>
+        <div class="rec-history-filters"><input id="orcBusca" style="flex:1;min-width:220px;" placeholder="🔍 Buscar cliente, telefone ou número..." oninput="renderOrcamentos()"><select id="orcFiltroStatus" onchange="renderOrcamentos()"><option value="todos">Todos os status</option><option value="aberto">Em aberto</option><option value="aprovado">Aprovados</option><option value="recusado">Recusados</option><option value="vencido">Vencidos</option></select><input id="orcFiltroMes" type="month" onchange="carregarOrcamentos()"><button class="cancelbtn" onclick="limparFiltrosOrcamentos()">Todos</button></div>
+        <div class="tablewrap"><table class="ledger"><thead><tr><th>Nº</th><th>Data</th><th>Cliente</th><th>Validade</th><th>Status</th><th style="text-align:right;">Total</th><th></th></tr></thead><tbody id="orcBody"></tbody></table></div>
+        <div class="empty" id="orcEmpty" style="display:none;">Nenhum orçamento encontrado para esta loja.</div>
       </div>
     </div>
 
@@ -2802,6 +2843,10 @@ function trocarLoja(l){
   }
   if(viewAtual === 'vendasDelivery'){
     abrirVendasDelivery();
+  }
+  if(viewAtual === 'orcamentos'){
+    novoOrcamento();
+    abrirOrcamentos();
   }
   if(viewAtual === 'fluxoCaixa'){
     sb.from('fluxo_caixa_contas').select('*').eq('loja', lojaAtual).order('ordem').order('nome').then(async ({data, error})=>{
@@ -4778,6 +4823,99 @@ function exportarPdfControleEstoque(){
   doc.save(`controle-estoque-${lojaAtual}-${controleEstoqueMesAtual}.pdf`);
 }
 
+/* ================= ORÇAMENTOS ================= */
+
+let orcamentosCache = [];
+let orcamentoItens = [];
+let orcamentoEditandoId = null;
+let orcamentoConfigEmpresa = null;
+
+function dataMaisDias(dias){const d=new Date(todayStr()+'T12:00:00');d.setDate(d.getDate()+dias);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
+
+async function abrirOrcamentos(){
+  if(!document.getElementById('orc_data').value) novoOrcamento();
+  const {data}=await sb.from('recibos_configuracoes').select('empresa_razao_social,empresa_nome_fantasia,empresa_cnpj,empresa_endereco,cidade,estado').eq('loja',lojaAtual).maybeSingle();
+  orcamentoConfigEmpresa=data||null;
+  await carregarOrcamentos();
+}
+
+function novoOrcamento(){
+  orcamentoEditandoId=null;orcamentoItens=[{produto:'',quantidade:1,valor_unitario:0}];
+  ['orc_cliente_nome','orc_cliente_telefone','orc_cliente_documento','orc_pagamento'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('orc_data').value=todayStr();document.getElementById('orc_validade').value=dataMaisDias(7);
+  document.getElementById('orc_desconto').value='0';document.getElementById('orc_entrega').value='0';document.getElementById('orc_status').value='aberto';
+  document.getElementById('orc_observacoes').value='Valores válidos até a data indicada. Orçamento sujeito à disponibilidade dos produtos.';
+  document.getElementById('orcFormTitulo').textContent='Novo orçamento';document.getElementById('orcNumeroPrevia').textContent='';document.getElementById('orcErr').style.display='none';renderItensOrcamento();
+}
+
+function adicionarItemOrcamento(item){orcamentoItens.push(item||{produto:'',quantidade:1,valor_unitario:0});renderItensOrcamento();}
+function removerItemOrcamento(i){if(orcamentoItens.length===1){orcamentoItens[0]={produto:'',quantidade:1,valor_unitario:0};}else orcamentoItens.splice(i,1);renderItensOrcamento();}
+function alterarItemOrcamento(i,campo,valor){if(!orcamentoItens[i])return;orcamentoItens[i][campo]=campo==='produto'?valor:Math.max(0,Number(valor)||0);calcularOrcamento();}
+
+function renderItensOrcamento(){
+  const el=document.getElementById('orcItens');if(!el)return;
+  el.innerHTML=orcamentoItens.map((x,i)=>'<div class="orc-item-row"><div class="fld"><label>Produto / descrição</label><input value="'+escapeHtml(x.produto||'')+'" placeholder="Ex.: Cerveja lata 350 ml" oninput="alterarItemOrcamento('+i+',\'produto\',this.value)"></div><div class="fld"><label>Quantidade</label><input type="number" min="0.001" step="0.001" value="'+(Number(x.quantidade)||'')+'" oninput="alterarItemOrcamento('+i+',\'quantidade\',this.value)"></div><div class="fld"><label>Valor unitário</label><input type="number" min="0" step="0.01" value="'+(Number(x.valor_unitario)||'')+'" oninput="alterarItemOrcamento('+i+',\'valor_unitario\',this.value)"></div><div><label style="display:block;font-size:10px;text-transform:uppercase;color:var(--muted);margin-bottom:6px;">Total</label><div class="orc-total-item" id="orcItemTotal'+i+'">'+brl((Number(x.quantidade)||0)*(Number(x.valor_unitario)||0))+'</div></div><button class="iconbtn del" type="button" onclick="removerItemOrcamento('+i+')">✕</button></div>').join('');
+  calcularOrcamento();
+}
+
+function totaisOrcamento(){
+  const subtotal=orcamentoItens.reduce((s,x)=>s+(Number(x.quantidade)||0)*(Number(x.valor_unitario)||0),0),desconto=Math.max(0,Number(document.getElementById('orc_desconto').value)||0),entrega=Math.max(0,Number(document.getElementById('orc_entrega').value)||0);
+  return {subtotal,desconto,entrega,total:Math.max(0,subtotal-desconto+entrega)};
+}
+function calcularOrcamento(){
+  orcamentoItens.forEach((x,i)=>{const el=document.getElementById('orcItemTotal'+i);if(el)el.textContent=brl((Number(x.quantidade)||0)*(Number(x.valor_unitario)||0));});
+  const t=totaisOrcamento();document.getElementById('orcQtdItens').textContent=orcamentoItens.filter(x=>x.produto&&Number(x.quantidade)>0).length;document.getElementById('orcSubtotal').textContent=brl(t.subtotal);document.getElementById('orcAjustes').textContent='-'+brl(t.desconto)+' / +'+brl(t.entrega);document.getElementById('orcTotal').textContent=brl(t.total);
+}
+
+function dadosFormularioOrcamento(){
+  const t=totaisOrcamento(),c=orcamentoConfigEmpresa||{};
+  return {data_emissao:document.getElementById('orc_data').value,data_validade:document.getElementById('orc_validade').value,cliente_nome:document.getElementById('orc_cliente_nome').value.trim(),cliente_telefone:document.getElementById('orc_cliente_telefone').value.trim()||null,cliente_documento:document.getElementById('orc_cliente_documento').value.trim()||null,forma_pagamento:document.getElementById('orc_pagamento').value.trim()||null,observacoes:document.getElementById('orc_observacoes').value.trim()||null,status:document.getElementById('orc_status').value,itens:orcamentoItens.filter(x=>x.produto&&Number(x.quantidade)>0&&Number(x.valor_unitario)>=0).map(x=>({produto:x.produto.trim(),quantidade:Number(x.quantidade),valor_unitario:Number(x.valor_unitario),total:Number(x.quantidade)*Number(x.valor_unitario)})),subtotal:t.subtotal,desconto:t.desconto,valor_entrega:t.entrega,total:t.total,empresa_razao_social:c.empresa_razao_social||null,empresa_nome_fantasia:c.empresa_nome_fantasia||'Ranchão Bebidas',empresa_cnpj:c.empresa_cnpj||null,empresa_endereco:c.empresa_endereco||null};
+}
+
+function validarOrcamento(d){if(!d.cliente_nome||!d.data_emissao||!d.data_validade)return 'Preencha o cliente, a data de emissão e a validade.';if(d.data_validade<d.data_emissao)return 'A validade não pode ser anterior à emissão.';if(!d.itens.length)return 'Adicione pelo menos um produto com quantidade e valor.';if(!(d.total>0))return 'O total do orçamento deve ser maior que zero.';return '';}
+
+async function salvarOrcamento(gerarPdf){
+  const d=dadosFormularioOrcamento(),erro=validarOrcamento(d),el=document.getElementById('orcErr');if(erro){el.textContent=erro;el.style.display='block';return;}el.style.display='none';
+  let resposta;if(orcamentoEditandoId)resposta=await sb.from('orcamentos').update(d).eq('id',orcamentoEditandoId).eq('loja',lojaAtual).select().single();else resposta=await sb.from('orcamentos').insert(Object.assign({loja:lojaAtual},d)).select().single();
+  if(resposta.error){el.textContent='Não foi possível salvar. Execute primeiro o SQL do módulo de orçamentos.';el.style.display='block';console.error(resposta.error);return;}
+  if(gerarPdf)gerarPdfOrcamento(resposta.data);await carregarOrcamentos();novoOrcamento();
+}
+
+async function carregarOrcamentos(){
+  let q=sb.from('orcamentos').select('*').eq('loja',lojaAtual);const mes=document.getElementById('orcFiltroMes').value;if(mes){const p=mes.split('-'),ultimo=new Date(Number(p[0]),Number(p[1]),0).getDate();q=q.gte('data_emissao',mes+'-01').lte('data_emissao',mes+'-'+String(ultimo).padStart(2,'0'));}
+  const {data,error}=await q.order('data_emissao',{ascending:false}).order('id',{ascending:false});orcamentosCache=error?[]:(data||[]);if(error)console.error('Erro ao carregar orçamentos:',error);renderOrcamentos();
+}
+function statusEfetivoOrcamento(x){return x.status==='aberto'&&x.data_validade<todayStr()?'vencido':x.status;}
+function rotuloStatusOrcamento(s){return ({aberto:'Em aberto',aprovado:'Aprovado',recusado:'Recusado',vencido:'Vencido'})[s]||s;}
+function numeroOrcamento(x){return String(x.id||0).padStart(6,'0');}
+function renderOrcamentos(){
+  const busca=(document.getElementById('orcBusca').value||'').toLowerCase().trim(),filtro=document.getElementById('orcFiltroStatus').value;
+  const lista=orcamentosCache.filter(x=>{const s=statusEfetivoOrcamento(x);return (filtro==='todos'||s===filtro)&&(!busca||String(x.cliente_nome||'').toLowerCase().includes(busca)||String(x.cliente_telefone||'').toLowerCase().includes(busca)||numeroOrcamento(x).includes(busca));});
+  document.getElementById('orcEmpty').style.display=lista.length?'none':'block';document.getElementById('orcBody').innerHTML=lista.map(x=>{const s=statusEfetivoOrcamento(x);return '<tr><td>#'+numeroOrcamento(x)+'</td><td>'+fmtData(x.data_emissao)+'</td><td>'+escapeHtml(x.cliente_nome)+'</td><td>'+fmtData(x.data_validade)+'</td><td><span class="status '+(s==='aprovado'?'pago':s==='recusado'||s==='vencido'?'vencido':'pendente')+'">'+rotuloStatusOrcamento(s)+'</span></td><td class="valor">'+brl(x.total)+'</td><td><div class="rowactions"><button class="iconbtn" title="PDF" onclick="baixarPdfOrcamento('+x.id+')">PDF</button><button class="iconbtn" title="Compartilhar" onclick="compartilharOrcamento('+x.id+')">↗</button><button class="iconbtn edit" title="Editar" onclick="editarOrcamento('+x.id+')">✎</button><button class="iconbtn edit" title="Duplicar" onclick="duplicarOrcamento('+x.id+')">⧉</button><button class="iconbtn del" title="Excluir" onclick="excluirOrcamento('+x.id+')">✕</button></div></td></tr>';}).join('');
+}
+
+function preencherOrcamento(x,duplicar){
+  orcamentoEditandoId=duplicar?null:x.id;document.getElementById('orc_cliente_nome').value=x.cliente_nome||'';document.getElementById('orc_cliente_telefone').value=x.cliente_telefone||'';document.getElementById('orc_cliente_documento').value=x.cliente_documento||'';document.getElementById('orc_data').value=duplicar?todayStr():x.data_emissao;document.getElementById('orc_validade').value=duplicar?dataMaisDias(7):x.data_validade;document.getElementById('orc_pagamento').value=x.forma_pagamento||'';document.getElementById('orc_desconto').value=x.desconto||0;document.getElementById('orc_entrega').value=x.valor_entrega||0;document.getElementById('orc_status').value=duplicar?'aberto':x.status;document.getElementById('orc_observacoes').value=x.observacoes||'';orcamentoItens=(x.itens||[]).map(i=>({produto:i.produto,quantidade:Number(i.quantidade),valor_unitario:Number(i.valor_unitario)}));if(!orcamentoItens.length)orcamentoItens=[{produto:'',quantidade:1,valor_unitario:0}];document.getElementById('orcFormTitulo').textContent=duplicar?'Novo orçamento duplicado':'Editar orçamento';document.getElementById('orcNumeroPrevia').textContent=duplicar?'':'#'+numeroOrcamento(x);renderItensOrcamento();window.scrollTo({top:0,behavior:'smooth'});
+}
+function editarOrcamento(id){const x=orcamentosCache.find(v=>Number(v.id)===Number(id));if(x)preencherOrcamento(x,false);}
+function duplicarOrcamento(id){const x=orcamentosCache.find(v=>Number(v.id)===Number(id));if(x)preencherOrcamento(x,true);}
+async function excluirOrcamento(id){if(!confirm('Excluir este orçamento?'))return;const {error}=await sb.from('orcamentos').delete().eq('id',id).eq('loja',lojaAtual);if(error){alert('Não foi possível excluir o orçamento.');return;}orcamentosCache=orcamentosCache.filter(x=>Number(x.id)!==Number(id));renderOrcamentos();}
+function limparFiltrosOrcamentos(){document.getElementById('orcBusca').value='';document.getElementById('orcFiltroStatus').value='todos';document.getElementById('orcFiltroMes').value='';carregarOrcamentos();}
+
+function criarDocumentoPdfOrcamento(d){
+  if(!window.jspdf||!window.jspdf.jsPDF)return null;const doc=new window.jspdf.jsPDF({unit:'mm',format:'a4'}),empresa=d.empresa_nome_fantasia||d.empresa_razao_social||'Ranchão Bebidas';
+  doc.setFillColor(23,35,60);doc.rect(0,0,210,30,'F');doc.setTextColor(255,255,255);doc.setFont('helvetica','bold');doc.setFontSize(18);doc.text(empresa,15,14);doc.setFontSize(9);doc.setFont('helvetica','normal');doc.text('ORÇAMENTO COMERCIAL',15,22);doc.setFont('helvetica','bold');doc.setFontSize(12);doc.text('Nº '+(d.id?numeroOrcamento(d):'NOVO'),195,17,{align:'right'});
+  doc.setTextColor(35,48,65);doc.setFontSize(9);doc.setFont('helvetica','normal');let y=39;if(d.empresa_razao_social)doc.text(d.empresa_razao_social,15,y);if(d.empresa_cnpj)doc.text('CNPJ: '+d.empresa_cnpj,15,y+5);if(d.empresa_endereco)doc.text(doc.splitTextToSize(d.empresa_endereco,105),15,y+10);doc.setFont('helvetica','bold');doc.text('Emissão: '+fmtData(d.data_emissao),195,y,{align:'right'});doc.text('Válido até: '+fmtData(d.data_validade),195,y+6,{align:'right'});
+  y=61;doc.setDrawColor(205,214,225);doc.line(15,y,195,y);y+=8;doc.setFont('helvetica','bold');doc.text('CLIENTE',15,y);doc.setFont('helvetica','normal');doc.text(d.cliente_nome,15,y+6);if(d.cliente_telefone)doc.text('Telefone: '+d.cliente_telefone,15,y+12);if(d.cliente_documento)doc.text('CPF/CNPJ: '+d.cliente_documento,105,y+12);
+  const corpo=(d.itens||[]).map(i=>[i.produto,String(i.quantidade).replace('.',','),brl(i.valor_unitario),brl(i.total)]);doc.autoTable({startY:y+18,margin:{left:15,right:15},head:[['Produto / descrição','Quantidade','Valor unitário','Total']],body:corpo,theme:'grid',styles:{fontSize:9,cellPadding:3},headStyles:{fillColor:[35,55,84]},columnStyles:{1:{halign:'right'},2:{halign:'right'},3:{halign:'right'}}});
+  y=doc.lastAutoTable.finalY+8;if(y>245){doc.addPage();y=20;}doc.setFontSize(9);doc.text('Subtotal',155,y,{align:'right'});doc.text(brl(d.subtotal),195,y,{align:'right'});if(Number(d.desconto)>0){y+=6;doc.text('Desconto',155,y,{align:'right'});doc.text('- '+brl(d.desconto),195,y,{align:'right'});}if(Number(d.valor_entrega)>0){y+=6;doc.text('Entrega',155,y,{align:'right'});doc.text('+ '+brl(d.valor_entrega),195,y,{align:'right'});}y+=9;doc.setFillColor(232,246,237);doc.rect(115,y-6,80,12,'F');doc.setTextColor(24,95,56);doc.setFont('helvetica','bold');doc.setFontSize(12);doc.text('TOTAL',155,y+2,{align:'right'});doc.text(brl(d.total),192,y+2,{align:'right'});doc.setTextColor(55,67,82);doc.setFontSize(9);doc.setFont('helvetica','normal');y+=16;if(d.forma_pagamento){doc.setFont('helvetica','bold');doc.text('Forma de pagamento:',15,y);doc.setFont('helvetica','normal');doc.text(d.forma_pagamento,51,y);y+=8;}if(d.observacoes){doc.setFont('helvetica','bold');doc.text('Observações:',15,y);doc.setFont('helvetica','normal');doc.text(doc.splitTextToSize(d.observacoes,180),15,y+6);}
+  doc.setFontSize(7.5);doc.setTextColor(110,120,132);doc.text('Este orçamento não é documento fiscal nem confirmação de venda. Valores sujeitos à validade e disponibilidade informadas.',105,286,{align:'center'});return doc;
+}
+function gerarPdfOrcamento(d){const doc=criarDocumentoPdfOrcamento(d);if(!doc){alert('Não foi possível carregar o recurso de PDF.');return;}doc.save('orcamento-'+(d.id?numeroOrcamento(d):'novo')+'-'+d.cliente_nome.replace(/[^a-zA-Z0-9À-ÿ]+/g,'-')+'.pdf');}
+function gerarPdfOrcamentoFormulario(){const d=dadosFormularioOrcamento(),erro=validarOrcamento(d),el=document.getElementById('orcErr');if(erro){el.textContent=erro;el.style.display='block';return;}el.style.display='none';gerarPdfOrcamento(d);}
+function baixarPdfOrcamento(id){const x=orcamentosCache.find(v=>Number(v.id)===Number(id));if(x)gerarPdfOrcamento(x);}
+async function compartilharOrcamento(id){const x=orcamentosCache.find(v=>Number(v.id)===Number(id));if(!x)return;const doc=criarDocumentoPdfOrcamento(x);if(!doc)return;const blob=doc.output('blob'),arquivo=new File([blob],'orcamento-'+numeroOrcamento(x)+'.pdf',{type:'application/pdf'});if(navigator.share&&navigator.canShare&&navigator.canShare({files:[arquivo]})){try{await navigator.share({title:'Orçamento '+numeroOrcamento(x),text:'Orçamento da Ranchão Bebidas para '+x.cliente_nome,files:[arquivo]});return;}catch(e){if(e&&e.name==='AbortError')return;}}gerarPdfOrcamento(x);alert('O PDF foi baixado. Anexe o arquivo na conversa do cliente.');}
+
 /* ================= BANCO DE HORAS ================= */
 
 let viewAtual = null;
@@ -4803,20 +4941,20 @@ function setEscala(e){
   }
 }
 
-const VIEWS = ['checklist','duvidas','contasPagar','despesasFixas','comprovantes','diferencaCaixa','fluxoCaixa','pagamentos','pagamentoCaixa','contratos','vendasComCusto','vendasDelivery','bancoHoras','compras','colaboradores','fornecedores','contasBancarias','inventario','controleEstoque','contagensEstoque','combinacaoPagamentos'];
+const VIEWS = ['checklist','duvidas','contasPagar','despesasFixas','comprovantes','diferencaCaixa','fluxoCaixa','pagamentos','pagamentoCaixa','contratos','vendasComCusto','vendasDelivery','orcamentos','bancoHoras','compras','colaboradores','fornecedores','contasBancarias','inventario','controleEstoque','contagensEstoque','combinacaoPagamentos'];
 let colabCarregado = false;
 
 const CATEGORIA_POR_VIEW = {
   contasPagar:'financeiro', despesasFixas:'financeiro', comprovantes:'financeiro',
   diferencaCaixa:'financeiro', fluxoCaixa:'financeiro', pagamentos:'financeiro',
   pagamentoCaixa:'financeiro', combinacaoPagamentos:'financeiro', contratos:'financeiro',
-  vendasComCusto:'vendas', vendasDelivery:'vendas',
+  vendasComCusto:'vendas', vendasDelivery:'vendas', orcamentos:'vendas',
   compras:'comprasEstoque', inventario:'comprasEstoque', controleEstoque:'comprasEstoque', contagensEstoque:'comprasEstoque',
   bancoHoras:'equipe', colaboradores:'equipe',
   fornecedores:'cadastros', contasBancarias:'cadastros',
   checklist:'checklist', duvidas:'duvidas'
 };
-const VIEW_IDS = { checklist:'viewChecklist', duvidas:'viewDuvidas', contasPagar:'viewContasPagar', despesasFixas:'viewDespesasFixas', comprovantes:'viewComprovantes', diferencaCaixa:'viewDiferencaCaixa', fluxoCaixa:'viewFluxoCaixa', pagamentos:'viewPagamentos', pagamentoCaixa:'viewPagamentoCaixa', contratos:'viewContratos', vendasComCusto:'viewVendasComCusto', vendasDelivery:'viewVendasDelivery', bancoHoras:'viewBancoHoras', compras:'viewCompras', colaboradores:'viewColaboradores', fornecedores:'viewFornecedores', contasBancarias:'viewContasBancarias', inventario:'viewInventario', controleEstoque:'viewControleEstoque', contagensEstoque:'viewContagensEstoque', combinacaoPagamentos:'viewCombinacaoPagamentos' };
+const VIEW_IDS = { checklist:'viewChecklist', duvidas:'viewDuvidas', contasPagar:'viewContasPagar', despesasFixas:'viewDespesasFixas', comprovantes:'viewComprovantes', diferencaCaixa:'viewDiferencaCaixa', fluxoCaixa:'viewFluxoCaixa', pagamentos:'viewPagamentos', pagamentoCaixa:'viewPagamentoCaixa', contratos:'viewContratos', vendasComCusto:'viewVendasComCusto', vendasDelivery:'viewVendasDelivery', orcamentos:'viewOrcamentos', bancoHoras:'viewBancoHoras', compras:'viewCompras', colaboradores:'viewColaboradores', fornecedores:'viewFornecedores', contasBancarias:'viewContasBancarias', inventario:'viewInventario', controleEstoque:'viewControleEstoque', contagensEstoque:'viewContagensEstoque', combinacaoPagamentos:'viewCombinacaoPagamentos' };
 
 let categoriaMenuAberta = null;
 
@@ -4900,6 +5038,8 @@ async function mudarViewPrincipal(view){
     await abrirVendas();
   }else if(view==='vendasDelivery'){
     await abrirVendasDelivery();
+  }else if(view==='orcamentos'){
+    await abrirOrcamentos();
   }else if(view==='bancoHoras'){
     if(!bhCarregado) await carregarFuncionarios();
   }else if(view==='compras'){
