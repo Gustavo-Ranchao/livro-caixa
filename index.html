@@ -640,6 +640,8 @@
           <div class="fld"><label>Data</label><input id="rec_data" type="date" onchange="atualizarPreviaRecibo()"></div>
           <div class="fld rec-span-2"><label>Endereço do pagador</label><input id="rec_pagador_endereco" placeholder="Rua, número, bairro e cidade" oninput="atualizarPreviaRecibo()"></div>
           <div class="fld"><label>Valor (R$)</label><input id="rec_valor" type="number" min="0.01" step="0.01" placeholder="0,00" oninput="atualizarPreviaRecibo()"><div class="rec-extenso" id="recValorExtenso"></div></div>
+          <div class="fld rec-span-2"><label>Nome da pessoa que recebeu</label><input id="rec_recebedor_nome" placeholder="Nome completo de quem assinará o recibo" oninput="atualizarPreviaRecibo()"></div>
+          <div class="fld"><label>CPF da pessoa que recebeu</label><input id="rec_recebedor_documento" placeholder="CPF de quem assinará" oninput="atualizarPreviaRecibo()"></div>
           <div class="fld rec-span-3"><label>Referente a</label><input id="rec_referencia" placeholder="Ex.: prestação de serviços referente ao mês..." oninput="atualizarPreviaRecibo()"></div>
         </div>
         <div class="rec-preview" id="recPreviaTexto">Preencha os dados para visualizar o texto do recibo.</div>
@@ -650,7 +652,7 @@
       <div class="panel">
         <div class="panel-head"><h2>Histórico de recibos</h2></div>
         <div class="rec-history-filters"><input id="recBusca" style="flex:1;min-width:220px;" placeholder="🔍 Buscar por pagador ou referência..." oninput="renderRecibos()"><input id="recFiltroMes" type="month" onchange="carregarRecibos()"><button class="cancelbtn" onclick="limparFiltroRecibos()">Todos</button></div>
-        <div class="tablewrap"><table class="ledger"><thead><tr><th>Nº</th><th>Data</th><th>Pagador</th><th>Referente a</th><th style="text-align:right;">Valor</th><th></th></tr></thead><tbody id="recBody"></tbody></table></div>
+        <div class="tablewrap"><table class="ledger"><thead><tr><th>Nº</th><th>Data</th><th>Pagador</th><th>Recebedor</th><th>Referente a</th><th style="text-align:right;">Valor</th><th></th></tr></thead><tbody id="recBody"></tbody></table></div>
         <div class="empty" id="recEmpty" style="display:none;">Nenhum recibo encontrado para esta loja.</div>
       </div>
     </div>
@@ -2628,11 +2630,8 @@
   <div class="modal-box" style="max-width:760px;">
     <button class="modal-close" onclick="fecharConfiguracaoRecibos()">✕</button>
     <h2>Configurações dos recibos</h2>
-    <p class="modal-sub">Dados padrão exclusivos da <strong id="recConfigLojaNome">loja</strong>. Eles poderão ser alterados em cada novo recibo.</p>
+    <p class="modal-sub">Dados padrão exclusivos da <strong id="recConfigLojaNome">loja</strong>. O nome e o CPF de quem recebeu serão informados separadamente em cada recibo.</p>
     <div class="rec-config-grid">
-      <div class="fld"><label>Nome de quem recebe</label><input id="rec_cfg_recebedor_nome" placeholder="Nome completo ou razão social"></div>
-      <div class="fld"><label>CPF/CNPJ de quem recebe</label><input id="rec_cfg_recebedor_documento" placeholder="CPF ou CNPJ"></div>
-      <div class="fld full"><label>Endereço de quem recebe</label><input id="rec_cfg_recebedor_endereco" placeholder="Endereço completo"></div>
       <div class="fld"><label>Cidade</label><input id="rec_cfg_cidade" placeholder="Ex.: Inimutaba"></div>
       <div class="fld"><label>Estado</label><input id="rec_cfg_estado" maxlength="2" placeholder="MG"></div>
       <div class="fld"><label>Pagador padrão</label><input id="rec_cfg_pagador_nome" placeholder="Empresa ou pessoa mais utilizada"></div>
@@ -4094,9 +4093,9 @@ function dadosFormularioRecibo(){
     referencia:document.getElementById('rec_referencia').value.trim(),
     cidade:(recibosConfig&&recibosConfig.cidade)||'',
     estado:(recibosConfig&&recibosConfig.estado)||'',
-    recebedor_nome:(recibosConfig&&recibosConfig.recebedor_nome)||'',
-    recebedor_documento:(recibosConfig&&recibosConfig.recebedor_documento)||'',
-    recebedor_endereco:(recibosConfig&&recibosConfig.recebedor_endereco)||'',
+    recebedor_nome:document.getElementById('rec_recebedor_nome').value.trim(),
+    recebedor_documento:document.getElementById('rec_recebedor_documento').value.trim(),
+    recebedor_endereco:null,
     observacao_rodape:(recibosConfig&&recibosConfig.observacao_rodape)||''
   };
 }
@@ -4110,7 +4109,8 @@ function atualizarPreviaRecibo(){
   const d=dadosFormularioRecibo();
   document.getElementById('recValorExtenso').textContent=d.valor>0?d.valor_extenso:'';
   const local=[d.cidade,d.estado].filter(Boolean).join(' - ');
-  document.getElementById('recPreviaTexto').innerHTML='<strong>RECIBO</strong><br><br>'+escapeHtml(textoRecibo(d))+'<br><br>'+escapeHtml(local+(local?', ':'')+dataPorExtensoRecibo(d.data_recibo))+'.';
+  const assinatura=d.recebedor_nome?'<br><br><div style="text-align:center;">____________________________________<br><strong>'+escapeHtml(d.recebedor_nome)+'</strong><br>CPF: '+escapeHtml(d.recebedor_documento||'[CPF]')+'</div>':'';
+  document.getElementById('recPreviaTexto').innerHTML='<strong>RECIBO</strong><br><br>'+escapeHtml(textoRecibo(d))+'<br><br>'+escapeHtml(local+(local?', ':'')+dataPorExtensoRecibo(d.data_recibo))+'.'+assinatura;
 }
 
 async function abrirContratos(){
@@ -4131,8 +4131,8 @@ async function carregarConfiguracaoRecibos(){
   }
   recibosConfig=data||null;
   const status=document.getElementById('recConfigStatus');
-  status.textContent=recibosConfig&&recibosConfig.recebedor_nome?'✓ Configuração desta loja pronta':'⚙ Configure os dados padrão desta loja';
-  status.classList.toggle('ok',!!(recibosConfig&&recibosConfig.recebedor_nome));
+  status.textContent=recibosConfig&&recibosConfig.cidade?'✓ Configuração desta loja pronta':'⚙ Configure os dados padrão desta loja';
+  status.classList.toggle('ok',!!(recibosConfig&&recibosConfig.cidade));
   preencherFormularioComConfigRecibos();
 }
 
@@ -4147,8 +4147,7 @@ function preencherFormularioComConfigRecibos(){
 function abrirConfiguracaoRecibos(){
   const c=recibosConfig||{};
   const mapa={
-    rec_cfg_recebedor_nome:'recebedor_nome',rec_cfg_recebedor_documento:'recebedor_documento',
-    rec_cfg_recebedor_endereco:'recebedor_endereco',rec_cfg_cidade:'cidade',rec_cfg_estado:'estado',
+    rec_cfg_cidade:'cidade',rec_cfg_estado:'estado',
     rec_cfg_pagador_nome:'pagador_nome_padrao',rec_cfg_pagador_documento:'pagador_documento_padrao',
     rec_cfg_pagador_endereco:'pagador_endereco_padrao',rec_cfg_referencia:'referencia_padrao',
     rec_cfg_observacao:'observacao_rodape'
@@ -4164,9 +4163,9 @@ function fecharConfiguracaoRecibos(){ document.getElementById('recConfigModal').
 async function salvarConfiguracaoRecibos(){
   const payload={
     loja:lojaAtual,
-    recebedor_nome:document.getElementById('rec_cfg_recebedor_nome').value.trim(),
-    recebedor_documento:document.getElementById('rec_cfg_recebedor_documento').value.trim()||null,
-    recebedor_endereco:document.getElementById('rec_cfg_recebedor_endereco').value.trim()||null,
+    recebedor_nome:null,
+    recebedor_documento:null,
+    recebedor_endereco:null,
     cidade:document.getElementById('rec_cfg_cidade').value.trim(),
     estado:document.getElementById('rec_cfg_estado').value.trim().toUpperCase()||null,
     pagador_nome_padrao:document.getElementById('rec_cfg_pagador_nome').value.trim()||null,
@@ -4175,8 +4174,8 @@ async function salvarConfiguracaoRecibos(){
     referencia_padrao:document.getElementById('rec_cfg_referencia').value.trim()||null,
     observacao_rodape:document.getElementById('rec_cfg_observacao').value.trim()||null
   };
-  if(!payload.recebedor_nome||!payload.cidade){
-    const e=document.getElementById('recConfigErr');e.textContent='Informe pelo menos o nome de quem recebe e a cidade.';e.style.display='block';return;
+  if(!payload.cidade){
+    const e=document.getElementById('recConfigErr');e.textContent='Informe pelo menos a cidade utilizada nos recibos.';e.style.display='block';return;
   }
   const btn=document.getElementById('recConfigSalvarBtn');btn.disabled=true;btn.textContent='Salvando…';
   const {data,error}=await sb.from('recibos_configuracoes').upsert(payload,{onConflict:'loja'}).select().single();
@@ -4187,7 +4186,8 @@ async function salvarConfiguracaoRecibos(){
 }
 
 function validarDadosRecibo(d){
-  if(!recibosConfig||!d.recebedor_nome||!d.cidade) return 'Configure primeiro os dados de quem recebe e a cidade.';
+  if(!recibosConfig||!d.cidade) return 'Configure primeiro a cidade utilizada nos recibos.';
+  if(!d.recebedor_nome||!d.recebedor_documento) return 'Informe o nome e o CPF da pessoa que recebeu e assinará o recibo.';
   if(!d.pagador_nome||!d.pagador_endereco||!d.data_recibo||!d.referencia||!(d.valor>0)) return 'Preencha pagador, endereço, data, valor e referência.';
   return '';
 }
@@ -4215,21 +4215,22 @@ function gerarPdfReciboFormulario(){
 function gerarPdfRecibo(d){
   if(!window.jspdf||!window.jspdf.jsPDF){alert('Não foi possível carregar o recurso de PDF.');return;}
   const jsPDF=window.jspdf.jsPDF, doc=new jsPDF({unit:'mm',format:'a4'});
-  doc.setDrawColor(35,55,84);doc.setLineWidth(.5);doc.roundedRect(16,18,178,245,3,3);
-  doc.setFont('helvetica','bold');doc.setFontSize(22);doc.setTextColor(23,35,60);doc.text('RECIBO',105,38,{align:'center'});
-  if(d.id){doc.setFontSize(9);doc.setFont('helvetica','normal');doc.setTextColor(90,105,125);doc.text('Nº '+d.id,30,51);}
-  doc.setFontSize(12);doc.setFont('helvetica','normal');doc.text('Valor: '+brl(d.valor),178,52,{align:'right'});
-  doc.setDrawColor(210,220,232);doc.line(28,59,182,59);
-  doc.setFontSize(12);doc.setTextColor(35,48,65);
-  const linhas=doc.splitTextToSize(textoRecibo(d),150);doc.text(linhas,30,78,{align:'justify',maxWidth:150,lineHeightFactor:1.65});
+  doc.setDrawColor(35,55,84);doc.setLineWidth(.5);doc.roundedRect(16,10,178,128,3,3);
+  doc.setFont('helvetica','bold');doc.setFontSize(18);doc.setTextColor(23,35,60);doc.text('RECIBO',105,25,{align:'center'});
+  if(d.id){doc.setFontSize(8);doc.setFont('helvetica','normal');doc.setTextColor(90,105,125);doc.text('Nº '+d.id,28,36);}
+  doc.setFontSize(10.5);doc.setFont('helvetica','normal');doc.setTextColor(35,48,65);doc.text('Valor: '+brl(d.valor),181,36,{align:'right'});
+  doc.setDrawColor(210,220,232);doc.line(27,42,183,42);
+  doc.setFontSize(10.5);
+  const linhas=doc.splitTextToSize(textoRecibo(d),154);doc.text(linhas,28,54,{align:'justify',maxWidth:154,lineHeightFactor:1.4});
   const local=[d.cidade,d.estado].filter(Boolean).join(' - ');
-  doc.text(local+', '+dataPorExtensoRecibo(d.data_recibo)+'.',180,150,{align:'right'});
-  doc.setDrawColor(80,95,115);doc.line(55,196,155,196);
-  doc.setFont('helvetica','bold');doc.text(d.recebedor_nome||'',105,204,{align:'center'});
-  doc.setFont('helvetica','normal');doc.setFontSize(10);
-  if(d.recebedor_documento) doc.text('CPF/CNPJ: '+d.recebedor_documento,105,211,{align:'center'});
-  if(d.recebedor_endereco) doc.text(doc.splitTextToSize(d.recebedor_endereco,120),105,217,{align:'center'});
-  if(d.observacao_rodape){doc.setFontSize(8);doc.setTextColor(90,105,125);doc.text(doc.splitTextToSize(d.observacao_rodape,150),30,244);}
+  doc.text(local+', '+dataPorExtensoRecibo(d.data_recibo)+'.',181,87,{align:'right'});
+  doc.setDrawColor(80,95,115);doc.line(58,106,152,106);
+  doc.setFont('helvetica','bold');doc.text(d.recebedor_nome||'',105,113,{align:'center'});
+  doc.setFont('helvetica','normal');doc.setFontSize(9);
+  if(d.recebedor_documento) doc.text('CPF: '+d.recebedor_documento,105,119,{align:'center'});
+  if(d.observacao_rodape){doc.setFontSize(7.5);doc.setTextColor(90,105,125);doc.text(doc.splitTextToSize(d.observacao_rodape,154).slice(0,2),28,129);}
+  doc.setDrawColor(170,180,192);doc.setLineWidth(.25);doc.setLineDashPattern([2,2],0);doc.line(8,148.5,202,148.5);doc.setLineDashPattern([],0);
+  doc.setFontSize(7);doc.setTextColor(130,140,152);doc.text('linha de corte — metade inferior livre para outra impressão',105,146,{align:'center'});
   doc.save('recibo-'+(d.id||'novo')+'-'+d.data_recibo+'.pdf');
 }
 
@@ -4244,10 +4245,10 @@ async function carregarRecibos(){
 
 function renderRecibos(){
   const busca=(document.getElementById('recBusca').value||'').toLowerCase().trim();
-  const lista=recibosCache.filter(r=>!busca||String(r.pagador_nome||'').toLowerCase().includes(busca)||String(r.referencia||'').toLowerCase().includes(busca));
+  const lista=recibosCache.filter(r=>!busca||String(r.pagador_nome||'').toLowerCase().includes(busca)||String(r.recebedor_nome||'').toLowerCase().includes(busca)||String(r.referencia||'').toLowerCase().includes(busca));
   const body=document.getElementById('recBody'),empty=document.getElementById('recEmpty');
   empty.style.display=lista.length?'none':'block';
-  body.innerHTML=lista.map(r=>'<tr><td>#'+r.id+'</td><td>'+fmtData(r.data_recibo)+'</td><td>'+escapeHtml(r.pagador_nome)+'</td><td>'+escapeHtml(r.referencia)+'</td><td class="valor">'+brl(r.valor)+'</td><td><div class="rowactions"><button class="iconbtn" title="PDF" onclick="baixarPdfReciboHistorico('+r.id+')">PDF</button><button class="iconbtn edit" title="Duplicar" onclick="duplicarRecibo('+r.id+')">⧉</button><button class="iconbtn del" title="Excluir" onclick="excluirRecibo('+r.id+')">✕</button></div></td></tr>').join('');
+  body.innerHTML=lista.map(r=>'<tr><td>#'+r.id+'</td><td>'+fmtData(r.data_recibo)+'</td><td>'+escapeHtml(r.pagador_nome)+'</td><td>'+escapeHtml(r.recebedor_nome)+'</td><td>'+escapeHtml(r.referencia)+'</td><td class="valor">'+brl(r.valor)+'</td><td><div class="rowactions"><button class="iconbtn" title="PDF" onclick="baixarPdfReciboHistorico('+r.id+')">PDF</button><button class="iconbtn edit" title="Duplicar" onclick="duplicarRecibo('+r.id+')">⧉</button><button class="iconbtn del" title="Excluir" onclick="excluirRecibo('+r.id+')">✕</button></div></td></tr>').join('');
 }
 
 function baixarPdfReciboHistorico(id){const r=recibosCache.find(x=>Number(x.id)===Number(id));if(r)gerarPdfRecibo(r);}
@@ -4256,6 +4257,8 @@ function duplicarRecibo(id){
   document.getElementById('rec_pagador_nome').value=r.pagador_nome||'';
   document.getElementById('rec_pagador_documento').value=r.pagador_documento||'';
   document.getElementById('rec_pagador_endereco').value=r.pagador_endereco||'';
+  document.getElementById('rec_recebedor_nome').value=r.recebedor_nome||'';
+  document.getElementById('rec_recebedor_documento').value=r.recebedor_documento||'';
   document.getElementById('rec_valor').value=r.valor||'';
   document.getElementById('rec_referencia').value=r.referencia||'';
   document.getElementById('rec_data').value=todayStr();atualizarPreviaRecibo();window.scrollTo({top:0,behavior:'smooth'});
@@ -4266,7 +4269,7 @@ async function excluirRecibo(id){
   if(error){alert('Não foi possível excluir o recibo.');return;}
   recibosCache=recibosCache.filter(r=>Number(r.id)!==Number(id));renderRecibos();
 }
-function limparFormularioRecibo(){document.getElementById('rec_valor').value='';document.getElementById('rec_data').value=todayStr();preencherFormularioComConfigRecibos();document.getElementById('recErr').style.display='none';atualizarPreviaRecibo();}
+function limparFormularioRecibo(){document.getElementById('rec_valor').value='';document.getElementById('rec_recebedor_nome').value='';document.getElementById('rec_recebedor_documento').value='';document.getElementById('rec_data').value=todayStr();preencherFormularioComConfigRecibos();document.getElementById('recErr').style.display='none';atualizarPreviaRecibo();}
 function limparFiltroRecibos(){document.getElementById('recFiltroMes').value='';document.getElementById('recBusca').value='';carregarRecibos();}
 
 /* ================= CONTROLE DE ESTOQUE ================= */
