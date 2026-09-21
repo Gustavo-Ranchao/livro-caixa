@@ -484,6 +484,17 @@
   @media(max-width:1050px){.ce-grid{grid-template-columns:repeat(2,minmax(190px,1fr));}}
   @media(max-width:620px){.ce-grid,.ce-modal-grid{grid-template-columns:1fr;}.ce-toolbar-actions{width:100%;}.ce-toolbar-actions button{flex:1;}.ce-card{min-height:130px;}}
   .rec-toolbar{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:18px;}
+  .contratos-tabs{display:flex;gap:8px;margin-bottom:18px;border-bottom:1px solid var(--line);padding-bottom:10px;}
+  .contratos-tab{border:1px solid var(--line);background:#fff;color:var(--ink);padding:10px 16px;border-radius:9px;font-weight:700;cursor:pointer;}
+  .contratos-tab.active{background:var(--ink);border-color:var(--ink);color:#fff;}
+  .holerite-lista{display:flex;flex-direction:column;gap:8px;padding:0 20px 14px;}
+  .holerite-row{display:grid;grid-template-columns:minmax(180px,2fr) minmax(90px,.8fr) minmax(120px,1fr) 38px;gap:10px;align-items:end;}
+  .holerite-row .fld{margin:0;}
+  .holerite-resumo{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin:14px 20px 18px;}
+  .holerite-total{border:1px solid var(--line);border-radius:10px;padding:12px;background:#f8fafc;}
+  .holerite-total strong{display:block;font-size:18px;margin-top:4px;}
+  .holerite-total.liquido{background:#eaf7ef;border-color:#a8d5b8;color:#185f38;}
+  .holerite-aviso{margin:0 20px 14px;padding:10px 12px;border-radius:8px;background:#fff8e7;color:#765817;font-size:12px;}
   .rec-form-grid{display:grid;grid-template-columns:1.35fr .8fr 1fr;gap:12px 14px;padding:0 20px 4px;}
   .rec-span-2{grid-column:span 2;}.rec-span-3{grid-column:1/-1;}
   .rec-extenso{font-size:11px;color:#1d5c9d;margin-top:5px;line-height:1.4;min-height:16px;}
@@ -494,7 +505,7 @@
   .rec-history-filters input{font-family:var(--font-sans);font-size:13px;padding:9px 11px;border:1px solid var(--line);border-radius:7px;background:#fff;color:var(--ink);}
   .rec-config-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
   .rec-config-grid .full{grid-column:1/-1;}
-  @media(max-width:760px){.rec-form-grid,.rec-config-grid{grid-template-columns:1fr;}.rec-span-2,.rec-span-3,.rec-config-grid .full{grid-column:auto;}.rec-preview{margin-left:14px;margin-right:14px;}.rec-actions{padding-left:14px;padding-right:14px;}}
+  @media(max-width:760px){.rec-form-grid,.rec-config-grid{grid-template-columns:1fr;}.rec-span-2,.rec-span-3,.rec-config-grid .full{grid-column:auto;}.rec-preview{margin-left:14px;margin-right:14px;}.rec-actions{padding-left:14px;padding-right:14px;}.holerite-row{grid-template-columns:1fr 1fr;}.holerite-resumo{grid-template-columns:1fr;}.contratos-tabs{overflow-x:auto;}}
 </style>
 </head>
 <body>
@@ -627,6 +638,11 @@
     </div>
 
     <div id="viewContratos" style="display:none;">
+      <div class="contratos-tabs">
+        <button id="contratosTabRecibos" class="contratos-tab active" onclick="mudarAbaContratos('recibos')">🧾 Recibos</button>
+        <button id="contratosTabContracheques" class="contratos-tab" onclick="mudarAbaContratos('contracheques')">📄 Contracheques</button>
+      </div>
+      <div id="contratosAbaRecibos">
       <div class="rec-toolbar">
         <div><h2 style="margin:0 0 4px;font-size:20px;color:#17233c;">Recibos</h2><div class="rec-config-status" id="recConfigStatus">⚙ Configure os dados padrão desta loja</div></div>
         <button type="button" class="filter-btn foto-btn" onclick="abrirConfiguracaoRecibos()">⚙ Configurações do recibo</button>
@@ -654,6 +670,44 @@
         <div class="rec-history-filters"><input id="recBusca" style="flex:1;min-width:220px;" placeholder="🔍 Buscar por pagador ou referência..." oninput="renderRecibos()"><input id="recFiltroMes" type="month" onchange="carregarRecibos()"><button class="cancelbtn" onclick="limparFiltroRecibos()">Todos</button></div>
         <div class="tablewrap"><table class="ledger"><thead><tr><th>Nº</th><th>Data</th><th>Pagador</th><th>Recebedor</th><th>Referente a</th><th style="text-align:right;">Valor</th><th></th></tr></thead><tbody id="recBody"></tbody></table></div>
         <div class="empty" id="recEmpty" style="display:none;">Nenhum recibo encontrado para esta loja.</div>
+      </div>
+      </div>
+
+      <div id="contratosAbaContracheques" style="display:none;">
+        <div class="rec-toolbar">
+          <div><h2 style="margin:0 0 4px;font-size:20px;color:#17233c;">Contracheques</h2><div class="rec-config-status" id="holConfigStatus">⚙ Configure os dados da empresa desta loja</div></div>
+          <button type="button" class="filter-btn foto-btn" onclick="abrirConfiguracaoRecibos()">⚙ Dados da empresa</button>
+        </div>
+        <div class="panel" style="margin-bottom:20px;">
+          <div class="panel-head"><h2>Novo demonstrativo de pagamento</h2></div>
+          <div class="rec-form-grid">
+            <div class="fld"><label>Nome do funcionário</label><input id="hol_funcionario" placeholder="Nome completo"></div>
+            <div class="fld"><label>CPF</label><input id="hol_cpf" placeholder="CPF do funcionário"></div>
+            <div class="fld"><label>Cargo / função</label><input id="hol_cargo" placeholder="Ex.: Atendente"></div>
+            <div class="fld"><label>Competência</label><input id="hol_competencia" type="month"></div>
+            <div class="fld"><label>Data de pagamento</label><input id="hol_data_pagamento" type="date"></div>
+            <div class="fld"><label>Data de admissão (opcional)</label><input id="hol_admissao" type="date"></div>
+            <div class="fld"><label>Salário-base (R$)</label><input id="hol_salario_base" type="number" min="0" step="0.01" placeholder="0,00" oninput="sincronizarSalarioBaseContracheque()"></div>
+          </div>
+          <div class="panel-head" style="padding-bottom:8px;"><h2>Proventos</h2><button class="cancelbtn" onclick="adicionarLinhaContracheque('provento')">+ Adicionar provento</button></div>
+          <div id="holProventos" class="holerite-lista"></div>
+          <div class="panel-head" style="padding-bottom:8px;"><h2>Descontos</h2><button class="cancelbtn" onclick="adicionarLinhaContracheque('desconto')">+ Adicionar desconto</button></div>
+          <div id="holDescontos" class="holerite-lista"></div>
+          <div class="holerite-resumo">
+            <div class="holerite-total">Total de proventos<strong id="holTotalProventos">R$ 0,00</strong></div>
+            <div class="holerite-total">Total de descontos<strong id="holTotalDescontos">R$ 0,00</strong></div>
+            <div class="holerite-total liquido">Valor líquido<strong id="holValorLiquido">R$ 0,00</strong></div>
+          </div>
+          <div class="holerite-aviso">Os valores de INSS, IRRF e demais encargos são informados manualmente. Este documento é para controle interno e não substitui o holerite oficial emitido pela contabilidade.</div>
+          <div class="formerr" id="holErr" style="margin:0 20px 12px;"></div>
+          <div class="rec-actions"><button class="addbtn" style="width:auto;" onclick="salvarContracheque(true)">Salvar e gerar PDF</button><button class="cancelbtn" onclick="gerarPdfContrachequeFormulario()">Visualizar PDF sem salvar</button><button class="cancelbtn" onclick="limparFormularioContracheque()">Limpar</button></div>
+        </div>
+        <div class="panel">
+          <div class="panel-head"><h2>Histórico de contracheques</h2></div>
+          <div class="rec-history-filters"><input id="holBusca" style="flex:1;min-width:220px;" placeholder="🔍 Buscar funcionário, CPF ou cargo..." oninput="renderContracheques()"><input id="holFiltroMes" type="month" onchange="carregarContracheques()"><button class="cancelbtn" onclick="limparFiltroContracheques()">Todos</button></div>
+          <div class="tablewrap"><table class="ledger"><thead><tr><th>Nº</th><th>Competência</th><th>Funcionário</th><th>Cargo</th><th style="text-align:right;">Líquido</th><th></th></tr></thead><tbody id="holBody"></tbody></table></div>
+          <div class="empty" id="holEmpty" style="display:none;">Nenhum contracheque encontrado para esta loja.</div>
+        </div>
       </div>
     </div>
 
@@ -822,6 +876,7 @@
             <label style="display:block;font-size:10px;text-transform:uppercase;letter-spacing:0.05em;color:var(--muted);margin-bottom:6px;">Tipo de lançamento</label>
             <div class="tipo-toggle" id="bhTipoDiaToggle" style="margin:0;">
               <button type="button" class="tipo-btn active" data-tipodia="normal" onclick="setBhTipoDia('normal')">Dia normal</button>
+              <button type="button" class="tipo-btn" data-tipodia="feriado_trabalhado" onclick="setBhTipoDia('feriado_trabalhado')">Trabalhou no feriado</button>
               <button type="button" class="tipo-btn" data-tipodia="falta_justificada" onclick="setBhTipoDia('falta_justificada')">Falta justificada</button>
               <button type="button" class="tipo-btn" data-tipodia="falta_injustificada" onclick="setBhTipoDia('falta_injustificada')">Falta injustificada</button>
             </div>
@@ -877,8 +932,8 @@
               <button type="button" class="filter-btn" onclick="limparFiltroDataHoras()">limpar</button>
               <button type="button" class="filter-btn foto-btn" onclick="exportarExcelHoras()" title="Baixar como Excel, com todos os registros">📊 Excel completo</button>
               <button type="button" class="filter-btn foto-btn" onclick="exportarPdfHoras()" title="Baixar como PDF, com todos os registros">📄 PDF completo</button>
-              <button type="button" class="filter-btn foto-btn" onclick="exportarExcelHorasResumo()" title="Só nome, período e horas noturnas — sem os registros de ponto">📊 Excel resumo</button>
-              <button type="button" class="filter-btn foto-btn" onclick="exportarPdfHorasResumo()" title="Só nome, período e horas noturnas — sem os registros de ponto">📄 PDF resumo</button>
+              <button type="button" class="filter-btn foto-btn" onclick="exportarExcelHorasResumo()" title="Resumo de feriados e horas noturnas, sem os registros de ponto">📊 Excel resumo</button>
+              <button type="button" class="filter-btn foto-btn" onclick="exportarPdfHorasResumo()" title="Resumo de feriados e horas noturnas, sem os registros de ponto">📄 PDF resumo</button>
               <button type="button" class="filter-btn" style="border-color:var(--rust);color:var(--rust);" onclick="confirmarApagarTudoHoras()">🗑 Apagar tudo</button>
             </div>
           </div>
@@ -2463,7 +2518,7 @@
       </div>
       <div class="tablewrap" style="max-height:420px;overflow-y:auto;">
         <table class="ledger">
-          <thead><tr><th>Colaborador</th><th>Cargo</th><th style="text-align:right">Horas noturnas</th><th style="text-align:right">Horas noturnas convertidas</th><th style="text-align:right">Faltas justificadas</th><th style="text-align:right">Faltas injustificadas</th></tr></thead>
+          <thead><tr><th>Colaborador</th><th>Cargo</th><th style="text-align:right">Horas noturnas</th><th style="text-align:right">Horas noturnas convertidas</th><th>Faltas justificadas</th><th>Faltas injustificadas</th><th>Trabalhou no feriado</th></tr></thead>
           <tbody id="relNoturnoBody"></tbody>
         </table>
       </div>
@@ -2629,9 +2684,13 @@
 <div id="recConfigModal" class="modal-overlay">
   <div class="modal-box" style="max-width:760px;">
     <button class="modal-close" onclick="fecharConfiguracaoRecibos()">✕</button>
-    <h2>Configurações dos recibos</h2>
-    <p class="modal-sub">Dados padrão exclusivos da <strong id="recConfigLojaNome">loja</strong>. O nome e o CPF de quem recebeu serão informados separadamente em cada recibo.</p>
+    <h2>Configurações de documentos</h2>
+    <p class="modal-sub">Dados padrão exclusivos da <strong id="recConfigLojaNome">loja</strong>, utilizados nos recibos e contracheques.</p>
     <div class="rec-config-grid">
+      <div class="fld full"><label>Razão social</label><input id="rec_cfg_empresa_razao" placeholder="Razão social da empresa"></div>
+      <div class="fld"><label>Nome fantasia</label><input id="rec_cfg_empresa_fantasia" placeholder="Nome fantasia"></div>
+      <div class="fld"><label>CNPJ</label><input id="rec_cfg_empresa_cnpj" placeholder="CNPJ da empresa"></div>
+      <div class="fld full"><label>Endereço da empresa</label><input id="rec_cfg_empresa_endereco" placeholder="Endereço completo da empresa"></div>
       <div class="fld"><label>Cidade</label><input id="rec_cfg_cidade" placeholder="Ex.: Inimutaba"></div>
       <div class="fld"><label>Estado</label><input id="rec_cfg_estado" maxlength="2" placeholder="MG"></div>
       <div class="fld"><label>Pagador padrão</label><input id="rec_cfg_pagador_nome" placeholder="Empresa ou pessoa mais utilizada"></div>
@@ -4018,6 +4077,9 @@ async function confirmarImport(){
 
 let recibosConfig = null;
 let recibosCache = [];
+let contrachequesCache = [];
+let contrachequeProventos = [];
+let contrachequeDescontos = [];
 
 function grupoNumeroExtenso(n){
   const u=['','um','dois','três','quatro','cinco','seis','sete','oito','nove'];
@@ -4115,8 +4177,10 @@ function atualizarPreviaRecibo(){
 
 async function abrirContratos(){
   if(!document.getElementById('rec_data').value) document.getElementById('rec_data').value=todayStr();
+  inicializarFormularioContracheque();
   await carregarConfiguracaoRecibos();
   await carregarRecibos();
+  await carregarContracheques();
   atualizarPreviaRecibo();
 }
 
@@ -4133,6 +4197,7 @@ async function carregarConfiguracaoRecibos(){
   const status=document.getElementById('recConfigStatus');
   status.textContent=recibosConfig&&recibosConfig.cidade?'✓ Configuração desta loja pronta':'⚙ Configure os dados padrão desta loja';
   status.classList.toggle('ok',!!(recibosConfig&&recibosConfig.cidade));
+  atualizarStatusConfigContracheque();
   preencherFormularioComConfigRecibos();
 }
 
@@ -4147,6 +4212,8 @@ function preencherFormularioComConfigRecibos(){
 function abrirConfiguracaoRecibos(){
   const c=recibosConfig||{};
   const mapa={
+    rec_cfg_empresa_razao:'empresa_razao_social',rec_cfg_empresa_fantasia:'empresa_nome_fantasia',
+    rec_cfg_empresa_cnpj:'empresa_cnpj',rec_cfg_empresa_endereco:'empresa_endereco',
     rec_cfg_cidade:'cidade',rec_cfg_estado:'estado',
     rec_cfg_pagador_nome:'pagador_nome_padrao',rec_cfg_pagador_documento:'pagador_documento_padrao',
     rec_cfg_pagador_endereco:'pagador_endereco_padrao',rec_cfg_referencia:'referencia_padrao',
@@ -4166,6 +4233,10 @@ async function salvarConfiguracaoRecibos(){
     recebedor_nome:null,
     recebedor_documento:null,
     recebedor_endereco:null,
+    empresa_razao_social:document.getElementById('rec_cfg_empresa_razao').value.trim()||null,
+    empresa_nome_fantasia:document.getElementById('rec_cfg_empresa_fantasia').value.trim()||null,
+    empresa_cnpj:document.getElementById('rec_cfg_empresa_cnpj').value.trim()||null,
+    empresa_endereco:document.getElementById('rec_cfg_empresa_endereco').value.trim()||null,
     cidade:document.getElementById('rec_cfg_cidade').value.trim(),
     estado:document.getElementById('rec_cfg_estado').value.trim().toUpperCase()||null,
     pagador_nome_padrao:document.getElementById('rec_cfg_pagador_nome').value.trim()||null,
@@ -4183,6 +4254,7 @@ async function salvarConfiguracaoRecibos(){
   if(error){const e=document.getElementById('recConfigErr');e.textContent='Não foi possível salvar. Confirme se executou o SQL do módulo.';e.style.display='block';console.error(error);return;}
   recibosConfig=data;fecharConfiguracaoRecibos();preencherFormularioComConfigRecibos();atualizarPreviaRecibo();
   const status=document.getElementById('recConfigStatus');status.textContent='✓ Configuração desta loja pronta';status.classList.add('ok');
+  atualizarStatusConfigContracheque();
 }
 
 function validarDadosRecibo(d){
@@ -4271,6 +4343,174 @@ async function excluirRecibo(id){
 }
 function limparFormularioRecibo(){document.getElementById('rec_valor').value='';document.getElementById('rec_recebedor_nome').value='';document.getElementById('rec_recebedor_documento').value='';document.getElementById('rec_data').value=todayStr();preencherFormularioComConfigRecibos();document.getElementById('recErr').style.display='none';atualizarPreviaRecibo();}
 function limparFiltroRecibos(){document.getElementById('recFiltroMes').value='';document.getElementById('recBusca').value='';carregarRecibos();}
+
+/* ================= CONTRACHEQUES ================= */
+
+function mudarAbaContratos(aba){
+  const recibos=aba==='recibos';
+  document.getElementById('contratosAbaRecibos').style.display=recibos?'block':'none';
+  document.getElementById('contratosAbaContracheques').style.display=recibos?'none':'block';
+  document.getElementById('contratosTabRecibos').classList.toggle('active',recibos);
+  document.getElementById('contratosTabContracheques').classList.toggle('active',!recibos);
+}
+
+function atualizarStatusConfigContracheque(){
+  const el=document.getElementById('holConfigStatus');if(!el)return;
+  const pronto=!!(recibosConfig&&(recibosConfig.empresa_razao_social||recibosConfig.empresa_nome_fantasia)&&recibosConfig.empresa_cnpj);
+  el.textContent=pronto?'✓ Dados da empresa configurados':'⚙ Configure razão social/nome fantasia e CNPJ desta loja';
+  el.classList.toggle('ok',pronto);
+}
+
+function competenciaAtual(){const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');}
+
+function inicializarFormularioContracheque(){
+  const comp=document.getElementById('hol_competencia');if(!comp)return;
+  if(!comp.value) comp.value=competenciaAtual();
+  if(!document.getElementById('hol_data_pagamento').value) document.getElementById('hol_data_pagamento').value=todayStr();
+  if(!contrachequeProventos.length) contrachequeProventos=[{descricao:'Salário-base',referencia:'30 dias',valor:0,fixo:true}];
+  renderLinhasContracheque();
+}
+
+function adicionarLinhaContracheque(tipo,linha){
+  const item=linha||{descricao:'',referencia:'',valor:0,fixo:false};
+  if(tipo==='provento') contrachequeProventos.push(item); else contrachequeDescontos.push(item);
+  renderLinhasContracheque();
+}
+
+function removerLinhaContracheque(tipo,indice){
+  const lista=tipo==='provento'?contrachequeProventos:contrachequeDescontos;
+  if(lista[indice]&&lista[indice].fixo) return;
+  lista.splice(indice,1);renderLinhasContracheque();
+}
+
+function alterarLinhaContracheque(tipo,indice,campo,valor){
+  const lista=tipo==='provento'?contrachequeProventos:contrachequeDescontos;
+  if(!lista[indice])return;
+  lista[indice][campo]=campo==='valor'?Math.max(0,Number(valor)||0):valor;
+  calcularTotaisContracheque();
+}
+
+function htmlLinhaContracheque(tipo,item,i){
+  const bloqueado=item.fixo?' readonly':'';
+  const excluir=item.fixo?'<button class="iconbtn" type="button" disabled title="O salário-base é obrigatório">—</button>':'<button class="iconbtn del" type="button" onclick="removerLinhaContracheque(\''+tipo+'\','+i+')">✕</button>';
+  return '<div class="holerite-row"><div class="fld"><label>Descrição</label><input value="'+escapeHtml(item.descricao||'')+'"'+bloqueado+' oninput="alterarLinhaContracheque(\''+tipo+'\','+i+',\'descricao\',this.value)"></div><div class="fld"><label>Referência</label><input value="'+escapeHtml(item.referencia||'')+'" oninput="alterarLinhaContracheque(\''+tipo+'\','+i+',\'referencia\',this.value)" placeholder="Ex.: 30 dias"></div><div class="fld"><label>Valor (R$)</label><input type="number" min="0" step="0.01" value="'+(Number(item.valor)||'')+'" oninput="alterarLinhaContracheque(\''+tipo+'\','+i+',\'valor\',this.value)"></div><div>'+excluir+'</div></div>';
+}
+
+function renderLinhasContracheque(){
+  const p=document.getElementById('holProventos'),d=document.getElementById('holDescontos');if(!p||!d)return;
+  p.innerHTML=contrachequeProventos.map((x,i)=>htmlLinhaContracheque('provento',x,i)).join('');
+  d.innerHTML=contrachequeDescontos.map((x,i)=>htmlLinhaContracheque('desconto',x,i)).join('')||'<div style="color:var(--muted);font-size:12px;">Nenhum desconto informado.</div>';
+  calcularTotaisContracheque();
+}
+
+function sincronizarSalarioBaseContracheque(){
+  const valor=Math.max(0,Number(document.getElementById('hol_salario_base').value)||0);
+  if(!contrachequeProventos.length) contrachequeProventos.push({descricao:'Salário-base',referencia:'30 dias',valor:valor,fixo:true});
+  contrachequeProventos[0].valor=valor;renderLinhasContracheque();
+}
+
+function totaisContracheque(){
+  const proventos=contrachequeProventos.reduce((s,x)=>s+(Number(x.valor)||0),0);
+  const descontos=contrachequeDescontos.reduce((s,x)=>s+(Number(x.valor)||0),0);
+  return {proventos,descontos,liquido:proventos-descontos};
+}
+
+function calcularTotaisContracheque(){
+  const t=totaisContracheque();
+  document.getElementById('holTotalProventos').textContent=brl(t.proventos);
+  document.getElementById('holTotalDescontos').textContent=brl(t.descontos);
+  document.getElementById('holValorLiquido').textContent=brl(t.liquido);
+}
+
+function dadosFormularioContracheque(){
+  const t=totaisContracheque(),c=recibosConfig||{};
+  return {
+    competencia:document.getElementById('hol_competencia').value,
+    data_pagamento:document.getElementById('hol_data_pagamento').value,
+    funcionario_nome:document.getElementById('hol_funcionario').value.trim(),
+    funcionario_cpf:document.getElementById('hol_cpf').value.trim(),
+    cargo:document.getElementById('hol_cargo').value.trim(),
+    data_admissao:document.getElementById('hol_admissao').value||null,
+    salario_base:Number(document.getElementById('hol_salario_base').value)||0,
+    proventos:contrachequeProventos.filter(x=>x.descricao&&Number(x.valor)>0).map(x=>({descricao:x.descricao,referencia:x.referencia||'',valor:Number(x.valor)})),
+    descontos:contrachequeDescontos.filter(x=>x.descricao&&Number(x.valor)>0).map(x=>({descricao:x.descricao,referencia:x.referencia||'',valor:Number(x.valor)})),
+    total_proventos:t.proventos,total_descontos:t.descontos,valor_liquido:t.liquido,
+    empresa_razao_social:c.empresa_razao_social||null,empresa_nome_fantasia:c.empresa_nome_fantasia||null,
+    empresa_cnpj:c.empresa_cnpj||null,empresa_endereco:c.empresa_endereco||null
+  };
+}
+
+function validarContracheque(d){
+  if(!d.empresa_cnpj||!(d.empresa_razao_social||d.empresa_nome_fantasia)) return 'Configure os dados da empresa e o CNPJ desta loja.';
+  if(!d.funcionario_nome||!d.funcionario_cpf||!d.cargo||!d.competencia||!d.data_pagamento) return 'Preencha funcionário, CPF, cargo, competência e data de pagamento.';
+  if(!(d.salario_base>0)||!d.proventos.length) return 'Informe um salário-base maior que zero.';
+  if(d.valor_liquido<0) return 'O total de descontos não pode ser maior que o total de proventos.';
+  return '';
+}
+
+async function salvarContracheque(baixarPdf){
+  const d=dadosFormularioContracheque(),erro=validarContracheque(d),el=document.getElementById('holErr');
+  if(erro){el.textContent=erro;el.style.display='block';return;}el.style.display='none';
+  const {data,error}=await sb.from('contracheques').insert(Object.assign({loja:lojaAtual},d)).select().single();
+  if(error){el.textContent='Não foi possível salvar. Execute primeiro o SQL do módulo de contracheques.';el.style.display='block';console.error(error);return;}
+  contrachequesCache.unshift(data);renderContracheques();if(baixarPdf)gerarPdfContracheque(data);limparFormularioContracheque();
+}
+
+function gerarPdfContrachequeFormulario(){
+  const d=dadosFormularioContracheque(),erro=validarContracheque(d),el=document.getElementById('holErr');
+  if(erro){el.textContent=erro;el.style.display='block';return;}el.style.display='none';gerarPdfContracheque(d);
+}
+
+function nomeCompetencia(valor){if(!valor)return '';const p=valor.split('-');return (NOMES_MES[Number(p[1])-1]||'')+' de '+p[0];}
+
+function gerarPdfContracheque(d){
+  if(!window.jspdf||!window.jspdf.jsPDF){alert('Não foi possível carregar o recurso de PDF.');return;}
+  const jsPDF=window.jspdf.jsPDF,doc=new jsPDF({unit:'mm',format:'a4'});
+  const empresa=d.empresa_nome_fantasia||d.empresa_razao_social||'';
+  doc.setDrawColor(35,55,84);doc.setLineWidth(.5);doc.rect(12,10,186,277);
+  doc.setFillColor(23,35,60);doc.rect(12,10,186,18,'F');doc.setTextColor(255,255,255);doc.setFont('helvetica','bold');doc.setFontSize(14);doc.text('DEMONSTRATIVO DE PAGAMENTO',105,20,{align:'center'});
+  doc.setTextColor(28,40,58);doc.setFontSize(12);doc.text(empresa,18,37);doc.setFont('helvetica','normal');doc.setFontSize(8.5);
+  doc.text('Razão social: '+(d.empresa_razao_social||'—'),18,43);doc.text('CNPJ: '+(d.empresa_cnpj||'—'),18,48);doc.text(doc.splitTextToSize('Endereço: '+(d.empresa_endereco||'—'),174),18,53);
+  doc.setDrawColor(205,214,225);doc.line(18,62,192,62);doc.setFontSize(9);
+  doc.setFont('helvetica','bold');doc.text('Funcionário:',18,70);doc.setFont('helvetica','normal');doc.text(d.funcionario_nome,42,70);
+  doc.setFont('helvetica','bold');doc.text('CPF:',18,76);doc.setFont('helvetica','normal');doc.text(d.funcionario_cpf,29,76);
+  doc.setFont('helvetica','bold');doc.text('Cargo:',105,70);doc.setFont('helvetica','normal');doc.text(d.cargo,119,70);
+  doc.setFont('helvetica','bold');doc.text('Competência:',105,76);doc.setFont('helvetica','normal');doc.text(nomeCompetencia(d.competencia),130,76);
+  if(d.data_admissao){doc.setFont('helvetica','bold');doc.text('Admissão:',18,82);doc.setFont('helvetica','normal');doc.text(fmtData(d.data_admissao),36,82);}
+  doc.setFont('helvetica','bold');doc.text('Pagamento:',105,82);doc.setFont('helvetica','normal');doc.text(fmtData(d.data_pagamento),126,82);
+  const linhas=[];(d.proventos||[]).forEach(x=>linhas.push([x.descricao,x.referencia||'',brl(x.valor),'']));(d.descontos||[]).forEach(x=>linhas.push([x.descricao,x.referencia||'','',brl(x.valor)]));
+  doc.autoTable({startY:88,margin:{left:18,right:18},head:[['Descrição','Referência','Proventos','Descontos']],body:linhas,theme:'grid',styles:{fontSize:8.5,cellPadding:2.5},headStyles:{fillColor:[35,55,84]},columnStyles:{2:{halign:'right'},3:{halign:'right'}}});
+  let y=Math.max(doc.lastAutoTable.finalY+8,150);doc.setFontSize(9);doc.setFont('helvetica','bold');doc.text('Total de proventos',128,y,{align:'right'});doc.text(brl(d.total_proventos),190,y,{align:'right'});y+=7;doc.text('Total de descontos',128,y,{align:'right'});doc.text(brl(d.total_descontos),190,y,{align:'right'});y+=8;
+  doc.setFillColor(232,246,237);doc.rect(105,y-5,87,11,'F');doc.setTextColor(24,95,56);doc.setFontSize(11);doc.text('VALOR LÍQUIDO',128,y+2,{align:'right'});doc.text(brl(d.valor_liquido),190,y+2,{align:'right'});y+=14;
+  doc.setTextColor(55,67,82);doc.setFontSize(8.5);doc.setFont('helvetica','normal');doc.text('Valor líquido por extenso: '+valorPorExtenso(d.valor_liquido)+'.',18,y);y+=30;
+  doc.setDrawColor(80,95,115);doc.line(55,y,155,y);doc.setFont('helvetica','bold');doc.setFontSize(9);doc.text(d.funcionario_nome,105,y+6,{align:'center'});doc.setFont('helvetica','normal');doc.text('CPF: '+d.funcionario_cpf,105,y+11,{align:'center'});
+  doc.setTextColor(125,92,28);doc.setFontSize(7.5);doc.text('Documento para controle interno. Não substitui o holerite oficial emitido pela contabilidade.',105,278,{align:'center'});
+  doc.save('contracheque-'+d.competencia+'-'+d.funcionario_nome.replace(/[^a-zA-Z0-9À-ÿ]+/g,'-')+'.pdf');
+}
+
+async function carregarContracheques(){
+  const filtro=document.getElementById('holFiltroMes');if(!filtro)return;
+  let q=sb.from('contracheques').select('*').eq('loja',lojaAtual);if(filtro.value)q=q.eq('competencia',filtro.value);
+  const {data,error}=await q.order('competencia',{ascending:false}).order('id',{ascending:false});
+  if(error){console.error('Erro ao carregar contracheques:',error);contrachequesCache=[];}else contrachequesCache=data||[];renderContracheques();
+}
+
+function renderContracheques(){
+  const busca=(document.getElementById('holBusca').value||'').toLowerCase().trim();
+  const lista=contrachequesCache.filter(x=>!busca||String(x.funcionario_nome||'').toLowerCase().includes(busca)||String(x.funcionario_cpf||'').toLowerCase().includes(busca)||String(x.cargo||'').toLowerCase().includes(busca));
+  document.getElementById('holEmpty').style.display=lista.length?'none':'block';
+  document.getElementById('holBody').innerHTML=lista.map(x=>'<tr><td>#'+x.id+'</td><td>'+escapeHtml(nomeCompetencia(x.competencia))+'</td><td>'+escapeHtml(x.funcionario_nome)+'</td><td>'+escapeHtml(x.cargo)+'</td><td class="valor">'+brl(x.valor_liquido)+'</td><td><div class="rowactions"><button class="iconbtn" onclick="baixarPdfContrachequeHistorico('+x.id+')">PDF</button><button class="iconbtn edit" title="Duplicar" onclick="duplicarContracheque('+x.id+')">⧉</button><button class="iconbtn del" title="Excluir" onclick="excluirContracheque('+x.id+')">✕</button></div></td></tr>').join('');
+}
+
+function baixarPdfContrachequeHistorico(id){const x=contrachequesCache.find(v=>Number(v.id)===Number(id));if(x)gerarPdfContracheque(x);}
+function duplicarContracheque(id){
+  const x=contrachequesCache.find(v=>Number(v.id)===Number(id));if(!x)return;
+  document.getElementById('hol_funcionario').value=x.funcionario_nome||'';document.getElementById('hol_cpf').value=x.funcionario_cpf||'';document.getElementById('hol_cargo').value=x.cargo||'';document.getElementById('hol_competencia').value=competenciaAtual();document.getElementById('hol_data_pagamento').value=todayStr();document.getElementById('hol_admissao').value=x.data_admissao||'';document.getElementById('hol_salario_base').value=x.salario_base||'';
+  contrachequeProventos=(x.proventos||[]).map((v,i)=>Object.assign({},v,{fixo:i===0}));contrachequeDescontos=(x.descontos||[]).map(v=>Object.assign({},v,{fixo:false}));renderLinhasContracheque();window.scrollTo({top:0,behavior:'smooth'});
+}
+async function excluirContracheque(id){if(!confirm('Excluir este contracheque do histórico?'))return;const {error}=await sb.from('contracheques').delete().eq('id',id).eq('loja',lojaAtual);if(error){alert('Não foi possível excluir o contracheque.');return;}contrachequesCache=contrachequesCache.filter(x=>Number(x.id)!==Number(id));renderContracheques();}
+function limparFormularioContracheque(){['hol_funcionario','hol_cpf','hol_cargo','hol_admissao','hol_salario_base'].forEach(id=>document.getElementById(id).value='');document.getElementById('hol_competencia').value=competenciaAtual();document.getElementById('hol_data_pagamento').value=todayStr();contrachequeProventos=[{descricao:'Salário-base',referencia:'30 dias',valor:0,fixo:true}];contrachequeDescontos=[];document.getElementById('holErr').style.display='none';renderLinhasContracheque();}
+function limparFiltroContracheques(){document.getElementById('holFiltroMes').value='';document.getElementById('holBusca').value='';carregarContracheques();}
 
 /* ================= CONTROLE DE ESTOQUE ================= */
 
@@ -11843,21 +12083,25 @@ async function gerarRelatorioNoturno(){
     let totalNoturno = 0;
     const datasJustificadas = [];
     const datasInjustificadas = [];
+    const datasFeriadosTrabalhados = [];
     (registros||[]).forEach(reg=>{
       if(reg.tipo_dia === 'falta_justificada'){ datasJustificadas.push(reg.data); return; }
       if(reg.tipo_dia === 'falta_injustificada'){ datasInjustificadas.push(reg.data); return; }
+      if(reg.trabalhou_feriado){ datasFeriadosTrabalhados.push(reg.data); return; }
       totalNoturno += calcularMinutosNoturnos(reg);
     });
     datasJustificadas.sort();
     datasInjustificadas.sort();
-    if(totalNoturno > 0 || datasJustificadas.length > 0 || datasInjustificadas.length > 0){
+    datasFeriadosTrabalhados.sort();
+    if(totalNoturno > 0 || datasJustificadas.length > 0 || datasInjustificadas.length > 0 || datasFeriadosTrabalhados.length > 0){
       linhas.push({
         nome: f.nome,
         cargo: (f.cargo || '—').toUpperCase(),
         noturno: totalNoturno,
         noturnoConvertido: calcularMinutosNoturnosConvertidos(totalNoturno),
         datasJustificadas,
-        datasInjustificadas
+        datasInjustificadas,
+        datasFeriadosTrabalhados
       });
     }
   }
@@ -11879,6 +12123,7 @@ async function gerarRelatorioNoturno(){
       <td class="valor" style="color:var(--gold);font-weight:600;">${fmtMinutos(l.noturnoConvertido)}</td>
       <td style="white-space:normal;">${l.datasJustificadas.length ? l.datasJustificadas.map(fmtData).join('<br>') : '—'}</td>
       <td style="white-space:normal;color:${l.datasInjustificadas.length>0?'var(--rust)':'inherit'};">${l.datasInjustificadas.length ? l.datasInjustificadas.map(fmtData).join('<br>') : '—'}</td>
+      <td style="white-space:normal;color:${l.datasFeriadosTrabalhados.length>0?'var(--green)':'inherit'};font-weight:${l.datasFeriadosTrabalhados.length>0?'600':'normal'};">${l.datasFeriadosTrabalhados.length ? l.datasFeriadosTrabalhados.map(fmtData).join('<br>') : '—'}</td>
     </tr>
   `).join('');
 }
@@ -11892,10 +12137,11 @@ function exportarExcelRelatorioNoturno(){
     'Horas noturnas': fmtMinutos(l.noturno),
     'Horas noturnas convertidas': fmtMinutos(l.noturnoConvertido),
     'Faltas justificadas': l.datasJustificadas.map(fmtData).join(', ') || '—',
-    'Faltas injustificadas': l.datasInjustificadas.map(fmtData).join(', ') || '—'
+    'Faltas injustificadas': l.datasInjustificadas.map(fmtData).join(', ') || '—',
+    'Trabalhou no feriado': l.datasFeriadosTrabalhados.map(fmtData).join(', ') || '—'
   }));
   const planilha = XLSX.utils.json_to_sheet(dados);
-  planilha['!cols'] = [{wch:26},{wch:26},{wch:16},{wch:22},{wch:24},{wch:24}];
+  planilha['!cols'] = [{wch:26},{wch:26},{wch:16},{wch:22},{wch:24},{wch:24},{wch:24}];
   const livro = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(livro, planilha, 'Horas Noturnas');
   const nomeLoja = (NOMES_LOJA[lojaAtual]||'').toLowerCase().replace(' ','');
@@ -11919,13 +12165,14 @@ function exportarPdfRelatorioNoturno(){
   const corpo = relNoturnoDadosAtuais.map(l=>[
     l.nome, l.cargo, fmtMinutos(l.noturno), fmtMinutos(l.noturnoConvertido),
     l.datasJustificadas.map(fmtData).join('\n') || '—',
-    l.datasInjustificadas.map(fmtData).join('\n') || '—'
+    l.datasInjustificadas.map(fmtData).join('\n') || '—',
+    l.datasFeriadosTrabalhados.map(fmtData).join('\n') || '—'
   ]);
   doc.autoTable({
     startY: 32,
-    head: [['Colaborador','Cargo','Horas noturnas','Horas noturnas convertidas','Faltas justificadas','Faltas injustificadas']],
+    head: [['Colaborador','Cargo','Horas noturnas','Horas noturnas convertidas','Faltas justificadas','Faltas injustificadas','Trabalhou no feriado']],
     body: corpo,
-    styles: { fontSize: 8.5, cellPadding: 3.5 },
+    styles: { fontSize: 7.5, cellPadding: 2.8 },
     headStyles: { fillColor: [38,51,43] }
   });
 
@@ -11972,9 +12219,10 @@ function exportarExcelHoras(){
     ['Escala', f.tipo_escala==='12x36' ? '12x36' : 'Normal'],
     []
   ];
-  const colunas = ['Data','Entrada 1','Saída 1','Entrada 2','Saída 2','Trabalhado','Noturno','Not. Convertido','Saldo dia'];
+  const colunas = ['Data','Tipo do dia','Entrada 1','Saída 1','Entrada 2','Saída 2','Trabalhado','Noturno','Not. Convertido','Saldo dia'];
   const linhas = bhLinhasExibidasAtuais.map(l=>[
     fmtData(l.reg.data),
+    l.reg.trabalhou_feriado ? 'TRABALHOU NO FERIADO' : (l.reg.tipo_dia==='falta_justificada' ? 'FALTA JUSTIFICADA' : (l.reg.tipo_dia==='falta_injustificada' ? 'FALTA INJUSTIFICADA' : 'DIA NORMAL')),
     horaOuTraco(l.reg.entrada1),
     horaOuTraco(l.reg.saida1),
     horaOuTraco(l.reg.entrada2),
@@ -11986,7 +12234,7 @@ function exportarExcelHoras(){
   ]);
 
   const planilha = XLSX.utils.aoa_to_sheet([...cabecalho, colunas, ...linhas]);
-  planilha['!cols'] = [{wch:12},{wch:10},{wch:10},{wch:10},{wch:10},{wch:12},{wch:10},{wch:14},{wch:10}];
+  planilha['!cols'] = [{wch:12},{wch:24},{wch:10},{wch:10},{wch:10},{wch:10},{wch:12},{wch:10},{wch:14},{wch:10}];
   const livro = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(livro, planilha, 'Banco de Horas');
 
@@ -12022,23 +12270,25 @@ function exportarExcelHorasResumo(){
   }
   const totalNoturno = bhLinhasExibidasAtuais.reduce((s,l)=>s+l.noturno,0);
   const totalNoturnoConvertido = bhLinhasExibidasAtuais.reduce((s,l)=>s+l.noturnoConvertido,0);
+  const datasFeriados = bhLinhasExibidasAtuais.filter(l=>l.reg.trabalhou_feriado).map(l=>fmtData(l.reg.data));
 
   const linhas = [{
     'Colaborador': f.nome,
     'Cargo': f.cargo ? f.cargo.toUpperCase() : '—',
     'Período': textoPeriodoHoras(),
+    'Trabalhou no feriado': datasFeriados.join(', ') || '—',
     'Total noturno': fmtMinutos(totalNoturno),
     'Total noturno convertido': fmtMinutos(totalNoturnoConvertido)
   }];
 
   const planilha = XLSX.utils.json_to_sheet(linhas);
-  planilha['!cols'] = [{wch:22},{wch:18},{wch:24},{wch:16},{wch:20}];
+  planilha['!cols'] = [{wch:22},{wch:18},{wch:24},{wch:25},{wch:16},{wch:20}];
   const livro = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(livro, planilha, 'Resumo');
 
   const dataArquivo = new Date().toISOString().slice(0,10);
   const nomeArquivo = f.nome.toLowerCase().replace(/\s+/g,'-');
-  XLSX.writeFile(livro, 'resumo-noturno-' + nomeArquivo + '-' + dataArquivo + '.xlsx');
+  XLSX.writeFile(livro, 'resumo-banco-horas-' + nomeArquivo + '-' + dataArquivo + '.xlsx');
 }
 
 function exportarPdfHorasResumo(){
@@ -12057,6 +12307,7 @@ function exportarPdfHorasResumo(){
   }
   const totalNoturno = bhLinhasExibidasAtuais.reduce((s,l)=>s+l.noturno,0);
   const totalNoturnoConvertido = bhLinhasExibidasAtuais.reduce((s,l)=>s+l.noturnoConvertido,0);
+  const datasFeriados = bhLinhasExibidasAtuais.filter(l=>l.reg.trabalhou_feriado).map(l=>fmtData(l.reg.data));
 
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF();
@@ -12065,7 +12316,7 @@ function exportarPdfHorasResumo(){
   const dataHora = fmtData(agora.toISOString().slice(0,10)) + ' ' + agora.toTimeString().slice(0,5);
 
   doc.setFontSize(16);
-  doc.text('Resumo de Horas Noturnas', 14, 18);
+  doc.text('Resumo do Banco de Horas', 14, 18);
   doc.setFontSize(10);
   doc.setTextColor(120);
   doc.text('Gerado em ' + dataHora, 14, 25);
@@ -12076,6 +12327,7 @@ function exportarPdfHorasResumo(){
       ['Colaborador', f.nome],
       ['Cargo', f.cargo ? f.cargo.toUpperCase() : '—'],
       ['Período', textoPeriodoHoras()],
+      ['Trabalhou no feriado', datasFeriados.join(', ') || '—'],
       ['Total noturno', fmtMinutos(totalNoturno)],
       ['Total noturno convertido', fmtMinutos(totalNoturnoConvertido)]
     ],
@@ -12086,7 +12338,7 @@ function exportarPdfHorasResumo(){
 
   const dataArquivo = agora.toISOString().slice(0,10);
   const nomeArquivo = f.nome.toLowerCase().replace(/\s+/g,'-');
-  doc.save('resumo-noturno-' + nomeArquivo + '-' + dataArquivo + '.pdf');
+  doc.save('resumo-banco-horas-' + nomeArquivo + '-' + dataArquivo + '.pdf');
 }
 
 function exportarPdfHoras(){
@@ -12118,6 +12370,7 @@ function exportarPdfHoras(){
   const horaOuTraco = v => v ? v.slice(0,5) : '—';
   const linhas = bhLinhasExibidasAtuais.map(l=>[
     fmtData(l.reg.data),
+    l.reg.trabalhou_feriado ? 'FERIADO' : (l.reg.tipo_dia==='falta_justificada' ? 'FALTA JUST.' : (l.reg.tipo_dia==='falta_injustificada' ? 'FALTA INJUST.' : 'NORMAL')),
     horaOuTraco(l.reg.entrada1),
     horaOuTraco(l.reg.saida1),
     horaOuTraco(l.reg.entrada2),
@@ -12134,10 +12387,10 @@ function exportarPdfHoras(){
 
   doc.autoTable({
     startY: 32,
-    head: [['Data', 'Entr. 1', 'Saí. 1', 'Entr. 2', 'Saí. 2', 'Trabalhado', 'Noturno', 'Not. Conv.', 'Saldo dia']],
+    head: [['Data', 'Tipo', 'Entr. 1', 'Saí. 1', 'Entr. 2', 'Saí. 2', 'Trabalhado', 'Noturno', 'Not. Conv.', 'Saldo dia']],
     body: linhas,
-    foot: [['TOTAL', '', '', '', '', fmtMinutos(totalTrabalhado), fmtMinutos(totalNoturno), fmtMinutos(totalNoturnoConvertido), '']],
-    styles: { fontSize: 8.5, cellPadding: 3 },
+    foot: [['TOTAL', '', '', '', '', '', fmtMinutos(totalTrabalhado), fmtMinutos(totalNoturno), fmtMinutos(totalNoturnoConvertido), '']],
+    styles: { fontSize: 7.5, cellPadding: 2.4 },
     headStyles: { fillColor: [38, 51, 43] },
     footStyles: { fillColor: [233, 225, 203], textColor: 20, fontStyle: 'bold' }
   });
@@ -12158,7 +12411,10 @@ function renderBancoHoras(){
   let acumulado = 0;
   const linhas = ordenados.map(reg=>{
     let trabalhado, noturno;
-    if(reg.tipo_dia === 'falta_justificada'){
+    if(reg.trabalhou_feriado){
+      trabalhado = f.carga_horaria_diaria_min;
+      noturno = 0;
+    }else if(reg.tipo_dia === 'falta_justificada'){
       trabalhado = f.carga_horaria_diaria_min;
       noturno = 0;
     }else if(reg.tipo_dia === 'falta_injustificada'){
@@ -12202,7 +12458,8 @@ function renderBancoHoras(){
     const noturnoPeriodo = linhasExibidas.reduce((s,l)=>s+l.noturno, 0);
     const noturnoConvertidoPeriodo = linhasExibidas.reduce((s,l)=>s+l.noturnoConvertido, 0);
     resumoPeriodo.style.display = 'flex';
-    resumoPeriodo.innerHTML = `<span>Período · ${linhasExibidas.length} ${linhasExibidas.length===1?'dia':'dias'} · Trabalhado ${fmtMinutos(trabalhadoPeriodo)} · Noturno ${fmtMinutos(noturnoPeriodo)} · Not. Convertido ${fmtMinutos(noturnoConvertidoPeriodo)}</span>`;
+    const qtdFeriados = linhasExibidas.filter(l=>l.reg.trabalhou_feriado).length;
+    resumoPeriodo.innerHTML = `<span>Período · ${linhasExibidas.length} ${linhasExibidas.length===1?'dia':'dias'} · Trabalhado ${fmtMinutos(trabalhadoPeriodo)} · Feriados trabalhados ${qtdFeriados} · Noturno ${fmtMinutos(noturnoPeriodo)} · Not. Convertido ${fmtMinutos(noturnoConvertidoPeriodo)}</span>`;
   }else{
     resumoPeriodo.style.display = 'none';
   }
@@ -12219,6 +12476,7 @@ function renderBancoHoras(){
 
   const horaOuTraco = v => v ? v.slice(0,5) : '—';
   const rotuloFalta = reg => {
+    if(reg.trabalhou_feriado) return '<span style="color:var(--green);font-weight:700;">Trabalhou no feriado</span>';
     if(reg.tipo_dia==='falta_justificada') return '<span style="color:var(--muted);font-weight:600;">Falta justificada</span>';
     if(reg.tipo_dia==='falta_injustificada') return reg.descontar_falta
       ? '<span style="color:var(--rust);font-weight:600;">Falta injust. (descontada)</span>'
@@ -12324,7 +12582,8 @@ async function confirmarBhImport(){
     entrada1: r.e1,
     saida1: r.s1,
     entrada2: r.e2 || null,
-    saida2: r.s2 || null
+    saida2: r.s2 || null,
+    trabalhou_feriado: false
   }));
   try{
     const { data, error } = await sb.from('bh_registros')
@@ -12446,7 +12705,8 @@ async function confirmarLoteFaltas(){
     data: data,
     entrada1: null, saida1: null, entrada2: null, saida2: null,
     tipo_dia: loteTipoDiaAtual,
-    descontar_falta: loteTipoDiaAtual==='falta_injustificada' ? loteDescontarAtual : true
+    descontar_falta: loteTipoDiaAtual==='falta_injustificada' ? loteDescontarAtual : true,
+    trabalhou_feriado: false
   }));
 
   const { data: salvos, error } = await sb.from('bh_registros')
@@ -12500,8 +12760,9 @@ async function salvarRegistroHoras(){
     saida1: ehFalta ? null : (s1 || null),
     entrada2: ehFalta ? null : (e2 || null),
     saida2: ehFalta ? null : (s2 || null),
-    tipo_dia: bhTipoDiaAtual,
-    descontar_falta: bhTipoDiaAtual==='falta_injustificada' ? bhDescontarAtual : true
+    tipo_dia: bhTipoDiaAtual==='feriado_trabalhado' ? 'normal' : bhTipoDiaAtual,
+    descontar_falta: bhTipoDiaAtual==='falta_injustificada' ? bhDescontarAtual : true,
+    trabalhou_feriado: bhTipoDiaAtual==='feriado_trabalhado'
   };
 
   const { data: salvo, error } = await sb.from('bh_registros')
