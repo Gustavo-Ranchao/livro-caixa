@@ -288,6 +288,22 @@
   .bh-report-actions{display:flex;gap:8px;flex-wrap:wrap;}
   @media(max-width:700px){.bh-module-head{display:block}.bh-report-grid{grid-template-columns:1fr}.bh-tab-btn{flex:1;padding:9px 8px}.bh-tabs{gap:4px}}
 
+  .aniv-toolbar{display:flex;align-items:end;gap:12px;flex-wrap:wrap;margin-bottom:18px;}
+  .aniv-toolbar .fld{margin:0;min-width:210px;}
+  .aniv-summary{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin-bottom:18px;}
+  .aniv-summary .metric{background:#fff;border:1px solid var(--paper3);border-radius:9px;padding:16px 18px;}
+  .aniv-summary .lbl{font-size:10px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin-bottom:5px;}
+  .aniv-summary .val{font-family:var(--font-mono);font-size:21px;font-weight:600;color:var(--ink);}
+  .aniv-list{display:grid;gap:10px;padding:0 20px 20px;}
+  .aniv-item{display:grid;grid-template-columns:58px 1.4fr 1fr 150px;gap:14px;align-items:center;border:1px solid var(--paper3);border-radius:9px;padding:12px 14px;background:#fff;}
+  .aniv-date{width:52px;height:52px;border-radius:10px;background:#edf3ff;color:#17345f;display:flex;flex-direction:column;align-items:center;justify-content:center;font-weight:700;}
+  .aniv-date strong{font-size:20px;line-height:1;}.aniv-date span{font-size:9px;text-transform:uppercase;margin-top:3px;}
+  .aniv-name{font-weight:700;color:var(--ink);}.aniv-sub{font-size:11px;color:var(--muted);margin-top:3px;}
+  .aniv-count{font-size:12px;font-weight:700;color:#17345f;text-align:right;}
+  .aniv-item.hoje{border-color:#e0ab2f;background:#fffaf0;box-shadow:0 0 0 2px rgba(224,171,47,.12);}
+  .top-module-btn.aniv-alert::after{content:'!';display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;margin-left:5px;border-radius:50%;background:#d99000;color:#fff;font-size:10px;font-weight:800;}
+  @media(max-width:700px){.aniv-summary{grid-template-columns:1fr}.aniv-item{grid-template-columns:52px 1fr}.aniv-item .aniv-loja,.aniv-count{text-align:left;grid-column:2}}
+
   .bh-resumo{display:flex;gap:14px;margin-bottom:20px;align-items:stretch;flex-wrap:wrap;}
   .bh-resumo .metric{flex:1;min-width:160px;background:#fff;border:1px solid var(--paper3);border-radius:8px;padding:14px 18px;}
   .bh-resumo .metric .lbl{font-size:10px;text-transform:uppercase;letter-spacing:0.08em;color:var(--muted);margin-bottom:5px;}
@@ -611,6 +627,7 @@
       <button class="top-module-btn" data-category="comprasEstoque" data-view="contagensEstoque" onclick="mudarViewPrincipal('contagensEstoque')"><span class="top-module-icon">🔢</span>Contagens de Estoque</button>
       <button class="top-module-btn" data-category="equipe" data-view="bancoHoras" onclick="mudarViewPrincipal('bancoHoras')"><span class="top-module-icon">🕐</span>Banco de Horas</button>
       <button class="top-module-btn" data-category="equipe" data-view="colaboradores" onclick="mudarViewPrincipal('colaboradores')"><span class="top-module-icon">👥</span>Colaboradores</button>
+      <button class="top-module-btn" data-category="equipe" data-view="aniversarios" onclick="mudarViewPrincipal('aniversarios')"><span class="top-module-icon">🎂</span>Aniversários</button>
       <button class="top-module-btn" data-category="cadastros" data-view="fornecedores" onclick="mudarViewPrincipal('fornecedores')"><span class="top-module-icon">🚚</span>Fornecedores</button>
       <button class="top-module-btn" data-category="cadastros" data-view="contasBancarias" onclick="mudarViewPrincipal('contasBancarias')"><span class="top-module-icon">🏦</span>Contas Bancárias</button>
       <button class="top-module-btn" data-category="checklist" data-view="checklist" onclick="mudarViewPrincipal('checklist')"><span class="top-module-icon">✅</span>Checklist de Fechamento</button>
@@ -1075,7 +1092,7 @@
             <button type="button" class="importbtn" style="width:auto;margin:0;" onclick="abrirNovoColaborador('loja1')">+ Novo colaborador</button>
           </div>
           <table id="colabTable1">
-            <thead><tr><th>Nome</th><th>Cargo</th><th>Escala</th><th>Jornada</th><th></th></tr></thead>
+            <thead><tr><th>Nome</th><th>Cargo</th><th>Nascimento</th><th>Escala</th><th>Jornada</th><th></th></tr></thead>
             <tbody id="colabBody1"></tbody>
           </table>
           <div class="empty" id="colabEmpty1" style="display:none;">Nenhum colaborador cadastrado na Loja 01.</div>
@@ -1086,11 +1103,38 @@
             <button type="button" class="importbtn" style="width:auto;margin:0;" onclick="abrirNovoColaborador('loja2')">+ Novo colaborador</button>
           </div>
           <table id="colabTable2">
-            <thead><tr><th>Nome</th><th>Cargo</th><th>Escala</th><th>Jornada</th><th></th></tr></thead>
+            <thead><tr><th>Nome</th><th>Cargo</th><th>Nascimento</th><th>Escala</th><th>Jornada</th><th></th></tr></thead>
             <tbody id="colabBody2"></tbody>
           </table>
           <div class="empty" id="colabEmpty2" style="display:none;">Nenhum colaborador cadastrado na Loja 02.</div>
         </div>
+      </div>
+    </div>
+
+    <div id="viewAniversarios" style="display:none;">
+      <div class="bh-module-head">
+        <div><h1>🎂 Aniversários da equipe</h1><p>Acompanhe os próximos aniversários dos colaboradores.</p></div>
+      </div>
+      <div class="aniv-toolbar">
+        <div class="fld"><label>Mostrar colaboradores</label>
+          <select id="anivFiltroLoja" onchange="renderAniversarios()">
+            <option value="atual">Loja selecionada</option>
+            <option value="todas">Todas as lojas</option>
+            <option value="loja1">Loja 01</option>
+            <option value="loja2">Loja 02</option>
+          </select>
+        </div>
+        <button type="button" class="filter-btn" onclick="mudarViewPrincipal('colaboradores')">👥 Editar colaboradores</button>
+      </div>
+      <div class="aniv-summary">
+        <div class="metric"><div class="lbl">Aniversariantes neste mês</div><div class="val" id="anivTotalMes">0</div></div>
+        <div class="metric"><div class="lbl">Próximo aniversário</div><div class="val" id="anivProximo" style="font-size:16px;">—</div></div>
+        <div class="metric"><div class="lbl">Cadastros sem data</div><div class="val" id="anivSemData">0</div></div>
+      </div>
+      <div class="panel">
+        <div class="panel-head"><h2>Próximos aniversários</h2></div>
+        <div class="aniv-list" id="anivLista"></div>
+        <div class="empty" id="anivEmpty" style="display:none;">Nenhuma data de nascimento cadastrada para este filtro.</div>
       </div>
     </div>
 
@@ -2331,6 +2375,7 @@
     <button class="modal-close" onclick="fecharFuncModal()">✕</button>
     <h2 id="funcModalTitulo">Novo funcionário</h2>
     <div class="fld"><label>Nome</label><input id="func_nome" placeholder="Nome do funcionário"></div>
+    <div class="fld"><label>Data de nascimento</label><input id="func_data_nascimento" type="date"></div>
     <div class="fld"><label>Cargo</label>
       <select id="func_cargo">
         <option value="">Selecione o cargo</option>
@@ -2887,6 +2932,9 @@ function trocarLoja(l){
   document.getElementById('bhConteudo').style.display = 'none';
   if(viewAtual === 'bancoHoras'){
     carregarFuncionarios();
+  }
+  if(viewAtual === 'aniversarios'){
+    renderAniversarios();
   }
   if(viewAtual === 'contasPagar' || viewAtual === 'fornecedores'){
     carregarFornecedores();
@@ -5024,7 +5072,7 @@ function mudarAbaBancoHoras(aba){
   });
 }
 
-const VIEWS = ['checklist','duvidas','contasPagar','despesasFixas','comprovantes','diferencaCaixa','fluxoCaixa','pagamentos','pagamentoCaixa','contratos','vendasComCusto','vendasDelivery','orcamentos','bancoHoras','compras','colaboradores','fornecedores','contasBancarias','inventario','controleEstoque','contagensEstoque','combinacaoPagamentos'];
+const VIEWS = ['checklist','duvidas','contasPagar','despesasFixas','comprovantes','diferencaCaixa','fluxoCaixa','pagamentos','pagamentoCaixa','contratos','vendasComCusto','vendasDelivery','orcamentos','bancoHoras','compras','colaboradores','aniversarios','fornecedores','contasBancarias','inventario','controleEstoque','contagensEstoque','combinacaoPagamentos'];
 let colabCarregado = false;
 
 const CATEGORIA_POR_VIEW = {
@@ -5033,11 +5081,11 @@ const CATEGORIA_POR_VIEW = {
   pagamentoCaixa:'financeiro', combinacaoPagamentos:'financeiro', contratos:'financeiro',
   vendasComCusto:'vendas', vendasDelivery:'vendas', orcamentos:'vendas',
   compras:'comprasEstoque', inventario:'comprasEstoque', controleEstoque:'comprasEstoque', contagensEstoque:'comprasEstoque',
-  bancoHoras:'equipe', colaboradores:'equipe',
+  bancoHoras:'equipe', colaboradores:'equipe', aniversarios:'equipe',
   fornecedores:'cadastros', contasBancarias:'cadastros',
   checklist:'checklist', duvidas:'duvidas'
 };
-const VIEW_IDS = { checklist:'viewChecklist', duvidas:'viewDuvidas', contasPagar:'viewContasPagar', despesasFixas:'viewDespesasFixas', comprovantes:'viewComprovantes', diferencaCaixa:'viewDiferencaCaixa', fluxoCaixa:'viewFluxoCaixa', pagamentos:'viewPagamentos', pagamentoCaixa:'viewPagamentoCaixa', contratos:'viewContratos', vendasComCusto:'viewVendasComCusto', vendasDelivery:'viewVendasDelivery', orcamentos:'viewOrcamentos', bancoHoras:'viewBancoHoras', compras:'viewCompras', colaboradores:'viewColaboradores', fornecedores:'viewFornecedores', contasBancarias:'viewContasBancarias', inventario:'viewInventario', controleEstoque:'viewControleEstoque', contagensEstoque:'viewContagensEstoque', combinacaoPagamentos:'viewCombinacaoPagamentos' };
+const VIEW_IDS = { checklist:'viewChecklist', duvidas:'viewDuvidas', contasPagar:'viewContasPagar', despesasFixas:'viewDespesasFixas', comprovantes:'viewComprovantes', diferencaCaixa:'viewDiferencaCaixa', fluxoCaixa:'viewFluxoCaixa', pagamentos:'viewPagamentos', pagamentoCaixa:'viewPagamentoCaixa', contratos:'viewContratos', vendasComCusto:'viewVendasComCusto', vendasDelivery:'viewVendasDelivery', orcamentos:'viewOrcamentos', bancoHoras:'viewBancoHoras', compras:'viewCompras', colaboradores:'viewColaboradores', aniversarios:'viewAniversarios', fornecedores:'viewFornecedores', contasBancarias:'viewContasBancarias', inventario:'viewInventario', controleEstoque:'viewControleEstoque', contagensEstoque:'viewContagensEstoque', combinacaoPagamentos:'viewCombinacaoPagamentos' };
 
 let categoriaMenuAberta = null;
 
@@ -5129,6 +5177,9 @@ async function mudarViewPrincipal(view){
     await carregarCompras();
   }else if(view==='colaboradores'){
     await carregarColaboradores();
+  }else if(view==='aniversarios'){
+    await carregarColaboradores();
+    renderAniversarios();
   }else if(view==='fornecedores'){
     await carregarFornecedores();
   }else if(view==='contasBancarias'){
@@ -5417,6 +5468,7 @@ function abrirNovoColaborador(loja){
   colabLojaAtual = loja;
   document.getElementById('funcModalTitulo').textContent = 'Novo colaborador — ' + (NOMES_LOJA[loja]||'');
   document.getElementById('func_nome').value = '';
+  document.getElementById('func_data_nascimento').value = '';
   document.getElementById('func_cargo').value = '';
   setEscala('normal');
   document.getElementById('funcErr').style.display = 'none';
@@ -5431,6 +5483,7 @@ function abrirEditarColaborador(id, loja){
   colabLojaAtual = loja;
   document.getElementById('funcModalTitulo').textContent = 'Editar colaborador';
   document.getElementById('func_nome').value = f.nome;
+  document.getElementById('func_data_nascimento').value = f.data_nascimento || '';
   document.getElementById('func_cargo').value = f.cargo ? f.cargo.toUpperCase() : '';
   escalaSelecionada = f.tipo_escala || 'normal';
   document.querySelectorAll('#escalaToggle .tipo-btn').forEach(b=>b.classList.toggle('active', b.dataset.escala===escalaSelecionada));
@@ -5447,6 +5500,7 @@ function fecharFuncModal(){
 
 async function salvarFuncionario(){
   const nome = document.getElementById('func_nome').value.trim();
+  const dataNascimento = document.getElementById('func_data_nascimento').value || null;
   const cargo = document.getElementById('func_cargo').value.trim();
   const horas = parseInt(document.getElementById('func_horas').value, 10) || 0;
   const minutos = parseInt(document.getElementById('func_minutos').value, 10) || 0;
@@ -5460,7 +5514,7 @@ async function salvarFuncionario(){
 
   if(colabEditandoId){
     const { data, error } = await sb.from('bh_funcionarios')
-      .update({ nome: nome, cargo: cargo || null, carga_horaria_diaria_min: cargaMin, tipo_escala: escalaSelecionada })
+      .update({ nome: nome, data_nascimento: dataNascimento, cargo: cargo || null, carga_horaria_diaria_min: cargaMin, tipo_escala: escalaSelecionada })
       .eq('id', colabEditandoId).select().single();
     if(error){
       err.textContent = 'Erro ao salvar: ' + error.message;
@@ -5476,7 +5530,7 @@ async function salvarFuncionario(){
     }
   }else{
     const { data, error } = await sb.from('bh_funcionarios')
-      .insert({ loja: colabLojaAtual, nome: nome, cargo: cargo || null, carga_horaria_diaria_min: cargaMin, tipo_escala: escalaSelecionada })
+      .insert({ loja: colabLojaAtual, nome: nome, data_nascimento: dataNascimento, cargo: cargo || null, carga_horaria_diaria_min: cargaMin, tipo_escala: escalaSelecionada })
       .select().single();
     if(error){
       err.textContent = 'Erro ao salvar: ' + error.message;
@@ -5521,6 +5575,7 @@ function renderColabTabela(numero, lista){
     <tr>
       <td>${escapeHtml(f.nome)}</td>
       <td>${f.cargo ? escapeHtml(f.cargo.toUpperCase()) : '—'}</td>
+      <td>${f.data_nascimento ? fmtData(f.data_nascimento) : '—'}</td>
       <td>${f.tipo_escala==='12x36' ? '12x36' : 'Normal'}</td>
       <td>${fmtMinutos(f.carga_horaria_diaria_min)}</td>
       <td><div class="rowactions">
@@ -5529,6 +5584,57 @@ function renderColabTabela(numero, lista){
       </div></td>
     </tr>
   `).join('');
+}
+
+function dataAniversarioNoAno(dataNascimento, ano){
+  const partes = String(dataNascimento||'').split('-').map(Number);
+  if(partes.length!==3 || !partes[1] || !partes[2]) return null;
+  let data = new Date(ano, partes[1]-1, partes[2]);
+  if(data.getMonth()!==partes[1]-1) data = new Date(ano, partes[1], 0);
+  data.setHours(0,0,0,0);
+  return data;
+}
+
+function detalhesProximoAniversario(funcionario, hoje){
+  let proxima = dataAniversarioNoAno(funcionario.data_nascimento, hoje.getFullYear());
+  if(!proxima) return null;
+  if(proxima < hoje) proxima = dataAniversarioNoAno(funcionario.data_nascimento, hoje.getFullYear()+1);
+  const nascimento = new Date(funcionario.data_nascimento+'T00:00:00');
+  return {
+    funcionario,
+    proxima,
+    dias: Math.round((proxima-hoje)/86400000),
+    idade: proxima.getFullYear()-nascimento.getFullYear()
+  };
+}
+
+function renderAniversarios(){
+  const listaEl = document.getElementById('anivLista');
+  if(!listaEl) return;
+  const filtro = document.getElementById('anivFiltroLoja')?.value || 'atual';
+  const todos = [...colaboradoresLoja1, ...colaboradoresLoja2];
+  const lojaFiltro = filtro==='atual' ? lojaAtual : filtro;
+  const filtrados = lojaFiltro==='todas' ? todos : todos.filter(f=>f.loja===lojaFiltro);
+  const comData = filtrados.filter(f=>f.data_nascimento);
+  const hoje = new Date(); hoje.setHours(0,0,0,0);
+  const detalhes = comData.map(f=>detalhesProximoAniversario(f, hoje)).filter(Boolean).sort((a,b)=>a.dias-b.dias || a.funcionario.nome.localeCompare(b.funcionario.nome));
+  const botaoMenu = document.querySelector('.top-module-btn[data-view="aniversarios"]');
+  if(botaoMenu) botaoMenu.classList.toggle('aniv-alert', detalhes.some(item=>item.dias<=7));
+  const aniversariantesMes = comData.filter(f=>Number(String(f.data_nascimento).slice(5,7))===hoje.getMonth()+1).length;
+  document.getElementById('anivTotalMes').textContent = aniversariantesMes;
+  document.getElementById('anivSemData').textContent = filtrados.length-comData.length;
+  document.getElementById('anivProximo').textContent = detalhes.length ? detalhes[0].funcionario.nome+' — '+(detalhes[0].dias===0?'hoje':detalhes[0].dias+' dia'+(detalhes[0].dias===1?'':'s')) : '—';
+  document.getElementById('anivEmpty').style.display = detalhes.length ? 'none' : 'block';
+  listaEl.innerHTML = detalhes.map(item=>{
+    const f=item.funcionario, meses=['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];
+    const textoDias = item.dias===0 ? '🎉 É hoje!' : item.dias===1 ? 'Amanhã' : 'Faltam '+item.dias+' dias';
+    return `<div class="aniv-item ${item.dias===0?'hoje':''}">
+      <div class="aniv-date"><strong>${String(item.proxima.getDate()).padStart(2,'0')}</strong><span>${meses[item.proxima.getMonth()]}</span></div>
+      <div><div class="aniv-name">${escapeHtml(f.nome)}</div><div class="aniv-sub">${f.cargo?escapeHtml(f.cargo):'Cargo não informado'} • fará ${item.idade} anos</div></div>
+      <div class="aniv-loja"><div class="aniv-name" style="font-size:12px;">${escapeHtml(NOMES_LOJA[f.loja]||f.loja)}</div><div class="aniv-sub">${fmtData(f.data_nascimento)}</div></div>
+      <div class="aniv-count">${textoDias}</div>
+    </div>`;
+  }).join('');
 }
 
 /* ================= COMPROVANTES ================= */
