@@ -271,6 +271,23 @@
   .bh-toolbar select{flex:1;min-width:220px;font-family:var(--font-sans);font-size:14px;padding:11px 14px;border:1px solid var(--paper3);border-radius:8px;background:#fff;color:var(--ink);cursor:pointer;}
   .bh-toolbar select:focus{outline:none;border-color:var(--gold);}
 
+  .bh-module-head{display:flex;justify-content:space-between;align-items:flex-start;gap:18px;margin-bottom:16px;}
+  .bh-module-head h1{font-family:var(--font-voice);font-size:24px;margin:0 0 5px;color:var(--ink);}
+  .bh-module-head p{font-size:13px;color:var(--muted);margin:0;}
+  .bh-tabs{display:flex;gap:6px;flex-wrap:wrap;padding:6px;background:#e8eef7;border:1px solid #d5deeb;border-radius:10px;margin-bottom:18px;}
+  .bh-tab-btn{border:0;background:transparent;color:#536176;border-radius:7px;padding:10px 15px;font-family:var(--font-sans);font-size:13px;font-weight:600;cursor:pointer;transition:.18s ease;}
+  .bh-tab-btn:hover{background:rgba(255,255,255,.65);color:var(--ink);}
+  .bh-tab-btn.active{background:#fff;color:#17345f;box-shadow:0 1px 4px rgba(15,40,75,.13);}
+  [data-bh-tab-panel]{display:none;}
+  [data-bh-tab-panel].active{display:block;}
+  .bh-resumo[data-bh-tab-panel].active{display:flex;}
+  .bh-report-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;padding:0 20px 20px;}
+  .bh-report-card{border:1px solid var(--paper3);border-radius:9px;padding:17px;background:#fff;}
+  .bh-report-card h3{font-size:14px;margin:0 0 6px;color:var(--ink);}
+  .bh-report-card p{font-size:12px;line-height:1.45;color:var(--muted);margin:0 0 14px;}
+  .bh-report-actions{display:flex;gap:8px;flex-wrap:wrap;}
+  @media(max-width:700px){.bh-module-head{display:block}.bh-report-grid{grid-template-columns:1fr}.bh-tab-btn{flex:1;padding:9px 8px}.bh-tabs{gap:4px}}
+
   .bh-resumo{display:flex;gap:14px;margin-bottom:20px;align-items:stretch;flex-wrap:wrap;}
   .bh-resumo .metric{flex:1;min-width:160px;background:#fff;border:1px solid var(--paper3);border-radius:8px;padding:14px 18px;}
   .bh-resumo .metric .lbl{font-size:10px;text-transform:uppercase;letter-spacing:0.08em;color:var(--muted);margin-bottom:5px;}
@@ -806,6 +823,25 @@
     </div>
 
     <div id="viewBancoHoras" style="display:none;">
+      <div class="bh-module-head">
+        <div><h1>Banco de Horas</h1><p>Controle de jornadas, ocorrências, atestados e relatórios da equipe.</p></div>
+      </div>
+
+      <div class="bh-tabs" role="tablist" aria-label="Seções do Banco de Horas">
+        <button type="button" class="bh-tab-btn active" data-bh-target="resumo" onclick="mudarAbaBancoHoras('resumo')">📊 Resumo</button>
+        <button type="button" class="bh-tab-btn" data-bh-target="lancamentos" onclick="mudarAbaBancoHoras('lancamentos')">🕐 Lançamentos</button>
+        <button type="button" class="bh-tab-btn" data-bh-target="atestados" onclick="mudarAbaBancoHoras('atestados')">📄 Atestados</button>
+        <button type="button" class="bh-tab-btn" data-bh-target="relatorios" onclick="mudarAbaBancoHoras('relatorios')">📈 Relatórios</button>
+        <button type="button" class="bh-tab-btn" onclick="mudarViewPrincipal('colaboradores')">👥 Funcionários</button>
+      </div>
+
+      <div class="bh-toolbar">
+        <select id="bhFuncionarioSelect" onchange="selecionarFuncionario(this.value)">
+          <option value="">Selecione um funcionário</option>
+        </select>
+      </div>
+
+      <div data-bh-tab-panel="resumo" class="active">
       <div class="panel" style="margin-bottom:20px;">
         <div class="panel-head"><h2>📊 Resumo do banco de horas</h2></div>
         <div class="contest-row header" style="grid-template-columns:1fr 1fr 110px;">
@@ -815,7 +851,9 @@
         </div>
         <div id="bhResumoGeralBody"></div>
       </div>
+      </div>
 
+      <div data-bh-tab-panel="atestados">
       <div class="panel" style="margin-bottom:20px;">
         <div class="panel-head">
           <h2>📄 Atestados</h2>
@@ -834,18 +872,12 @@
         </div>
         <div id="bhAtestadosBody"></div>
       </div>
-
-      <div class="bh-toolbar">
-        <select id="bhFuncionarioSelect" onchange="selecionarFuncionario(this.value)">
-          <option value="">Selecione um funcionário</option>
-        </select>
-        <button type="button" class="filter-btn" style="margin-left:auto;" onclick="abrirRelatorioNoturno()">🌙 Relatório de horas noturnas</button>
       </div>
 
       <div class="empty" id="bhSemFuncionario" style="padding:60px 20px;">Cadastre um colaborador em Configurações → Colaboradores, depois selecione ele aqui.</div>
 
       <div id="bhConteudo" style="display:none;">
-        <div class="bh-resumo">
+        <div class="bh-resumo" data-bh-tab-panel="resumo">
           <div class="metric">
             <div class="lbl">Saldo do banco de horas</div>
             <div class="val" id="bhSaldoTotal">0h00</div>
@@ -876,6 +908,7 @@
           </div>
         </div>
 
+        <div data-bh-tab-panel="lancamentos">
         <div class="panel">
           <div class="panel-head"><h2>Novo registro do dia</h2></div>
 
@@ -937,10 +970,6 @@
               <label>Até</label>
               <input id="bhFiltroAte" type="date" onchange="aplicarFiltroDataHoras()">
               <button type="button" class="filter-btn" onclick="limparFiltroDataHoras()">limpar</button>
-              <button type="button" class="filter-btn foto-btn" onclick="exportarExcelHoras()" title="Baixar como Excel, com todos os registros">📊 Excel completo</button>
-              <button type="button" class="filter-btn foto-btn" onclick="exportarPdfHoras()" title="Baixar como PDF, com todos os registros">📄 PDF completo</button>
-              <button type="button" class="filter-btn foto-btn" onclick="exportarExcelHorasResumo()" title="Resumo de feriados e horas noturnas, sem os registros de ponto">📊 Excel resumo</button>
-              <button type="button" class="filter-btn foto-btn" onclick="exportarPdfHorasResumo()" title="Resumo de feriados e horas noturnas, sem os registros de ponto">📄 PDF resumo</button>
               <button type="button" class="filter-btn" style="border-color:var(--rust);color:var(--rust);" onclick="confirmarApagarTudoHoras()">🗑 Apagar tudo</button>
             </div>
           </div>
@@ -952,6 +981,38 @@
             </table>
           </div>
           <div class="empty" id="bhSemRegistrosPeriodo" style="display:none;">Nenhum registro nesse período.</div>
+        </div>
+        </div>
+
+        <div data-bh-tab-panel="relatorios">
+          <div class="panel">
+            <div class="panel-head"><h2>📈 Relatórios do funcionário selecionado</h2></div>
+            <div class="bh-report-grid">
+              <div class="bh-report-card">
+                <h3>Relatório completo</h3>
+                <p>Inclui todos os registros de ponto, horas trabalhadas, período noturno e saldo diário.</p>
+                <div class="bh-report-actions">
+                  <button type="button" class="filter-btn foto-btn" onclick="exportarExcelHoras()">📊 Baixar Excel</button>
+                  <button type="button" class="filter-btn foto-btn" onclick="exportarPdfHoras()">📄 Baixar PDF</button>
+                </div>
+              </div>
+              <div class="bh-report-card">
+                <h3>Resumo de ocorrências</h3>
+                <p>Apresenta o resumo de feriados trabalhados e horas noturnas, sem detalhar cada registro.</p>
+                <div class="bh-report-actions">
+                  <button type="button" class="filter-btn foto-btn" onclick="exportarExcelHorasResumo()">📊 Baixar Excel</button>
+                  <button type="button" class="filter-btn foto-btn" onclick="exportarPdfHorasResumo()">📄 Baixar PDF</button>
+                </div>
+              </div>
+              <div class="bh-report-card">
+                <h3>Relatório geral da loja</h3>
+                <p>Compara horas noturnas, faltas e feriados trabalhados de todos os colaboradores no período.</p>
+                <div class="bh-report-actions">
+                  <button type="button" class="filter-btn" onclick="abrirRelatorioNoturno()">🌙 Abrir relatório geral</button>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -4948,6 +5009,19 @@ function setEscala(e){
     document.getElementById('func_minutos').value = 0;
     dica.textContent = '';
   }
+}
+
+function mudarAbaBancoHoras(aba){
+  const view = document.getElementById('viewBancoHoras');
+  if(!view) return;
+  view.querySelectorAll('.bh-tab-btn[data-bh-target]').forEach(btn => {
+    const ativo = btn.dataset.bhTarget === aba;
+    btn.classList.toggle('active', ativo);
+    btn.setAttribute('aria-selected', ativo ? 'true' : 'false');
+  });
+  view.querySelectorAll('[data-bh-tab-panel]').forEach(painel => {
+    painel.classList.toggle('active', painel.dataset.bhTabPanel === aba);
+  });
 }
 
 const VIEWS = ['checklist','duvidas','contasPagar','despesasFixas','comprovantes','diferencaCaixa','fluxoCaixa','pagamentos','pagamentoCaixa','contratos','vendasComCusto','vendasDelivery','orcamentos','bancoHoras','compras','colaboradores','fornecedores','contasBancarias','inventario','controleEstoque','contagensEstoque','combinacaoPagamentos'];
