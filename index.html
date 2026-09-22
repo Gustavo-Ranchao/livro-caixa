@@ -819,7 +819,10 @@
       <div class="panel" style="margin-bottom:20px;">
         <div class="panel-head">
           <h2>📄 Atestados</h2>
-          <button type="button" class="importbtn" style="width:auto;margin:0;" onclick="abrirNovoAtestado()">+ Novo atestado</button>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;">
+            <button type="button" class="filter-btn foto-btn" style="margin:0;" onclick="baixarTodosAtestadosZip()" title="Baixar todos os atestados da loja atual em um arquivo compactado">🗜️ Baixar todos (.zip)</button>
+            <button type="button" class="importbtn" style="width:auto;margin:0;" onclick="abrirNovoAtestado()">+ Novo atestado</button>
+          </div>
         </div>
         <div style="padding:0 20px 14px;"><input class="comb-busca" id="bhAtestadosBusca" placeholder="🔍 Buscar por colaborador..." oninput="renderAtestados()"></div>
         <div class="contest-row header" style="grid-template-columns:1.3fr 1fr 90px 1.4fr 90px;">
@@ -5177,6 +5180,51 @@ async function abrirArquivoAtestado(caminho){
   const { data, error } = await sb.storage.from('comprovantes').createSignedUrl(caminho, 3600);
   if(error){ alert('Erro ao abrir o arquivo: ' + error.message); return; }
   window.open(data.signedUrl, '_blank', 'noopener');
+}
+
+async function compactarImagemAtestado(blob){
+  if(!blob||!String(blob.type||'').startsWith('image/')||blob.type==='image/gif')return {blob,ext:null};
+  let bitmap=null;
+  try{
+    bitmap=await createImageBitmap(blob);
+    const limite=1600,escala=Math.min(1,limite/Math.max(bitmap.width,bitmap.height)),largura=Math.max(1,Math.round(bitmap.width*escala)),altura=Math.max(1,Math.round(bitmap.height*escala));
+    const canvas=document.createElement('canvas');canvas.width=largura;canvas.height=altura;
+    const ctx=canvas.getContext('2d');ctx.fillStyle='#fff';ctx.fillRect(0,0,largura,altura);ctx.drawImage(bitmap,0,0,largura,altura);
+    const reduzido=await new Promise(resolve=>canvas.toBlob(resolve,'image/jpeg',0.62));
+    if(reduzido&&reduzido.size<blob.size)return {blob:reduzido,ext:'jpg'};
+  }catch(e){console.warn('Não foi possível recomprimir uma imagem de atestado:',e);}
+  finally{if(bitmap&&bitmap.close)bitmap.close();}
+  return {blob,ext:null};
+}
+
+function nomeSeguroZipAtestado(texto){
+  return String(texto||'arquivo').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-zA-Z0-9._-]+/g,'-').replace(/^-+|-+$/g,'').slice(0,80)||'arquivo';
+}
+
+async function baixarTodosAtestadosZip(){
+  if(!window.JSZip){alert('Não foi possível carregar o recurso de compactação. Recarregue a página e tente novamente.');return;}
+  if(!bhAtestadosCache.length){alert('Não há atestados cadastrados nesta loja.');return;}
+  abrirProgresso('Preparando atestados…');
+  const zip=new JSZip(),total=bhAtestadosCache.length,usados=new Set(),manifesto=[];let concluidos=0,falhas=0,adicionados=0;
+  for(const a of bhAtestadosCache){
+    try{
+      const {data:urlData,error:urlErro}=await sb.storage.from('comprovantes').createSignedUrl(a.caminho_storage,3600);
+      if(urlErro||!urlData)throw urlErro||new Error('Arquivo indisponível');
+      const resposta=await fetch(urlData.signedUrl);if(!resposta.ok)throw new Error('Falha ao baixar o arquivo');
+      const original=await resposta.blob(),compactado=await compactarImagemAtestado(original),nomeOriginal=String(a.nome_arquivo||'atestado'),ponto=nomeOriginal.lastIndexOf('.'),extOriginal=ponto>=0?nomeOriginal.slice(ponto+1).toLowerCase():'bin',ext=compactado.ext||extOriginal;
+      const colaborador=nomeSeguroZipAtestado(nomeFuncionarioPorId(a.funcionario_id)),base=nomeSeguroZipAtestado(a.data_inicio+'_'+a.data_fim+'_atestado'),chaveBase=colaborador+'/'+base;let caminho=chaveBase+'.'+ext,contador=2;
+      while(usados.has(caminho)){caminho=chaveBase+'-'+contador+'.'+ext;contador++;}usados.add(caminho);
+      zip.file(caminho,compactado.blob,{compression:'DEFLATE',compressionOptions:{level:9}});adicionados++;
+      manifesto.push(nomeFuncionarioPorId(a.funcionario_id)+' | '+fmtData(a.data_inicio)+' a '+fmtData(a.data_fim)+' | '+nomeOriginal+(compactado.ext?' | imagem reduzida':'')+(a.observacao?' | '+a.observacao:''));
+    }catch(e){falhas++;console.error('Erro ao preparar atestado:',a.id,e);}
+    concluidos++;atualizarProgresso((concluidos/total)*85);
+  }
+  if(!adicionados){fecharProgresso();alert('Não foi possível baixar os arquivos dos atestados. Verifique a conexão e tente novamente.');return;}
+  zip.file('lista-de-atestados.txt','ATESTADOS — '+(NOMES_LOJA[lojaAtual]||lojaAtual)+'\n\n'+manifesto.join('\n'));
+  document.getElementById('progressoTitulo').textContent='Compactando atestados…';
+  const conteudo=await zip.generateAsync({type:'blob',compression:'DEFLATE',compressionOptions:{level:9}},meta=>atualizarProgresso(85+meta.percent*0.15));
+  atualizarProgresso(100);const url=URL.createObjectURL(conteudo),link=document.createElement('a');link.href=url;link.download='atestados-'+(NOMES_LOJA[lojaAtual]||lojaAtual).toLowerCase().replace(/\s+/g,'-')+'-'+todayStr()+'.zip';document.body.appendChild(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),1500);setTimeout(fecharProgresso,400);
+  if(falhas)setTimeout(()=>alert('O ZIP foi criado, mas '+falhas+' arquivo(s) não puderam ser incluídos.'),600);
 }
 
 function abrirNovoAtestado(){
