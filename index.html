@@ -541,6 +541,51 @@
   .rec-history-filters input{font-family:var(--font-sans);font-size:13px;padding:9px 11px;border:1px solid var(--line);border-radius:7px;background:#fff;color:var(--ink);}
   .rec-config-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
   .rec-config-grid .full{grid-column:1/-1;}
+  .aniv-popup-box{position:relative;max-width:430px;width:100%;padding:0;overflow:hidden;border:0;box-shadow:0 24px 70px rgba(15,23,42,.28);}
+  .aniv-popup-head{background:linear-gradient(135deg,#1e3a66,#285da0);color:#fff;padding:24px 58px 21px 24px;}
+  .aniv-popup-head .icone{font-size:29px;display:block;margin-bottom:9px;}
+  .aniv-popup-head h2{font-size:19px;margin:0 0 5px;color:#fff;}
+  .aniv-popup-head p{font-size:12px;margin:0;color:#dbeafe;}
+  .aniv-popup-fechar{position:absolute;right:15px;top:14px;width:34px;height:34px;border:1px solid rgba(255,255,255,.38);border-radius:50%;background:rgba(255,255,255,.12);color:#fff;font-size:20px;line-height:1;cursor:pointer;}
+  .aniv-popup-fechar:hover{background:rgba(255,255,255,.24);}
+  .aniv-popup-corpo{padding:22px 24px 24px;}
+  .aniv-popup-nome{font-size:22px;font-weight:800;color:var(--ink);margin-bottom:7px;}
+  .aniv-popup-detalhes{font-size:13px;color:var(--muted);line-height:1.65;}
+  .aniv-popup-contagem{display:inline-flex;margin-top:15px;padding:7px 12px;border-radius:999px;background:#eaf2ff;color:#1e4f91;font-size:12px;font-weight:800;}
+
+  /* ---------- Aproveitamento de tela em computadores ---------- */
+  @media (min-width:1100px){
+    .top-navigation-head{padding:7px 24px;min-height:58px;}
+    .brand h1{font-size:21px;}
+    .perfil-bar{padding:4px 6px;}
+    .avatar-circle{width:30px;height:30px;}
+    .top-categories{gap:5px;padding:5px 24px;justify-content:flex-start;}
+    .top-category-btn{min-height:42px;font-size:13px;padding:9px 16px 7px;}
+    .top-modules{padding-left:24px;padding-right:24px;padding-top:4px;padding-bottom:4px;}
+    .top-module-btn{flex-basis:120px;min-height:54px;padding:5px 8px;gap:2px;}
+    .top-module-icon{font-size:18px;}
+    .main{width:100%;max-width:none;padding:16px 24px 28px;}
+    .module-context-bar{min-height:48px;margin-bottom:12px;padding:6px 12px;border-radius:9px;}
+    .codigo-loja-input{width:130px;padding:7px 10px;}
+    .abrir-lojas-btn{padding:7px 10px;}
+    .metrics{gap:10px;margin-bottom:14px!important;}
+    .metric{padding:11px 14px;}
+    #viewContasPagar>.metrics>.metric{flex-basis:205px!important;}
+    #viewContasPagar>.metrics>.panel{padding:12px 16px!important;}
+    .formcard{padding:14px 16px;}
+    .fld{margin-bottom:9px;}
+    .fld input,.fld select{padding:8px 9px;}
+    .bh-form{gap:8px;padding:12px 16px;}
+    .bh-form .fld input{padding:8px 9px;}
+    .panel-head{padding:13px 16px;}
+    .panel-head h2{font-size:15px;}
+    .searchrow{margin-bottom:12px;}
+    .searchbar input{padding:9px 13px;}
+    .cols{gap:16px;}
+    .bh-toolbar,.bh-resumo,.bh-tabs,.aniv-summary{margin-bottom:12px;}
+    .bh-resumo{gap:10px;}
+    .bh-resumo .metric{padding:11px 14px;}
+  }
   @media(max-width:760px){.rec-form-grid,.rec-config-grid{grid-template-columns:1fr;}.rec-span-2,.rec-span-3,.rec-config-grid .full{grid-column:auto;}.rec-preview{margin-left:14px;margin-right:14px;}.rec-actions{padding-left:14px;padding-right:14px;}.holerite-row{grid-template-columns:1fr 1fr;}.holerite-resumo{grid-template-columns:1fr;}.contratos-tabs{overflow-x:auto;}.orc-item-row{grid-template-columns:1fr 1fr;padding:0 14px 12px;}.orc-resumo{grid-template-columns:1fr 1fr;margin-left:14px;margin-right:14px;}}
 </style>
 </head>
@@ -555,6 +600,22 @@
       <div id="progressoBarra" style="background:var(--green);height:100%;width:0%;transition:width .2s ease;"></div>
     </div>
     <p id="progressoTexto" style="font-size:13px;color:var(--muted);margin:0;">0%</p>
+  </div>
+</div>
+
+<div id="aniversarioPopup" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="aniversarioPopupTitulo">
+  <div class="modal-box aniv-popup-box">
+    <div class="aniv-popup-head">
+      <span class="icone">🎂</span>
+      <h2 id="aniversarioPopupTitulo">Próximo aniversário</h2>
+      <p>Um lembrete da equipe Ranchão Bebidas</p>
+    </div>
+    <button type="button" class="aniv-popup-fechar" onclick="fecharPopupAniversario()" title="Fechar" aria-label="Fechar aviso">×</button>
+    <div class="aniv-popup-corpo">
+      <div id="aniversarioPopupNome" class="aniv-popup-nome">—</div>
+      <div id="aniversarioPopupDetalhes" class="aniv-popup-detalhes">—</div>
+      <div id="aniversarioPopupContagem" class="aniv-popup-contagem">—</div>
+    </div>
   </div>
 </div>
 
@@ -726,6 +787,7 @@
             <div class="fld"><label>Data de pagamento</label><input id="hol_data_pagamento" type="date"></div>
             <div class="fld"><label>Data de admissão (opcional)</label><input id="hol_admissao" type="date"></div>
             <div class="fld"><label>Salário-base (R$)</label><input id="hol_salario_base" type="number" min="0" step="0.01" placeholder="0,00" oninput="sincronizarSalarioBaseContracheque()"></div>
+            <div class="fld" style="display:flex;justify-content:flex-end;"><label style="display:flex;align-items:center;gap:9px;min-height:42px;margin:0;padding:0 12px;border:1px solid var(--line);border-radius:8px;background:#f8fafc;cursor:pointer;text-transform:none;font-size:12px;"><input id="hol_periculosidade" type="checkbox" style="width:auto;margin:0;" onchange="alternarPericulosidadeContracheque()"> Adicionar periculosidade (30%)</label></div>
           </div>
           <div class="panel-head" style="padding-bottom:8px;"><h2>Proventos</h2><button class="cancelbtn" onclick="adicionarLinhaContracheque('provento')">+ Adicionar provento</button></div>
           <div id="holProventos" class="holerite-lista"></div>
@@ -736,7 +798,7 @@
             <div class="holerite-total">Total de descontos<strong id="holTotalDescontos">R$ 0,00</strong></div>
             <div class="holerite-total liquido">Valor líquido<strong id="holValorLiquido">R$ 0,00</strong></div>
           </div>
-          <div class="holerite-aviso">Os valores de INSS, IRRF e demais encargos são informados manualmente. Este documento é para controle interno e não substitui o holerite oficial emitido pela contabilidade.</div>
+          <div class="holerite-aviso">Os proventos são calculados proporcionalmente: valor integral ÷ dias do mês × dias informados. INSS, IRRF e demais descontos são informados manualmente. Este documento é para controle interno e não substitui o holerite oficial emitido pela contabilidade.</div>
           <div class="formerr" id="holErr" style="margin:0 20px 12px;"></div>
           <div class="rec-actions"><button class="addbtn" style="width:auto;" onclick="salvarContracheque(true)">Salvar e gerar PDF</button><button class="cancelbtn" onclick="gerarPdfContrachequeFormulario()">Visualizar PDF sem salvar</button><button class="cancelbtn" onclick="limparFormularioContracheque()">Limpar</button></div>
         </div>
@@ -4526,16 +4588,72 @@ function atualizarStatusConfigContracheque(){
 
 function competenciaAtual(){const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');}
 
+function diasNoMesContracheque(){
+  const competencia=document.getElementById('hol_competencia')?.value||competenciaAtual();
+  const partes=competencia.split('-').map(Number);
+  return partes.length===2&&partes[0]&&partes[1] ? new Date(partes[0],partes[1],0).getDate() : 30;
+}
+
+function arredondarCentavos(valor){return Math.round((Number(valor)||0)*100)/100;}
+
+function prepararProventoProporcional(item){
+  const diasMes=diasNoMesContracheque();
+  if(item.dias===undefined||item.dias===null||item.dias===''){
+    const encontrado=String(item.referencia||'').match(/\d+/);
+    item.dias=encontrado?Math.min(diasMes,Math.max(1,Number(encontrado[0]))):diasMes;
+  }
+  item.dias=Math.min(diasMes,Math.max(1,Number(item.dias)||diasMes));
+  if(item.valor_integral===undefined||item.valor_integral===null) item.valor_integral=Number(item.valor)||0;
+  item.valor_integral=Math.max(0,Number(item.valor_integral)||0);
+  item.dias_mes=diasMes;
+  item.referencia=item.dias+' dia'+(item.dias===1?'':'s');
+  item.valor=arredondarCentavos(item.valor_integral/diasMes*item.dias);
+  return item;
+}
+
+function atualizarCompetenciaContracheque(){
+  contrachequeProventos.forEach(prepararProventoProporcional);
+  renderLinhasContracheque();
+}
+
+function indicePericulosidadeContracheque(){
+  return contrachequeProventos.findIndex(x=>x.auto_periculosidade||String(x.descricao||'').toLowerCase()==='periculosidade');
+}
+
+function atualizarPericulosidadeContracheque(){
+  const indice=indicePericulosidadeContracheque();
+  if(indice<0)return;
+  const salario=Math.max(0,Number(document.getElementById('hol_salario_base').value)||0);
+  contrachequeProventos[indice].auto_periculosidade=true;
+  contrachequeProventos[indice].valor_integral=arredondarCentavos(salario*.30);
+  prepararProventoProporcional(contrachequeProventos[indice]);
+}
+
+function alternarPericulosidadeContracheque(){
+  const marcado=document.getElementById('hol_periculosidade').checked;
+  const indice=indicePericulosidadeContracheque();
+  if(marcado&&indice<0){
+    const dias=contrachequeProventos[0]?.dias||diasNoMesContracheque();
+    contrachequeProventos.push({descricao:'Periculosidade',dias,valor_integral:0,valor:0,fixo:false,auto_periculosidade:true});
+    atualizarPericulosidadeContracheque();
+  }else if(!marcado&&indice>=0){
+    contrachequeProventos.splice(indice,1);
+  }
+  renderLinhasContracheque();
+}
+
 function inicializarFormularioContracheque(){
   const comp=document.getElementById('hol_competencia');if(!comp)return;
   if(!comp.value) comp.value=competenciaAtual();
   if(!document.getElementById('hol_data_pagamento').value) document.getElementById('hol_data_pagamento').value=todayStr();
-  if(!contrachequeProventos.length) contrachequeProventos=[{descricao:'Salário-base',referencia:'30 dias',valor:0,fixo:true}];
+  if(!contrachequeProventos.length) contrachequeProventos=[{descricao:'Salário-base',dias:diasNoMesContracheque(),valor_integral:0,valor:0,fixo:true}];
+  contrachequeProventos.forEach(prepararProventoProporcional);
   renderLinhasContracheque();
 }
 
 function adicionarLinhaContracheque(tipo,linha){
-  const item=linha||{descricao:'',referencia:'',valor:0,fixo:false};
+  const item=linha||(tipo==='provento'?{descricao:'',dias:diasNoMesContracheque(),valor_integral:0,valor:0,fixo:false}:{descricao:'',referencia:'',valor:0,fixo:false});
+  if(tipo==='provento') prepararProventoProporcional(item);
   if(tipo==='provento') contrachequeProventos.push(item); else contrachequeDescontos.push(item);
   renderLinhasContracheque();
 }
@@ -4543,20 +4661,46 @@ function adicionarLinhaContracheque(tipo,linha){
 function removerLinhaContracheque(tipo,indice){
   const lista=tipo==='provento'?contrachequeProventos:contrachequeDescontos;
   if(lista[indice]&&lista[indice].fixo) return;
-  lista.splice(indice,1);renderLinhasContracheque();
+  lista.splice(indice,1);
+  if(tipo==='provento') document.getElementById('hol_periculosidade').checked=indicePericulosidadeContracheque()>=0;
+  renderLinhasContracheque();
 }
 
 function alterarLinhaContracheque(tipo,indice,campo,valor){
   const lista=tipo==='provento'?contrachequeProventos:contrachequeDescontos;
   if(!lista[indice])return;
-  lista[indice][campo]=campo==='valor'?Math.max(0,Number(valor)||0):valor;
+  if(tipo==='provento'&&(campo==='dias'||campo==='valor_integral')){
+    lista[indice][campo]=Math.max(0,Number(valor)||0);
+    prepararProventoProporcional(lista[indice]);
+    const calculado=document.getElementById('hol_calc_'+tipo+'_'+indice);
+    if(calculado) calculado.textContent=brl(lista[indice].valor);
+    if(indice===0&&campo==='dias'){
+      const periculosidade=indicePericulosidadeContracheque();
+      if(periculosidade>0){
+        lista[periculosidade].dias=lista[0].dias;
+        prepararProventoProporcional(lista[periculosidade]);
+        const diasPer=document.getElementById('hol_dias_provento_'+periculosidade);
+        const calcPer=document.getElementById('hol_calc_provento_'+periculosidade);
+        if(diasPer)diasPer.value=lista[periculosidade].dias;
+        if(calcPer)calcPer.textContent=brl(lista[periculosidade].valor);
+      }
+    }
+  }else{
+    lista[indice][campo]=campo==='valor'?Math.max(0,Number(valor)||0):valor;
+  }
   calcularTotaisContracheque();
 }
 
 function htmlLinhaContracheque(tipo,item,i){
   const bloqueado=item.fixo?' readonly':'';
   const excluir=item.fixo?'<button class="iconbtn" type="button" disabled title="O salário-base é obrigatório">—</button>':'<button class="iconbtn del" type="button" onclick="removerLinhaContracheque(\''+tipo+'\','+i+')">✕</button>';
-  return '<div class="holerite-row"><div class="fld"><label>Descrição</label><input value="'+escapeHtml(item.descricao||'')+'"'+bloqueado+' oninput="alterarLinhaContracheque(\''+tipo+'\','+i+',\'descricao\',this.value)"></div><div class="fld"><label>Referência</label><input value="'+escapeHtml(item.referencia||'')+'" oninput="alterarLinhaContracheque(\''+tipo+'\','+i+',\'referencia\',this.value)" placeholder="Ex.: 30 dias"></div><div class="fld"><label>Valor (R$)</label><input type="number" min="0" step="0.01" value="'+(Number(item.valor)||'')+'" oninput="alterarLinhaContracheque(\''+tipo+'\','+i+',\'valor\',this.value)"></div><div>'+excluir+'</div></div>';
+  if(tipo==='provento'){
+    prepararProventoProporcional(item);
+    const diasMes=diasNoMesContracheque();
+    const integralBloqueado=item.auto_periculosidade?' readonly title="Calculado automaticamente em 30% do salário-base"':'';
+    return '<div class="holerite-row proporcional"><div class="fld"><label>Descrição</label><input value="'+escapeHtml(item.descricao||'')+'"'+bloqueado+' oninput="alterarLinhaContracheque(\''+tipo+'\','+i+',\'descricao\',this.value)"></div><div class="fld"><label>Dias</label><input id="hol_dias_'+tipo+'_'+i+'" type="number" min="1" max="'+diasMes+'" step="1" value="'+item.dias+'" oninput="alterarLinhaContracheque(\''+tipo+'\','+i+',\'dias\',this.value)"></div><div class="fld"><label>Valor integral (R$)</label><input type="number" min="0" step="0.01" value="'+(Number(item.valor_integral)||'')+'"'+integralBloqueado+' oninput="alterarLinhaContracheque(\''+tipo+'\','+i+',\'valor_integral\',this.value)"></div><div class="fld"><label>Valor proporcional</label><div class="holerite-calculado" id="hol_calc_'+tipo+'_'+i+'">'+brl(item.valor)+'</div></div><div>'+excluir+'</div></div>';
+  }
+  return '<div class="holerite-row"><div class="fld"><label>Descrição</label><input value="'+escapeHtml(item.descricao||'')+'" oninput="alterarLinhaContracheque(\''+tipo+'\','+i+',\'descricao\',this.value)"></div><div class="fld"><label>Referência</label><input value="'+escapeHtml(item.referencia||'')+'" oninput="alterarLinhaContracheque(\''+tipo+'\','+i+',\'referencia\',this.value)" placeholder="Ex.: INSS"></div><div class="fld"><label>Valor (R$)</label><input type="number" min="0" step="0.01" value="'+(Number(item.valor)||'')+'" oninput="alterarLinhaContracheque(\''+tipo+'\','+i+',\'valor\',this.value)"></div><div>'+excluir+'</div></div>';
 }
 
 function renderLinhasContracheque(){
@@ -4568,8 +4712,8 @@ function renderLinhasContracheque(){
 
 function sincronizarSalarioBaseContracheque(){
   const valor=Math.max(0,Number(document.getElementById('hol_salario_base').value)||0);
-  if(!contrachequeProventos.length) contrachequeProventos.push({descricao:'Salário-base',referencia:'30 dias',valor:valor,fixo:true});
-  contrachequeProventos[0].valor=valor;renderLinhasContracheque();
+  if(!contrachequeProventos.length) contrachequeProventos.push({descricao:'Salário-base',dias:diasNoMesContracheque(),valor_integral:valor,valor:valor,fixo:true});
+  contrachequeProventos[0].valor_integral=valor;prepararProventoProporcional(contrachequeProventos[0]);atualizarPericulosidadeContracheque();renderLinhasContracheque();
 }
 
 function totaisContracheque(){
@@ -4595,7 +4739,7 @@ function dadosFormularioContracheque(){
     cargo:document.getElementById('hol_cargo').value.trim(),
     data_admissao:document.getElementById('hol_admissao').value||null,
     salario_base:Number(document.getElementById('hol_salario_base').value)||0,
-    proventos:contrachequeProventos.filter(x=>x.descricao&&Number(x.valor)>0).map(x=>({descricao:x.descricao,referencia:x.referencia||'',valor:Number(x.valor)})),
+    proventos:contrachequeProventos.filter(x=>x.descricao&&Number(x.valor)>0).map(x=>({descricao:x.descricao,referencia:x.referencia||'',valor:Number(x.valor),valor_integral:Number(x.valor_integral)||Number(x.valor),dias:Number(x.dias)||diasNoMesContracheque(),dias_mes:Number(x.dias_mes)||diasNoMesContracheque(),auto_periculosidade:!!x.auto_periculosidade})),
     descontos:contrachequeDescontos.filter(x=>x.descricao&&Number(x.valor)>0).map(x=>({descricao:x.descricao,referencia:x.referencia||'',valor:Number(x.valor)})),
     total_proventos:t.proventos,total_descontos:t.descontos,valor_liquido:t.liquido,
     empresa_razao_social:c.empresa_razao_social||null,empresa_nome_fantasia:c.empresa_nome_fantasia||null,
@@ -4669,10 +4813,10 @@ function baixarPdfContrachequeHistorico(id){const x=contrachequesCache.find(v=>N
 function duplicarContracheque(id){
   const x=contrachequesCache.find(v=>Number(v.id)===Number(id));if(!x)return;
   document.getElementById('hol_funcionario').value=x.funcionario_nome||'';document.getElementById('hol_cpf').value=x.funcionario_cpf||'';document.getElementById('hol_cargo').value=x.cargo||'';document.getElementById('hol_competencia').value=competenciaAtual();document.getElementById('hol_data_pagamento').value=todayStr();document.getElementById('hol_admissao').value=x.data_admissao||'';document.getElementById('hol_salario_base').value=x.salario_base||'';
-  contrachequeProventos=(x.proventos||[]).map((v,i)=>Object.assign({},v,{fixo:i===0}));contrachequeDescontos=(x.descontos||[]).map(v=>Object.assign({},v,{fixo:false}));renderLinhasContracheque();window.scrollTo({top:0,behavior:'smooth'});
+  contrachequeProventos=(x.proventos||[]).map((v,i)=>Object.assign({},v,{fixo:i===0}));contrachequeProventos.forEach(prepararProventoProporcional);contrachequeDescontos=(x.descontos||[]).map(v=>Object.assign({},v,{fixo:false}));document.getElementById('hol_periculosidade').checked=indicePericulosidadeContracheque()>=0;renderLinhasContracheque();window.scrollTo({top:0,behavior:'smooth'});
 }
 async function excluirContracheque(id){if(!confirm('Excluir este contracheque do histórico?'))return;const {error}=await sb.from('contracheques').delete().eq('id',id).eq('loja',lojaAtual);if(error){alert('Não foi possível excluir o contracheque.');return;}contrachequesCache=contrachequesCache.filter(x=>Number(x.id)!==Number(id));renderContracheques();}
-function limparFormularioContracheque(){['hol_funcionario','hol_cpf','hol_cargo','hol_admissao','hol_salario_base'].forEach(id=>document.getElementById(id).value='');document.getElementById('hol_competencia').value=competenciaAtual();document.getElementById('hol_data_pagamento').value=todayStr();contrachequeProventos=[{descricao:'Salário-base',referencia:'30 dias',valor:0,fixo:true}];contrachequeDescontos=[];document.getElementById('holErr').style.display='none';renderLinhasContracheque();}
+function limparFormularioContracheque(){['hol_funcionario','hol_cpf','hol_cargo','hol_admissao','hol_salario_base'].forEach(id=>document.getElementById(id).value='');document.getElementById('hol_competencia').value=competenciaAtual();document.getElementById('hol_data_pagamento').value=todayStr();document.getElementById('hol_periculosidade').checked=false;contrachequeProventos=[{descricao:'Salário-base',dias:diasNoMesContracheque(),valor_integral:0,valor:0,fixo:true}];contrachequeDescontos=[];document.getElementById('holErr').style.display='none';renderLinhasContracheque();}
 function limparFiltroContracheques(){document.getElementById('holFiltroMes').value='';document.getElementById('holBusca').value='';carregarContracheques();}
 
 /* ================= CONTROLE DE ESTOQUE ================= */
@@ -5606,6 +5750,48 @@ function detalhesProximoAniversario(funcionario, hoje){
     dias: Math.round((proxima-hoje)/86400000),
     idade: proxima.getFullYear()-nascimento.getFullYear()
   };
+}
+
+let timerPopupAniversario = null;
+
+function fecharPopupAniversario(){
+  const popup = document.getElementById('aniversarioPopup');
+  if(popup) popup.style.display = 'none';
+}
+
+async function mostrarProximoAniversariante(){
+  if(!sb || !document.getElementById('app').classList.contains('on')) return;
+  try{
+    const { data, error } = await sb.from('bh_funcionarios')
+      .select('nome,cargo,loja,data_nascimento')
+      .eq('ativo', true)
+      .not('data_nascimento', 'is', null);
+    if(error || !data || data.length===0) return;
+
+    const hoje = new Date();
+    hoje.setHours(0,0,0,0);
+    const proximos = data.map(f=>detalhesProximoAniversario(f, hoje))
+      .filter(Boolean)
+      .sort((a,b)=>a.dias-b.dias || a.funcionario.nome.localeCompare(b.funcionario.nome));
+    if(!proximos.length || !document.getElementById('app').classList.contains('on')) return;
+
+    const item = proximos[0];
+    const f = item.funcionario;
+    const dataFormatada = item.proxima.toLocaleDateString('pt-BR', { day:'2-digit', month:'long' });
+    const textoDias = item.dias===0 ? '🎉 O aniversário é hoje!' : item.dias===1 ? 'É amanhã!' : `Faltam ${item.dias} dias`;
+    document.getElementById('aniversarioPopupNome').textContent = f.nome;
+    document.getElementById('aniversarioPopupDetalhes').textContent = `${dataFormatada} • fará ${item.idade} anos • ${NOMES_LOJA[f.loja] || f.loja || 'Loja não informada'}${f.cargo ? ' • '+f.cargo : ''}`;
+    document.getElementById('aniversarioPopupContagem').textContent = textoDias;
+    document.getElementById('aniversarioPopup').style.display = 'flex';
+  }catch(e){
+    console.warn('Não foi possível carregar o lembrete de aniversário:', e);
+  }
+}
+
+function agendarPopupAniversario(){
+  clearTimeout(timerPopupAniversario);
+  fecharPopupAniversario();
+  timerPopupAniversario = setTimeout(mostrarProximoAniversariante, 1800);
 }
 
 function renderAniversarios(){
@@ -13314,7 +13500,10 @@ async function aplicarSessao(session, opts){
     }
     document.getElementById('app').classList.add('on');
     document.getElementById('loadingScreen').style.display = 'none';
+    agendarPopupAniversario();
   }else{
+    clearTimeout(timerPopupAniversario);
+    fecharPopupAniversario();
     document.getElementById('app').classList.remove('on');
     document.getElementById('loginScreen').style.display = 'flex';
     document.getElementById('loadingScreen').style.display = 'none';
@@ -13338,6 +13527,17 @@ compUploadAreaEl.addEventListener('drop', (e)=>{
 });
 
 async function iniciar(){
+  // No aplicativo instalado, exigir um novo login a cada abertura.
+  // sessionStorage sobrevive a recarregamentos da tela, mas e limpa ao fechar o app.
+  if(/Electron\//i.test(navigator.userAgent) && !sessionStorage.getItem('ranchao-login-preparado')){
+    sessionStorage.setItem('ranchao-login-preparado', '1');
+    try{
+      Object.keys(localStorage).forEach(k=>{
+        if(k.startsWith('sb-') && k.includes('-auth-token')) localStorage.removeItem(k);
+      });
+    }catch(e){}
+  }
+
   if(!initSupabase()) return;
 
   const watchdog = setTimeout(()=>{
