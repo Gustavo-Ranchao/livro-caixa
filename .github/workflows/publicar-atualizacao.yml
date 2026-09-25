@@ -1,0 +1,54 @@
+name: Publicar atualização do aplicativo
+
+on:
+  workflow_dispatch:
+    inputs:
+      versao:
+        description: "Versão que será publicada (exemplo: 1.2.0)"
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  publicar:
+    runs-on: windows-latest
+
+    steps:
+      - name: Baixar projeto
+        uses: actions/checkout@v4
+
+      - name: Preparar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: ranchao-bebidas-desktop/package-lock.json
+
+      - name: Usar o index mais recente do site
+        shell: pwsh
+        run: Copy-Item -Path "index.html" -Destination "ranchao-bebidas-desktop/index.html" -Force
+
+      - name: Definir versão
+        working-directory: ranchao-bebidas-desktop
+        run: npm version "${{ inputs.versao }}" --no-git-tag-version --allow-same-version
+
+      - name: Instalar dependências
+        working-directory: ranchao-bebidas-desktop
+        run: npm ci
+
+      - name: Gerar instalador
+        working-directory: ranchao-bebidas-desktop
+        run: npm run build:windows -- --publish never
+
+      - name: Publicar versão no GitHub
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ inputs.versao }}
+          name: Ranchão Bebidas v${{ inputs.versao }}
+          generate_release_notes: true
+          files: |
+            ranchao-bebidas-desktop/dist/*.exe
+            ranchao-bebidas-desktop/dist/*.blockmap
+            ranchao-bebidas-desktop/dist/latest.yml
