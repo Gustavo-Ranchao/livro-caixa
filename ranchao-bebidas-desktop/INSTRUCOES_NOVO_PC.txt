@@ -1,0 +1,25 @@
+RANCHÃO BEBIDAS - INSTALAÇÃO EM COMPUTADOR FORMATADO
+
+1. Instale o Google Chrome ou Microsoft Edge atualizado.
+2. Instale o Node.js LTS: https://nodejs.org/
+3. Reinicie o computador depois da instalação do Node.js.
+4. Extraia todo o conteúdo deste ZIP para uma pasta normal do computador.
+5. Entre na pasta "ranchao-bebidas-desktop".
+6. Clique duas vezes em "gerar-instalador.bat".
+7. Aguarde a janela concluir a instalação dos componentes e a compilação.
+8. Abra a pasta "dist" criada automaticamente.
+9. Execute "Ranchao-Bebidas-Setup-1.2.0.exe".
+10. Abra o Ranchão Bebidas e entre com seu e-mail e senha do Supabase.
+
+ATIVAÇÃO DO NOVO MÓDULO
+
+No painel do Supabase, abra SQL Editor > New query, cole todo o conteúdo do
+arquivo "modulo_leitura_comprovantes_supabase.sql" e clique em Run.
+Execute esse SQL apenas uma vez.
+
+IMPORTANTE
+
+- Os dados antigos continuam no Supabase e aparecerão após o login.
+- É necessária conexão com a internet.
+- Não apague os arquivos SQL: eles servem como cópia da estrutura do sistema.
+- Para atualizações futuras, substitua o index.html do projeto e gere o instalador novamente.

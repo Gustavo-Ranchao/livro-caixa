@@ -1,0 +1,14 @@
+ATUALIZAÇÕES AUTOMÁTICAS
+
+Esta versão já possui o atualizador integrado.
+
+Depois que a publicação automática estiver configurada no repositório
+Gustavo-Ranchao/livro-caixa, o aplicativo verificará novas versões ao abrir.
+
+Quando houver atualização:
+1. O aplicativo mostrará a nova versão.
+2. Clique em "Baixar atualização".
+3. Aguarde o download.
+4. Clique em "Reiniciar e atualizar".
+
+Também é possível verificar manualmente no menu do usuário, em "Atualizações".

@@ -1,0 +1,60 @@
+{
+  "name": "ranchao-bebidas-desktop",
+  "version": "1.2.0",
+  "description": "Aplicativo desktop do ERP Ranchão Bebidas",
+  "main": "main.js",
+  "author": "Ranchão Bebidas",
+  "license": "UNLICENSED",
+  "private": true,
+  "scripts": {
+    "start": "electron .",
+    "build:windows": "electron-builder --win nsis --x64"
+  },
+  "devDependencies": {
+    "electron": "^44.4.3",
+    "electron-builder": "^26.0.12"
+  },
+  "build": {
+    "appId": "br.com.ranchao.bebidas",
+    "productName": "Ranchão Bebidas",
+    "asar": true,
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "index.html",
+      "main.js",
+      "preload.js",
+      "assets/**/*",
+      "package.json"
+    ],
+    "publish": {
+      "provider": "github",
+      "owner": "Gustavo-Ranchao",
+      "repo": "livro-caixa"
+    },
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "assets/icon.ico",
+      "artifactName": "Ranchao-Bebidas-Setup-${version}.${ext}"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": "always",
+      "createStartMenuShortcut": true,
+      "shortcutName": "Ranchão Bebidas",
+      "uninstallDisplayName": "Ranchão Bebidas"
+    }
+  },
+  "dependencies": {
+    "electron-updater": "^6.6.2"
+  }
+}

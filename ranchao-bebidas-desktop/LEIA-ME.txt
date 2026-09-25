@@ -1,0 +1,40 @@
+RANCHÃO BEBIDAS — VERSÃO DESKTOP
+
+Esta pasta contém a primeira versão instalável do sistema para Windows.
+Os dados continuam sendo armazenados no Supabase e, por isso, é necessária
+conexão com a internet para carregar e salvar informações.
+
+COMO GERAR O INSTALADOR
+
+1. Instale o Node.js LTS pelo site https://nodejs.org/
+2. Extraia esta pasta para o computador.
+3. Clique duas vezes em "gerar-instalador.bat".
+4. Aguarde a instalação dos componentes e a compilação.
+5. O instalador será criado dentro da pasta "dist".
+6. Execute "Ranchao-Bebidas-Setup-1.2.0.exe".
+
+ATIVAÇÃO DO MÓDULO MANUTENÇÃO
+Antes do primeiro uso, abra o SQL Editor do Supabase e execute o conteúdo do
+arquivo "modulo_manutencao_supabase.sql". Isso precisa ser feito apenas uma vez.
+
+ATIVAÇÃO DA LEITURA DE COMPROVANTES
+
+Abra o SQL Editor do Supabase e execute o conteúdo do arquivo
+"modulo_leitura_comprovantes_supabase.sql". Isso precisa ser feito apenas uma vez.
+Depois, acesse Financeiro > Leitura de Comprovantes. A primeira versão lê até
+50 arquivos PDF por lote e reconhece automaticamente o modelo PagBank analisado.
+
+PARA APENAS TESTAR ANTES DE INSTALAR
+
+Clique duas vezes em "testar-aplicativo.bat".
+
+ATUALIZAÇÕES
+
+Esta é uma versão com atualização manual. Quando o index.html for alterado,
+substitua o arquivo desta pasta e gere uma nova versão do instalador.
+
+SEGURANÇA
+
+O aplicativo usa isolamento de contexto, bloqueia acesso do HTML ao Node.js
+e mantém a navegação externa fora da janela principal. Nunca coloque a chave
+service_role do Supabase dentro destes arquivos.
