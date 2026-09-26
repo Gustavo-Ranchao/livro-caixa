@@ -1,0 +1,23 @@
+ATUALIZAÇÃO DE SEGURANÇA — RANCHÃO BEBIDAS 1.2.2
+
+CORREÇÕES INCLUÍDAS
+- electron-updater atualizado para 6.8.9.
+- Auditoria de dependências: 0 vulnerabilidades conhecidas.
+- Código JavaScript principal removido de dentro do HTML.
+- CSP endurecida para bloquear blocos de script inline.
+- frame-ancestors bloqueado para impedir incorporação da tela em outro site.
+
+COMO COLOCAR NO GITHUB
+1. Abra o repositório livro-caixa e clique em Add file > Upload files.
+2. Envie o conteúdo deste pacote mantendo as pastas.
+3. Confirme em Commit changes.
+4. Abra Actions > Publicar atualização do aplicativo > Run workflow.
+5. Informe a versão 1.2.2 e execute.
+6. Aguarde a marca verde. O aplicativo 1.2.1 deverá avisar sobre a nova versão.
+
+IMPORTANTE
+- renderer.js agora é obrigatório tanto na raiz quanto dentro de ranchao-bebidas-desktop.
+- Não apague index.html, renderer.js, package.json ou package-lock.json.
+- A permissão temporária de ações inline permanece apenas nos atributos dos botões antigos.
+  O código principal já está protegido; a retirada total desses atributos será feita de forma
+  gradual para evitar quebrar centenas de comandos da interface.
