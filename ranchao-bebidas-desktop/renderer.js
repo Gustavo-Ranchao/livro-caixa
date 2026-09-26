@@ -5661,7 +5661,9 @@ function navegarTipoPagamentoPrincipal(event,buscaId,ocultoId,destinoEnter){
   }else if(event.key==='Enter'){
     event.preventDefault();
     matchTipoPagCaixa(buscaId,ocultoId);
-    document.getElementById(destinoEnter)?.focus();
+    if(destinoEnter==='salvarNovoPagamento') salvarNovoPagamento();
+    else if(destinoEnter==='salvarEdicaoPagamento') salvarEdicaoPagamento();
+    else document.getElementById(destinoEnter)?.focus();
   }
 }
 
@@ -5703,8 +5705,8 @@ function configurarTecladoPagamentosDinheiro(){
     event.preventDefault();
     const alvo=document.getElementById(destino);alvo?.focus();if(destino.includes('_tipo_busca')) alvo?.select();
   }));
-  document.getElementById('novoPag_tipo_busca')?.addEventListener('keydown',event=>navegarTipoPagamentoPrincipal(event,'novoPag_tipo_busca','novoPag_tipo','novoPagamentoAdicionarBtn'));
-  document.getElementById('pag_tipo_busca')?.addEventListener('keydown',event=>navegarTipoPagamentoPrincipal(event,'pag_tipo_busca','pag_tipo','pag_descricao'));
+  document.getElementById('novoPag_tipo_busca')?.addEventListener('keydown',event=>navegarTipoPagamentoPrincipal(event,'novoPag_tipo_busca','novoPag_tipo','salvarNovoPagamento'));
+  document.getElementById('pag_tipo_busca')?.addEventListener('keydown',event=>navegarTipoPagamentoPrincipal(event,'pag_tipo_busca','pag_tipo','salvarEdicaoPagamento'));
 }
 
 async function sincronizarHistoricoContasDinheiro(){
@@ -7482,8 +7484,47 @@ let pagamentoEditandoOrigem = null;
 let excluindoPagamentoId = null;
 let excluindoPagamentoOrigem = null;
 let colarPagamentosParsed = [];
+let salvandoNovoPagamento = false;
+
+function garantirInterfaceColarPagamentos(){
+  const view=document.getElementById('viewPagamentos');
+  if(!view) return;
+  const cabecalho=view.querySelector('.panel .panel-head');
+  if(cabecalho&&!document.getElementById('abrirColarPagamentosBtn')){
+    const botao=document.createElement('button');
+    botao.id='abrirColarPagamentosBtn';
+    botao.type='button';
+    botao.className='filter-btn';
+    botao.textContent='📋 Colar de planilha';
+    botao.addEventListener('click',abrirColarPagamentos);
+    cabecalho.appendChild(botao);
+  }
+  if(document.getElementById('colarPagamentosModal')) return;
+  const modal=document.createElement('div');
+  modal.id='colarPagamentosModal';
+  modal.className='modal-overlay';
+  modal.innerHTML=`<div class="modal-box" style="max-width:900px;max-height:90vh;overflow:auto;">
+    <button class="modal-close" type="button" aria-label="Fechar">✕</button>
+    <h2>Colar pagamentos da planilha</h2>
+    <p class="modal-sub">Copie as colunas nesta ordem: <b>Descrição, Pagamento e Data</b>. A primeira linha pode conter os títulos.</p>
+    <div class="fld"><label>Dados da planilha</label><textarea id="colarPagamentosTexto" rows="7" placeholder="FORNECEDOR A    597,00    02/09/2026"></textarea></div>
+    <div class="modal-actions" style="margin-top:12px;"><button class="addbtn" id="colarPagamentosPreviaBtn" type="button">Ver prévia</button><button class="cancelbtn colar-pag-cancelar" type="button">Cancelar</button></div>
+    <div id="colarPagamentosPreview" style="display:none;margin-top:18px;">
+      <div class="panel-head" style="padding-left:0;padding-right:0;"><h2>Confira antes de confirmar</h2></div>
+      <div class="tablewrap" style="border:1px solid var(--line);border-radius:6px;max-height:380px;overflow:auto;"><table class="ledger"><thead><tr><th>Descrição</th><th style="text-align:right">Pagamento</th><th>Data</th><th></th></tr></thead><tbody id="colarPagamentosPreviewBody"></tbody></table></div>
+      <div class="formerr" id="colarPagamentosErr"></div>
+      <div class="modal-actions" style="margin-top:16px;"><button class="addbtn" id="confirmarColarPagamentosBtn" type="button">Confirmar pagamentos</button><button class="cancelbtn colar-pag-cancelar" type="button">Cancelar</button></div>
+    </div>
+  </div>`;
+  document.body.appendChild(modal);
+  modal.querySelector('.modal-close').addEventListener('click',fecharColarPagamentos);
+  modal.querySelectorAll('.colar-pag-cancelar').forEach(x=>x.addEventListener('click',fecharColarPagamentos));
+  modal.querySelector('#colarPagamentosPreviaBtn').addEventListener('click',processarColarPagamentos);
+  modal.querySelector('#confirmarColarPagamentosBtn').addEventListener('click',confirmarColarPagamentos);
+}
 
 async function abrirPagamentos(){
+  garantirInterfaceColarPagamentos();
   if(!document.getElementById('novoPag_data').value){
     document.getElementById('novoPag_data').value = todayStr();
   }
@@ -7528,6 +7569,7 @@ async function sincronizarPagamentosDoFluxo(){
 }
 
 async function salvarNovoPagamento(){
+  if(salvandoNovoPagamento) return;
   const descricao = document.getElementById('novoPag_descricao').value.trim();
   const data = document.getElementById('novoPag_data').value;
   const valorBruto = parseFloat(document.getElementById('novoPag_valor').value);
@@ -7539,6 +7581,9 @@ async function salvarNovoPagamento(){
     return;
   }
   err.style.display = 'none';
+  salvandoNovoPagamento = true;
+  const btnAdicionar=document.getElementById('novoPagamentoAdicionarBtn');
+  if(btnAdicionar) btnAdicionar.disabled=true;
 
   const { data: salvo, error } = await sb.from('pagamentos').insert({
     loja: lojaAtual,
@@ -7549,6 +7594,8 @@ async function salvarNovoPagamento(){
     origem:'manual',
     excluido:false
   }).select().single();
+  salvandoNovoPagamento = false;
+  if(btnAdicionar) btnAdicionar.disabled=false;
 
   if(error){
     err.textContent = 'Erro ao salvar: ' + error.message;
@@ -7823,6 +7870,8 @@ function fecharEditarPagamento(){
 }
 
 async function salvarEdicaoPagamento(){
+  const btn = document.getElementById('pagamentoSalvarBtn');
+  if(btn.disabled) return;
   const descricao = document.getElementById('pag_descricao').value.trim();
   const data = document.getElementById('pag_data').value;
   const valorBruto = parseFloat(document.getElementById('pag_valor').value);
@@ -7835,7 +7884,6 @@ async function salvarEdicaoPagamento(){
   }
   err.style.display = 'none';
 
-  const btn = document.getElementById('pagamentoSalvarBtn');
   btn.disabled = true;
   btn.textContent = 'Salvando…';
 
