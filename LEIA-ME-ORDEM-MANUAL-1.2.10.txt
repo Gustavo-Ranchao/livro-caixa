@@ -1,0 +1,19 @@
+ORDEM MANUAL DOS COMPROVANTES — VERSÃO 1.2.10
+
+1. Extraia o ZIP.
+2. Envie todo o conteúdo ao repositório livro-caixa no GitHub.
+3. Mantenha a pasta ranchao-bebidas-desktop.
+4. Confirme a substituição dos dois index.html e dos dois renderer.js.
+5. Faça o commit.
+6. Execute Actions > Publicar atualização do aplicativo com a versão 1.2.10.
+7. Atualize o aplicativo.
+
+NOVIDADE
+- Setas para mover cada comprovante para cima ou para baixo.
+- A numeração é recalculada imediatamente após cada movimento.
+- A nova posição fica salva no Supabase.
+- O histórico, o nome dos PDFs no ZIP e a lista TXT seguem a ordem escolhida.
+- Na primeira abertura, os comprovantes existentes são organizados por data e horário.
+
+Esta versão também contém todas as correções anteriores do leitor.
+Não é necessário executar SQL no Supabase.

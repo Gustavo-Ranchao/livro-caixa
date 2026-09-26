@@ -3531,6 +3531,7 @@ async function salvarTodasLeituras(){
   }
   btn.disabled=false;btn.textContent='Salvar todos os válidos';lcAtualizarProgresso(validos.length,validos.length,salvos+' comprovante(s) salvo(s).');
   if(salvos){
+    try{localStorage.removeItem('lc-ordem-v1-'+lojaAtual+'-'+(document.getElementById('lcFiltroMes')?.value||mesAtualPadrao()));}catch(e){}
     lcLote=lcLote.filter(x=>!idsSalvos.has(x.id));
     if(lcLote.length){renumerarLeiturasComprovantes();}else{limparLoteLeituras();}
     await carregarHistoricoLeituras();
@@ -3543,15 +3544,35 @@ async function carregarHistoricoLeituras(){
   const campo=document.getElementById('lcFiltroMes');if(!campo)return;if(!campo.value)campo.value=mesAtualPadrao();
   const mes=campo.value,[ano,m]=mes.split('-').map(Number),fim=new Date(ano,m,1).toISOString().slice(0,10);
   const {data,error}=await sb.from('leituras_comprovantes').select('*').eq('loja',lojaAtual).gte('data_pagamento',mes+'-01').lt('data_pagamento',fim).order('data_pagamento',{ascending:true}).order('horario_pagamento',{ascending:true,nullsFirst:false}).order('id',{ascending:true});
-  lcHistorico=error?[]:(data||[]);lcHistorico.forEach((x,i)=>{x.numero_ordem=i+1;});if(error)console.error('Erro ao carregar leituras:',error);renderHistoricoLeituras();
+  if(error){lcHistorico=[];console.error('Erro ao carregar leituras:',error);renderHistoricoLeituras();return;}
+  lcHistorico=data||[];
+  const chaveOrdem='lc-ordem-v1-'+lojaAtual+'-'+mes,numeros=lcHistorico.map(x=>Number(x.numero)),ordenados=[...numeros].sort((a,b)=>a-b);
+  const sequenciaValida=ordenados.length===lcHistorico.length&&ordenados.every((n,i)=>n===i+1)&&new Set(numeros).size===numeros.length;
+  let primeiraNormalizacao=true;try{primeiraNormalizacao=localStorage.getItem(chaveOrdem)!=='1';}catch(e){}
+  if(primeiraNormalizacao||!sequenciaValida){
+    const atualizacoes=[];lcHistorico.forEach((x,i)=>{const novo=i+1;if(Number(x.numero)!==novo)atualizacoes.push(sb.from('leituras_comprovantes').update({numero:novo}).eq('id',x.id).eq('loja',lojaAtual));x.numero=novo;});
+    if(atualizacoes.length)await Promise.all(atualizacoes);try{localStorage.setItem(chaveOrdem,'1');}catch(e){}
+  }else{lcHistorico.sort((a,b)=>Number(a.numero)-Number(b.numero));}
+  lcHistorico.forEach((x,i)=>{x.numero_ordem=i+1;});renderHistoricoLeituras();
 }
 
 async function renderHistoricoLeituras(){
   const busca=(document.getElementById('lcBuscaHistorico')?.value||'').trim().toLowerCase();
   const lista=lcHistorico.filter(x=>!busca||[x.recebedor,x.documento,x.modelo,String(x.valor),x.data_pagamento].some(v=>String(v||'').toLowerCase().includes(busca)));
   document.getElementById('lcHistoricoEmpty').style.display=lista.length?'none':'block';
-  const linhas=lista.map(x=>`<tr><td>${x.numero_ordem??'—'}</td><td>${fmtData(x.data_pagamento)}</td><td>${escapeHtml(x.recebedor)}</td><td>${escapeHtml(x.documento||'—')}</td><td>${escapeHtml(x.modelo||'—')}</td><td class="valor">${brl(x.valor)}</td><td><div class="rowactions"><button type="button" class="filter-btn" data-caminho="${escapeHtml(x.caminho_storage||'')}" data-nome="${escapeHtml(x.nome_arquivo||'Comprovante')}" onclick="abrirComprovanteLeituraSalvo(this.dataset.caminho,this.dataset.nome)">👁 Ver</button><button type="button" class="iconbtn del" title="Excluir comprovante" onclick="abrirExclusaoLeiturasComprovantes(${Number(x.id)})">✕</button></div></td></tr>`);
+  const linhas=lista.map(x=>{const indice=lcHistorico.findIndex(v=>Number(v.id)===Number(x.id));return `<tr><td><div class="rowactions" style="justify-content:flex-start;"><strong style="min-width:24px;text-align:center;">${x.numero_ordem??'—'}</strong><button type="button" class="iconbtn" title="Mover para cima" ${indice<=0?'disabled':''} onclick="moverLeituraComprovante(${Number(x.id)},-1)">▲</button><button type="button" class="iconbtn" title="Mover para baixo" ${indice<0||indice>=lcHistorico.length-1?'disabled':''} onclick="moverLeituraComprovante(${Number(x.id)},1)">▼</button></div></td><td>${fmtData(x.data_pagamento)}</td><td>${escapeHtml(x.recebedor)}</td><td>${escapeHtml(x.documento||'—')}</td><td>${escapeHtml(x.modelo||'—')}</td><td class="valor">${brl(x.valor)}</td><td><div class="rowactions"><button type="button" class="filter-btn" data-caminho="${escapeHtml(x.caminho_storage||'')}" data-nome="${escapeHtml(x.nome_arquivo||'Comprovante')}" onclick="abrirComprovanteLeituraSalvo(this.dataset.caminho,this.dataset.nome)">👁 Ver</button><button type="button" class="iconbtn del" title="Excluir comprovante" onclick="abrirExclusaoLeiturasComprovantes(${Number(x.id)})">✕</button></div></td></tr>`;});
   document.getElementById('lcHistoricoBody').innerHTML=linhas.join('');
+}
+
+async function moverLeituraComprovante(id,direcao){
+  const indice=lcHistorico.findIndex(x=>Number(x.id)===Number(id)),destino=indice+Number(direcao);if(indice<0||destino<0||destino>=lcHistorico.length)return;
+  const atual=lcHistorico[indice],vizinho=lcHistorico[destino],numeroAtual=indice+1,numeroVizinho=destino+1;
+  [lcHistorico[indice],lcHistorico[destino]]=[vizinho,atual];lcHistorico.forEach((x,i)=>{x.numero=i+1;x.numero_ordem=i+1;});renderHistoricoLeituras();
+  const [a,b]=await Promise.all([
+    sb.from('leituras_comprovantes').update({numero:numeroVizinho}).eq('id',atual.id).eq('loja',lojaAtual),
+    sb.from('leituras_comprovantes').update({numero:numeroAtual}).eq('id',vizinho.id).eq('loja',lojaAtual)
+  ]);
+  if(a.error||b.error){alert('Não foi possível salvar a nova posição. A lista será recarregada.');await carregarHistoricoLeituras();}
 }
 
 function mostrarPreviewLeituraComprovante(url,nome){
