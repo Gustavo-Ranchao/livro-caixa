@@ -1,0 +1,24 @@
+CORREÇÕES DO LEITOR DE COMPROVANTES — VERSÃO 1.2.9
+
+1. Extraia o ZIP.
+2. Envie todo o conteúdo ao repositório livro-caixa no GitHub.
+3. Mantenha a pasta ranchao-bebidas-desktop.
+4. Confirme a substituição dos dois index.html e dos dois renderer.js.
+5. Faça o commit.
+6. Execute Actions > Publicar atualização do aplicativo com a versão 1.2.9.
+7. Atualize o aplicativo.
+
+CORREÇÕES
+- Reconhece "Valor da transferência" e "Comprovante de envio de Pix" do PagBank.
+- Itens com erro não desaparecem quando os demais são salvos.
+- Numeração mensal recalculada por data, horário e ordem de cadastro.
+- O primeiro comprovante cronológico aparece como número 1.
+- Nome dos PDFs no ZIP: número - recebedor - valor - data.pdf.
+- Lista de texto no ZIP com recebedor, documento, valor e total geral pago.
+- Mantidas visualização interna, exclusão e download em ZIP.
+
+TESTES REALIZADOS
+- EMPREENDIMENTOS ALVES LTDA | R$ 510,00 | 10/09/2026
+- AMBIENTAR CONSULTORIA | R$ 80,00 | 10/09/2026
+
+Não é necessário executar SQL no Supabase.

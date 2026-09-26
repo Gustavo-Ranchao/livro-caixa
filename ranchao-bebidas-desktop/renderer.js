@@ -3429,10 +3429,10 @@ function lcInterpretarTexto(texto){
   }
   if(!documento){const dm=t.match(/(?:CPF|CNPJ)\s*(?:do favorecido|do recebedor)?\s*\n?\s*([\d.\/-]{11,20})/i);if(dm)documento=dm[1];}
   let valor=0;
-  const vm=t.match(/Valor do pagamento\s*\n?\s*R?\$?\s*([\d.]+,\d{2})/i)||t.match(/Valor (?:pago|da transa[cç][aã]o|transferido)\s*\n?\s*R?\$?\s*([\d.]+,\d{2})/i);
+  const vm=t.match(/Valor (?:do pagamento|da transfer[eê]ncia)\s*\n?\s*R?\$?\s*([\d.]+,\d{2})/i)||t.match(/Valor (?:pago|da transa[cç][aã]o|transferido)\s*\n?\s*R?\$?\s*([\d.]+,\d{2})/i);
   if(vm)valor=lcValorNumero(vm[1]);
   let data='';let horario='';
-  const cab=t.match(/Comprovante de (?:transa[cç][aã]o|pagamento(?:\s+Pix)?)[\s\S]{0,140}?(\d{2}\/\d{2}\/\d{4})(?:\s*(?:às|as)\s*(\d{2}:\d{2}))?/i);
+  const cab=t.match(/Comprovante de (?:transa[cç][aã]o|pagamento(?:\s+Pix)?|envio de Pix)[\s\S]{0,140}?(\d{2}\/\d{2}\/\d{4})(?:\s*(?:às|as)\s*(\d{2}:\d{2}))?/i);
   if(cab){data=lcDataBrParaIso(cab[1]);horario=cab[2]||'';}
   if(!data){const dm=t.match(/(?:Data (?:do pagamento|da transa[cç][aã]o)|Pagamento realizado em)\s*\n?\s*(\d{2}\/\d{2}\/\d{4})/i);if(dm)data=lcDataBrParaIso(dm[1]);}
   const cm=t.match(/C[oó]digo (?:de|da) transa[cç][aã]o(?:\s+(?:PagBank|Pix))?\s*\n?\s*([A-Z0-9-]{8,})/i)||t.match(/(?:ID|Identificador) da transa[cç][aã]o\s*\n?\s*([A-Z0-9-]{8,})/i);
@@ -3519,7 +3519,7 @@ async function salvarTodasLeituras(){
   const validos=lcLote.filter(x=>x.status!=='duplicado'&&x.status!=='erro'&&x.recebedor&&x.valor>0&&x.data);
   if(!validos.length){alert('Não há comprovantes válidos para salvar. Confira as linhas marcadas para revisão.');return;}
   const btn=document.getElementById('lcSalvarTodosBtn');btn.disabled=true;btn.textContent='Salvando…';
-  lcAtualizarProgresso(0,validos.length,'Preparando envio…');let salvos=0;const erros=[];
+  lcAtualizarProgresso(0,validos.length,'Preparando envio…');let salvos=0;const erros=[],idsSalvos=new Set();
   for(let i=0;i<validos.length;i++){
     const x=validos[i];lcAtualizarProgresso(i,validos.length,'Salvando '+(i+1)+' de '+validos.length+': '+x.nomeArquivo);
     const caminho='leitura/'+lojaAtual+'/'+x.data.slice(0,7)+'/'+Date.now()+'_'+Math.random().toString(36).slice(2,8)+'_'+nomeArquivoSeguro(x.nomeArquivo);
@@ -3527,10 +3527,14 @@ async function salvarTodasLeituras(){
     if(erroUpload){erros.push(x.nomeArquivo+': '+erroUpload.message);continue;}
     const {error}=await sb.from('leituras_comprovantes').insert({loja:lojaAtual,numero:Number(x.numero)||null,recebedor:x.recebedor.trim(),documento:x.documento.trim()||null,valor:x.valor,data_pagamento:x.data,horario_pagamento:x.horario||null,modelo:x.modelo,codigo_transacao:x.codigo||null,arquivo_hash:x.hash,nome_arquivo:x.nomeArquivo,caminho_storage:caminho,tipo_arquivo:'application/pdf',tamanho_bytes:x.arquivo.size});
     if(error){await sb.storage.from('comprovantes').remove([caminho]);erros.push(x.nomeArquivo+': '+error.message);continue;}
-    salvos++;
+    salvos++;idsSalvos.add(x.id);
   }
   btn.disabled=false;btn.textContent='Salvar todos os válidos';lcAtualizarProgresso(validos.length,validos.length,salvos+' comprovante(s) salvo(s).');
-  if(salvos){limparLoteLeituras();await carregarHistoricoLeituras();}
+  if(salvos){
+    lcLote=lcLote.filter(x=>!idsSalvos.has(x.id));
+    if(lcLote.length){renumerarLeiturasComprovantes();}else{limparLoteLeituras();}
+    await carregarHistoricoLeituras();
+  }
   setTimeout(()=>{document.getElementById('lcProgress').style.display='none';},1000);
   if(erros.length)alert('Alguns arquivos não foram salvos:\n'+erros.slice(0,8).join('\n'));
 }
@@ -3538,15 +3542,15 @@ async function salvarTodasLeituras(){
 async function carregarHistoricoLeituras(){
   const campo=document.getElementById('lcFiltroMes');if(!campo)return;if(!campo.value)campo.value=mesAtualPadrao();
   const mes=campo.value,[ano,m]=mes.split('-').map(Number),fim=new Date(ano,m,1).toISOString().slice(0,10);
-  const {data,error}=await sb.from('leituras_comprovantes').select('*').eq('loja',lojaAtual).gte('data_pagamento',mes+'-01').lt('data_pagamento',fim).order('data_pagamento',{ascending:true}).order('numero',{ascending:true}).order('id',{ascending:true});
-  lcHistorico=error?[]:(data||[]);if(error)console.error('Erro ao carregar leituras:',error);renderHistoricoLeituras();
+  const {data,error}=await sb.from('leituras_comprovantes').select('*').eq('loja',lojaAtual).gte('data_pagamento',mes+'-01').lt('data_pagamento',fim).order('data_pagamento',{ascending:true}).order('horario_pagamento',{ascending:true,nullsFirst:false}).order('id',{ascending:true});
+  lcHistorico=error?[]:(data||[]);lcHistorico.forEach((x,i)=>{x.numero_ordem=i+1;});if(error)console.error('Erro ao carregar leituras:',error);renderHistoricoLeituras();
 }
 
 async function renderHistoricoLeituras(){
   const busca=(document.getElementById('lcBuscaHistorico')?.value||'').trim().toLowerCase();
   const lista=lcHistorico.filter(x=>!busca||[x.recebedor,x.documento,x.modelo,String(x.valor),x.data_pagamento].some(v=>String(v||'').toLowerCase().includes(busca)));
   document.getElementById('lcHistoricoEmpty').style.display=lista.length?'none':'block';
-  const linhas=lista.map(x=>`<tr><td>${x.numero??'—'}</td><td>${fmtData(x.data_pagamento)}</td><td>${escapeHtml(x.recebedor)}</td><td>${escapeHtml(x.documento||'—')}</td><td>${escapeHtml(x.modelo||'—')}</td><td class="valor">${brl(x.valor)}</td><td><div class="rowactions"><button type="button" class="filter-btn" data-caminho="${escapeHtml(x.caminho_storage||'')}" data-nome="${escapeHtml(x.nome_arquivo||'Comprovante')}" onclick="abrirComprovanteLeituraSalvo(this.dataset.caminho,this.dataset.nome)">👁 Ver</button><button type="button" class="iconbtn del" title="Excluir comprovante" onclick="abrirExclusaoLeiturasComprovantes(${Number(x.id)})">✕</button></div></td></tr>`);
+  const linhas=lista.map(x=>`<tr><td>${x.numero_ordem??'—'}</td><td>${fmtData(x.data_pagamento)}</td><td>${escapeHtml(x.recebedor)}</td><td>${escapeHtml(x.documento||'—')}</td><td>${escapeHtml(x.modelo||'—')}</td><td class="valor">${brl(x.valor)}</td><td><div class="rowactions"><button type="button" class="filter-btn" data-caminho="${escapeHtml(x.caminho_storage||'')}" data-nome="${escapeHtml(x.nome_arquivo||'Comprovante')}" onclick="abrirComprovanteLeituraSalvo(this.dataset.caminho,this.dataset.nome)">👁 Ver</button><button type="button" class="iconbtn del" title="Excluir comprovante" onclick="abrirExclusaoLeiturasComprovantes(${Number(x.id)})">✕</button></div></td></tr>`);
   document.getElementById('lcHistoricoBody').innerHTML=linhas.join('');
 }
 
@@ -3573,6 +3577,13 @@ function leiturasComprovantesFiltradas(){
   return lcHistorico.filter(x=>!busca||[x.recebedor,x.documento,x.modelo,String(x.valor),x.data_pagamento].some(v=>String(v||'').toLowerCase().includes(busca)));
 }
 
+function nomeArquivoLeituraZip(x,indice){
+  const numero=String(x.numero_ordem??indice+1).padStart(3,'0');
+  const recebedor=String(x.recebedor||'Recebedor').normalize('NFC').replace(/[<>:"/\\|?*\x00-\x1F]/g,'-').replace(/\s+/g,' ').trim().slice(0,90)||'Recebedor';
+  const valor=brl(x.valor).replace(/\u00a0/g,' '),data=String(x.data_pagamento||'').split('-').reverse().join('-')||'sem-data';
+  return numero+' - '+recebedor+' - '+valor+' - '+data+'.pdf';
+}
+
 async function baixarLeiturasComprovantesZip(){
   if(!window.JSZip){alert('Não foi possível carregar o recurso de compactação. Reabra o sistema e tente novamente.');return;}
   const lista=leiturasComprovantesFiltradas();
@@ -3585,16 +3596,16 @@ async function baixarLeiturasComprovantesZip(){
       const {data:urlData,error:urlErro}=await sb.storage.from('comprovantes').createSignedUrl(x.caminho_storage,3600);
       if(urlErro||!urlData?.signedUrl)throw urlErro||new Error('Arquivo indisponível');
       const resposta=await fetch(urlData.signedUrl);if(!resposta.ok)throw new Error('Falha ao baixar o arquivo');
-      const blob=await resposta.blob(),numero=String(x.numero??i+1).padStart(3,'0');
-      const base=nomeSeguroZipAtestado(numero+'_'+(x.data_pagamento||'sem-data')+'_'+(x.recebedor||'recebedor'));
-      let nome=base+'.pdf',contador=2;while(usados.has(nome)){nome=base+'-'+contador+'.pdf';contador++;}usados.add(nome);
+      const blob=await resposta.blob(),numero=String(x.numero_ordem??i+1).padStart(3,'0'),nomeBase=nomeArquivoLeituraZip(x,i).replace(/\.pdf$/i,'');
+      let nome=nomeBase+'.pdf',contador=2;while(usados.has(nome)){nome=nomeBase+' ('+contador+').pdf';contador++;}usados.add(nome);
       zip.file(nome,blob,{compression:'STORE'});adicionados++;
       manifesto.push(numero+' | '+fmtData(x.data_pagamento)+' | '+(x.recebedor||'—')+' | '+(x.documento||'—')+' | '+brl(x.valor));
     }catch(e){falhas++;console.error('Erro ao preparar comprovante analisado:',x.id,e);}
     atualizarProgresso(((i+1)/lista.length)*85);
   }
   if(!adicionados){fecharProgresso();alert('Não foi possível baixar os comprovantes. Verifique sua conexão e tente novamente.');return;}
-  zip.file('lista-de-comprovantes.txt','COMPROVANTES ANALISADOS — '+(NOMES_LOJA[lojaAtual]||lojaAtual)+'\nPeríodo: '+(document.getElementById('lcFiltroMes')?.value||'')+'\n\n'+manifesto.join('\n'));
+  const totalPago=lista.reduce((s,x)=>s+(Number(x.valor)||0),0);
+  zip.file('lista-de-comprovantes.txt','COMPROVANTES PAGOS - '+(NOMES_LOJA[lojaAtual]||lojaAtual)+'\nPeríodo: '+(document.getElementById('lcFiltroMes')?.value||'')+'\n\nNº | Data | Recebedor | CPF/CNPJ | Valor pago\n'+manifesto.join('\n')+'\n\nTOTAL PAGO: '+brl(totalPago));
   document.getElementById('progressoTitulo').textContent='Criando arquivo ZIP…';
   const conteudo=await zip.generateAsync({type:'blob',compression:'DEFLATE',compressionOptions:{level:6}},meta=>atualizarProgresso(85+meta.percent*.15));
   atualizarProgresso(100);const url=URL.createObjectURL(conteudo),link=document.createElement('a');link.href=url;link.download='comprovantes-analisados-'+(NOMES_LOJA[lojaAtual]||lojaAtual).toLowerCase().replace(/\s+/g,'-')+'-'+(document.getElementById('lcFiltroMes')?.value||todayStr())+'.zip';document.body.appendChild(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),1500);setTimeout(fecharProgresso,400);
