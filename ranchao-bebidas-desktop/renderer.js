@@ -3550,6 +3550,39 @@ async function renderHistoricoLeituras(){
   document.getElementById('lcHistoricoBody').innerHTML=linhas.join('');
 }
 
+function leiturasComprovantesFiltradas(){
+  const busca=(document.getElementById('lcBuscaHistorico')?.value||'').trim().toLowerCase();
+  return lcHistorico.filter(x=>!busca||[x.recebedor,x.documento,x.modelo,String(x.valor),x.data_pagamento].some(v=>String(v||'').toLowerCase().includes(busca)));
+}
+
+async function baixarLeiturasComprovantesZip(){
+  if(!window.JSZip){alert('Não foi possível carregar o recurso de compactação. Reabra o sistema e tente novamente.');return;}
+  const lista=leiturasComprovantesFiltradas();
+  if(!lista.length){alert('Não há comprovantes exibidos para baixar.');return;}
+  abrirProgresso('Preparando comprovantes analisados…');
+  const zip=new JSZip(),usados=new Set(),manifesto=[];let adicionados=0,falhas=0;
+  for(let i=0;i<lista.length;i++){
+    const x=lista[i];
+    try{
+      const {data:urlData,error:urlErro}=await sb.storage.from('comprovantes').createSignedUrl(x.caminho_storage,3600);
+      if(urlErro||!urlData?.signedUrl)throw urlErro||new Error('Arquivo indisponível');
+      const resposta=await fetch(urlData.signedUrl);if(!resposta.ok)throw new Error('Falha ao baixar o arquivo');
+      const blob=await resposta.blob(),numero=String(x.numero??i+1).padStart(3,'0');
+      const base=nomeSeguroZipAtestado(numero+'_'+(x.data_pagamento||'sem-data')+'_'+(x.recebedor||'recebedor'));
+      let nome=base+'.pdf',contador=2;while(usados.has(nome)){nome=base+'-'+contador+'.pdf';contador++;}usados.add(nome);
+      zip.file(nome,blob,{compression:'STORE'});adicionados++;
+      manifesto.push(numero+' | '+fmtData(x.data_pagamento)+' | '+(x.recebedor||'—')+' | '+(x.documento||'—')+' | '+brl(x.valor));
+    }catch(e){falhas++;console.error('Erro ao preparar comprovante analisado:',x.id,e);}
+    atualizarProgresso(((i+1)/lista.length)*85);
+  }
+  if(!adicionados){fecharProgresso();alert('Não foi possível baixar os comprovantes. Verifique sua conexão e tente novamente.');return;}
+  zip.file('lista-de-comprovantes.txt','COMPROVANTES ANALISADOS — '+(NOMES_LOJA[lojaAtual]||lojaAtual)+'\nPeríodo: '+(document.getElementById('lcFiltroMes')?.value||'')+'\n\n'+manifesto.join('\n'));
+  document.getElementById('progressoTitulo').textContent='Criando arquivo ZIP…';
+  const conteudo=await zip.generateAsync({type:'blob',compression:'DEFLATE',compressionOptions:{level:6}},meta=>atualizarProgresso(85+meta.percent*.15));
+  atualizarProgresso(100);const url=URL.createObjectURL(conteudo),link=document.createElement('a');link.href=url;link.download='comprovantes-analisados-'+(NOMES_LOJA[lojaAtual]||lojaAtual).toLowerCase().replace(/\s+/g,'-')+'-'+(document.getElementById('lcFiltroMes')?.value||todayStr())+'.zip';document.body.appendChild(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),1500);setTimeout(fecharProgresso,400);
+  if(falhas)setTimeout(()=>alert('O ZIP foi criado, mas '+falhas+' arquivo(s) não puderam ser incluídos.'),600);
+}
+
 /* ================= MANUTENÇÃO ================= */
 
 let manutencaoTipoAtual='computador';

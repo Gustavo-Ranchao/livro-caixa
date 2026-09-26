@@ -1,0 +1,19 @@
+DOWNLOAD EM ZIP NO LEITOR DE COMPROVANTES — VERSÃO 1.2.6
+
+1. Extraia o ZIP.
+2. Envie todo o conteúdo ao repositório livro-caixa no GitHub.
+3. Mantenha a pasta ranchao-bebidas-desktop.
+4. Confirme a substituição dos dois index.html e dos dois renderer.js.
+5. Faça o commit.
+6. Execute Actions > Publicar atualização do aplicativo com a versão 1.2.6.
+7. Atualize o aplicativo.
+
+COMO USAR
+- Abra Financeiro > Leitura de comprovantes.
+- Escolha o mês e, se quiser, faça uma pesquisa.
+- Clique em "Baixar exibidos (.zip)".
+- O ZIP respeita a loja, o mês e a pesquisa atual.
+- Os PDFs recebem numeração, data e nome do recebedor.
+- O ZIP também contém uma lista-resumo em TXT.
+
+Não é necessário executar SQL no Supabase.

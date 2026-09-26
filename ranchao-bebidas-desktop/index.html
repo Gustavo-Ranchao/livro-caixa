@@ -1621,7 +1621,7 @@
       </div>
 
       <div class="panel">
-        <div class="panel-head" style="flex-wrap:wrap;"><h2>Comprovantes salvos</h2><input id="lcBuscaHistorico" style="max-width:320px;" placeholder="Pesquisar recebedor, valor ou documento" oninput="renderHistoricoLeituras()"></div>
+        <div class="panel-head" style="flex-wrap:wrap;"><h2>Comprovantes salvos</h2><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;"><input id="lcBuscaHistorico" style="max-width:320px;" placeholder="Pesquisar recebedor, valor ou documento" oninput="renderHistoricoLeituras()"><button type="button" class="filter-btn foto-btn" onclick="baixarLeiturasComprovantesZip()" title="Baixar em ZIP os comprovantes exibidos no histórico">🗜️ Baixar exibidos (.zip)</button></div></div>
         <div class="tablewrap"><table class="ledger"><thead><tr><th>Nº</th><th>Data</th><th>Recebedor</th><th>CPF/CNPJ</th><th>Modelo</th><th style="text-align:right;">Valor</th><th>Arquivo</th></tr></thead><tbody id="lcHistoricoBody"></tbody></table></div>
         <div class="empty" id="lcHistoricoEmpty" style="display:none;">Nenhum comprovante analisado neste período.</div>
       </div>
