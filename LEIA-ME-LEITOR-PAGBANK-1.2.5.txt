@@ -1,0 +1,19 @@
+CORREÇÃO DO LEITOR DE COMPROVANTES PAGBANK — VERSÃO 1.2.5
+
+1. Extraia o ZIP.
+2. Envie todo o conteúdo ao repositório livro-caixa no GitHub.
+3. Mantenha a pasta ranchao-bebidas-desktop.
+4. Confirme a substituição dos dois arquivos renderer.js.
+5. Faça o commit.
+6. Execute Actions > Publicar atualização do aplicativo com a versão 1.2.5.
+7. Atualize o aplicativo e teste novamente o comprovante.
+
+RESULTADO VALIDADO COM O PDF ENVIADO
+- Recebedor: Amaral Bebidas Curvelo
+- CNPJ: 19.541.499/0002-53
+- Valor: R$ 597,00
+- Data: 02/09/2026
+- Horário: 17:58
+- Modelo: PagBank
+
+Não é necessário executar SQL no Supabase.

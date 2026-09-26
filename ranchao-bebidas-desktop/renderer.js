@@ -3411,6 +3411,17 @@ function lcInterpretarTexto(texto){
   const ehPagBank=/PagBank|Banco Seguro|PagSeguro/i.test(t);
   let recebedor=lcAposRotulo(t,['Favorecido','Recebedor','Benefici[aá]rio','Destinat[aá]rio']);
   let documento='';
+  // No comprovante Pix do PagBank o recebedor aparece no bloco "Para".
+  // Limitamos a busca até a próxima seção para não confundir com "Para dúvidas".
+  if(!recebedor&&ehPagBank){
+    const blocoPara=t.match(/(?:^|\n)\s*Para\s*\n([\s\S]{0,500}?)(?=\n\s*(?:Detalhes do pagamento|Informa[cç][oõ]es do recebedor|Tipo de transfer[eê]ncia)\b)/i);
+    if(blocoPara){
+      const linhas=blocoPara[1].split('\n').map(x=>x.trim()).filter(Boolean);
+      recebedor=linhas.find(x=>!(/^(?:CPF|CNPJ|Institui[cç][aã]o|Identificador)$/i.test(x)))||'';
+      const dm=blocoPara[1].match(/(?:CPF|CNPJ)\s*\n?\s*([\d.\/-]{11,20})/i);
+      if(dm)documento=dm[1];
+    }
+  }
   if(recebedor){
     const pos=t.toLowerCase().indexOf(recebedor.toLowerCase());
     const trecho=pos>=0?t.slice(pos,pos+500):t;
@@ -3421,10 +3432,10 @@ function lcInterpretarTexto(texto){
   const vm=t.match(/Valor do pagamento\s*\n?\s*R?\$?\s*([\d.]+,\d{2})/i)||t.match(/Valor (?:pago|da transa[cç][aã]o|transferido)\s*\n?\s*R?\$?\s*([\d.]+,\d{2})/i);
   if(vm)valor=lcValorNumero(vm[1]);
   let data='';let horario='';
-  const cab=t.match(/Comprovante de transa[cç][aã]o[\s\S]{0,100}?(\d{2}\/\d{2}\/\d{4})(?:\s*(?:às|as)\s*(\d{2}:\d{2}))?/i);
+  const cab=t.match(/Comprovante de (?:transa[cç][aã]o|pagamento(?:\s+Pix)?)[\s\S]{0,140}?(\d{2}\/\d{2}\/\d{4})(?:\s*(?:às|as)\s*(\d{2}:\d{2}))?/i);
   if(cab){data=lcDataBrParaIso(cab[1]);horario=cab[2]||'';}
   if(!data){const dm=t.match(/(?:Data (?:do pagamento|da transa[cç][aã]o)|Pagamento realizado em)\s*\n?\s*(\d{2}\/\d{2}\/\d{4})/i);if(dm)data=lcDataBrParaIso(dm[1]);}
-  const cm=t.match(/C[oó]digo de transa[cç][aã]o\s*\n?\s*([A-Z0-9-]{8,})/i)||t.match(/(?:ID|Identificador) da transa[cç][aã]o\s*\n?\s*([A-Z0-9-]{8,})/i);
+  const cm=t.match(/C[oó]digo (?:de|da) transa[cç][aã]o(?:\s+(?:PagBank|Pix))?\s*\n?\s*([A-Z0-9-]{8,})/i)||t.match(/(?:ID|Identificador) da transa[cç][aã]o\s*\n?\s*([A-Z0-9-]{8,})/i);
   const codigo=cm?cm[1].trim():'';
   const modelo=ehPagBank?'PagBank':(/PIX/i.test(t)?'Pix - outro banco':'Outro PDF');
   const faltando=[];if(!recebedor)faltando.push('recebedor');if(!valor)faltando.push('valor');if(!data)faltando.push('data');
