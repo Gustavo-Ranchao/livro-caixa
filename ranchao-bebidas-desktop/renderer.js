@@ -7868,10 +7868,12 @@ async function salvarEdicaoPagamento(){
 function confirmarExclusaoPagamento(id,origem){
   excluindoPagamentoId = id;
   excluindoPagamentoOrigem = origem;
-  document.getElementById('confirmExclusaoPagamentoTexto').textContent=origem==='extrato'
-    ? 'A cópia será removida somente da aba Pagamentos. O lançamento original permanecerá intacto no Fluxo de Caixa.'
-    : 'O pagamento manual será removido. O Fluxo de Caixa não será alterado.';
-  document.getElementById('confirmExclusaoPagamentoModal').style.display = 'flex';
+  const texto=document.getElementById('confirmExclusaoPagamentoTexto');
+  if(texto) texto.textContent=origem==='extrato'
+      ? 'A cópia será removida somente da aba Pagamentos. O lançamento original permanecerá intacto no Fluxo de Caixa.'
+      : 'O pagamento manual será removido. O Fluxo de Caixa não será alterado.';
+  const modal=document.getElementById('confirmExclusaoPagamentoModal');
+  if(modal) modal.style.display = 'flex';
 }
 
 function fecharConfirmacaoPagamento(){
@@ -7889,6 +7891,8 @@ async function confirmarExclusaoPagamentoOk(){
   if(!error){
     pagamentosCache = pagamentosCache.filter(l=>!(String(l.id)===String(excluindoPagamentoId)&&l._origem_pagamento===excluindoPagamentoOrigem));
     renderPagamentos();
+  }else{
+    alert('Não foi possível excluir o pagamento: '+error.message);
   }
   fecharConfirmacaoPagamento();
 }
