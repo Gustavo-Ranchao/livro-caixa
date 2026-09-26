@@ -430,7 +430,7 @@ function toggleMenuPerfil(){
 
 const BACKUP_TABELAS = [
   'configuracoes','recibos_configuracoes','bh_funcionarios','compras_empresas','compras_marcas','fornecedores','compras_produtos',
-  'pagamentos_caixa_tipos','despesas_fixas','despesas_fixas_puladas','lancamentos','comprovantes','fluxo_caixa_contas',
+  'pagamentos','pagamentos_caixa_tipos','despesas_fixas','despesas_fixas_puladas','lancamentos','comprovantes','fluxo_caixa_contas',
   'fluxo_caixa_saldos','fluxo_caixa_lancamentos','caixa_diferencas','checklist_itens','checklist_execucoes','bh_registros',
   'bh_atestados','vendas_delivery','vendas_itens','controle_estoque_mensal','estoque_inventarios','contagens_estoque',
   'contagens_estoque_itens','comb_pag_compras','comb_pag_pagamentos','pagamentos_caixa','pagamentos_caixa_memoria',
@@ -574,7 +574,7 @@ const HISTORICO_TABELAS_NOMES={
   lancamentos:'Contas a pagar e receber',comprovantes:'Comprovantes',fluxo_caixa_contas:'Contas do fluxo de caixa',fluxo_caixa_saldos:'Saldos do fluxo de caixa',fluxo_caixa_lancamentos:'Fluxo de caixa',
   caixa_diferencas:'Diferença de caixa',checklist_itens:'Itens do checklist',checklist_execucoes:'Checklist',compras_empresas:'Empresas de compras',compras_marcas:'Marcas',fornecedores:'Fornecedores',
   compras_produtos:'Produtos de compras',controle_estoque_mensal:'Controle de estoque',estoque_inventarios:'Inventário de estoque',contagens_estoque:'Contagens de estoque',contagens_estoque_itens:'Itens da contagem',
-  comb_pag_compras:'Compras combinadas',comb_pag_pagamentos:'Pagamentos combinados',pagamentos_caixa:'Pagamentos de caixa',pagamentos_caixa_memoria:'Memória de pagamentos',pagamentos_caixa_tipos:'Tipos de pagamento',
+  pagamentos:'Pagamentos',comb_pag_compras:'Compras combinadas',comb_pag_pagamentos:'Pagamentos combinados',pagamentos_caixa:'Pagamentos de caixa',pagamentos_caixa_memoria:'Memória de pagamentos',pagamentos_caixa_tipos:'Tipos de pagamento',
   vendas_delivery:'Vendas Delivery',vendas_itens:'Vendas com custo',orcamentos:'Orçamentos',recibos:'Recibos',contracheques:'Contracheques',duvidas:'Dúvidas',manutencoes:'Manutenções',leituras_comprovantes:'Leitura de comprovantes',
   despesas_fixas:'Despesas fixas',despesas_fixas_puladas:'Despesas fixas ignoradas'
 };
@@ -5600,6 +5600,113 @@ function setDinheiroTipo(t){
   document.querySelectorAll('#dinheiroTipoToggle .tipo-btn').forEach(b=>b.classList.toggle('active', b.dataset.tipo===t));
 }
 
+function navegarTipoDinheiroPorTeclado(event, modoEdicao=false){
+  if(!['ArrowLeft','ArrowRight','ArrowUp','ArrowDown','Enter'].includes(event.key)) return;
+  event.preventDefault();
+  const atual = modoEdicao ? edinheiroTipoAtual : dinheiroTipoAtual;
+  const proximo = ['ArrowRight','ArrowDown'].includes(event.key) ? 'saida'
+    : ['ArrowLeft','ArrowUp'].includes(event.key) ? 'entrada' : atual;
+  if(modoEdicao) setEdinheiroTipo(proximo); else setDinheiroTipo(proximo);
+  const seletor = modoEdicao ? '#edinheiroTipoToggle' : '#dinheiroTipoToggle';
+  document.querySelector(`${seletor} .tipo-btn[data-tipo="${proximo}"]`)?.focus();
+  if(event.key==='Enter'){
+    document.getElementById(modoEdicao ? 'edinheiro_descricao' : 'dinheiro_descricao')?.focus();
+  }
+}
+
+function navegarCategoriaPagamentoPorTeclado(event, prefixo){
+  const busca = document.getElementById(prefixo+'_categoria_busca');
+  const oculto = document.getElementById(prefixo+'_categoria');
+  if(!busca || !oculto) return;
+  if(event.key==='ArrowUp' || event.key==='ArrowDown'){
+    event.preventDefault();
+    const tipos = pagCaixaTiposCache.slice();
+    if(!tipos.length) return;
+    let indice = tipos.findIndex(t=>String(t.id)===String(oculto.value));
+    if(indice<0){
+      const texto = busca.value.trim().toLowerCase();
+      indice = tipos.findIndex(t=>labelTipoPagCaixa(t).toLowerCase()===texto);
+    }
+    if(indice<0) indice = event.key==='ArrowDown' ? -1 : 0;
+    indice = event.key==='ArrowDown'
+      ? (indice+1+tipos.length)%tipos.length
+      : (indice-1+tipos.length)%tipos.length;
+    const escolhido = tipos[indice];
+    oculto.value = escolhido.id;
+    busca.value = labelTipoPagCaixa(escolhido);
+    busca.select();
+    return;
+  }
+  if(event.key==='Enter'){
+    event.preventDefault();
+    matchTipoPagCaixa(prefixo+'_categoria_busca', prefixo+'_categoria');
+    document.getElementById(prefixo==='edinheiro' ? 'edinheiroSalvarBtn' : 'addbtnDinheiro')?.focus();
+  }
+}
+
+function navegarTipoPagamentoPrincipal(event,buscaId,ocultoId,destinoEnter){
+  const busca=document.getElementById(buscaId);
+  const oculto=document.getElementById(ocultoId);
+  if(!busca||!oculto) return;
+  if(event.key==='ArrowUp'||event.key==='ArrowDown'){
+    event.preventDefault();
+    const tipos=pagCaixaTiposCache.slice();
+    if(!tipos.length) return;
+    let indice=tipos.findIndex(t=>String(t.id)===String(oculto.value));
+    if(indice<0) indice=event.key==='ArrowDown'?-1:0;
+    indice=event.key==='ArrowDown'?(indice+1)%tipos.length:(indice-1+tipos.length)%tipos.length;
+    oculto.value=tipos[indice].id;
+    busca.value=labelTipoPagCaixa(tipos[indice]);
+    busca.select();
+  }else if(event.key==='Enter'){
+    event.preventDefault();
+    matchTipoPagCaixa(buscaId,ocultoId);
+    document.getElementById(destinoEnter)?.focus();
+  }
+}
+
+function configurarTecladoPagamentosDinheiro(){
+  const fluxo = [
+    ['dinheiro_descricao','dinheiro_data'],
+    ['dinheiro_data','dinheiro_valor'],
+    ['dinheiro_valor','dinheiro_categoria_busca'],
+    ['edinheiro_descricao','edinheiro_data'],
+    ['edinheiro_data','edinheiro_valor'],
+    ['edinheiro_valor','edinheiro_categoria_busca']
+  ];
+  fluxo.forEach(([origem,destino])=>{
+    const el=document.getElementById(origem);
+    if(!el) return;
+    el.removeAttribute('onkeydown');
+    el.addEventListener('keydown',event=>{
+      if(event.key!=='Enter') return;
+      event.preventDefault();
+      const alvo=document.getElementById(destino);
+      alvo?.focus();
+      if(destino.endsWith('_categoria_busca')) alvo?.select();
+    });
+  });
+  ['dinheiro','edinheiro'].forEach(prefixo=>{
+    const categoria=document.getElementById(prefixo+'_categoria_busca');
+    categoria?.removeAttribute('onkeydown');
+    categoria?.addEventListener('keydown',event=>navegarCategoriaPagamentoPorTeclado(event,prefixo));
+  });
+  document.querySelectorAll('#dinheiroTipoToggle .tipo-btn').forEach(btn=>btn.addEventListener('keydown',event=>navegarTipoDinheiroPorTeclado(event,false)));
+  document.querySelectorAll('#edinheiroTipoToggle .tipo-btn').forEach(btn=>btn.addEventListener('keydown',event=>navegarTipoDinheiroPorTeclado(event,true)));
+
+  const fluxoPagamentos=[
+    ['novoPag_descricao','novoPag_data'],['novoPag_data','novoPag_valor'],['novoPag_valor','novoPag_tipo_busca'],
+    ['pag_descricao','pag_data'],['pag_data','pag_valor'],['pag_valor','pagamentoSalvarBtn']
+  ];
+  fluxoPagamentos.forEach(([origem,destino])=>document.getElementById(origem)?.addEventListener('keydown',event=>{
+    if(event.key!=='Enter') return;
+    event.preventDefault();
+    const alvo=document.getElementById(destino);alvo?.focus();if(destino.includes('_tipo_busca')) alvo?.select();
+  }));
+  document.getElementById('novoPag_tipo_busca')?.addEventListener('keydown',event=>navegarTipoPagamentoPrincipal(event,'novoPag_tipo_busca','novoPag_tipo','novoPagamentoAdicionarBtn'));
+  document.getElementById('pag_tipo_busca')?.addEventListener('keydown',event=>navegarTipoPagamentoPrincipal(event,'pag_tipo_busca','pag_tipo','pag_descricao'));
+}
+
 async function sincronizarHistoricoContasDinheiro(){
   const { data: pagas, error } = await sb.from('lancamentos')
     .select('*')
@@ -5705,6 +5812,7 @@ function abrirEditarDinheiro(id){
   document.getElementById('edinheiro_categoria_busca').value = tipoAtual ? labelTipoPagCaixa(tipoAtual) : '';
   document.getElementById('edinheiroErr').style.display = 'none';
   document.getElementById('editDinheiroModal').style.display = 'flex';
+  setTimeout(()=>document.querySelector('#edinheiroTipoToggle .tipo-btn.active')?.focus(), 50);
 }
 
 function fecharEditarDinheiro(){
@@ -6375,7 +6483,11 @@ function renderFluxoCaixa(){
     `).join('');
   }
 
-  const dinheiro = fluxoCache.filter(l=>l.tipo==='Dinheiro');
+  const dinheiro = fluxoCache.filter(l=>l.tipo==='Dinheiro').sort((a,b)=>{
+    const porData=String(a.data||'').localeCompare(String(b.data||''));
+    if(porData!==0) return porData;
+    return String(a.criado_em||a.id||'').localeCompare(String(b.criado_em||b.id||''));
+  });
 
   const dinheiroEntradas = dinheiro.filter(l=>Number(l.valor)>0).reduce((s,l)=>s+Number(l.valor), 0);
   const dinheiroSaidas = dinheiro.filter(l=>Number(l.valor)<0).reduce((s,l)=>s+Math.abs(Number(l.valor)), 0);
@@ -7360,13 +7472,14 @@ async function confirmarExclusaoProdutoOk(){
   fecharConfirmacaoProduto();
 }
 
-/* ================= PAGAMENTOS (extrato bancário) ================= */
+/* ================= PAGAMENTOS (módulo independente) ================= */
 
 let pagamentosCache = [];
 let pagamentosMesAtual = 'todos';
 let pagamentosBuscaTexto = '';
 let pagamentoEditandoId = null;
 let excluindoPagamentoId = null;
+let colarPagamentosParsed = [];
 
 async function abrirPagamentos(){
   if(!document.getElementById('novoPag_data').value){
@@ -7394,12 +7507,11 @@ async function salvarNovoPagamento(){
   }
   err.style.display = 'none';
 
-  const { data: salvo, error } = await sb.from('fluxo_caixa_lancamentos').insert({
+  const { data: salvo, error } = await sb.from('pagamentos').insert({
     loja: lojaAtual,
     data: data,
-    tipo: 'Pagamento',
     descricao: descricao,
-    valor: -Math.abs(valorBruto),
+    valor: Math.abs(valorBruto),
     codigo_tipo_id: tipoId
   }).select().single();
 
@@ -7420,9 +7532,113 @@ async function salvarNovoPagamento(){
   await popularFiltroMesPagamentos();
 }
 
+function abrirColarPagamentos(){
+  colarPagamentosParsed = [];
+  document.getElementById('colarPagamentosTexto').value = '';
+  document.getElementById('colarPagamentosPreview').style.display = 'none';
+  document.getElementById('colarPagamentosErr').style.display = 'none';
+  document.getElementById('colarPagamentosModal').style.display = 'flex';
+  setTimeout(()=>document.getElementById('colarPagamentosTexto')?.focus(),50);
+}
+
+function fecharColarPagamentos(){
+  document.getElementById('colarPagamentosModal').style.display = 'none';
+  colarPagamentosParsed = [];
+}
+
+function dataIsoValidaPagamento(data){
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(String(data||''))) return false;
+  const d=new Date(data+'T12:00:00');
+  return !Number.isNaN(d.getTime()) && d.toISOString().slice(0,10)===data;
+}
+
+function processarColarPagamentos(){
+  const texto = document.getElementById('colarPagamentosTexto').value;
+  const linhas = texto.split(/\r?\n/).map(x=>x.trim()).filter(Boolean);
+  const reconhecidos = [];
+  let ignorados = 0;
+  linhas.forEach((linha,indice)=>{
+    let colunas = linha.includes('\t') ? linha.split('\t') : linha.split(';');
+    colunas = colunas.map(x=>x.trim());
+    if(colunas.length<3){ ignorados++; return; }
+    const descricao = colunas[0];
+    const valor = parseNumeroVenda(colunas[1]);
+    const data = parseDataBR(colunas[2]);
+    const cabecalho = indice===0 && /descri|fornecedor|nome/i.test(descricao) && /pagamento|valor/i.test(colunas[1]);
+    if(cabecalho) return;
+    if(!descricao || valor===null || valor<=0 || !dataIsoValidaPagamento(data)){ ignorados++; return; }
+    reconhecidos.push({descricao,valor:Math.abs(valor),data});
+  });
+  if(!reconhecidos.length){
+    alert('Não encontrei linhas válidas. Cole três colunas nesta ordem: Descrição, Pagamento e Data.');
+    return;
+  }
+  colarPagamentosParsed = reconhecidos;
+  renderColarPagamentosPreview();
+  const err = document.getElementById('colarPagamentosErr');
+  if(ignorados){
+    err.textContent = ignorados+' linha(s) não foram reconhecidas e ficaram fora da prévia.';
+    err.style.display = 'block';
+  }else err.style.display = 'none';
+}
+
+function alterarColarPagamento(indice,campo,valor){
+  const linha=colarPagamentosParsed[indice];
+  if(!linha) return;
+  linha[campo]=campo==='valor' ? Math.abs(Number(valor)||0) : valor;
+}
+
+function removerColarPagamento(indice){
+  colarPagamentosParsed.splice(indice,1);
+  renderColarPagamentosPreview();
+}
+
+function renderColarPagamentosPreview(){
+  const body=document.getElementById('colarPagamentosPreviewBody');
+  body.innerHTML=colarPagamentosParsed.map((l,i)=>`<tr>
+    <td><input value="${escapeHtml(l.descricao)}" style="width:100%;min-width:240px;" oninput="alterarColarPagamento(${i},'descricao',this.value)"></td>
+    <td><input type="number" min="0.01" step="0.01" value="${Number(l.valor).toFixed(2)}" style="width:130px;text-align:right;" oninput="alterarColarPagamento(${i},'valor',this.value)"></td>
+    <td><input type="date" value="${escapeHtml(l.data)}" onchange="alterarColarPagamento(${i},'data',this.value)"></td>
+    <td><button type="button" class="iconbtn del" title="Remover da importação" onclick="removerColarPagamento(${i})">✕</button></td>
+  </tr>`).join('');
+  document.getElementById('colarPagamentosPreview').style.display='block';
+}
+
+async function confirmarColarPagamentos(){
+  const err=document.getElementById('colarPagamentosErr');
+  const invalidas=colarPagamentosParsed.filter(x=>!String(x.descricao||'').trim() || !dataIsoValidaPagamento(x.data) || !(Number(x.valor)>0));
+  if(!colarPagamentosParsed.length || invalidas.length){
+    err.textContent=invalidas.length ? 'Corrija as linhas sem descrição, data ou valor válido.' : 'Não há pagamentos para confirmar.';
+    err.style.display='block';
+    return;
+  }
+  const btn=document.getElementById('confirmarColarPagamentosBtn');
+  btn.disabled=true;
+  btn.textContent='Salvando…';
+  const registros=colarPagamentosParsed.map(x=>({
+    loja:lojaAtual,
+    descricao:String(x.descricao).trim(),
+    valor:Math.abs(Number(x.valor)),
+    data:x.data,
+    codigo_tipo_id:mapaMemoriaGlobal[String(x.descricao).trim().toLowerCase()]||null
+  }));
+  const {data:salvos,error}=await sb.from('pagamentos').insert(registros).select();
+  btn.disabled=false;
+  btn.textContent='Confirmar pagamentos';
+  if(error){
+    err.textContent=error.message.includes('pagamentos') ? 'Não foi possível salvar. Execute primeiro o SQL da atualização do módulo Pagamentos.' : 'Erro ao salvar: '+error.message;
+    err.style.display='block';
+    return;
+  }
+  fecharColarPagamentos();
+  await popularFiltroMesPagamentos();
+  await carregarPagamentos();
+  alert((salvos||[]).length+' pagamento(s) adicionado(s) com sucesso.');
+}
+
 async function popularFiltroMesPagamentos(){
   const { data, error } = await buscarTodasLinhas((from, to)=>
-    sb.from('fluxo_caixa_lancamentos').select('data').eq('loja', lojaAtual).neq('tipo','Dinheiro').lt('valor', 0).range(from, to)
+    sb.from('pagamentos').select('data').eq('loja', lojaAtual).range(from, to)
   );
   if(error){ console.error('Erro ao carregar meses de pagamentos:', error); return; }
   const mesesSet = new Set((data||[]).map(d=>d.data.slice(0,7)));
@@ -7453,7 +7669,7 @@ async function carregarPagamentos(){
   }
 
   const { data, error } = await buscarTodasLinhas((from, to)=>{
-    let q = sb.from('fluxo_caixa_lancamentos').select('*').eq('loja', lojaAtual).neq('tipo','Dinheiro').lt('valor', 0);
+    let q = sb.from('pagamentos').select('*').eq('loja', lojaAtual);
     if(de) q = q.gte('data', de);
     if(ate) q = q.lte('data', ate);
     return q.order('data').range(from, to);
@@ -7474,7 +7690,7 @@ function filtrarPagamentos(){
 }
 
 function renderPagamentos(){
-  let linhas = pagamentosCache;
+  let linhas = pagamentosCache.slice().sort((a,b)=>String(a.data||'').localeCompare(String(b.data||'')) || String(a.criado_em||a.id||'').localeCompare(String(b.criado_em||b.id||'')));
   if(pagamentosBuscaTexto){
     linhas = linhas.filter(l=>{
       const texto = [fmtData(l.data), l.descricao, brl(l.valor), String(l.valor).replace('.',',')].join(' ').toLowerCase();
@@ -7528,7 +7744,8 @@ function celulaTipoFluxo(l, origem){
 }
 
 async function confirmarSugestaoTipoFluxo(id, tipoId, origem){
-  const { data, error } = await sb.from('fluxo_caixa_lancamentos').update({ codigo_tipo_id: tipoId }).eq('id', id).select().single();
+  const tabela = origem==='pagamentos' ? 'pagamentos' : 'fluxo_caixa_lancamentos';
+  const { data, error } = await sb.from(tabela).update({ codigo_tipo_id: tipoId }).eq('id', id).select().single();
   if(error){ alert('Erro ao salvar: ' + error.message); return; }
   if(origem==='pagamentos'){
     const idx = pagamentosCache.findIndex(l=>String(l.id)===String(id));
@@ -7553,6 +7770,10 @@ function abrirEditarPagamento(id){
   document.getElementById('pag_tipo_busca').value = tipoAtual ? labelTipoPagCaixa(tipoAtual) : '';
   document.getElementById('pagamentoErr').style.display = 'none';
   document.getElementById('editPagamentoModal').style.display = 'flex';
+  setTimeout(()=>{
+    const campo=document.getElementById('pag_tipo_busca');
+    campo?.focus();campo?.select();
+  },50);
 }
 
 function fecharEditarPagamento(){
@@ -7577,10 +7798,10 @@ async function salvarEdicaoPagamento(){
   btn.disabled = true;
   btn.textContent = 'Salvando…';
 
-  const { data: atualizado, error } = await sb.from('fluxo_caixa_lancamentos').update({
+  const { data: atualizado, error } = await sb.from('pagamentos').update({
     descricao: descricao || null,
     data: data,
-    valor: -Math.abs(valorBruto),
+    valor: Math.abs(valorBruto),
     codigo_tipo_id: tipoId
   }).eq('id', pagamentoEditandoId).select().single();
 
@@ -7614,7 +7835,7 @@ function fecharConfirmacaoPagamento(){
 
 async function confirmarExclusaoPagamentoOk(){
   if(!excluindoPagamentoId) return;
-  const { error } = await sb.from('fluxo_caixa_lancamentos').delete().eq('id', excluindoPagamentoId);
+  const { error } = await sb.from('pagamentos').delete().eq('id', excluindoPagamentoId);
   if(!error){
     pagamentosCache = pagamentosCache.filter(l=>l.id!==excluindoPagamentoId);
     renderPagamentos();
@@ -7647,7 +7868,7 @@ function exportarPdfPagamentos(){
   const dataHora = fmtData(agora.toISOString().slice(0,10)) + ' ' + agora.toTimeString().slice(0,5);
 
   doc.setFontSize(16);
-  doc.text('Pagamentos Feitos pela Conta — ' + (NOMES_LOJA[lojaAtual]||''), 14, 18);
+  doc.text('Pagamentos — ' + (NOMES_LOJA[lojaAtual]||''), 14, 18);
   doc.setFontSize(10);
   doc.setTextColor(120);
   doc.text('Gerado em ' + dataHora, 14, 25);
@@ -7659,7 +7880,7 @@ function exportarPdfPagamentos(){
     startY: 32,
     head: [['Data','Descrição','Valor']],
     body: corpo,
-    foot: [['TOTAL','', brl(-total)]],
+    foot: [['TOTAL','', brl(total)]],
     styles: { fontSize: 8.5, cellPadding: 3 },
     headStyles: { fillColor: [38,51,43] },
     footStyles: { fillColor: [233,225,203], textColor:20, fontStyle:'bold' }
@@ -11510,6 +11731,7 @@ compUploadAreaEl.addEventListener('drop', (e)=>{
 async function iniciar(){
   inicializarAtualizacoesDesktop();
   aplicarMesAtualPadrao();
+  configurarTecladoPagamentosDinheiro();
   // No aplicativo instalado, exigir um novo login a cada abertura.
   // sessionStorage sobrevive a recarregamentos da tela, mas e limpa ao fechar o app.
   if(/Electron\//i.test(navigator.userAgent) && !sessionStorage.getItem('ranchao-login-preparado')){

@@ -2137,7 +2137,10 @@
       </div>
 
       <div class="panel" style="margin-bottom:20px;">
-        <div class="panel-head"><h2>Novo pagamento</h2></div>
+        <div class="panel-head">
+          <h2>Novo pagamento</h2>
+          <button type="button" class="filter-btn" onclick="abrirColarPagamentos()">📋 Colar de planilha</button>
+        </div>
         <div class="bh-form" style="grid-template-columns:1.4fr 1fr 1fr 1.4fr auto;">
           <div class="fld"><label>Descrição</label><input id="novoPag_descricao" placeholder="Ex: Fornecedor, conta, etc." onblur="aplicarSugestaoTipoPagamento('novoPag_descricao','novoPag_tipo_busca','novoPag_tipo')"></div>
           <div class="fld"><label>Data</label><input id="novoPag_data" type="date"></div>
@@ -2147,14 +2150,14 @@
             <input id="novoPag_tipo_busca" list="pagCaixaTiposDatalist" placeholder="Digite pra buscar..." autocomplete="off" oninput="matchTipoPagCaixa('novoPag_tipo_busca','novoPag_tipo')">
             <input type="hidden" id="novoPag_tipo">
           </div>
-          <button class="addbtn" style="width:auto;" onclick="salvarNovoPagamento()">Adicionar</button>
+          <button class="addbtn" id="novoPagamentoAdicionarBtn" style="width:auto;" onclick="salvarNovoPagamento()">Adicionar</button>
         </div>
         <div class="formerr" id="novoPagamentoErr">Preencha descrição, data e um valor maior que zero.</div>
       </div>
 
       <div class="panel">
         <div class="panel-head">
-          <h2>Pagamentos feitos pela conta</h2>
+          <h2>Pagamentos cadastrados</h2>
           <div class="filters">
             <button class="filter-btn foto-btn" onclick="exportarExcelPagamentos()">📊 Excel</button>
             <button class="filter-btn foto-btn" onclick="exportarPdfPagamentos()">📄 PDF</button>
@@ -2371,6 +2374,36 @@
     <div class="modal-actions" style="margin-top:16px;">
       <button class="addbtn" id="pagamentoSalvarBtn" onclick="salvarEdicaoPagamento()">Salvar</button>
       <button class="cancelbtn" onclick="fecharEditarPagamento()">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<div id="colarPagamentosModal" class="modal-overlay">
+  <div class="modal-box" style="max-width:900px;max-height:90vh;overflow:auto;">
+    <button class="modal-close" onclick="fecharColarPagamentos()">✕</button>
+    <h2>Colar pagamentos da planilha</h2>
+    <p class="modal-sub">Copie do Excel ou Google Planilhas as colunas nesta ordem: <b>Descrição, Pagamento e Data</b>. A primeira linha pode conter os títulos.</p>
+    <div class="fld">
+      <label>Dados da planilha</label>
+      <textarea id="colarPagamentosTexto" rows="7" placeholder="FORNECEDOR A&#9;597,00&#9;02/09/2026&#10;FORNECEDOR B&#9;1.250,00&#9;03/09/2026"></textarea>
+    </div>
+    <div class="modal-actions" style="margin-top:12px;">
+      <button class="addbtn" type="button" onclick="processarColarPagamentos()">Ver prévia</button>
+      <button class="cancelbtn" type="button" onclick="fecharColarPagamentos()">Cancelar</button>
+    </div>
+    <div id="colarPagamentosPreview" style="display:none;margin-top:18px;">
+      <div class="panel-head" style="padding-left:0;padding-right:0;"><h2>Confira antes de confirmar</h2></div>
+      <div class="tablewrap" style="border:1px solid var(--line);border-radius:6px;max-height:380px;overflow:auto;">
+        <table class="ledger">
+          <thead><tr><th>Descrição</th><th style="text-align:right">Pagamento</th><th>Data</th><th></th></tr></thead>
+          <tbody id="colarPagamentosPreviewBody"></tbody>
+        </table>
+      </div>
+      <div class="formerr" id="colarPagamentosErr"></div>
+      <div class="modal-actions" style="margin-top:16px;">
+        <button class="addbtn" id="confirmarColarPagamentosBtn" type="button" onclick="confirmarColarPagamentos()">Confirmar pagamentos</button>
+        <button class="cancelbtn" type="button" onclick="fecharColarPagamentos()">Cancelar</button>
+      </div>
     </div>
   </div>
 </div>
