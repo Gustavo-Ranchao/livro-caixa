@@ -2113,19 +2113,19 @@ function gerarPdfContracheque(d){
   doc.setTextColor(28,40,58);doc.setFontSize(9.5);doc.text(empresa,18,28);doc.setFont('helvetica','normal');doc.setFontSize(6.8);
   doc.text('Razão social: '+(d.empresa_razao_social||'—'),18,33);doc.text('CNPJ: '+(d.empresa_cnpj||'—'),112,33);doc.text(doc.splitTextToSize('Endereço: '+(d.empresa_endereco||'—'),174),18,37);
   doc.setDrawColor(205,214,225);doc.line(18,42,192,42);doc.setFontSize(7.2);
-  doc.setFont('helvetica','bold');doc.text('Funcionário:',18,47);doc.setFont('helvetica','normal');doc.text(d.funcionario_nome,38,47);
-  doc.setFont('helvetica','bold');doc.text('CPF:',18,51);doc.setFont('helvetica','normal');doc.text(d.funcionario_cpf,27,51);
-  doc.setFont('helvetica','bold');doc.text('Cargo:',76,51);doc.setFont('helvetica','normal');doc.text(d.cargo,88,51);
+  doc.setFont('helvetica','bold');doc.text('Funcionário:',18,47);doc.setFont('helvetica','normal');doc.text(doc.splitTextToSize(d.funcionario_nome,67)[0],38,47);
   doc.setFont('helvetica','bold');doc.text('Competência:',112,47);doc.setFont('helvetica','normal');doc.text(nomeCompetencia(d.competencia),134,47);
-  doc.setFont('helvetica','bold');doc.text('Pagamento:',112,51);doc.setFont('helvetica','normal');doc.text(fmtData(d.data_pagamento),131,51);
-  doc.setFont('helvetica','bold');doc.text('Salário contratual:',18,55);doc.setFont('helvetica','normal');doc.text(moedaPdf(d.salario_base),49,55);
-  if(d.data_admissao){doc.setFont('helvetica','bold');doc.text('Admissão:',112,55);doc.setFont('helvetica','normal');doc.text(fmtData(d.data_admissao),128,55);}
+  doc.setFont('helvetica','bold');doc.text('CPF:',18,52);doc.setFont('helvetica','normal');doc.text(d.funcionario_cpf,28,52);
+  doc.setFont('helvetica','bold');doc.text('Pagamento:',112,52);doc.setFont('helvetica','normal');doc.text(fmtData(d.data_pagamento),132,52);
+  doc.setFont('helvetica','bold');doc.text('Cargo:',18,57);doc.setFont('helvetica','normal');doc.text(doc.splitTextToSize(d.cargo,67)[0],31,57);
+  if(d.data_admissao){doc.setFont('helvetica','bold');doc.text('Admissão:',112,57);doc.setFont('helvetica','normal');doc.text(fmtData(d.data_admissao),129,57);}
+  doc.setFont('helvetica','bold');doc.text('Salário contratual:',18,62);doc.setFont('helvetica','normal');doc.text(moedaPdf(d.salario_base),50,62);
   const linhas=[];
   (d.proventos||[]).forEach(x=>{const integral=Number(x.valor_integral)||Number(x.valor)||0,dias=Number(x.dias)||diasMes,baseDias=Number(x.dias_mes)||diasMes;linhas.push([x.descricao,moedaPdf(integral),dias+'/'+baseDias,moedaPdf(integral)+' / '+baseDias+' x '+dias,moedaPdf(x.valor),'']);});
   (d.descontos||[]).forEach(x=>linhas.push([x.descricao,'',x.referencia||'—','Valor informado manualmente','',moedaPdf(x.valor)]));
-  doc.autoTable({startY:59,margin:{left:18,right:18},head:[['Descrição','Valor integral','Dias','Cálculo / referência','Proventos','Descontos']],body:linhas,theme:'grid',styles:{fontSize:6.3,cellPadding:1.25,valign:'middle'},headStyles:{fillColor:[35,55,84],fontSize:6.1},columnStyles:{0:{cellWidth:31},1:{cellWidth:25,halign:'right'},2:{cellWidth:17,halign:'center'},3:{cellWidth:51},4:{cellWidth:25,halign:'right'},5:{cellWidth:25,halign:'right'}}});
+  doc.autoTable({startY:66,margin:{left:18,right:18},head:[['Descrição','Valor integral','Dias','Cálculo / referência','Proventos','Descontos']],body:linhas,theme:'grid',styles:{fontSize:6.3,cellPadding:1.25,valign:'middle'},headStyles:{fillColor:[35,55,84],fontSize:6.1},columnStyles:{0:{cellWidth:31},1:{cellWidth:25,halign:'right'},2:{cellWidth:17,halign:'center'},3:{cellWidth:51},4:{cellWidth:25,halign:'right'},5:{cellWidth:25,halign:'right'}}});
   let y=doc.lastAutoTable.finalY+4;doc.setFontSize(7);doc.setFont('helvetica','bold');doc.setTextColor(28,40,58);doc.text('Total de proventos',157,y,{align:'right'});doc.text(moedaPdf(d.total_proventos),190,y,{align:'right'});y+=4;doc.text('Total de descontos',157,y,{align:'right'});doc.text(moedaPdf(d.total_descontos),190,y,{align:'right'});y+=5;
-  doc.setFillColor(232,246,237);doc.rect(111,y-3.5,81,8,'F');doc.setTextColor(24,95,56);doc.setFontSize(8.5);doc.text('VALOR LIQUIDO',116,y+1.5);doc.text(moedaPdf(d.valor_liquido),188,y+1.5,{align:'right'});y+=7;
+  doc.setFillColor(232,246,237);doc.rect(111,y-3.5,81,8,'F');doc.setTextColor(24,95,56);doc.setFontSize(8.5);doc.text('VALOR LÍQUIDO',116,y+1.5);doc.text(moedaPdf(d.valor_liquido),188,y+1.5,{align:'right'});y+=7;
   doc.setTextColor(55,67,82);doc.setFontSize(6.5);doc.setFont('helvetica','normal');const extenso=doc.splitTextToSize('Valor líquido por extenso: '+valorPorExtenso(d.valor_liquido)+'.',174);doc.text(extenso,18,y);
   doc.setDrawColor(80,95,115);doc.line(60,128,150,128);doc.setFont('helvetica','bold');doc.setFontSize(7);doc.text(d.funcionario_nome,105,132,{align:'center'});doc.setFont('helvetica','normal');doc.text('CPF: '+d.funcionario_cpf,105,136,{align:'center'});
   doc.setTextColor(125,92,28);doc.setFontSize(5.8);doc.text('Documento para controle interno. Não substitui o holerite oficial emitido pela contabilidade.',105,141,{align:'center'});

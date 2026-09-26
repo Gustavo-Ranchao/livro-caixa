@@ -1,0 +1,17 @@
+CORREÇÃO COMPLETA DO PDF DO CONTRACHEQUE — VERSÃO 1.2.4
+
+Este pacote contém o mesmo renderer.js em dois locais:
+- renderer.js na raiz do repositório;
+- ranchao-bebidas-desktop/renderer.js.
+
+Os dois arquivos precisam ser enviados ao GitHub.
+
+1. Extraia o ZIP.
+2. Abra o repositório livro-caixa no GitHub.
+3. Envie todo o conteúdo extraído, mantendo a pasta ranchao-bebidas-desktop.
+4. Confirme a substituição dos dois arquivos renderer.js.
+5. Faça o commit.
+6. Execute Actions > Publicar atualização do aplicativo com a versão 1.2.4.
+7. Atualize o aplicativo e confira se a versão instalada mostra 1.2.4.
+
+Não é necessário executar SQL no Supabase.
