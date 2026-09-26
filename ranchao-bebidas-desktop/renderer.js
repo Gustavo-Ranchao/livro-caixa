@@ -7478,7 +7478,9 @@ let pagamentosCache = [];
 let pagamentosMesAtual = 'todos';
 let pagamentosBuscaTexto = '';
 let pagamentoEditandoId = null;
+let pagamentoEditandoOrigem = null;
 let excluindoPagamentoId = null;
+let excluindoPagamentoOrigem = null;
 let colarPagamentosParsed = [];
 
 async function abrirPagamentos(){
@@ -7523,7 +7525,7 @@ async function salvarNovoPagamento(){
 
   if(tipoId) await gravarMemoriaPagCaixa(descricao, tipoId);
 
-  pagamentosCache.push(salvo);
+  pagamentosCache.push({...salvo,_origem_pagamento:'manual'});
   document.getElementById('novoPag_descricao').value = '';
   document.getElementById('novoPag_valor').value = '';
   document.getElementById('novoPag_tipo').value = '';
@@ -7637,11 +7639,16 @@ async function confirmarColarPagamentos(){
 }
 
 async function popularFiltroMesPagamentos(){
-  const { data, error } = await buscarTodasLinhas((from, to)=>
+  const [manuais,extratos] = await Promise.all([
+    buscarTodasLinhas((from, to)=>
     sb.from('pagamentos').select('data').eq('loja', lojaAtual).range(from, to)
-  );
-  if(error){ console.error('Erro ao carregar meses de pagamentos:', error); return; }
-  const mesesSet = new Set((data||[]).map(d=>d.data.slice(0,7)));
+    ),
+    buscarTodasLinhas((from,to)=>
+      sb.from('fluxo_caixa_lancamentos').select('data').eq('loja',lojaAtual).neq('tipo','Dinheiro').lt('valor',0).range(from,to)
+    )
+  ]);
+  if(manuais.error||extratos.error){ console.error('Erro ao carregar meses de pagamentos:', manuais.error||extratos.error); return; }
+  const mesesSet = new Set([...(manuais.data||[]),...(extratos.data||[])].map(d=>d.data.slice(0,7)));
   const hoje = new Date();
   mesesSet.add(hoje.getFullYear() + '-' + String(hoje.getMonth()+1).padStart(2,'0'));
   const lista = Array.from(mesesSet).sort().reverse();
@@ -7668,18 +7675,27 @@ async function carregarPagamentos(){
     ate = pagamentosMesAtual + '-' + String(ultimoDia).padStart(2,'0');
   }
 
-  const { data, error } = await buscarTodasLinhas((from, to)=>{
+  const manuais = await buscarTodasLinhas((from, to)=>{
     let q = sb.from('pagamentos').select('*').eq('loja', lojaAtual);
     if(de) q = q.gte('data', de);
     if(ate) q = q.lte('data', ate);
     return q.order('data').range(from, to);
   });
+  const extratos = await buscarTodasLinhas((from,to)=>{
+    let q=sb.from('fluxo_caixa_lancamentos').select('*').eq('loja',lojaAtual).neq('tipo','Dinheiro').lt('valor',0);
+    if(de) q=q.gte('data',de);
+    if(ate) q=q.lte('data',ate);
+    return q.order('data').range(from,to);
+  });
 
-  if(error){
-    console.error('Erro ao carregar pagamentos:', error);
+  if(manuais.error||extratos.error){
+    console.error('Erro ao carregar pagamentos:', manuais.error||extratos.error);
     pagamentosCache = [];
   }else{
-    pagamentosCache = data || [];
+    pagamentosCache = [
+      ...(extratos.data||[]).map(x=>({...x,_origem_pagamento:'extrato'})),
+      ...(manuais.data||[]).map(x=>({...x,_origem_pagamento:'manual'}))
+    ];
   }
   renderPagamentos();
 }
@@ -7714,11 +7730,12 @@ function renderPagamentos(){
       <tr>
         <td class="data">${fmtData(l.data)}</td>
         <td class="contato">${escapeHtml(l.descricao || '—')}</td>
-        <td>${celulaTipoFluxo(l, 'pagamentos')}</td>
-        <td class="valor" style="color:var(--rust);">${brl(l.valor)}</td>
+        <td><span class="delivery-badge ${l._origem_pagamento==='manual'?'sem-status':'ativa'}">${l._origem_pagamento==='manual'?'Manual':'Extrato'}</span></td>
+        <td>${celulaTipoFluxo(l, l._origem_pagamento==='manual'?'pagamentos_manual':'pagamentos_extrato')}</td>
+        <td class="valor" style="color:var(--rust);">${brl(Math.abs(Number(l.valor)))}</td>
         <td><div class="rowactions">
-          <button class="iconbtn edit" title="Editar" onclick="abrirEditarPagamento('${l.id}')">✎</button>
-          <button class="iconbtn del" title="Excluir" onclick="confirmarExclusaoPagamento('${l.id}')">✕</button>
+          <button class="iconbtn edit" title="Editar" onclick="abrirEditarPagamento('${l.id}','${l._origem_pagamento}')">✎</button>
+          <button class="iconbtn del" title="Excluir" onclick="confirmarExclusaoPagamento('${l.id}','${l._origem_pagamento}')">✕</button>
         </div></td>
       </tr>
     `).join('');
@@ -7744,12 +7761,14 @@ function celulaTipoFluxo(l, origem){
 }
 
 async function confirmarSugestaoTipoFluxo(id, tipoId, origem){
-  const tabela = origem==='pagamentos' ? 'pagamentos' : 'fluxo_caixa_lancamentos';
+  const tabela = origem==='pagamentos_manual' ? 'pagamentos' : 'fluxo_caixa_lancamentos';
   const { data, error } = await sb.from(tabela).update({ codigo_tipo_id: tipoId }).eq('id', id).select().single();
   if(error){ alert('Erro ao salvar: ' + error.message); return; }
-  if(origem==='pagamentos'){
-    const idx = pagamentosCache.findIndex(l=>String(l.id)===String(id));
+  if(origem==='pagamentos_manual'||origem==='pagamentos_extrato'){
+    const origemRegistro=origem==='pagamentos_manual'?'manual':'extrato';
+    const idx = pagamentosCache.findIndex(l=>String(l.id)===String(id)&&l._origem_pagamento===origemRegistro);
     if(idx>-1) pagamentosCache[idx] = data;
+    if(idx>-1) pagamentosCache[idx]._origem_pagamento=origemRegistro;
     renderPagamentos();
   }else{
     const idx = fluxoCache.findIndex(l=>String(l.id)===String(id));
@@ -7758,10 +7777,11 @@ async function confirmarSugestaoTipoFluxo(id, tipoId, origem){
   }
 }
 
-function abrirEditarPagamento(id){
-  const l = pagamentosCache.find(x=>x.id===id);
+function abrirEditarPagamento(id,origem){
+  const l = pagamentosCache.find(x=>String(x.id)===String(id)&&x._origem_pagamento===origem);
   if(!l) return;
   pagamentoEditandoId = id;
+  pagamentoEditandoOrigem = origem;
   document.getElementById('pag_descricao').value = l.descricao || '';
   document.getElementById('pag_data').value = l.data;
   document.getElementById('pag_valor').value = Math.abs(Number(l.valor));
@@ -7779,6 +7799,7 @@ function abrirEditarPagamento(id){
 function fecharEditarPagamento(){
   document.getElementById('editPagamentoModal').style.display = 'none';
   pagamentoEditandoId = null;
+  pagamentoEditandoOrigem = null;
 }
 
 async function salvarEdicaoPagamento(){
@@ -7798,10 +7819,12 @@ async function salvarEdicaoPagamento(){
   btn.disabled = true;
   btn.textContent = 'Salvando…';
 
-  const { data: atualizado, error } = await sb.from('pagamentos').update({
+  const tabela=pagamentoEditandoOrigem==='manual'?'pagamentos':'fluxo_caixa_lancamentos';
+  const valorSalvar=pagamentoEditandoOrigem==='manual'?Math.abs(valorBruto):-Math.abs(valorBruto);
+  const { data: atualizado, error } = await sb.from(tabela).update({
     descricao: descricao || null,
     data: data,
-    valor: Math.abs(valorBruto),
+    valor: valorSalvar,
     codigo_tipo_id: tipoId
   }).eq('id', pagamentoEditandoId).select().single();
 
@@ -7816,28 +7839,32 @@ async function salvarEdicaoPagamento(){
     return;
   }
 
-  const idx = pagamentosCache.findIndex(l=>l.id===pagamentoEditandoId);
-  if(idx>-1) pagamentosCache[idx] = atualizado;
+  const origemAtual=pagamentoEditandoOrigem;
+  const idx = pagamentosCache.findIndex(l=>String(l.id)===String(pagamentoEditandoId)&&l._origem_pagamento===origemAtual);
+  if(idx>-1) pagamentosCache[idx] = {...atualizado,_origem_pagamento:origemAtual};
   renderPagamentos();
   fecharEditarPagamento();
   await popularFiltroMesPagamentos();
 }
 
-function confirmarExclusaoPagamento(id){
+function confirmarExclusaoPagamento(id,origem){
   excluindoPagamentoId = id;
+  excluindoPagamentoOrigem = origem;
   document.getElementById('confirmExclusaoPagamentoModal').style.display = 'flex';
 }
 
 function fecharConfirmacaoPagamento(){
   document.getElementById('confirmExclusaoPagamentoModal').style.display = 'none';
   excluindoPagamentoId = null;
+  excluindoPagamentoOrigem = null;
 }
 
 async function confirmarExclusaoPagamentoOk(){
   if(!excluindoPagamentoId) return;
-  const { error } = await sb.from('pagamentos').delete().eq('id', excluindoPagamentoId);
+  const tabela=excluindoPagamentoOrigem==='manual'?'pagamentos':'fluxo_caixa_lancamentos';
+  const { error } = await sb.from(tabela).delete().eq('id', excluindoPagamentoId);
   if(!error){
-    pagamentosCache = pagamentosCache.filter(l=>l.id!==excluindoPagamentoId);
+    pagamentosCache = pagamentosCache.filter(l=>!(String(l.id)===String(excluindoPagamentoId)&&l._origem_pagamento===excluindoPagamentoOrigem));
     renderPagamentos();
   }
   fecharConfirmacaoPagamento();
@@ -7849,10 +7876,11 @@ function exportarExcelPagamentos(){
   const dados = pagamentosCache.map(l=>({
     'Data': fmtData(l.data),
     'Descrição': l.descricao || '—',
-    'Valor': brl(l.valor)
+    'Origem': l._origem_pagamento==='manual' ? 'Manual' : 'Extrato',
+    'Valor': brl(Math.abs(Number(l.valor)))
   }));
   const planilha = XLSX.utils.json_to_sheet(dados);
-  planilha['!cols'] = [{wch:12},{wch:40},{wch:14}];
+  planilha['!cols'] = [{wch:12},{wch:40},{wch:12},{wch:14}];
   const livro = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(livro, planilha, 'Pagamentos');
   const nomeLoja = (NOMES_LOJA[lojaAtual]||'').toLowerCase().replace(' ','');
@@ -7873,14 +7901,14 @@ function exportarPdfPagamentos(){
   doc.setTextColor(120);
   doc.text('Gerado em ' + dataHora, 14, 25);
 
-  const corpo = pagamentosCache.map(l=>[fmtData(l.data), l.descricao||'—', brl(l.valor)]);
+  const corpo = pagamentosCache.map(l=>[fmtData(l.data), l.descricao||'—', l._origem_pagamento==='manual'?'Manual':'Extrato', brl(Math.abs(Number(l.valor)))]);
   const total = pagamentosCache.reduce((s,l)=>s+Math.abs(Number(l.valor)),0);
 
   doc.autoTable({
     startY: 32,
-    head: [['Data','Descrição','Valor']],
+    head: [['Data','Descrição','Origem','Valor']],
     body: corpo,
-    foot: [['TOTAL','', brl(total)]],
+    foot: [['TOTAL','','', brl(total)]],
     styles: { fontSize: 8.5, cellPadding: 3 },
     headStyles: { fillColor: [38,51,43] },
     footStyles: { fillColor: [233,225,203], textColor:20, fontStyle:'bold' }
