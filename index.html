@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="referrer" content="strict-origin-when-cross-origin">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'self'; object-src 'none'; form-action 'self'; frame-ancestors 'none'; script-src 'self' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://cdn.sheetjs.com; script-src-elem 'self' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://cdn.sheetjs.com; script-src-attr 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob: https://qgpkswienjhfkbipiwio.supabase.co; connect-src 'self' https://qgpkswienjhfkbipiwio.supabase.co wss://qgpkswienjhfkbipiwio.supabase.co https://cdnjs.cloudflare.com; worker-src 'self' blob: https://cdnjs.cloudflare.com; manifest-src 'self'; upgrade-insecure-requests">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'self'; object-src 'none'; form-action 'self'; frame-ancestors 'none'; frame-src 'self' blob: https://qgpkswienjhfkbipiwio.supabase.co; script-src 'self' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://cdn.sheetjs.com; script-src-elem 'self' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://cdn.sheetjs.com; script-src-attr 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob: https://qgpkswienjhfkbipiwio.supabase.co; connect-src 'self' https://qgpkswienjhfkbipiwio.supabase.co wss://qgpkswienjhfkbipiwio.supabase.co https://cdnjs.cloudflare.com; worker-src 'self' blob: https://cdnjs.cloudflare.com; manifest-src 'self'; upgrade-insecure-requests">
 <title>Ranchão Bebidas</title>
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#17233c">
@@ -1621,7 +1621,7 @@
       </div>
 
       <div class="panel">
-        <div class="panel-head" style="flex-wrap:wrap;"><h2>Comprovantes salvos</h2><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;"><input id="lcBuscaHistorico" style="max-width:320px;" placeholder="Pesquisar recebedor, valor ou documento" oninput="renderHistoricoLeituras()"><button type="button" class="filter-btn foto-btn" onclick="baixarLeiturasComprovantesZip()" title="Baixar em ZIP os comprovantes exibidos no histórico">🗜️ Baixar exibidos (.zip)</button></div></div>
+        <div class="panel-head" style="flex-wrap:wrap;"><h2>Comprovantes salvos</h2><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;"><input id="lcBuscaHistorico" style="max-width:320px;" placeholder="Pesquisar recebedor, valor ou documento" oninput="renderHistoricoLeituras()"><button type="button" class="filter-btn foto-btn" onclick="baixarLeiturasComprovantesZip()" title="Baixar em ZIP os comprovantes exibidos no histórico">🗜️ Baixar exibidos (.zip)</button><button type="button" class="filter-btn" style="border-color:var(--rust);color:var(--rust);" onclick="abrirExclusaoLeiturasComprovantes()" title="Excluir todos os comprovantes exibidos no histórico">🗑 Excluir exibidos</button></div></div>
         <div class="tablewrap"><table class="ledger"><thead><tr><th>Nº</th><th>Data</th><th>Recebedor</th><th>CPF/CNPJ</th><th>Modelo</th><th style="text-align:right;">Valor</th><th>Arquivo</th></tr></thead><tbody id="lcHistoricoBody"></tbody></table></div>
         <div class="empty" id="lcHistoricoEmpty" style="display:none;">Nenhum comprovante analisado neste período.</div>
       </div>
@@ -3173,6 +3173,29 @@
     <p class="modal-sub" id="histDetalheSub"></p>
     <div id="histDetalheConteudo" style="max-height:58vh;overflow:auto;margin-top:14px;"></div>
     <div class="modal-actions" style="margin-top:16px;"><button class="cancelbtn" onclick="fecharDetalheHistorico()">Fechar</button></div>
+  </div>
+</div>
+
+<div id="confirmExclusaoLeiturasModal" class="modal-overlay">
+  <div class="modal-box" style="max-width:520px;">
+    <button class="modal-close" onclick="fecharExclusaoLeiturasComprovantes()">✕</button>
+    <h2 id="confirmExclusaoLeiturasTitulo">Excluir comprovante?</h2>
+    <p class="modal-sub" id="confirmExclusaoLeiturasTexto">O registro e o arquivo serão excluídos permanentemente.</p>
+    <div class="modal-actions" style="margin-top:20px;">
+      <button class="addbtn" id="confirmExclusaoLeiturasBtn" style="width:auto;background:var(--rust);" onclick="executarExclusaoLeiturasComprovantes()">Excluir</button>
+      <button class="cancelbtn" onclick="fecharExclusaoLeiturasComprovantes()">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<div id="previewLeituraComprovanteModal" class="modal-overlay" style="z-index:1010;">
+  <div class="modal-box" style="width:min(1100px,94vw);max-width:none;height:90vh;display:flex;flex-direction:column;">
+    <button class="modal-close" onclick="fecharPreviewLeituraComprovante()">✕</button>
+    <h2 id="previewLeituraComprovanteTitulo" style="padding-right:45px;">Visualizar comprovante</h2>
+    <p class="modal-sub" style="margin-bottom:12px;">Confira o documento sem precisar baixá-lo.</p>
+    <div id="previewLeituraCarregando" style="padding:18px;text-align:center;color:var(--muted);">Carregando comprovante…</div>
+    <iframe id="previewLeituraComprovanteFrame" title="Visualização do comprovante" style="display:none;flex:1;width:100%;border:1px solid var(--paper3);border-radius:10px;background:#f4f7fb;"></iframe>
+    <div class="modal-actions" style="margin-top:12px;"><button class="cancelbtn" onclick="fecharPreviewLeituraComprovante()">Fechar</button></div>
   </div>
 </div>
 

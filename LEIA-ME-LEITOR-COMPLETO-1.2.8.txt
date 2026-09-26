@@ -1,0 +1,20 @@
+LEITOR DE COMPROVANTES COMPLETO — VERSÃO 1.2.8
+
+1. Extraia o ZIP.
+2. Envie todo o conteúdo ao repositório livro-caixa no GitHub.
+3. Mantenha a pasta ranchao-bebidas-desktop.
+4. Confirme a substituição dos dois index.html e dos dois renderer.js.
+5. Faça o commit.
+6. Execute Actions > Publicar atualização do aplicativo com a versão 1.2.8.
+7. Atualize o aplicativo.
+
+ALTERAÇÕES INCLUÍDAS
+- Botão Ver abre o comprovante em um popup dentro do sistema.
+- A prévia do lote também abre no popup interno.
+- Exclusão individual de comprovantes.
+- Exclusão de todos os comprovantes exibidos no mês/pesquisa atual.
+- Download dos comprovantes exibidos em ZIP.
+- Ordenação crescente por data e, no mesmo dia, por número e cadastro.
+- Reconhecimento do recebedor em comprovantes Pix do PagBank.
+
+Não é necessário executar SQL no Supabase.

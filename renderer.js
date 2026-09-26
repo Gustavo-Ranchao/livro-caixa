@@ -3511,7 +3511,7 @@ function renderLoteLeituras(){
   document.getElementById('lcLoteBody').innerHTML=lcLote.map(x=>`<tr title="${escapeHtml(x.mensagem||'')}"><td><input type="number" min="1" value="${x.numero}" oninput="atualizarCampoLoteLeitura('${x.id}','numero',this.value)"></td><td><div class="lc-file-name" title="${escapeHtml(x.nomeArquivo)}">${escapeHtml(x.nomeArquivo)}</div></td><td><input value="${escapeHtml(x.recebedor)}" oninput="atualizarCampoLoteLeitura('${x.id}','recebedor',this.value)"></td><td><input value="${escapeHtml(x.documento)}" oninput="atualizarCampoLoteLeitura('${x.id}','documento',this.value)"></td><td><input type="number" min="0" step="0.01" value="${x.valor||''}" oninput="atualizarCampoLoteLeitura('${x.id}','valor',this.value)"></td><td><input type="date" value="${x.data}" oninput="atualizarCampoLoteLeitura('${x.id}','data',this.value)"></td><td>${escapeHtml(x.modelo)}</td><td><span class="lc-status ${x.status}">${x.status==='pronto'?'Pronto':x.status==='revisar'?'Revisar':x.status==='duplicado'?'Duplicado':'Erro'}</span></td><td><div class="rowactions"><button class="iconbtn" title="Abrir PDF" onclick="abrirPreviewLeitura('${x.id}')">↗</button><button class="iconbtn del" title="Remover do lote" onclick="removerLeituraDoLote('${x.id}')">✕</button></div></td></tr>`).join('');
 }
 
-function abrirPreviewLeitura(id){const x=lcLote.find(i=>i.id===id);if(x)window.open(x.url,'_blank','noopener');}
+function abrirPreviewLeitura(id){const x=lcLote.find(i=>i.id===id);if(x)mostrarPreviewLeituraComprovante(x.url,x.nomeArquivo);}
 function removerLeituraDoLote(id){const x=lcLote.find(i=>i.id===id);if(x&&x.url)URL.revokeObjectURL(x.url);lcLote=lcLote.filter(i=>i.id!==id);renumerarLeiturasComprovantes();}
 function limparLoteLeituras(){lcLote.forEach(x=>{if(x.url)URL.revokeObjectURL(x.url);});lcLote=[];const p=document.getElementById('lcLotePanel');if(p)p.style.display='none';const b=document.getElementById('lcLoteBody');if(b)b.innerHTML='';}
 
@@ -3538,7 +3538,7 @@ async function salvarTodasLeituras(){
 async function carregarHistoricoLeituras(){
   const campo=document.getElementById('lcFiltroMes');if(!campo)return;if(!campo.value)campo.value=mesAtualPadrao();
   const mes=campo.value,[ano,m]=mes.split('-').map(Number),fim=new Date(ano,m,1).toISOString().slice(0,10);
-  const {data,error}=await sb.from('leituras_comprovantes').select('*').eq('loja',lojaAtual).gte('data_pagamento',mes+'-01').lt('data_pagamento',fim).order('data_pagamento',{ascending:false}).order('numero',{ascending:true});
+  const {data,error}=await sb.from('leituras_comprovantes').select('*').eq('loja',lojaAtual).gte('data_pagamento',mes+'-01').lt('data_pagamento',fim).order('data_pagamento',{ascending:true}).order('numero',{ascending:true}).order('id',{ascending:true});
   lcHistorico=error?[]:(data||[]);if(error)console.error('Erro ao carregar leituras:',error);renderHistoricoLeituras();
 }
 
@@ -3546,8 +3546,26 @@ async function renderHistoricoLeituras(){
   const busca=(document.getElementById('lcBuscaHistorico')?.value||'').trim().toLowerCase();
   const lista=lcHistorico.filter(x=>!busca||[x.recebedor,x.documento,x.modelo,String(x.valor),x.data_pagamento].some(v=>String(v||'').toLowerCase().includes(busca)));
   document.getElementById('lcHistoricoEmpty').style.display=lista.length?'none':'block';
-  const linhas=await Promise.all(lista.map(async x=>{const {data}=await sb.storage.from('comprovantes').createSignedUrl(x.caminho_storage,3600);const url=data?.signedUrl||'#';return `<tr><td>${x.numero??'—'}</td><td>${fmtData(x.data_pagamento)}</td><td>${escapeHtml(x.recebedor)}</td><td>${escapeHtml(x.documento||'—')}</td><td>${escapeHtml(x.modelo||'—')}</td><td class="valor">${brl(x.valor)}</td><td><a class="filter-btn" href="${url}" target="_blank" rel="noopener">Abrir PDF</a></td></tr>`;}));
+  const linhas=lista.map(x=>`<tr><td>${x.numero??'—'}</td><td>${fmtData(x.data_pagamento)}</td><td>${escapeHtml(x.recebedor)}</td><td>${escapeHtml(x.documento||'—')}</td><td>${escapeHtml(x.modelo||'—')}</td><td class="valor">${brl(x.valor)}</td><td><div class="rowactions"><button type="button" class="filter-btn" data-caminho="${escapeHtml(x.caminho_storage||'')}" data-nome="${escapeHtml(x.nome_arquivo||'Comprovante')}" onclick="abrirComprovanteLeituraSalvo(this.dataset.caminho,this.dataset.nome)">👁 Ver</button><button type="button" class="iconbtn del" title="Excluir comprovante" onclick="abrirExclusaoLeiturasComprovantes(${Number(x.id)})">✕</button></div></td></tr>`);
   document.getElementById('lcHistoricoBody').innerHTML=linhas.join('');
+}
+
+function mostrarPreviewLeituraComprovante(url,nome){
+  const modal=document.getElementById('previewLeituraComprovanteModal'),frame=document.getElementById('previewLeituraComprovanteFrame'),carregando=document.getElementById('previewLeituraCarregando');
+  document.getElementById('previewLeituraComprovanteTitulo').textContent=nome||'Visualizar comprovante';carregando.textContent='Carregando comprovante…';carregando.style.display='block';frame.style.display='none';modal.style.display='flex';
+  frame.onload=()=>{carregando.style.display='none';frame.style.display='block';};frame.src=url;
+}
+
+async function abrirComprovanteLeituraSalvo(caminho,nome){
+  if(!caminho){alert('O arquivo deste comprovante não foi encontrado.');return;}
+  document.getElementById('previewLeituraComprovanteTitulo').textContent=nome||'Visualizar comprovante';document.getElementById('previewLeituraCarregando').textContent='Carregando comprovante…';document.getElementById('previewLeituraCarregando').style.display='block';document.getElementById('previewLeituraComprovanteFrame').style.display='none';document.getElementById('previewLeituraComprovanteModal').style.display='flex';
+  const {data,error}=await sb.storage.from('comprovantes').createSignedUrl(caminho,3600);
+  if(error||!data?.signedUrl){document.getElementById('previewLeituraCarregando').textContent='Não foi possível abrir o arquivo. Verifique sua conexão e tente novamente.';return;}
+  mostrarPreviewLeituraComprovante(data.signedUrl,nome);
+}
+
+function fecharPreviewLeituraComprovante(){
+  const frame=document.getElementById('previewLeituraComprovanteFrame');frame.onload=null;frame.src='about:blank';frame.style.display='none';document.getElementById('previewLeituraComprovanteModal').style.display='none';
 }
 
 function leiturasComprovantesFiltradas(){
@@ -3581,6 +3599,40 @@ async function baixarLeiturasComprovantesZip(){
   const conteudo=await zip.generateAsync({type:'blob',compression:'DEFLATE',compressionOptions:{level:6}},meta=>atualizarProgresso(85+meta.percent*.15));
   atualizarProgresso(100);const url=URL.createObjectURL(conteudo),link=document.createElement('a');link.href=url;link.download='comprovantes-analisados-'+(NOMES_LOJA[lojaAtual]||lojaAtual).toLowerCase().replace(/\s+/g,'-')+'-'+(document.getElementById('lcFiltroMes')?.value||todayStr())+'.zip';document.body.appendChild(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),1500);setTimeout(fecharProgresso,400);
   if(falhas)setTimeout(()=>alert('O ZIP foi criado, mas '+falhas+' arquivo(s) não puderam ser incluídos.'),600);
+}
+
+let lcLeiturasExcluir=[];
+
+function abrirExclusaoLeiturasComprovantes(id){
+  lcLeiturasExcluir=id===undefined?leiturasComprovantesFiltradas():lcHistorico.filter(x=>Number(x.id)===Number(id));
+  if(!lcLeiturasExcluir.length){alert('Não há comprovantes exibidos para excluir.');return;}
+  const individual=lcLeiturasExcluir.length===1&&id!==undefined,item=lcLeiturasExcluir[0];
+  document.getElementById('confirmExclusaoLeiturasTitulo').textContent=individual?'Excluir este comprovante?':'Excluir '+lcLeiturasExcluir.length+' comprovantes exibidos?';
+  document.getElementById('confirmExclusaoLeiturasTexto').textContent=individual
+    ?'O comprovante de '+(item.recebedor||'recebedor não informado')+', no valor de '+brl(item.valor)+', será excluído permanentemente.'
+    :'Todos os comprovantes que aparecem no histórico com o mês e a pesquisa atuais serão excluídos permanentemente.';
+  document.getElementById('confirmExclusaoLeiturasBtn').textContent=individual?'Excluir comprovante':'Excluir todos os exibidos';
+  document.getElementById('confirmExclusaoLeiturasModal').style.display='flex';
+}
+
+function fecharExclusaoLeiturasComprovantes(){
+  document.getElementById('confirmExclusaoLeiturasModal').style.display='none';lcLeiturasExcluir=[];
+}
+
+async function executarExclusaoLeiturasComprovantes(){
+  const alvos=[...lcLeiturasExcluir];if(!alvos.length)return;
+  const btn=document.getElementById('confirmExclusaoLeiturasBtn');btn.disabled=true;btn.textContent='Excluindo…';
+  document.getElementById('confirmExclusaoLeiturasModal').style.display='none';abrirProgresso('Excluindo comprovantes…');let excluidos=0,falhas=0;
+  for(let i=0;i<alvos.length;i++){
+    const x=alvos[i];
+    try{
+      const {error}=await sb.from('leituras_comprovantes').delete().eq('id',x.id).eq('loja',lojaAtual);if(error)throw error;
+      excluidos++;if(x.caminho_storage){const {error:erroArquivo}=await sb.storage.from('comprovantes').remove([x.caminho_storage]);if(erroArquivo)console.warn('Registro excluído, mas o arquivo não pôde ser removido:',erroArquivo);}
+    }catch(e){falhas++;console.error('Erro ao excluir comprovante analisado:',x.id,e);}
+    atualizarProgresso(((i+1)/alvos.length)*100);
+  }
+  lcLeiturasExcluir=[];btn.disabled=false;btn.textContent='Excluir';await carregarHistoricoLeituras();setTimeout(fecharProgresso,400);
+  if(falhas)setTimeout(()=>alert(excluidos+' comprovante(s) excluído(s). '+falhas+' não puderam ser excluídos.'),600);
 }
 
 /* ================= MANUTENÇÃO ================= */
