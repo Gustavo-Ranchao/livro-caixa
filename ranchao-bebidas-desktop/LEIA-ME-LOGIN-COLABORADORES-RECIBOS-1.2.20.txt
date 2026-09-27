@@ -1,0 +1,22 @@
+ATUALIZAÇÃO RANCHÃO BEBIDAS 1.2.20
+
+LOGIN
+- Nova opção "Lembrar meu e-mail neste computador".
+- Somente o e-mail é armazenado. A senha nunca é salva.
+- Ao abrir novamente, o e-mail lembrado já aparece preenchido.
+
+RECIBOS - COLABORADORES
+- Nova lista real para selecionar um colaborador ativo da loja atual.
+- O campo de nome continua livre para digitar qualquer outra pessoa.
+- Quando houver CPF em um contracheque anterior do colaborador, ele é aproveitado automaticamente.
+
+RECIBOS - DOIS POR FOLHA
+- O histórico agora possui caixas de seleção.
+- Marque os recibos desejados e clique em "PDF selecionados - 2 por folha".
+- Cada recibo ocupa meia página A4.
+- Ao selecionar mais de dois, novas páginas são criadas automaticamente.
+
+ATUALIZAÇÃO
+Substitua index.html e renderer.js na raiz e dentro de ranchao-bebidas-desktop.
+Gere a versão 1.2.20. Não é necessário executar SQL.
+
