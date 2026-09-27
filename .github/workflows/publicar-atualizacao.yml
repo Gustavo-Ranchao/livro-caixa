@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       versao:
-        description: "Versão que será publicada (exemplo: 1.2.0)"
+        description: "Versão que será publicada (exemplo: 1.2.22)"
         required: true
         type: string
 
@@ -26,9 +26,15 @@ jobs:
           cache: npm
           cache-dependency-path: ranchao-bebidas-desktop/package-lock.json
 
-      - name: Usar o index mais recente do site
+      - name: Conferir arquivos do site e aplicativo
         shell: pwsh
-        run: Copy-Item -Path "index.html" -Destination "ranchao-bebidas-desktop/index.html" -Force
+        run: |
+          $indexRaiz = (Get-FileHash "index.html" -Algorithm SHA256).Hash
+          $indexApp = (Get-FileHash "ranchao-bebidas-desktop/index.html" -Algorithm SHA256).Hash
+          $rendererRaiz = (Get-FileHash "renderer.js" -Algorithm SHA256).Hash
+          $rendererApp = (Get-FileHash "ranchao-bebidas-desktop/renderer.js" -Algorithm SHA256).Hash
+          if ($indexRaiz -ne $indexApp) { throw "index.html da raiz e do aplicativo estão diferentes. Atualize os dois arquivos antes de publicar." }
+          if ($rendererRaiz -ne $rendererApp) { throw "renderer.js da raiz e do aplicativo estão diferentes. Atualize os dois arquivos antes de publicar." }
 
       - name: Definir versão
         working-directory: ranchao-bebidas-desktop
@@ -52,3 +58,4 @@ jobs:
             ranchao-bebidas-desktop/dist/*.exe
             ranchao-bebidas-desktop/dist/*.blockmap
             ranchao-bebidas-desktop/dist/latest.yml
+
