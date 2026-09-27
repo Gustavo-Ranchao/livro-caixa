@@ -379,6 +379,25 @@ document.getElementById('li_senha').addEventListener('keydown', (e)=>{
   }
 });
 
+function carregarEmailLembrado(){
+  try{
+    const email=localStorage.getItem('ranchao-email-lembrado')||'';
+    if(email){
+      document.getElementById('li_email').value=email;
+      document.getElementById('li_lembrar_email').checked=true;
+    }
+  }catch(e){}
+}
+
+function atualizarEmailLembrado(email){
+  try{
+    if(document.getElementById('li_lembrar_email').checked) localStorage.setItem('ranchao-email-lembrado',email);
+    else localStorage.removeItem('ranchao-email-lembrado');
+  }catch(e){}
+}
+
+carregarEmailLembrado();
+
 async function fazerLogin(){
   const email = document.getElementById('li_email').value.trim();
   const senha = document.getElementById('li_senha').value;
@@ -401,6 +420,8 @@ async function fazerLogin(){
     }else if(resultado.error){
       err.textContent = resultado.error.message.includes('Invalid login') ? 'E-mail ou senha incorretos.' : ('Erro: ' + resultado.error.message);
       err.style.display = 'block';
+    }else{
+      atualizarEmailLembrado(email);
     }
   }catch(e){
     err.textContent = 'Não foi possível conectar ao banco de dados. Verifique sua internet e recarregue a página.';
@@ -1629,6 +1650,8 @@ async function confirmarImport(){
 let recibosConfig = null;
 let recibosCache = [];
 let reciboColaboradoresCache = [];
+let recibosSelecionados = new Set();
+let recibosVisiveisAtuais = [];
 let contrachequesCache = [];
 let contrachequeProventos = [];
 let contrachequeDescontos = [];
@@ -1739,6 +1762,25 @@ async function carregarColaboradoresRecibo(){
   }
   reciboColaboradoresCache=data||[];
   lista.innerHTML=reciboColaboradoresCache.map(f=>`<option value="${escapeHtml(f.nome)}"></option>`).join('');
+  const select=document.getElementById('rec_recebedor_colaborador');
+  if(select) select.innerHTML='<option value="">Selecione um colaborador</option>'+reciboColaboradoresCache.map(f=>`<option value="${escapeHtml(String(f.id))}">${escapeHtml(f.nome)}</option>`).join('');
+}
+
+function preencherRecebedorComColaborador(colaborador){
+  if(!colaborador) return;
+  document.getElementById('rec_recebedor_nome').value=colaborador.nome||'';
+  const campoCpf=document.getElementById('rec_recebedor_documento');
+  if(!campoCpf.value.trim()){
+    const historico=contrachequesCache.find(x=>String(x.funcionario_nome||'').trim().toLowerCase()===String(colaborador.nome||'').trim().toLowerCase()&&x.funcionario_cpf);
+    if(historico) campoCpf.value=historico.funcionario_cpf;
+  }
+  atualizarPreviaRecibo();
+}
+
+function selecionarColaboradorReciboSelect(){
+  const id=document.getElementById('rec_recebedor_colaborador').value;
+  const colaborador=reciboColaboradoresCache.find(f=>String(f.id)===String(id));
+  preencherRecebedorComColaborador(colaborador);
 }
 
 function selecionarRecebedorRecibo(){
@@ -1746,12 +1788,9 @@ function selecionarRecebedorRecibo(){
   const nome=campoNome.value.trim();
   const colaborador=reciboColaboradoresCache.find(f=>String(f.nome||'').trim().toLowerCase()===nome.toLowerCase());
   if(colaborador){
-    campoNome.value=colaborador.nome;
-    const campoCpf=document.getElementById('rec_recebedor_documento');
-    if(!campoCpf.value.trim()){
-      const historico=contrachequesCache.find(x=>String(x.funcionario_nome||'').trim().toLowerCase()===colaborador.nome.trim().toLowerCase()&&x.funcionario_cpf);
-      if(historico) campoCpf.value=historico.funcionario_cpf;
-    }
+    const select=document.getElementById('rec_recebedor_colaborador');
+    if(select) select.value=colaborador.id;
+    preencherRecebedorComColaborador(colaborador);
   }
   atualizarPreviaRecibo();
 }
@@ -1888,21 +1927,72 @@ function gerarPdfRecibo(d){
   doc.save('recibo-'+(d.id||'novo')+'-'+d.data_recibo+'.pdf');
 }
 
+function desenharReciboNaFolha(doc,d,deslocamentoY){
+  const y=Number(deslocamentoY)||0;
+  doc.setDrawColor(35,55,84);doc.setLineWidth(.5);doc.roundedRect(16,10+y,178,128,3,3);
+  doc.setFont('helvetica','bold');doc.setFontSize(18);doc.setTextColor(23,35,60);doc.text('RECIBO',105,25+y,{align:'center'});
+  if(d.id){doc.setFontSize(8);doc.setFont('helvetica','normal');doc.setTextColor(90,105,125);doc.text('Nº '+d.id,28,36+y);}
+  doc.setFontSize(10.5);doc.setFont('helvetica','normal');doc.setTextColor(35,48,65);doc.text('Valor: '+brl(d.valor),181,36+y,{align:'right'});
+  doc.setDrawColor(210,220,232);doc.line(27,42+y,183,42+y);
+  doc.setFontSize(10.5);const linhas=doc.splitTextToSize(textoRecibo(d),154);doc.text(linhas,28,54+y,{align:'justify',maxWidth:154,lineHeightFactor:1.4});
+  const local=[d.cidade,d.estado].filter(Boolean).join(' - ');doc.text(local+', '+dataPorExtensoRecibo(d.data_recibo)+'.',181,87+y,{align:'right'});
+  doc.setDrawColor(80,95,115);doc.line(58,106+y,152,106+y);
+  doc.setFont('helvetica','bold');doc.text(d.recebedor_nome||'',105,113+y,{align:'center'});
+  doc.setFont('helvetica','normal');doc.setFontSize(9);if(d.recebedor_documento)doc.text('CPF: '+d.recebedor_documento,105,119+y,{align:'center'});
+  if(d.observacao_rodape){doc.setFontSize(7.5);doc.setTextColor(90,105,125);doc.text(doc.splitTextToSize(d.observacao_rodape,154).slice(0,2),28,129+y);}
+}
+
+function atualizarBotaoPdfRecibosSelecionados(){
+  const btn=document.getElementById('recPdfSelecionadosBtn');
+  if(!btn)return;
+  btn.disabled=recibosSelecionados.size===0;
+  btn.textContent='📄 PDF selecionados — 2 por folha ('+recibosSelecionados.size+')';
+}
+
+function alternarSelecaoRecibo(id,marcado){
+  const chave=String(id);
+  if(marcado)recibosSelecionados.add(chave);else recibosSelecionados.delete(chave);
+  atualizarBotaoPdfRecibosSelecionados();
+}
+
+function selecionarTodosRecibosVisiveis(marcado){
+  recibosVisiveisAtuais.forEach(r=>{const chave=String(r.id);if(marcado)recibosSelecionados.add(chave);else recibosSelecionados.delete(chave);});
+  renderRecibos();
+}
+
+function gerarPdfRecibosSelecionados(){
+  const selecionados=recibosCache.filter(r=>recibosSelecionados.has(String(r.id)));
+  if(!selecionados.length){alert('Selecione pelo menos um recibo.');return;}
+  if(!window.jspdf||!window.jspdf.jsPDF){alert('Não foi possível carregar o recurso de PDF.');return;}
+  const doc=new window.jspdf.jsPDF({unit:'mm',format:'a4'});
+  selecionados.forEach((r,i)=>{
+    if(i>0&&i%2===0)doc.addPage();
+    desenharReciboNaFolha(doc,r,i%2===0?0:148.5);
+    if(i%2===0&&i<selecionados.length-1){doc.setDrawColor(170,180,192);doc.setLineWidth(.25);doc.setLineDashPattern([2,2],0);doc.line(8,148.5,202,148.5);doc.setLineDashPattern([],0);}
+  });
+  doc.save('recibos-selecionados-'+todayStr()+'.pdf');
+}
+
 async function carregarRecibos(){
   let q=sb.from('recibos').select('*').eq('loja',lojaAtual);
   const mes=document.getElementById('recFiltroMes').value;
   if(mes){const p=mes.split('-'),ultimo=new Date(Number(p[0]),Number(p[1]),0).getDate();q=q.gte('data_recibo',mes+'-01').lte('data_recibo',mes+'-'+String(ultimo).padStart(2,'0'));}
   const {data,error}=await q.order('data_recibo',{ascending:false}).order('id',{ascending:false});
   if(error){console.error('Erro ao carregar recibos:',error);recibosCache=[];}else recibosCache=data||[];
+  recibosSelecionados.clear();
   renderRecibos();
 }
 
 function renderRecibos(){
   const busca=(document.getElementById('recBusca').value||'').toLowerCase().trim();
   const lista=recibosCache.filter(r=>!busca||String(r.pagador_nome||'').toLowerCase().includes(busca)||String(r.recebedor_nome||'').toLowerCase().includes(busca)||String(r.referencia||'').toLowerCase().includes(busca));
+  recibosVisiveisAtuais=lista;
   const body=document.getElementById('recBody'),empty=document.getElementById('recEmpty');
   empty.style.display=lista.length?'none':'block';
-  body.innerHTML=lista.map(r=>'<tr><td>#'+r.id+'</td><td>'+fmtData(r.data_recibo)+'</td><td>'+escapeHtml(r.pagador_nome)+'</td><td>'+escapeHtml(r.recebedor_nome)+'</td><td>'+escapeHtml(r.referencia)+'</td><td class="valor">'+brl(r.valor)+'</td><td><div class="rowactions"><button class="iconbtn" title="PDF" onclick="baixarPdfReciboHistorico('+r.id+')">PDF</button><button class="iconbtn edit" title="Duplicar" onclick="duplicarRecibo('+r.id+')">⧉</button><button class="iconbtn del" title="Excluir" onclick="excluirRecibo('+r.id+')">✕</button></div></td></tr>').join('');
+  body.innerHTML=lista.map(r=>'<tr><td><input type="checkbox" style="width:auto;" '+(recibosSelecionados.has(String(r.id))?'checked':'')+' onchange="alternarSelecaoRecibo(\''+r.id+'\',this.checked)"></td><td>#'+r.id+'</td><td>'+fmtData(r.data_recibo)+'</td><td>'+escapeHtml(r.pagador_nome)+'</td><td>'+escapeHtml(r.recebedor_nome)+'</td><td>'+escapeHtml(r.referencia)+'</td><td class="valor">'+brl(r.valor)+'</td><td><div class="rowactions"><button class="iconbtn" title="PDF" onclick="baixarPdfReciboHistorico('+r.id+')">PDF</button><button class="iconbtn edit" title="Duplicar" onclick="duplicarRecibo('+r.id+')">⧉</button><button class="iconbtn del" title="Excluir" onclick="excluirRecibo('+r.id+')">✕</button></div></td></tr>').join('');
+  const todos=document.getElementById('recSelecionarTodos');
+  if(todos){todos.checked=lista.length>0&&lista.every(r=>recibosSelecionados.has(String(r.id)));todos.indeterminate=lista.some(r=>recibosSelecionados.has(String(r.id)))&&!todos.checked;}
+  atualizarBotaoPdfRecibosSelecionados();
 }
 
 function baixarPdfReciboHistorico(id){const r=recibosCache.find(x=>Number(x.id)===Number(id));if(r)gerarPdfRecibo(r);}
@@ -1921,9 +2011,9 @@ async function excluirRecibo(id){
   if(!confirm('Excluir este recibo do histórico?'))return;
   const {error}=await sb.from('recibos').delete().eq('id',id).eq('loja',lojaAtual);
   if(error){alert('Não foi possível excluir o recibo.');return;}
-  recibosCache=recibosCache.filter(r=>Number(r.id)!==Number(id));renderRecibos();
+  recibosSelecionados.delete(String(id));recibosCache=recibosCache.filter(r=>Number(r.id)!==Number(id));renderRecibos();
 }
-function limparFormularioRecibo(){document.getElementById('rec_valor').value='';document.getElementById('rec_recebedor_nome').value='';document.getElementById('rec_recebedor_documento').value='';document.getElementById('rec_data').value=todayStr();preencherFormularioComConfigRecibos();document.getElementById('recErr').style.display='none';atualizarPreviaRecibo();}
+function limparFormularioRecibo(){document.getElementById('rec_valor').value='';document.getElementById('rec_recebedor_nome').value='';document.getElementById('rec_recebedor_documento').value='';const sel=document.getElementById('rec_recebedor_colaborador');if(sel)sel.value='';document.getElementById('rec_data').value=todayStr();preencherFormularioComConfigRecibos();document.getElementById('recErr').style.display='none';atualizarPreviaRecibo();}
 function limparFiltroRecibos(){document.getElementById('recFiltroMes').value='';document.getElementById('recBusca').value='';carregarRecibos();}
 
 /* ================= CONTRACHEQUES ================= */
