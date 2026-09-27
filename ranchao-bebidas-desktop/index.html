@@ -825,7 +825,7 @@
           <div class="fld"><label>Data</label><input id="rec_data" type="date" onchange="atualizarPreviaRecibo()"></div>
           <div class="fld rec-span-2"><label>Endereço do pagador</label><input id="rec_pagador_endereco" placeholder="Rua, número, bairro e cidade" oninput="atualizarPreviaRecibo()"></div>
           <div class="fld"><label>Valor (R$)</label><input id="rec_valor" type="number" min="0.01" step="0.01" placeholder="0,00" oninput="atualizarPreviaRecibo()"><div class="rec-extenso" id="recValorExtenso"></div></div>
-          <div class="fld rec-span-2"><label>Nome da pessoa que recebeu</label><input id="rec_recebedor_nome" placeholder="Nome completo de quem assinará o recibo" oninput="atualizarPreviaRecibo()"></div>
+          <div class="fld rec-span-2"><label>Nome da pessoa que recebeu</label><input id="rec_recebedor_nome" list="recColaboradoresLista" placeholder="Digite ou selecione um colaborador" autocomplete="off" oninput="atualizarPreviaRecibo()" onchange="selecionarRecebedorRecibo()"><datalist id="recColaboradoresLista"></datalist></div>
           <div class="fld"><label>CPF da pessoa que recebeu</label><input id="rec_recebedor_documento" placeholder="CPF de quem assinará" oninput="atualizarPreviaRecibo()"></div>
           <div class="fld rec-span-3"><label>Referente a</label><input id="rec_referencia" placeholder="Ex.: prestação de serviços referente ao mês..." oninput="atualizarPreviaRecibo()"></div>
         </div>

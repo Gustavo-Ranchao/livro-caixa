@@ -1628,6 +1628,7 @@ async function confirmarImport(){
 
 let recibosConfig = null;
 let recibosCache = [];
+let reciboColaboradoresCache = [];
 let contrachequesCache = [];
 let contrachequeProventos = [];
 let contrachequeDescontos = [];
@@ -1726,10 +1727,40 @@ function atualizarPreviaRecibo(){
   document.getElementById('recPreviaTexto').innerHTML='<strong>RECIBO</strong><br><br>'+escapeHtml(textoRecibo(d))+'<br><br>'+escapeHtml(local+(local?', ':'')+dataPorExtensoRecibo(d.data_recibo))+'.'+assinatura;
 }
 
+async function carregarColaboradoresRecibo(){
+  const lista=document.getElementById('recColaboradoresLista');
+  if(!lista) return;
+  const {data,error}=await sb.from('bh_funcionarios').select('id,nome').eq('loja',lojaAtual).eq('ativo',true).order('nome');
+  if(error){
+    console.error('Erro ao carregar colaboradores para o recibo:',error);
+    reciboColaboradoresCache=[];
+    lista.innerHTML='';
+    return;
+  }
+  reciboColaboradoresCache=data||[];
+  lista.innerHTML=reciboColaboradoresCache.map(f=>`<option value="${escapeHtml(f.nome)}"></option>`).join('');
+}
+
+function selecionarRecebedorRecibo(){
+  const campoNome=document.getElementById('rec_recebedor_nome');
+  const nome=campoNome.value.trim();
+  const colaborador=reciboColaboradoresCache.find(f=>String(f.nome||'').trim().toLowerCase()===nome.toLowerCase());
+  if(colaborador){
+    campoNome.value=colaborador.nome;
+    const campoCpf=document.getElementById('rec_recebedor_documento');
+    if(!campoCpf.value.trim()){
+      const historico=contrachequesCache.find(x=>String(x.funcionario_nome||'').trim().toLowerCase()===colaborador.nome.trim().toLowerCase()&&x.funcionario_cpf);
+      if(historico) campoCpf.value=historico.funcionario_cpf;
+    }
+  }
+  atualizarPreviaRecibo();
+}
+
 async function abrirContratos(){
   if(!document.getElementById('rec_data').value) document.getElementById('rec_data').value=todayStr();
   inicializarFormularioContracheque();
   await carregarConfiguracaoRecibos();
+  await carregarColaboradoresRecibo();
   await carregarRecibos();
   await carregarContracheques();
   atualizarPreviaRecibo();
