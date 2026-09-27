@@ -692,6 +692,7 @@
       <input id="li_senha" type="password" placeholder="••••••••">
       <button type="button" class="olho-btn" id="olhoBtn" onclick="toggleSenha()">👁</button>
     </div>
+    <label style="display:flex;align-items:center;gap:8px;margin:10px 0 14px;text-transform:none;cursor:pointer;"><input id="li_lembrar_email" type="checkbox" style="width:auto;margin:0;"> Lembrar meu e-mail neste computador</label>
     <button id="li_btn" onclick="fazerLogin()">Entrar</button>
     <div class="loginerr" id="li_err"></div>
   </div>
@@ -825,7 +826,8 @@
           <div class="fld"><label>Data</label><input id="rec_data" type="date" onchange="atualizarPreviaRecibo()"></div>
           <div class="fld rec-span-2"><label>Endereço do pagador</label><input id="rec_pagador_endereco" placeholder="Rua, número, bairro e cidade" oninput="atualizarPreviaRecibo()"></div>
           <div class="fld"><label>Valor (R$)</label><input id="rec_valor" type="number" min="0.01" step="0.01" placeholder="0,00" oninput="atualizarPreviaRecibo()"><div class="rec-extenso" id="recValorExtenso"></div></div>
-          <div class="fld rec-span-2"><label>Nome da pessoa que recebeu</label><input id="rec_recebedor_nome" placeholder="Nome completo de quem assinará o recibo" oninput="atualizarPreviaRecibo()"></div>
+          <div class="fld"><label>Selecionar colaborador (opcional)</label><select id="rec_recebedor_colaborador" onchange="selecionarColaboradorReciboSelect()"><option value="">Selecione um colaborador</option></select></div>
+          <div class="fld"><label>Nome da pessoa que recebeu</label><input id="rec_recebedor_nome" list="recColaboradoresLista" placeholder="Selecione acima ou digite outro nome" autocomplete="off" oninput="atualizarPreviaRecibo()" onchange="selecionarRecebedorRecibo()"><datalist id="recColaboradoresLista"></datalist></div>
           <div class="fld"><label>CPF da pessoa que recebeu</label><input id="rec_recebedor_documento" placeholder="CPF de quem assinará" oninput="atualizarPreviaRecibo()"></div>
           <div class="fld rec-span-3"><label>Referente a</label><input id="rec_referencia" placeholder="Ex.: prestação de serviços referente ao mês..." oninput="atualizarPreviaRecibo()"></div>
         </div>
@@ -835,9 +837,9 @@
       </div>
 
       <div class="panel">
-        <div class="panel-head"><h2>Histórico de recibos</h2></div>
+        <div class="panel-head"><h2>Histórico de recibos</h2><button type="button" class="filter-btn foto-btn" id="recPdfSelecionadosBtn" onclick="gerarPdfRecibosSelecionados()" disabled>📄 PDF selecionados — 2 por folha</button></div>
         <div class="rec-history-filters"><input id="recBusca" style="flex:1;min-width:220px;" placeholder="🔍 Buscar por pagador ou referência..." oninput="renderRecibos()"><input id="recFiltroMes" type="month" onchange="carregarRecibos()"><button class="cancelbtn" onclick="limparFiltroRecibos()">Todos</button></div>
-        <div class="tablewrap"><table class="ledger"><thead><tr><th>Nº</th><th>Data</th><th>Pagador</th><th>Recebedor</th><th>Referente a</th><th style="text-align:right;">Valor</th><th></th></tr></thead><tbody id="recBody"></tbody></table></div>
+        <div class="tablewrap"><table class="ledger"><thead><tr><th><input type="checkbox" id="recSelecionarTodos" style="width:auto;" onchange="selecionarTodosRecibosVisiveis(this.checked)" title="Selecionar todos os recibos exibidos"></th><th>Nº</th><th>Data</th><th>Pagador</th><th>Recebedor</th><th>Referente a</th><th style="text-align:right;">Valor</th><th></th></tr></thead><tbody id="recBody"></tbody></table></div>
         <div class="empty" id="recEmpty" style="display:none;">Nenhum recibo encontrado para esta loja.</div>
       </div>
       </div>
@@ -2137,7 +2139,10 @@
       </div>
 
       <div class="panel" style="margin-bottom:20px;">
-        <div class="panel-head"><h2>Novo pagamento</h2></div>
+        <div class="panel-head">
+          <h2>Novo pagamento</h2>
+          <button type="button" class="filter-btn" id="abrirColarPagamentosBtn" onclick="abrirColarPagamentos()">📋 Colar de planilha</button>
+        </div>
         <div class="bh-form" style="grid-template-columns:1.4fr 1fr 1fr 1.4fr auto;">
           <div class="fld"><label>Descrição</label><input id="novoPag_descricao" placeholder="Ex: Fornecedor, conta, etc." onblur="aplicarSugestaoTipoPagamento('novoPag_descricao','novoPag_tipo_busca','novoPag_tipo')"></div>
           <div class="fld"><label>Data</label><input id="novoPag_data" type="date"></div>
@@ -2147,14 +2152,14 @@
             <input id="novoPag_tipo_busca" list="pagCaixaTiposDatalist" placeholder="Digite pra buscar..." autocomplete="off" oninput="matchTipoPagCaixa('novoPag_tipo_busca','novoPag_tipo')">
             <input type="hidden" id="novoPag_tipo">
           </div>
-          <button class="addbtn" style="width:auto;" onclick="salvarNovoPagamento()">Adicionar</button>
+          <button class="addbtn" id="novoPagamentoAdicionarBtn" style="width:auto;" onclick="salvarNovoPagamento()">Adicionar</button>
         </div>
         <div class="formerr" id="novoPagamentoErr">Preencha descrição, data e um valor maior que zero.</div>
       </div>
 
       <div class="panel">
         <div class="panel-head">
-          <h2>Pagamentos feitos pela conta</h2>
+          <h2>Pagamentos manuais e dos extratos</h2>
           <div class="filters">
             <button class="filter-btn foto-btn" onclick="exportarExcelPagamentos()">📊 Excel</button>
             <button class="filter-btn foto-btn" onclick="exportarPdfPagamentos()">📄 PDF</button>
@@ -2165,7 +2170,7 @@
         </div>
         <div class="tablewrap">
           <table class="ledger">
-            <thead><tr><th>Data</th><th>Descrição</th><th>Tipo</th><th style="text-align:right">Valor</th><th></th></tr></thead>
+            <thead><tr><th>Data</th><th>Descrição</th><th>Origem</th><th>Tipo</th><th style="text-align:right">Valor</th><th></th></tr></thead>
             <tbody id="pagamentosBody"></tbody>
           </table>
         </div>
@@ -2375,10 +2380,40 @@
   </div>
 </div>
 
+<div id="colarPagamentosModal" class="modal-overlay">
+  <div class="modal-box" style="max-width:900px;max-height:90vh;overflow:auto;">
+    <button class="modal-close" onclick="fecharColarPagamentos()">✕</button>
+    <h2>Colar pagamentos da planilha</h2>
+    <p class="modal-sub">Copie do Excel ou Google Planilhas as colunas nesta ordem: <b>Descrição, Pagamento e Data</b>. A primeira linha pode conter os títulos.</p>
+    <div class="fld">
+      <label>Dados da planilha</label>
+      <textarea id="colarPagamentosTexto" rows="7" placeholder="FORNECEDOR A&#9;597,00&#9;02/09/2026&#10;FORNECEDOR B&#9;1.250,00&#9;03/09/2026"></textarea>
+    </div>
+    <div class="modal-actions" style="margin-top:12px;">
+      <button class="addbtn" type="button" onclick="processarColarPagamentos()">Ver prévia</button>
+      <button class="cancelbtn" type="button" onclick="fecharColarPagamentos()">Cancelar</button>
+    </div>
+    <div id="colarPagamentosPreview" style="display:none;margin-top:18px;">
+      <div class="panel-head" style="padding-left:0;padding-right:0;"><h2>Confira antes de confirmar</h2></div>
+      <div class="tablewrap" style="border:1px solid var(--line);border-radius:6px;max-height:380px;overflow:auto;">
+        <table class="ledger">
+          <thead><tr><th>Descrição</th><th style="text-align:right">Pagamento</th><th>Data</th><th></th></tr></thead>
+          <tbody id="colarPagamentosPreviewBody"></tbody>
+        </table>
+      </div>
+      <div class="formerr" id="colarPagamentosErr"></div>
+      <div class="modal-actions" style="margin-top:16px;">
+        <button class="addbtn" id="confirmarColarPagamentosBtn" type="button" onclick="confirmarColarPagamentos()">Confirmar pagamentos</button>
+        <button class="cancelbtn" type="button" onclick="fecharColarPagamentos()">Cancelar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <div id="confirmExclusaoPagamentoModal" class="modal-overlay">
   <div class="modal-box" style="max-width:380px;">
     <h2>Excluir pagamento?</h2>
-    <p class="modal-sub">Essa ação não pode ser desfeita.</p>
+    <p class="modal-sub" id="confirmExclusaoPagamentoTexto">Essa ação não pode ser desfeita.</p>
     <div class="modal-actions">
       <button class="addbtn" style="background:var(--rust);" onclick="confirmarExclusaoPagamentoOk()">Excluir</button>
       <button class="cancelbtn" onclick="fecharConfirmacaoPagamento()">Cancelar</button>

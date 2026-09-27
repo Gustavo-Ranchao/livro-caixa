@@ -379,6 +379,25 @@ document.getElementById('li_senha').addEventListener('keydown', (e)=>{
   }
 });
 
+function carregarEmailLembrado(){
+  try{
+    const email=localStorage.getItem('ranchao-email-lembrado')||'';
+    if(email){
+      document.getElementById('li_email').value=email;
+      document.getElementById('li_lembrar_email').checked=true;
+    }
+  }catch(e){}
+}
+
+function atualizarEmailLembrado(email){
+  try{
+    if(document.getElementById('li_lembrar_email').checked) localStorage.setItem('ranchao-email-lembrado',email);
+    else localStorage.removeItem('ranchao-email-lembrado');
+  }catch(e){}
+}
+
+carregarEmailLembrado();
+
 async function fazerLogin(){
   const email = document.getElementById('li_email').value.trim();
   const senha = document.getElementById('li_senha').value;
@@ -401,6 +420,8 @@ async function fazerLogin(){
     }else if(resultado.error){
       err.textContent = resultado.error.message.includes('Invalid login') ? 'E-mail ou senha incorretos.' : ('Erro: ' + resultado.error.message);
       err.style.display = 'block';
+    }else{
+      atualizarEmailLembrado(email);
     }
   }catch(e){
     err.textContent = 'Não foi possível conectar ao banco de dados. Verifique sua internet e recarregue a página.';
@@ -430,7 +451,7 @@ function toggleMenuPerfil(){
 
 const BACKUP_TABELAS = [
   'configuracoes','recibos_configuracoes','bh_funcionarios','compras_empresas','compras_marcas','fornecedores','compras_produtos',
-  'pagamentos_caixa_tipos','despesas_fixas','despesas_fixas_puladas','lancamentos','comprovantes','fluxo_caixa_contas',
+  'pagamentos','pagamentos_caixa_tipos','despesas_fixas','despesas_fixas_puladas','lancamentos','comprovantes','fluxo_caixa_contas',
   'fluxo_caixa_saldos','fluxo_caixa_lancamentos','caixa_diferencas','checklist_itens','checklist_execucoes','bh_registros',
   'bh_atestados','vendas_delivery','vendas_itens','controle_estoque_mensal','estoque_inventarios','contagens_estoque',
   'contagens_estoque_itens','comb_pag_compras','comb_pag_pagamentos','pagamentos_caixa','pagamentos_caixa_memoria',
@@ -574,7 +595,7 @@ const HISTORICO_TABELAS_NOMES={
   lancamentos:'Contas a pagar e receber',comprovantes:'Comprovantes',fluxo_caixa_contas:'Contas do fluxo de caixa',fluxo_caixa_saldos:'Saldos do fluxo de caixa',fluxo_caixa_lancamentos:'Fluxo de caixa',
   caixa_diferencas:'Diferença de caixa',checklist_itens:'Itens do checklist',checklist_execucoes:'Checklist',compras_empresas:'Empresas de compras',compras_marcas:'Marcas',fornecedores:'Fornecedores',
   compras_produtos:'Produtos de compras',controle_estoque_mensal:'Controle de estoque',estoque_inventarios:'Inventário de estoque',contagens_estoque:'Contagens de estoque',contagens_estoque_itens:'Itens da contagem',
-  comb_pag_compras:'Compras combinadas',comb_pag_pagamentos:'Pagamentos combinados',pagamentos_caixa:'Pagamentos de caixa',pagamentos_caixa_memoria:'Memória de pagamentos',pagamentos_caixa_tipos:'Tipos de pagamento',
+  pagamentos:'Pagamentos',comb_pag_compras:'Compras combinadas',comb_pag_pagamentos:'Pagamentos combinados',pagamentos_caixa:'Pagamentos de caixa',pagamentos_caixa_memoria:'Memória de pagamentos',pagamentos_caixa_tipos:'Tipos de pagamento',
   vendas_delivery:'Vendas Delivery',vendas_itens:'Vendas com custo',orcamentos:'Orçamentos',recibos:'Recibos',contracheques:'Contracheques',duvidas:'Dúvidas',manutencoes:'Manutenções',leituras_comprovantes:'Leitura de comprovantes',
   despesas_fixas:'Despesas fixas',despesas_fixas_puladas:'Despesas fixas ignoradas'
 };
@@ -1628,6 +1649,9 @@ async function confirmarImport(){
 
 let recibosConfig = null;
 let recibosCache = [];
+let reciboColaboradoresCache = [];
+let recibosSelecionados = new Set();
+let recibosVisiveisAtuais = [];
 let contrachequesCache = [];
 let contrachequeProventos = [];
 let contrachequeDescontos = [];
@@ -1726,10 +1750,56 @@ function atualizarPreviaRecibo(){
   document.getElementById('recPreviaTexto').innerHTML='<strong>RECIBO</strong><br><br>'+escapeHtml(textoRecibo(d))+'<br><br>'+escapeHtml(local+(local?', ':'')+dataPorExtensoRecibo(d.data_recibo))+'.'+assinatura;
 }
 
+async function carregarColaboradoresRecibo(){
+  const lista=document.getElementById('recColaboradoresLista');
+  if(!lista) return;
+  const {data,error}=await sb.from('bh_funcionarios').select('id,nome').eq('loja',lojaAtual).eq('ativo',true).order('nome');
+  if(error){
+    console.error('Erro ao carregar colaboradores para o recibo:',error);
+    reciboColaboradoresCache=[];
+    lista.innerHTML='';
+    return;
+  }
+  reciboColaboradoresCache=data||[];
+  lista.innerHTML=reciboColaboradoresCache.map(f=>`<option value="${escapeHtml(f.nome)}"></option>`).join('');
+  const select=document.getElementById('rec_recebedor_colaborador');
+  if(select) select.innerHTML='<option value="">Selecione um colaborador</option>'+reciboColaboradoresCache.map(f=>`<option value="${escapeHtml(String(f.id))}">${escapeHtml(f.nome)}</option>`).join('');
+}
+
+function preencherRecebedorComColaborador(colaborador){
+  if(!colaborador) return;
+  document.getElementById('rec_recebedor_nome').value=colaborador.nome||'';
+  const campoCpf=document.getElementById('rec_recebedor_documento');
+  if(!campoCpf.value.trim()){
+    const historico=contrachequesCache.find(x=>String(x.funcionario_nome||'').trim().toLowerCase()===String(colaborador.nome||'').trim().toLowerCase()&&x.funcionario_cpf);
+    if(historico) campoCpf.value=historico.funcionario_cpf;
+  }
+  atualizarPreviaRecibo();
+}
+
+function selecionarColaboradorReciboSelect(){
+  const id=document.getElementById('rec_recebedor_colaborador').value;
+  const colaborador=reciboColaboradoresCache.find(f=>String(f.id)===String(id));
+  preencherRecebedorComColaborador(colaborador);
+}
+
+function selecionarRecebedorRecibo(){
+  const campoNome=document.getElementById('rec_recebedor_nome');
+  const nome=campoNome.value.trim();
+  const colaborador=reciboColaboradoresCache.find(f=>String(f.nome||'').trim().toLowerCase()===nome.toLowerCase());
+  if(colaborador){
+    const select=document.getElementById('rec_recebedor_colaborador');
+    if(select) select.value=colaborador.id;
+    preencherRecebedorComColaborador(colaborador);
+  }
+  atualizarPreviaRecibo();
+}
+
 async function abrirContratos(){
   if(!document.getElementById('rec_data').value) document.getElementById('rec_data').value=todayStr();
   inicializarFormularioContracheque();
   await carregarConfiguracaoRecibos();
+  await carregarColaboradoresRecibo();
   await carregarRecibos();
   await carregarContracheques();
   atualizarPreviaRecibo();
@@ -1857,21 +1927,72 @@ function gerarPdfRecibo(d){
   doc.save('recibo-'+(d.id||'novo')+'-'+d.data_recibo+'.pdf');
 }
 
+function desenharReciboNaFolha(doc,d,deslocamentoY){
+  const y=Number(deslocamentoY)||0;
+  doc.setDrawColor(35,55,84);doc.setLineWidth(.5);doc.roundedRect(16,10+y,178,128,3,3);
+  doc.setFont('helvetica','bold');doc.setFontSize(18);doc.setTextColor(23,35,60);doc.text('RECIBO',105,25+y,{align:'center'});
+  if(d.id){doc.setFontSize(8);doc.setFont('helvetica','normal');doc.setTextColor(90,105,125);doc.text('Nº '+d.id,28,36+y);}
+  doc.setFontSize(10.5);doc.setFont('helvetica','normal');doc.setTextColor(35,48,65);doc.text('Valor: '+brl(d.valor),181,36+y,{align:'right'});
+  doc.setDrawColor(210,220,232);doc.line(27,42+y,183,42+y);
+  doc.setFontSize(10.5);const linhas=doc.splitTextToSize(textoRecibo(d),154);doc.text(linhas,28,54+y,{align:'justify',maxWidth:154,lineHeightFactor:1.4});
+  const local=[d.cidade,d.estado].filter(Boolean).join(' - ');doc.text(local+', '+dataPorExtensoRecibo(d.data_recibo)+'.',181,87+y,{align:'right'});
+  doc.setDrawColor(80,95,115);doc.line(58,106+y,152,106+y);
+  doc.setFont('helvetica','bold');doc.text(d.recebedor_nome||'',105,113+y,{align:'center'});
+  doc.setFont('helvetica','normal');doc.setFontSize(9);if(d.recebedor_documento)doc.text('CPF: '+d.recebedor_documento,105,119+y,{align:'center'});
+  if(d.observacao_rodape){doc.setFontSize(7.5);doc.setTextColor(90,105,125);doc.text(doc.splitTextToSize(d.observacao_rodape,154).slice(0,2),28,129+y);}
+}
+
+function atualizarBotaoPdfRecibosSelecionados(){
+  const btn=document.getElementById('recPdfSelecionadosBtn');
+  if(!btn)return;
+  btn.disabled=recibosSelecionados.size===0;
+  btn.textContent='📄 PDF selecionados — 2 por folha ('+recibosSelecionados.size+')';
+}
+
+function alternarSelecaoRecibo(id,marcado){
+  const chave=String(id);
+  if(marcado)recibosSelecionados.add(chave);else recibosSelecionados.delete(chave);
+  atualizarBotaoPdfRecibosSelecionados();
+}
+
+function selecionarTodosRecibosVisiveis(marcado){
+  recibosVisiveisAtuais.forEach(r=>{const chave=String(r.id);if(marcado)recibosSelecionados.add(chave);else recibosSelecionados.delete(chave);});
+  renderRecibos();
+}
+
+function gerarPdfRecibosSelecionados(){
+  const selecionados=recibosCache.filter(r=>recibosSelecionados.has(String(r.id)));
+  if(!selecionados.length){alert('Selecione pelo menos um recibo.');return;}
+  if(!window.jspdf||!window.jspdf.jsPDF){alert('Não foi possível carregar o recurso de PDF.');return;}
+  const doc=new window.jspdf.jsPDF({unit:'mm',format:'a4'});
+  selecionados.forEach((r,i)=>{
+    if(i>0&&i%2===0)doc.addPage();
+    desenharReciboNaFolha(doc,r,i%2===0?0:148.5);
+    if(i%2===0&&i<selecionados.length-1){doc.setDrawColor(170,180,192);doc.setLineWidth(.25);doc.setLineDashPattern([2,2],0);doc.line(8,148.5,202,148.5);doc.setLineDashPattern([],0);}
+  });
+  doc.save('recibos-selecionados-'+todayStr()+'.pdf');
+}
+
 async function carregarRecibos(){
   let q=sb.from('recibos').select('*').eq('loja',lojaAtual);
   const mes=document.getElementById('recFiltroMes').value;
   if(mes){const p=mes.split('-'),ultimo=new Date(Number(p[0]),Number(p[1]),0).getDate();q=q.gte('data_recibo',mes+'-01').lte('data_recibo',mes+'-'+String(ultimo).padStart(2,'0'));}
   const {data,error}=await q.order('data_recibo',{ascending:false}).order('id',{ascending:false});
   if(error){console.error('Erro ao carregar recibos:',error);recibosCache=[];}else recibosCache=data||[];
+  recibosSelecionados.clear();
   renderRecibos();
 }
 
 function renderRecibos(){
   const busca=(document.getElementById('recBusca').value||'').toLowerCase().trim();
   const lista=recibosCache.filter(r=>!busca||String(r.pagador_nome||'').toLowerCase().includes(busca)||String(r.recebedor_nome||'').toLowerCase().includes(busca)||String(r.referencia||'').toLowerCase().includes(busca));
+  recibosVisiveisAtuais=lista;
   const body=document.getElementById('recBody'),empty=document.getElementById('recEmpty');
   empty.style.display=lista.length?'none':'block';
-  body.innerHTML=lista.map(r=>'<tr><td>#'+r.id+'</td><td>'+fmtData(r.data_recibo)+'</td><td>'+escapeHtml(r.pagador_nome)+'</td><td>'+escapeHtml(r.recebedor_nome)+'</td><td>'+escapeHtml(r.referencia)+'</td><td class="valor">'+brl(r.valor)+'</td><td><div class="rowactions"><button class="iconbtn" title="PDF" onclick="baixarPdfReciboHistorico('+r.id+')">PDF</button><button class="iconbtn edit" title="Duplicar" onclick="duplicarRecibo('+r.id+')">⧉</button><button class="iconbtn del" title="Excluir" onclick="excluirRecibo('+r.id+')">✕</button></div></td></tr>').join('');
+  body.innerHTML=lista.map(r=>'<tr><td><input type="checkbox" style="width:auto;" '+(recibosSelecionados.has(String(r.id))?'checked':'')+' onchange="alternarSelecaoRecibo(\''+r.id+'\',this.checked)"></td><td>#'+r.id+'</td><td>'+fmtData(r.data_recibo)+'</td><td>'+escapeHtml(r.pagador_nome)+'</td><td>'+escapeHtml(r.recebedor_nome)+'</td><td>'+escapeHtml(r.referencia)+'</td><td class="valor">'+brl(r.valor)+'</td><td><div class="rowactions"><button class="iconbtn" title="PDF" onclick="baixarPdfReciboHistorico('+r.id+')">PDF</button><button class="iconbtn edit" title="Duplicar" onclick="duplicarRecibo('+r.id+')">⧉</button><button class="iconbtn del" title="Excluir" onclick="excluirRecibo('+r.id+')">✕</button></div></td></tr>').join('');
+  const todos=document.getElementById('recSelecionarTodos');
+  if(todos){todos.checked=lista.length>0&&lista.every(r=>recibosSelecionados.has(String(r.id)));todos.indeterminate=lista.some(r=>recibosSelecionados.has(String(r.id)))&&!todos.checked;}
+  atualizarBotaoPdfRecibosSelecionados();
 }
 
 function baixarPdfReciboHistorico(id){const r=recibosCache.find(x=>Number(x.id)===Number(id));if(r)gerarPdfRecibo(r);}
@@ -1890,9 +2011,9 @@ async function excluirRecibo(id){
   if(!confirm('Excluir este recibo do histórico?'))return;
   const {error}=await sb.from('recibos').delete().eq('id',id).eq('loja',lojaAtual);
   if(error){alert('Não foi possível excluir o recibo.');return;}
-  recibosCache=recibosCache.filter(r=>Number(r.id)!==Number(id));renderRecibos();
+  recibosSelecionados.delete(String(id));recibosCache=recibosCache.filter(r=>Number(r.id)!==Number(id));renderRecibos();
 }
-function limparFormularioRecibo(){document.getElementById('rec_valor').value='';document.getElementById('rec_recebedor_nome').value='';document.getElementById('rec_recebedor_documento').value='';document.getElementById('rec_data').value=todayStr();preencherFormularioComConfigRecibos();document.getElementById('recErr').style.display='none';atualizarPreviaRecibo();}
+function limparFormularioRecibo(){document.getElementById('rec_valor').value='';document.getElementById('rec_recebedor_nome').value='';document.getElementById('rec_recebedor_documento').value='';const sel=document.getElementById('rec_recebedor_colaborador');if(sel)sel.value='';document.getElementById('rec_data').value=todayStr();preencherFormularioComConfigRecibos();document.getElementById('recErr').style.display='none';atualizarPreviaRecibo();}
 function limparFiltroRecibos(){document.getElementById('recFiltroMes').value='';document.getElementById('recBusca').value='';carregarRecibos();}
 
 /* ================= CONTRACHEQUES ================= */
@@ -5600,6 +5721,115 @@ function setDinheiroTipo(t){
   document.querySelectorAll('#dinheiroTipoToggle .tipo-btn').forEach(b=>b.classList.toggle('active', b.dataset.tipo===t));
 }
 
+function navegarTipoDinheiroPorTeclado(event, modoEdicao=false){
+  if(!['ArrowLeft','ArrowRight','ArrowUp','ArrowDown','Enter'].includes(event.key)) return;
+  event.preventDefault();
+  const atual = modoEdicao ? edinheiroTipoAtual : dinheiroTipoAtual;
+  const proximo = ['ArrowRight','ArrowDown'].includes(event.key) ? 'saida'
+    : ['ArrowLeft','ArrowUp'].includes(event.key) ? 'entrada' : atual;
+  if(modoEdicao) setEdinheiroTipo(proximo); else setDinheiroTipo(proximo);
+  const seletor = modoEdicao ? '#edinheiroTipoToggle' : '#dinheiroTipoToggle';
+  document.querySelector(`${seletor} .tipo-btn[data-tipo="${proximo}"]`)?.focus();
+  if(event.key==='Enter'){
+    document.getElementById(modoEdicao ? 'edinheiro_descricao' : 'dinheiro_descricao')?.focus();
+  }
+}
+
+function navegarCategoriaPagamentoPorTeclado(event, prefixo){
+  const busca = document.getElementById(prefixo+'_categoria_busca');
+  const oculto = document.getElementById(prefixo+'_categoria');
+  if(!busca || !oculto) return;
+  if(event.key==='ArrowUp' || event.key==='ArrowDown'){
+    event.preventDefault();
+    const tipos = pagCaixaTiposCache.slice();
+    if(!tipos.length) return;
+    let indice = tipos.findIndex(t=>String(t.id)===String(oculto.value));
+    if(indice<0){
+      const texto = busca.value.trim().toLowerCase();
+      indice = tipos.findIndex(t=>labelTipoPagCaixa(t).toLowerCase()===texto);
+    }
+    if(indice<0) indice = event.key==='ArrowDown' ? -1 : 0;
+    indice = event.key==='ArrowDown'
+      ? (indice+1+tipos.length)%tipos.length
+      : (indice-1+tipos.length)%tipos.length;
+    const escolhido = tipos[indice];
+    oculto.value = escolhido.id;
+    busca.value = labelTipoPagCaixa(escolhido);
+    busca.select();
+    return;
+  }
+  if(event.key==='Enter'){
+    event.preventDefault();
+    matchTipoPagCaixa(prefixo+'_categoria_busca', prefixo+'_categoria');
+    document.getElementById(prefixo==='edinheiro' ? 'edinheiroSalvarBtn' : 'addbtnDinheiro')?.focus();
+  }
+}
+
+function navegarTipoPagamentoPrincipal(event,buscaId,ocultoId,destinoEnter){
+  const busca=document.getElementById(buscaId);
+  const oculto=document.getElementById(ocultoId);
+  if(!busca||!oculto) return;
+  if(event.key==='ArrowUp'||event.key==='ArrowDown'){
+    event.preventDefault();
+    const tipos=pagCaixaTiposCache.slice();
+    if(!tipos.length) return;
+    let indice=tipos.findIndex(t=>String(t.id)===String(oculto.value));
+    if(indice<0) indice=event.key==='ArrowDown'?-1:0;
+    indice=event.key==='ArrowDown'?(indice+1)%tipos.length:(indice-1+tipos.length)%tipos.length;
+    oculto.value=tipos[indice].id;
+    busca.value=labelTipoPagCaixa(tipos[indice]);
+    busca.select();
+  }else if(event.key==='Enter'){
+    event.preventDefault();
+    matchTipoPagCaixa(buscaId,ocultoId);
+    if(destinoEnter==='salvarNovoPagamento') salvarNovoPagamento();
+    else if(destinoEnter==='salvarEdicaoPagamento') salvarEdicaoPagamento();
+    else document.getElementById(destinoEnter)?.focus();
+  }
+}
+
+function configurarTecladoPagamentosDinheiro(){
+  const fluxo = [
+    ['dinheiro_descricao','dinheiro_data'],
+    ['dinheiro_data','dinheiro_valor'],
+    ['dinheiro_valor','dinheiro_categoria_busca'],
+    ['edinheiro_descricao','edinheiro_data'],
+    ['edinheiro_data','edinheiro_valor'],
+    ['edinheiro_valor','edinheiro_categoria_busca']
+  ];
+  fluxo.forEach(([origem,destino])=>{
+    const el=document.getElementById(origem);
+    if(!el) return;
+    el.removeAttribute('onkeydown');
+    el.addEventListener('keydown',event=>{
+      if(event.key!=='Enter') return;
+      event.preventDefault();
+      const alvo=document.getElementById(destino);
+      alvo?.focus();
+      if(destino.endsWith('_categoria_busca')) alvo?.select();
+    });
+  });
+  ['dinheiro','edinheiro'].forEach(prefixo=>{
+    const categoria=document.getElementById(prefixo+'_categoria_busca');
+    categoria?.removeAttribute('onkeydown');
+    categoria?.addEventListener('keydown',event=>navegarCategoriaPagamentoPorTeclado(event,prefixo));
+  });
+  document.querySelectorAll('#dinheiroTipoToggle .tipo-btn').forEach(btn=>btn.addEventListener('keydown',event=>navegarTipoDinheiroPorTeclado(event,false)));
+  document.querySelectorAll('#edinheiroTipoToggle .tipo-btn').forEach(btn=>btn.addEventListener('keydown',event=>navegarTipoDinheiroPorTeclado(event,true)));
+
+  const fluxoPagamentos=[
+    ['novoPag_descricao','novoPag_data'],['novoPag_data','novoPag_valor'],['novoPag_valor','novoPag_tipo_busca'],
+    ['pag_descricao','pag_data'],['pag_data','pag_valor'],['pag_valor','pagamentoSalvarBtn']
+  ];
+  fluxoPagamentos.forEach(([origem,destino])=>document.getElementById(origem)?.addEventListener('keydown',event=>{
+    if(event.key!=='Enter') return;
+    event.preventDefault();
+    const alvo=document.getElementById(destino);alvo?.focus();if(destino.includes('_tipo_busca')) alvo?.select();
+  }));
+  document.getElementById('novoPag_tipo_busca')?.addEventListener('keydown',event=>navegarTipoPagamentoPrincipal(event,'novoPag_tipo_busca','novoPag_tipo','salvarNovoPagamento'));
+  document.getElementById('pag_tipo_busca')?.addEventListener('keydown',event=>navegarTipoPagamentoPrincipal(event,'pag_tipo_busca','pag_tipo','salvarEdicaoPagamento'));
+}
+
 async function sincronizarHistoricoContasDinheiro(){
   const { data: pagas, error } = await sb.from('lancamentos')
     .select('*')
@@ -5705,6 +5935,7 @@ function abrirEditarDinheiro(id){
   document.getElementById('edinheiro_categoria_busca').value = tipoAtual ? labelTipoPagCaixa(tipoAtual) : '';
   document.getElementById('edinheiroErr').style.display = 'none';
   document.getElementById('editDinheiroModal').style.display = 'flex';
+  setTimeout(()=>document.querySelector('#edinheiroTipoToggle .tipo-btn.active')?.focus(), 50);
 }
 
 function fecharEditarDinheiro(){
@@ -6375,7 +6606,11 @@ function renderFluxoCaixa(){
     `).join('');
   }
 
-  const dinheiro = fluxoCache.filter(l=>l.tipo==='Dinheiro');
+  const dinheiro = fluxoCache.filter(l=>l.tipo==='Dinheiro').sort((a,b)=>{
+    const porData=String(a.data||'').localeCompare(String(b.data||''));
+    if(porData!==0) return porData;
+    return String(a.criado_em||a.id||'').localeCompare(String(b.criado_em||b.id||''));
+  });
 
   const dinheiroEntradas = dinheiro.filter(l=>Number(l.valor)>0).reduce((s,l)=>s+Number(l.valor), 0);
   const dinheiroSaidas = dinheiro.filter(l=>Number(l.valor)<0).reduce((s,l)=>s+Math.abs(Number(l.valor)), 0);
@@ -7360,20 +7595,66 @@ async function confirmarExclusaoProdutoOk(){
   fecharConfirmacaoProduto();
 }
 
-/* ================= PAGAMENTOS (extrato bancário) ================= */
+/* ================= PAGAMENTOS (módulo independente) ================= */
 
 let pagamentosCache = [];
 let pagamentosMesAtual = 'todos';
 let pagamentosBuscaTexto = '';
 let pagamentoEditandoId = null;
+let pagamentoEditandoOrigem = null;
 let excluindoPagamentoId = null;
+let excluindoPagamentoOrigem = null;
+let colarPagamentosParsed = [];
+let salvandoNovoPagamento = false;
+
+function garantirInterfaceColarPagamentos(){
+  const view=document.getElementById('viewPagamentos');
+  if(!view) return;
+  const cabecalho=view.querySelector('.panel .panel-head');
+  if(cabecalho&&!document.getElementById('abrirColarPagamentosBtn')){
+    const botao=document.createElement('button');
+    botao.id='abrirColarPagamentosBtn';
+    botao.type='button';
+    botao.className='filter-btn';
+    botao.textContent='📋 Colar de planilha';
+    botao.addEventListener('click',abrirColarPagamentos);
+    cabecalho.appendChild(botao);
+  }
+  if(document.getElementById('colarPagamentosModal')) return;
+  const modal=document.createElement('div');
+  modal.id='colarPagamentosModal';
+  modal.className='modal-overlay';
+  modal.innerHTML=`<div class="modal-box" style="max-width:900px;max-height:90vh;overflow:auto;">
+    <button class="modal-close" type="button" aria-label="Fechar">✕</button>
+    <h2>Colar pagamentos da planilha</h2>
+    <p class="modal-sub">Copie as colunas nesta ordem: <b>Descrição, Pagamento e Data</b>. A primeira linha pode conter os títulos.</p>
+    <div class="fld"><label>Dados da planilha</label><textarea id="colarPagamentosTexto" rows="7" placeholder="FORNECEDOR A    597,00    02/09/2026"></textarea></div>
+    <div class="modal-actions" style="margin-top:12px;"><button class="addbtn" id="colarPagamentosPreviaBtn" type="button">Ver prévia</button><button class="cancelbtn colar-pag-cancelar" type="button">Cancelar</button></div>
+    <div id="colarPagamentosPreview" style="display:none;margin-top:18px;">
+      <div class="panel-head" style="padding-left:0;padding-right:0;"><h2>Confira antes de confirmar</h2></div>
+      <div class="tablewrap" style="border:1px solid var(--line);border-radius:6px;max-height:380px;overflow:auto;"><table class="ledger"><thead><tr><th>Descrição</th><th style="text-align:right">Pagamento</th><th>Data</th><th></th></tr></thead><tbody id="colarPagamentosPreviewBody"></tbody></table></div>
+      <div class="formerr" id="colarPagamentosErr"></div>
+      <div class="modal-actions" style="margin-top:16px;"><button class="addbtn" id="confirmarColarPagamentosBtn" type="button">Confirmar pagamentos</button><button class="cancelbtn colar-pag-cancelar" type="button">Cancelar</button></div>
+    </div>
+  </div>`;
+  document.body.appendChild(modal);
+  modal.querySelector('.modal-close').addEventListener('click',fecharColarPagamentos);
+  modal.querySelectorAll('.colar-pag-cancelar').forEach(x=>x.addEventListener('click',fecharColarPagamentos));
+  modal.querySelector('#colarPagamentosPreviaBtn').addEventListener('click',processarColarPagamentos);
+  modal.querySelector('#confirmarColarPagamentosBtn').addEventListener('click',confirmarColarPagamentos);
+}
 
 async function abrirPagamentos(){
+  garantirInterfaceColarPagamentos();
   if(!document.getElementById('novoPag_data').value){
     document.getElementById('novoPag_data').value = todayStr();
   }
   await carregarTiposPagCaixaSeNecessario();
   await carregarMemoriaGlobal();
+  const erroSincronizacao=await sincronizarPagamentosDoFluxo();
+  if(erroSincronizacao){
+    alert('Não foi possível importar os pagamentos do Fluxo de Caixa. Execute o SQL da versão 1.2.15 no Supabase.');
+  }
   await popularFiltroMesPagamentos();
   const mesAtual = new Date().toISOString().slice(0,7);
   document.getElementById('pagamentosFiltroMes').value = mesAtual;
@@ -7381,7 +7662,35 @@ async function abrirPagamentos(){
   await carregarPagamentos();
 }
 
+async function sincronizarPagamentosDoFluxo(){
+  const fluxo=await buscarTodasLinhas((from,to)=>
+    sb.from('fluxo_caixa_lancamentos').select('id,data,descricao,valor,codigo_tipo_id').eq('loja',lojaAtual).neq('tipo','Dinheiro').lt('valor',0).range(from,to)
+  );
+  if(fluxo.error) return fluxo.error;
+  const existentes=await buscarTodasLinhas((from,to)=>
+    sb.from('pagamentos').select('fluxo_lancamento_id').eq('loja',lojaAtual).not('fluxo_lancamento_id','is',null).range(from,to)
+  );
+  if(existentes.error) return existentes.error;
+  const idsExistentes=new Set((existentes.data||[]).map(x=>String(x.fluxo_lancamento_id)));
+  const novos=(fluxo.data||[]).filter(x=>!idsExistentes.has(String(x.id))).map(x=>({
+    loja:lojaAtual,
+    descricao:x.descricao||'PAGAMENTO DO EXTRATO',
+    valor:Math.abs(Number(x.valor)),
+    data:x.data,
+    codigo_tipo_id:x.codigo_tipo_id==null?null:String(x.codigo_tipo_id),
+    origem:'extrato',
+    fluxo_lancamento_id:x.id,
+    excluido:false
+  }));
+  for(let i=0;i<novos.length;i+=500){
+    const {error}=await sb.from('pagamentos').insert(novos.slice(i,i+500));
+    if(error) return error;
+  }
+  return null;
+}
+
 async function salvarNovoPagamento(){
+  if(salvandoNovoPagamento) return;
   const descricao = document.getElementById('novoPag_descricao').value.trim();
   const data = document.getElementById('novoPag_data').value;
   const valorBruto = parseFloat(document.getElementById('novoPag_valor').value);
@@ -7393,15 +7702,21 @@ async function salvarNovoPagamento(){
     return;
   }
   err.style.display = 'none';
+  salvandoNovoPagamento = true;
+  const btnAdicionar=document.getElementById('novoPagamentoAdicionarBtn');
+  if(btnAdicionar) btnAdicionar.disabled=true;
 
-  const { data: salvo, error } = await sb.from('fluxo_caixa_lancamentos').insert({
+  const { data: salvo, error } = await sb.from('pagamentos').insert({
     loja: lojaAtual,
     data: data,
-    tipo: 'Pagamento',
     descricao: descricao,
-    valor: -Math.abs(valorBruto),
-    codigo_tipo_id: tipoId
+    valor: Math.abs(valorBruto),
+    codigo_tipo_id: tipoId,
+    origem:'manual',
+    excluido:false
   }).select().single();
+  salvandoNovoPagamento = false;
+  if(btnAdicionar) btnAdicionar.disabled=false;
 
   if(error){
     err.textContent = 'Erro ao salvar: ' + error.message;
@@ -7411,7 +7726,7 @@ async function salvarNovoPagamento(){
 
   if(tipoId) await gravarMemoriaPagCaixa(descricao, tipoId);
 
-  pagamentosCache.push(salvo);
+  pagamentosCache.push({...salvo,_origem_pagamento:'manual'});
   document.getElementById('novoPag_descricao').value = '';
   document.getElementById('novoPag_valor').value = '';
   document.getElementById('novoPag_tipo').value = '';
@@ -7420,11 +7735,117 @@ async function salvarNovoPagamento(){
   await popularFiltroMesPagamentos();
 }
 
+function abrirColarPagamentos(){
+  colarPagamentosParsed = [];
+  document.getElementById('colarPagamentosTexto').value = '';
+  document.getElementById('colarPagamentosPreview').style.display = 'none';
+  document.getElementById('colarPagamentosErr').style.display = 'none';
+  document.getElementById('colarPagamentosModal').style.display = 'flex';
+  setTimeout(()=>document.getElementById('colarPagamentosTexto')?.focus(),50);
+}
+
+function fecharColarPagamentos(){
+  document.getElementById('colarPagamentosModal').style.display = 'none';
+  colarPagamentosParsed = [];
+}
+
+function dataIsoValidaPagamento(data){
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(String(data||''))) return false;
+  const d=new Date(data+'T12:00:00');
+  return !Number.isNaN(d.getTime()) && d.toISOString().slice(0,10)===data;
+}
+
+function processarColarPagamentos(){
+  const texto = document.getElementById('colarPagamentosTexto').value;
+  const linhas = texto.split(/\r?\n/).map(x=>x.trim()).filter(Boolean);
+  const reconhecidos = [];
+  let ignorados = 0;
+  linhas.forEach((linha,indice)=>{
+    let colunas = linha.includes('\t') ? linha.split('\t') : linha.split(';');
+    colunas = colunas.map(x=>x.trim());
+    if(colunas.length<3){ ignorados++; return; }
+    const descricao = colunas[0];
+    const valor = parseNumeroVenda(colunas[1]);
+    const data = parseDataBR(colunas[2]);
+    const cabecalho = indice===0 && /descri|fornecedor|nome/i.test(descricao) && /pagamento|valor/i.test(colunas[1]);
+    if(cabecalho) return;
+    if(!descricao || valor===null || valor<=0 || !dataIsoValidaPagamento(data)){ ignorados++; return; }
+    reconhecidos.push({descricao,valor:Math.abs(valor),data});
+  });
+  if(!reconhecidos.length){
+    alert('Não encontrei linhas válidas. Cole três colunas nesta ordem: Descrição, Pagamento e Data.');
+    return;
+  }
+  colarPagamentosParsed = reconhecidos;
+  renderColarPagamentosPreview();
+  const err = document.getElementById('colarPagamentosErr');
+  if(ignorados){
+    err.textContent = ignorados+' linha(s) não foram reconhecidas e ficaram fora da prévia.';
+    err.style.display = 'block';
+  }else err.style.display = 'none';
+}
+
+function alterarColarPagamento(indice,campo,valor){
+  const linha=colarPagamentosParsed[indice];
+  if(!linha) return;
+  linha[campo]=campo==='valor' ? Math.abs(Number(valor)||0) : valor;
+}
+
+function removerColarPagamento(indice){
+  colarPagamentosParsed.splice(indice,1);
+  renderColarPagamentosPreview();
+}
+
+function renderColarPagamentosPreview(){
+  const body=document.getElementById('colarPagamentosPreviewBody');
+  body.innerHTML=colarPagamentosParsed.map((l,i)=>`<tr>
+    <td><input value="${escapeHtml(l.descricao)}" style="width:100%;min-width:240px;" oninput="alterarColarPagamento(${i},'descricao',this.value)"></td>
+    <td><input type="number" min="0.01" step="0.01" value="${Number(l.valor).toFixed(2)}" style="width:130px;text-align:right;" oninput="alterarColarPagamento(${i},'valor',this.value)"></td>
+    <td><input type="date" value="${escapeHtml(l.data)}" onchange="alterarColarPagamento(${i},'data',this.value)"></td>
+    <td><button type="button" class="iconbtn del" title="Remover da importação" onclick="removerColarPagamento(${i})">✕</button></td>
+  </tr>`).join('');
+  document.getElementById('colarPagamentosPreview').style.display='block';
+}
+
+async function confirmarColarPagamentos(){
+  const err=document.getElementById('colarPagamentosErr');
+  const invalidas=colarPagamentosParsed.filter(x=>!String(x.descricao||'').trim() || !dataIsoValidaPagamento(x.data) || !(Number(x.valor)>0));
+  if(!colarPagamentosParsed.length || invalidas.length){
+    err.textContent=invalidas.length ? 'Corrija as linhas sem descrição, data ou valor válido.' : 'Não há pagamentos para confirmar.';
+    err.style.display='block';
+    return;
+  }
+  const btn=document.getElementById('confirmarColarPagamentosBtn');
+  btn.disabled=true;
+  btn.textContent='Salvando…';
+  const registros=colarPagamentosParsed.map(x=>({
+    loja:lojaAtual,
+    descricao:String(x.descricao).trim(),
+    valor:Math.abs(Number(x.valor)),
+    data:x.data,
+    codigo_tipo_id:mapaMemoriaGlobal[String(x.descricao).trim().toLowerCase()]||null,
+    origem:'manual',
+    excluido:false
+  }));
+  const {data:salvos,error}=await sb.from('pagamentos').insert(registros).select();
+  btn.disabled=false;
+  btn.textContent='Confirmar pagamentos';
+  if(error){
+    err.textContent=error.message.includes('pagamentos') ? 'Não foi possível salvar. Execute primeiro o SQL da atualização do módulo Pagamentos.' : 'Erro ao salvar: '+error.message;
+    err.style.display='block';
+    return;
+  }
+  fecharColarPagamentos();
+  await popularFiltroMesPagamentos();
+  await carregarPagamentos();
+  alert((salvos||[]).length+' pagamento(s) adicionado(s) com sucesso.');
+}
+
 async function popularFiltroMesPagamentos(){
-  const { data, error } = await buscarTodasLinhas((from, to)=>
-    sb.from('fluxo_caixa_lancamentos').select('data').eq('loja', lojaAtual).neq('tipo','Dinheiro').lt('valor', 0).range(from, to)
+  const {data,error}=await buscarTodasLinhas((from,to)=>
+    sb.from('pagamentos').select('data').eq('loja',lojaAtual).eq('excluido',false).range(from,to)
   );
-  if(error){ console.error('Erro ao carregar meses de pagamentos:', error); return; }
+  if(error){ console.error('Erro ao carregar meses de pagamentos:',error); return; }
   const mesesSet = new Set((data||[]).map(d=>d.data.slice(0,7)));
   const hoje = new Date();
   mesesSet.add(hoje.getFullYear() + '-' + String(hoje.getMonth()+1).padStart(2,'0'));
@@ -7452,18 +7873,17 @@ async function carregarPagamentos(){
     ate = pagamentosMesAtual + '-' + String(ultimoDia).padStart(2,'0');
   }
 
-  const { data, error } = await buscarTodasLinhas((from, to)=>{
-    let q = sb.from('fluxo_caixa_lancamentos').select('*').eq('loja', lojaAtual).neq('tipo','Dinheiro').lt('valor', 0);
+  const resultado = await buscarTodasLinhas((from, to)=>{
+    let q = sb.from('pagamentos').select('*').eq('loja', lojaAtual).eq('excluido',false);
     if(de) q = q.gte('data', de);
     if(ate) q = q.lte('data', ate);
     return q.order('data').range(from, to);
   });
-
-  if(error){
-    console.error('Erro ao carregar pagamentos:', error);
+  if(resultado.error){
+    console.error('Erro ao carregar pagamentos:', resultado.error);
     pagamentosCache = [];
   }else{
-    pagamentosCache = data || [];
+    pagamentosCache = (resultado.data||[]).map(x=>({...x,_origem_pagamento:x.origem||'manual'}));
   }
   renderPagamentos();
 }
@@ -7474,7 +7894,7 @@ function filtrarPagamentos(){
 }
 
 function renderPagamentos(){
-  let linhas = pagamentosCache;
+  let linhas = pagamentosCache.slice().sort((a,b)=>String(a.data||'').localeCompare(String(b.data||'')) || String(a.criado_em||a.id||'').localeCompare(String(b.criado_em||b.id||'')));
   if(pagamentosBuscaTexto){
     linhas = linhas.filter(l=>{
       const texto = [fmtData(l.data), l.descricao, brl(l.valor), String(l.valor).replace('.',',')].join(' ').toLowerCase();
@@ -7498,11 +7918,12 @@ function renderPagamentos(){
       <tr>
         <td class="data">${fmtData(l.data)}</td>
         <td class="contato">${escapeHtml(l.descricao || '—')}</td>
-        <td>${celulaTipoFluxo(l, 'pagamentos')}</td>
-        <td class="valor" style="color:var(--rust);">${brl(l.valor)}</td>
+        <td><span class="delivery-badge ${l._origem_pagamento==='manual'?'sem-status':'ativa'}">${l._origem_pagamento==='manual'?'Manual':'Extrato'}</span></td>
+        <td>${celulaTipoFluxo(l, l._origem_pagamento==='manual'?'pagamentos_manual':'pagamentos_extrato')}</td>
+        <td class="valor" style="color:var(--rust);">${brl(Math.abs(Number(l.valor)))}</td>
         <td><div class="rowactions">
-          <button class="iconbtn edit" title="Editar" onclick="abrirEditarPagamento('${l.id}')">✎</button>
-          <button class="iconbtn del" title="Excluir" onclick="confirmarExclusaoPagamento('${l.id}')">✕</button>
+          <button class="iconbtn edit" title="Editar" onclick="abrirEditarPagamento('${l.id}','${l._origem_pagamento}')">✎</button>
+          <button class="iconbtn del" title="Excluir" onclick="confirmarExclusaoPagamento('${l.id}','${l._origem_pagamento}')">✕</button>
         </div></td>
       </tr>
     `).join('');
@@ -7528,11 +7949,14 @@ function celulaTipoFluxo(l, origem){
 }
 
 async function confirmarSugestaoTipoFluxo(id, tipoId, origem){
-  const { data, error } = await sb.from('fluxo_caixa_lancamentos').update({ codigo_tipo_id: tipoId }).eq('id', id).select().single();
+  const tabela = origem.startsWith('pagamentos_') ? 'pagamentos' : 'fluxo_caixa_lancamentos';
+  const { data, error } = await sb.from(tabela).update({ codigo_tipo_id: tipoId }).eq('id', id).select().single();
   if(error){ alert('Erro ao salvar: ' + error.message); return; }
-  if(origem==='pagamentos'){
-    const idx = pagamentosCache.findIndex(l=>String(l.id)===String(id));
+  if(origem==='pagamentos_manual'||origem==='pagamentos_extrato'){
+    const origemRegistro=origem==='pagamentos_manual'?'manual':'extrato';
+    const idx = pagamentosCache.findIndex(l=>String(l.id)===String(id)&&l._origem_pagamento===origemRegistro);
     if(idx>-1) pagamentosCache[idx] = data;
+    if(idx>-1) pagamentosCache[idx]._origem_pagamento=origemRegistro;
     renderPagamentos();
   }else{
     const idx = fluxoCache.findIndex(l=>String(l.id)===String(id));
@@ -7541,10 +7965,11 @@ async function confirmarSugestaoTipoFluxo(id, tipoId, origem){
   }
 }
 
-function abrirEditarPagamento(id){
-  const l = pagamentosCache.find(x=>x.id===id);
+function abrirEditarPagamento(id,origem){
+  const l = pagamentosCache.find(x=>String(x.id)===String(id)&&x._origem_pagamento===origem);
   if(!l) return;
   pagamentoEditandoId = id;
+  pagamentoEditandoOrigem = origem;
   document.getElementById('pag_descricao').value = l.descricao || '';
   document.getElementById('pag_data').value = l.data;
   document.getElementById('pag_valor').value = Math.abs(Number(l.valor));
@@ -7553,14 +7978,21 @@ function abrirEditarPagamento(id){
   document.getElementById('pag_tipo_busca').value = tipoAtual ? labelTipoPagCaixa(tipoAtual) : '';
   document.getElementById('pagamentoErr').style.display = 'none';
   document.getElementById('editPagamentoModal').style.display = 'flex';
+  setTimeout(()=>{
+    const campo=document.getElementById('pag_tipo_busca');
+    campo?.focus();campo?.select();
+  },50);
 }
 
 function fecharEditarPagamento(){
   document.getElementById('editPagamentoModal').style.display = 'none';
   pagamentoEditandoId = null;
+  pagamentoEditandoOrigem = null;
 }
 
 async function salvarEdicaoPagamento(){
+  const btn = document.getElementById('pagamentoSalvarBtn');
+  if(btn.disabled) return;
   const descricao = document.getElementById('pag_descricao').value.trim();
   const data = document.getElementById('pag_data').value;
   const valorBruto = parseFloat(document.getElementById('pag_valor').value);
@@ -7573,14 +8005,13 @@ async function salvarEdicaoPagamento(){
   }
   err.style.display = 'none';
 
-  const btn = document.getElementById('pagamentoSalvarBtn');
   btn.disabled = true;
   btn.textContent = 'Salvando…';
 
-  const { data: atualizado, error } = await sb.from('fluxo_caixa_lancamentos').update({
+  const { data: atualizado, error } = await sb.from('pagamentos').update({
     descricao: descricao || null,
     data: data,
-    valor: -Math.abs(valorBruto),
+    valor: Math.abs(valorBruto),
     codigo_tipo_id: tipoId
   }).eq('id', pagamentoEditandoId).select().single();
 
@@ -7595,29 +8026,42 @@ async function salvarEdicaoPagamento(){
     return;
   }
 
-  const idx = pagamentosCache.findIndex(l=>l.id===pagamentoEditandoId);
-  if(idx>-1) pagamentosCache[idx] = atualizado;
+  const origemAtual=pagamentoEditandoOrigem;
+  const idx = pagamentosCache.findIndex(l=>String(l.id)===String(pagamentoEditandoId)&&l._origem_pagamento===origemAtual);
+  if(idx>-1) pagamentosCache[idx] = {...atualizado,_origem_pagamento:origemAtual};
   renderPagamentos();
   fecharEditarPagamento();
   await popularFiltroMesPagamentos();
 }
 
-function confirmarExclusaoPagamento(id){
+function confirmarExclusaoPagamento(id,origem){
   excluindoPagamentoId = id;
-  document.getElementById('confirmExclusaoPagamentoModal').style.display = 'flex';
+  excluindoPagamentoOrigem = origem;
+  const texto=document.getElementById('confirmExclusaoPagamentoTexto');
+  if(texto) texto.textContent=origem==='extrato'
+      ? 'A cópia será removida somente da aba Pagamentos. O lançamento original permanecerá intacto no Fluxo de Caixa.'
+      : 'O pagamento manual será removido. O Fluxo de Caixa não será alterado.';
+  const modal=document.getElementById('confirmExclusaoPagamentoModal');
+  if(modal) modal.style.display = 'flex';
 }
 
 function fecharConfirmacaoPagamento(){
   document.getElementById('confirmExclusaoPagamentoModal').style.display = 'none';
   excluindoPagamentoId = null;
+  excluindoPagamentoOrigem = null;
 }
 
 async function confirmarExclusaoPagamentoOk(){
   if(!excluindoPagamentoId) return;
-  const { error } = await sb.from('fluxo_caixa_lancamentos').delete().eq('id', excluindoPagamentoId);
+  const operacao=excluindoPagamentoOrigem==='extrato'
+    ? sb.from('pagamentos').update({excluido:true}).eq('id',excluindoPagamentoId)
+    : sb.from('pagamentos').delete().eq('id',excluindoPagamentoId);
+  const { error } = await operacao;
   if(!error){
-    pagamentosCache = pagamentosCache.filter(l=>l.id!==excluindoPagamentoId);
+    pagamentosCache = pagamentosCache.filter(l=>!(String(l.id)===String(excluindoPagamentoId)&&l._origem_pagamento===excluindoPagamentoOrigem));
     renderPagamentos();
+  }else{
+    alert('Não foi possível excluir o pagamento: '+error.message);
   }
   fecharConfirmacaoPagamento();
 }
@@ -7628,10 +8072,11 @@ function exportarExcelPagamentos(){
   const dados = pagamentosCache.map(l=>({
     'Data': fmtData(l.data),
     'Descrição': l.descricao || '—',
-    'Valor': brl(l.valor)
+    'Origem': l._origem_pagamento==='manual' ? 'Manual' : 'Extrato',
+    'Valor': brl(Math.abs(Number(l.valor)))
   }));
   const planilha = XLSX.utils.json_to_sheet(dados);
-  planilha['!cols'] = [{wch:12},{wch:40},{wch:14}];
+  planilha['!cols'] = [{wch:12},{wch:40},{wch:12},{wch:14}];
   const livro = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(livro, planilha, 'Pagamentos');
   const nomeLoja = (NOMES_LOJA[lojaAtual]||'').toLowerCase().replace(' ','');
@@ -7647,19 +8092,19 @@ function exportarPdfPagamentos(){
   const dataHora = fmtData(agora.toISOString().slice(0,10)) + ' ' + agora.toTimeString().slice(0,5);
 
   doc.setFontSize(16);
-  doc.text('Pagamentos Feitos pela Conta — ' + (NOMES_LOJA[lojaAtual]||''), 14, 18);
+  doc.text('Pagamentos — ' + (NOMES_LOJA[lojaAtual]||''), 14, 18);
   doc.setFontSize(10);
   doc.setTextColor(120);
   doc.text('Gerado em ' + dataHora, 14, 25);
 
-  const corpo = pagamentosCache.map(l=>[fmtData(l.data), l.descricao||'—', brl(l.valor)]);
+  const corpo = pagamentosCache.map(l=>[fmtData(l.data), l.descricao||'—', l._origem_pagamento==='manual'?'Manual':'Extrato', brl(Math.abs(Number(l.valor)))]);
   const total = pagamentosCache.reduce((s,l)=>s+Math.abs(Number(l.valor)),0);
 
   doc.autoTable({
     startY: 32,
-    head: [['Data','Descrição','Valor']],
+    head: [['Data','Descrição','Origem','Valor']],
     body: corpo,
-    foot: [['TOTAL','', brl(-total)]],
+    foot: [['TOTAL','','', brl(total)]],
     styles: { fontSize: 8.5, cellPadding: 3 },
     headStyles: { fillColor: [38,51,43] },
     footStyles: { fillColor: [233,225,203], textColor:20, fontStyle:'bold' }
@@ -11510,6 +11955,7 @@ compUploadAreaEl.addEventListener('drop', (e)=>{
 async function iniciar(){
   inicializarAtualizacoesDesktop();
   aplicarMesAtualPadrao();
+  configurarTecladoPagamentosDinheiro();
   // No aplicativo instalado, exigir um novo login a cada abertura.
   // sessionStorage sobrevive a recarregamentos da tela, mas e limpa ao fechar o app.
   if(/Electron\//i.test(navigator.userAgent) && !sessionStorage.getItem('ranchao-login-preparado')){
