@@ -3505,6 +3505,25 @@ function lcAposRotulo(texto,rotulos){
   return '';
 }
 
+function lcNormalizarComparacao(valor){
+  return String(valor||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase().replace(/[^A-Z0-9]/g,'');
+}
+
+function lcCapturarTrecho(texto,inicio,fins,limite=300){
+  const fim=fins.join('|');
+  const re=new RegExp(inicio+'\\s*:?\\s*([\\s\\S]{1,'+limite+'}?)(?=\\s+(?:'+fim+')\\s*:?|$)','i');
+  const m=String(texto||'').match(re);
+  return m&&m[1]?m[1].trim():'';
+}
+
+function lcChaveSemantica(x){
+  if(!x||!x.data||!(Number(x.valor)>0))return '';
+  const pessoa=lcNormalizarComparacao(x.documento)||lcNormalizarComparacao(x.recebedor);
+  if(!pessoa)return '';
+  const centavos=Math.round(Number(x.valor)*100);
+  return ['s',x.data,String(x.horario||'').slice(0,8),centavos,pessoa].join(':');
+}
+
 async function lcHashArquivo(arquivo){
   const bytes=await arquivo.arrayBuffer();
   const hash=await crypto.subtle.digest('SHA-256',bytes);
@@ -3529,9 +3548,24 @@ async function lcExtrairTextoPdf(arquivo){
 
 function lcInterpretarTexto(texto){
   const t=String(texto||'').replace(/\r/g,'').replace(/[ \t]+\n/g,'\n').replace(/\n{3,}/g,'\n\n');
+  const plano=t.replace(/\s+/g,' ').trim();
   const ehPagBank=/PagBank|Banco Seguro|PagSeguro/i.test(t);
+  const ehSicoob=/SICOOB|SISBR|sicoob\.com\.br/i.test(t);
+  const ehSicoobBoleto=ehSicoob&&/PAGAMENTO DE BOLETO|Linha digit[aá]vel|Nosso n[uú]mero/i.test(t);
+  const ehSicoobPix=ehSicoob&&/Pix copia e cola|ID Transa[cç][aã]o|Destinat[aá]rio/i.test(t);
   let recebedor=lcAposRotulo(t,['Favorecido','Recebedor','Benefici[aá]rio','Destinat[aá]rio']);
   let documento='';
+  if(ehSicoobBoleto){
+    const bloco=lcCapturarTrecho(plano,'Benefici[aá]rio',['Pagador','Datas','Valores'],700);
+    const nm=bloco.match(/Nome\/Raz[aã]o Social\s*:?\s*(.+?)(?=\s+Nome Fantasia|\s+CPF\/CNPJ)/i);
+    const dm=bloco.match(/CPF\/CNPJ\s*:?\s*([*\d][\d.*\/-]{8,24})/i);
+    if(nm)recebedor=nm[1].trim();if(dm)documento=dm[1].trim();
+  }else if(ehSicoobPix){
+    const bloco=lcCapturarTrecho(plano,'Destinat[aá]rio',['Dados do pagamento','Ouvidoria'],700);
+    const nm=bloco.match(/Nome\s*:?\s*(.+?)(?=\s+CPF\/CNPJ|\s+Institui[cç][aã]o\/Banco)/i);
+    const dm=bloco.match(/CPF\/CNPJ\s*:?\s*([*\d][\d.*\/-]{8,24})/i);
+    if(nm)recebedor=nm[1].trim();if(dm)documento=dm[1].trim();
+  }
   // No comprovante Pix do PagBank o recebedor aparece no bloco "Para".
   // Limitamos a busca até a próxima seção para não confundir com "Para dúvidas".
   if(!recebedor&&ehPagBank){
@@ -3550,15 +3584,27 @@ function lcInterpretarTexto(texto){
   }
   if(!documento){const dm=t.match(/(?:CPF|CNPJ)\s*(?:do favorecido|do recebedor)?\s*\n?\s*([\d.\/-]{11,20})/i);if(dm)documento=dm[1];}
   let valor=0;
-  const vm=t.match(/Valor (?:do pagamento|da transfer[eê]ncia)\s*\n?\s*R?\$?\s*([\d.]+,\d{2})/i)||t.match(/Valor (?:pago|da transa[cç][aã]o|transferido)\s*\n?\s*R?\$?\s*([\d.]+,\d{2})/i);
+  const vm=(ehSicoobBoleto?plano.match(/(?:^|\s)Pago\s*:?\s*R\$\s*([\d.]+,\d{2})/i):null)
+    ||(ehSicoobPix?plano.match(/Dados do pagamento[\s\S]{0,250}?\bValor\s*:?\s*R\$\s*([\d.]+,\d{2})/i):null)
+    ||t.match(/Valor (?:do pagamento|da transfer[eê]ncia)\s*\n?\s*R?\$?\s*([\d.]+,\d{2})/i)||t.match(/Valor (?:pago|da transa[cç][aã]o|transferido)\s*\n?\s*R?\$?\s*([\d.]+,\d{2})/i);
   if(vm)valor=lcValorNumero(vm[1]);
   let data='';let horario='';
+  if(ehSicoobBoleto){
+    const dm=plano.match(/(?:^|\s)Pagamento\s*:?\s*(\d{2}\/\d{2}\/\d{4})(?!\s+DE\s+BOLETO)/i);
+    const rm=plano.match(/Realizado\s*:?\s*(\d{2}\/\d{2}\/\d{4})\s*(?:[àa]s)?\s*(\d{2}:\d{2}(?::\d{2})?)/i);
+    if(dm)data=lcDataBrParaIso(dm[1]);else if(rm)data=lcDataBrParaIso(rm[1]);if(rm)horario=rm[2]||'';
+  }else if(ehSicoobPix){
+    const dm=plano.match(/Dados do pagamento[\s\S]{0,180}?\bData\s*:?\s*(\d{2}\/\d{2}\/\d{4})\s*(\d{2}:\d{2}(?::\d{2})?)/i);
+    if(dm){data=lcDataBrParaIso(dm[1]);horario=dm[2]||'';}
+  }
   const cab=t.match(/Comprovante de (?:transa[cç][aã]o|pagamento(?:\s+Pix)?|envio de Pix)[\s\S]{0,140}?(\d{2}\/\d{2}\/\d{4})(?:\s*(?:às|as)\s*(\d{2}:\d{2}))?/i);
-  if(cab){data=lcDataBrParaIso(cab[1]);horario=cab[2]||'';}
+  if(!data&&cab){data=lcDataBrParaIso(cab[1]);horario=cab[2]||'';}
   if(!data){const dm=t.match(/(?:Data (?:do pagamento|da transa[cç][aã]o)|Pagamento realizado em)\s*\n?\s*(\d{2}\/\d{2}\/\d{4})/i);if(dm)data=lcDataBrParaIso(dm[1]);}
-  const cm=t.match(/C[oó]digo (?:de|da) transa[cç][aã]o(?:\s+(?:PagBank|Pix))?\s*\n?\s*([A-Z0-9-]{8,})/i)||t.match(/(?:ID|Identificador) da transa[cç][aã]o\s*\n?\s*([A-Z0-9-]{8,})/i);
+  const cm=plano.match(/ID Transa[cç][aã]o\s*:?\s*([A-Z0-9-]{12,})/i)
+    ||plano.match(/Autentica[cç][aã]o\s*:?\s*([A-Z0-9-]{12,})/i)
+    ||t.match(/C[oó]digo (?:de|da) transa[cç][aã]o(?:\s+(?:PagBank|Pix))?\s*\n?\s*([A-Z0-9-]{8,})/i)||t.match(/(?:ID|Identificador) da transa[cç][aã]o\s*\n?\s*([A-Z0-9-]{8,})/i);
   const codigo=cm?cm[1].trim():'';
-  const modelo=ehPagBank?'PagBank':(/PIX/i.test(t)?'Pix - outro banco':'Outro PDF');
+  const modelo=ehSicoobBoleto?'Sicoob - boleto':ehSicoobPix?'Sicoob - Pix copia e cola':ehPagBank?'PagBank':(/PIX/i.test(t)?'Pix - outro banco':'Outro PDF');
   const faltando=[];if(!recebedor)faltando.push('recebedor');if(!valor)faltando.push('valor');if(!data)faltando.push('data');
   return {recebedor,documento,valor,data,horario,codigo,modelo,status:faltando.length?'revisar':'pronto',mensagem:faltando.length?'Confira: '+faltando.join(', '):'Leitura concluída'};
 }
@@ -3579,7 +3625,7 @@ async function selecionarLoteLeituraComprovantes(fileList){
   const arquivos=Array.from(fileList||[]);
   document.getElementById('lcFileInput').value='';
   if(!arquivos.length)return;
-  if(arquivos.length>50){alert('Selecione no máximo 50 comprovantes por lote.');return;}
+  if(arquivos.length>200){alert('Selecione no máximo 200 comprovantes por lote.');return;}
   const invalido=arquivos.find(a=>a.type!=='application/pdf'&&!a.name.toLowerCase().endsWith('.pdf'));
   if(invalido){alert('Nesta primeira versão, selecione somente arquivos PDF.');return;}
   const grande=arquivos.find(a=>a.size>15*1024*1024);if(grande){alert('O arquivo "'+grande.name+'" ultrapassa 15 MB.');return;}
@@ -3593,7 +3639,10 @@ async function selecionarLoteLeituraComprovantes(fileList){
       item={...item,...lcInterpretarTexto(texto),hash};
     }catch(e){item.mensagem=e&&e.message?e.message:'Não foi possível ler o PDF.';}
     lcLote.push(item);renderLoteLeituras();
+    if(i%10===9)await new Promise(resolve=>setTimeout(resolve,0));
   }
+  lcLote.sort((a,b)=>(a.data||'9999-12-31').localeCompare(b.data||'9999-12-31')||(a.horario||'').localeCompare(b.horario||'')||a.nomeArquivo.localeCompare(b.nomeArquivo,undefined,{numeric:true}));
+  renumerarLeiturasComprovantes();
   await lcMarcarDuplicados();
   lcAtualizarProgresso(arquivos.length,arquivos.length,'Leitura concluída: '+arquivos.length+' comprovante(s).');
   setTimeout(()=>{document.getElementById('lcProgress').style.display='none';},1200);
@@ -3601,12 +3650,17 @@ async function selecionarLoteLeituraComprovantes(fileList){
 
 async function lcMarcarDuplicados(){
   const hashes=lcLote.map(x=>x.hash).filter(Boolean),codigos=lcLote.map(x=>x.codigo).filter(Boolean);
-  const encontrados=new Set();
-  if(hashes.length){const {data}=await sb.from('leituras_comprovantes').select('arquivo_hash').eq('loja',lojaAtual).in('arquivo_hash',hashes);(data||[]).forEach(x=>encontrados.add('h:'+x.arquivo_hash));}
-  if(codigos.length){const {data}=await sb.from('leituras_comprovantes').select('codigo_transacao').eq('loja',lojaAtual).in('codigo_transacao',codigos);(data||[]).forEach(x=>encontrados.add('c:'+x.codigo_transacao));}
+  const encontrados=new Set(),partes=(lista,tam=40)=>{const r=[];for(let i=0;i<lista.length;i+=tam)r.push(lista.slice(i,i+tam));return r;};
+  for(const grupo of partes([...new Set(hashes)])){const {data}=await sb.from('leituras_comprovantes').select('arquivo_hash').eq('loja',lojaAtual).in('arquivo_hash',grupo);(data||[]).forEach(x=>encontrados.add('h:'+x.arquivo_hash));}
+  for(const grupo of partes([...new Set(codigos)])){const {data}=await sb.from('leituras_comprovantes').select('codigo_transacao').eq('loja',lojaAtual).in('codigo_transacao',grupo);(data||[]).forEach(x=>encontrados.add('c:'+x.codigo_transacao));}
+  const datas=lcLote.map(x=>x.data).filter(Boolean).sort();
+  if(datas.length){
+    const {data}=await sb.from('leituras_comprovantes').select('recebedor,documento,valor,data_pagamento,horario_pagamento,codigo_transacao').eq('loja',lojaAtual).gte('data_pagamento',datas[0]).lte('data_pagamento',datas[datas.length-1]);
+    (data||[]).forEach(x=>{if(!x.codigo_transacao){const k=lcChaveSemantica({recebedor:x.recebedor,documento:x.documento,valor:x.valor,data:x.data_pagamento,horario:x.horario_pagamento});if(k)encontrados.add(k);}});
+  }
   const vistos=new Set();
   lcLote.forEach(x=>{
-    const chaves=[x.hash?'h:'+x.hash:'',x.codigo?'c:'+x.codigo:''].filter(Boolean);
+    const chaves=[x.hash?'h:'+x.hash:'',x.codigo?'c:'+x.codigo:'',!x.codigo?lcChaveSemantica(x):''].filter(Boolean);
     if(chaves.some(k=>encontrados.has(k)||vistos.has(k))){x.status='duplicado';x.mensagem='Este comprovante já foi incluído.';}
     chaves.forEach(k=>vistos.add(k));
   });
