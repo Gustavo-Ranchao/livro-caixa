@@ -107,6 +107,9 @@ function trocarLoja(l){
     novoOrcamento();
     abrirOrcamentos();
   }
+  if(viewAtual === 'tabelaPrecos'){
+    abrirTabelaPrecos();
+  }
   if(viewAtual === 'fluxoCaixa'){
     sb.from('fluxo_caixa_contas').select('*').eq('loja', lojaAtual).order('ordem').order('nome').then(async ({data, error})=>{
       fluxoContasCache = error ? [] : (data || []);
@@ -455,7 +458,7 @@ const BACKUP_TABELAS = [
   'fluxo_caixa_saldos','fluxo_caixa_lancamentos','caixa_diferencas','checklist_itens','checklist_execucoes','bh_registros',
   'bh_atestados','vendas_delivery','vendas_itens','controle_estoque_mensal','estoque_inventarios','contagens_estoque',
   'contagens_estoque_itens','comb_pag_compras','comb_pag_pagamentos','pagamentos_caixa','pagamentos_caixa_memoria',
-  'recibos','contracheques','orcamentos','duvidas','manutencoes','leituras_comprovantes','historico_alteracoes'
+  'recibos','contracheques','orcamentos','tabela_precos','duvidas','manutencoes','leituras_comprovantes','historico_alteracoes'
 ];
 const BACKUP_ARQUIVOS = [
   {tabela:'comprovantes',campo:'caminho_storage',bucket:'comprovantes'},
@@ -596,7 +599,7 @@ const HISTORICO_TABELAS_NOMES={
   caixa_diferencas:'Diferença de caixa',checklist_itens:'Itens do checklist',checklist_execucoes:'Checklist',compras_empresas:'Empresas de compras',compras_marcas:'Marcas',fornecedores:'Fornecedores',
   compras_produtos:'Produtos de compras',controle_estoque_mensal:'Controle de estoque',estoque_inventarios:'Inventário de estoque',contagens_estoque:'Contagens de estoque',contagens_estoque_itens:'Itens da contagem',
   pagamentos:'Pagamentos',comb_pag_compras:'Compras combinadas',comb_pag_pagamentos:'Pagamentos combinados',pagamentos_caixa:'Pagamentos de caixa',pagamentos_caixa_memoria:'Memória de pagamentos',pagamentos_caixa_tipos:'Tipos de pagamento',
-  vendas_delivery:'Vendas Delivery',vendas_itens:'Vendas com custo',orcamentos:'Orçamentos',recibos:'Recibos',contracheques:'Contracheques',duvidas:'Dúvidas',manutencoes:'Manutenções',leituras_comprovantes:'Leitura de comprovantes',
+  vendas_delivery:'Vendas Delivery',vendas_itens:'Vendas com custo',orcamentos:'Orçamentos',tabela_precos:'Tabela de preços',recibos:'Recibos',contracheques:'Contracheques',duvidas:'Dúvidas',manutencoes:'Manutenções',leituras_comprovantes:'Leitura de comprovantes',
   despesas_fixas:'Despesas fixas',despesas_fixas_puladas:'Despesas fixas ignoradas'
 };
 let historicoCache=[];
@@ -2678,20 +2681,160 @@ function mudarAbaBancoHoras(aba){
   });
 }
 
-const VIEWS = ['checklist','duvidas','manutencao','contasPagar','despesasFixas','comprovantes','leituraComprovantes','diferencaCaixa','fluxoCaixa','pagamentos','pagamentoCaixa','contratos','vendasComCusto','vendasDelivery','orcamentos','bancoHoras','compras','colaboradores','aniversarios','fornecedores','contasBancarias','inventario','controleEstoque','contagensEstoque','combinacaoPagamentos'];
+let tabelaPrecosCache=[];
+let tabelaPrecosSelecionados=new Set();
+let tabelaPrecosEdicaoId=null;
+let tabelaPrecosExcluirId=null;
+
+function hojeIsoTabelaPrecos(){
+  const d=new Date();
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+
+async function abrirTabelaPrecos(){
+  novoItemTabelaPrecos();
+  await carregarTabelaPrecos();
+}
+
+function novoItemTabelaPrecos(){
+  tabelaPrecosEdicaoId=null;
+  document.getElementById('tpFormTitulo').textContent='Novo produto';
+  document.getElementById('tpSalvarBtn').textContent='Salvar produto';
+  ['tp_produto','tp_categoria','tp_unidade','tp_custo','tp_venda','tp_observacao'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('tp_data').value=hojeIsoTabelaPrecos();
+  document.getElementById('tp_ativo').value='true';
+  const err=document.getElementById('tpErr');err.textContent='';err.style.display='none';
+  setTimeout(()=>document.getElementById('tp_produto').focus(),0);
+}
+
+async function carregarTabelaPrecos(){
+  const body=document.getElementById('tpBody');
+  body.innerHTML='<tr><td colspan="11" style="text-align:center;color:var(--muted);padding:24px;">Carregando produtos…</td></tr>';
+  const {data,error}=await sb.from('tabela_precos').select('*').eq('loja',lojaAtual).order('produto',{ascending:true});
+  if(error){
+    tabelaPrecosCache=[];
+    body.innerHTML='<tr><td colspan="11" style="text-align:center;color:#b4233a;padding:24px;">Não foi possível carregar a tabela. Execute o SQL do módulo no Supabase.</td></tr>';
+    console.error('Tabela de preços:',error);
+    return;
+  }
+  tabelaPrecosCache=data||[];
+  tabelaPrecosSelecionados=new Set([...tabelaPrecosSelecionados].filter(id=>tabelaPrecosCache.some(x=>Number(x.id)===Number(id))));
+  renderTabelaPrecos();
+}
+
+function itensVisiveisTabelaPrecos(){
+  const busca=(document.getElementById('tpBusca')?.value||'').trim().toLocaleLowerCase('pt-BR');
+  const filtro=document.getElementById('tpFiltroAtivo')?.value||'ativos';
+  return tabelaPrecosCache.filter(x=>{
+    if(filtro==='ativos'&&!x.ativo)return false;
+    if(filtro==='inativos'&&x.ativo)return false;
+    if(!busca)return true;
+    return [x.produto,x.categoria,x.unidade_embalagem,x.observacao].some(v=>String(v||'').toLocaleLowerCase('pt-BR').includes(busca));
+  });
+}
+
+function margemTabelaPrecos(x){
+  const venda=Number(x.preco_venda)||0,custo=Number(x.preco_custo)||0;
+  return venda>0?((venda-custo)/venda)*100:0;
+}
+
+function renderTabelaPrecos(){
+  const itens=itensVisiveisTabelaPrecos(),body=document.getElementById('tpBody'),empty=document.getElementById('tpEmpty');
+  body.innerHTML=itens.map(x=>{
+    const custo=Number(x.preco_custo)||0,venda=Number(x.preco_venda)||0,lucro=venda-custo,margem=margemTabelaPrecos(x);
+    return `<tr><td><input type="checkbox" ${tabelaPrecosSelecionados.has(Number(x.id))?'checked':''} onchange="selecionarItemTabelaPrecos(${Number(x.id)},this.checked)" aria-label="Selecionar ${escapeHtml(x.produto)}"></td><td><strong>${escapeHtml(x.produto)}</strong>${x.observacao?`<div style="font-size:11px;color:var(--muted);margin-top:3px;">${escapeHtml(x.observacao)}</div>`:''}</td><td>${escapeHtml(x.categoria||'—')}</td><td>${escapeHtml(x.unidade_embalagem||'—')}</td><td style="text-align:right;font-family:var(--font-mono);">${brl(custo)}</td><td style="text-align:right;font-family:var(--font-mono);font-weight:700;">${brl(venda)}</td><td style="text-align:right;font-family:var(--font-mono);color:${lucro>=0?'var(--green)':'var(--rust)'};">${brl(lucro)}</td><td style="text-align:right;font-family:var(--font-mono);">${margem.toFixed(1).replace('.',',')}%</td><td>${fmtData(x.data_atualizacao)}</td><td><span style="color:${x.ativo?'var(--green)':'var(--muted)'};font-weight:600;">${x.ativo?'Ativo':'Inativo'}</span></td><td style="white-space:nowrap;"><button class="iconbtn" onclick="editarItemTabelaPrecos(${Number(x.id)})" title="Editar">✏️</button><button class="iconbtn" onclick="abrirExclusaoTabelaPrecos(${Number(x.id)})" title="Excluir">🗑️</button></td></tr>`;
+  }).join('');
+  empty.style.display=itens.length?'none':'block';
+  const todos=document.getElementById('tpSelecionarTodos');
+  todos.checked=itens.length>0&&itens.every(x=>tabelaPrecosSelecionados.has(Number(x.id)));
+  todos.indeterminate=itens.some(x=>tabelaPrecosSelecionados.has(Number(x.id)))&&!todos.checked;
+}
+
+function selecionarItemTabelaPrecos(id,marcado){
+  marcado?tabelaPrecosSelecionados.add(Number(id)):tabelaPrecosSelecionados.delete(Number(id));
+  renderTabelaPrecos();
+}
+
+function selecionarTodosTabelaPrecos(marcado){
+  itensVisiveisTabelaPrecos().forEach(x=>marcado?tabelaPrecosSelecionados.add(Number(x.id)):tabelaPrecosSelecionados.delete(Number(x.id)));
+  renderTabelaPrecos();
+}
+
+async function salvarItemTabelaPrecos(){
+  const err=document.getElementById('tpErr'),btn=document.getElementById('tpSalvarBtn');
+  err.textContent='';err.style.display='none';
+  const produto=document.getElementById('tp_produto').value.trim();
+  const venda=Number(document.getElementById('tp_venda').value);
+  if(!produto){err.textContent='Informe o nome do produto.';err.style.display='block';document.getElementById('tp_produto').focus();return;}
+  if(!(venda>0)){err.textContent='Informe um preço de venda maior que zero.';err.style.display='block';document.getElementById('tp_venda').focus();return;}
+  const payload={loja:lojaAtual,produto,categoria:document.getElementById('tp_categoria').value.trim()||null,unidade_embalagem:document.getElementById('tp_unidade').value.trim()||null,preco_custo:Math.max(0,Number(document.getElementById('tp_custo').value)||0),preco_venda:venda,data_atualizacao:document.getElementById('tp_data').value||hojeIsoTabelaPrecos(),observacao:document.getElementById('tp_observacao').value.trim()||null,ativo:document.getElementById('tp_ativo').value==='true'};
+  btn.disabled=true;btn.textContent='Salvando…';
+  const resposta=tabelaPrecosEdicaoId?await sb.from('tabela_precos').update(payload).eq('id',tabelaPrecosEdicaoId).eq('loja',lojaAtual):await sb.from('tabela_precos').insert(payload);
+  btn.disabled=false;
+  if(resposta.error){err.textContent='Não foi possível salvar: '+resposta.error.message;err.style.display='block';btn.textContent=tabelaPrecosEdicaoId?'Salvar alterações':'Salvar produto';return;}
+  novoItemTabelaPrecos();
+  await carregarTabelaPrecos();
+}
+
+function editarItemTabelaPrecos(id){
+  const x=tabelaPrecosCache.find(v=>Number(v.id)===Number(id));if(!x)return;
+  tabelaPrecosEdicaoId=Number(id);
+  document.getElementById('tpFormTitulo').textContent='Editar produto';document.getElementById('tpSalvarBtn').textContent='Salvar alterações';
+  document.getElementById('tp_produto').value=x.produto||'';document.getElementById('tp_categoria').value=x.categoria||'';document.getElementById('tp_unidade').value=x.unidade_embalagem||'';document.getElementById('tp_custo').value=Number(x.preco_custo)||0;document.getElementById('tp_venda').value=Number(x.preco_venda)||0;document.getElementById('tp_data').value=String(x.data_atualizacao||'').slice(0,10)||hojeIsoTabelaPrecos();document.getElementById('tp_observacao').value=x.observacao||'';document.getElementById('tp_ativo').value=String(x.ativo!==false);
+  document.getElementById('tpErr').style.display='none';document.getElementById('tp_produto').focus();window.scrollTo({top:document.getElementById('viewTabelaPrecos').offsetTop-120,behavior:'smooth'});
+}
+
+function abrirExclusaoTabelaPrecos(id){
+  const x=tabelaPrecosCache.find(v=>Number(v.id)===Number(id));if(!x)return;
+  tabelaPrecosExcluirId=Number(id);document.getElementById('tpExcluirTexto').textContent=`O produto “${x.produto}” será removido somente da tabela da loja atual.`;document.getElementById('tpExcluirModal').style.display='flex';
+}
+function fecharExclusaoTabelaPrecos(){tabelaPrecosExcluirId=null;document.getElementById('tpExcluirModal').style.display='none';}
+async function confirmarExclusaoTabelaPrecos(){
+  if(!tabelaPrecosExcluirId)return;const btn=document.getElementById('tpExcluirBtn');btn.disabled=true;btn.textContent='Excluindo…';
+  const {error}=await sb.from('tabela_precos').delete().eq('id',tabelaPrecosExcluirId).eq('loja',lojaAtual);btn.disabled=false;btn.textContent='Excluir produto';
+  if(error){alert('Não foi possível excluir: '+error.message);return;}tabelaPrecosSelecionados.delete(tabelaPrecosExcluirId);fecharExclusaoTabelaPrecos();await carregarTabelaPrecos();
+}
+
+function itensExportacaoTabelaPrecos(){
+  const visiveis=itensVisiveisTabelaPrecos(),selecionados=visiveis.filter(x=>tabelaPrecosSelecionados.has(Number(x.id)));
+  return selecionados.length?selecionados:visiveis;
+}
+function nomeArquivoTabelaPrecos(ext,interno){return `tabela-precos-${interno?'interna-':''}${lojaAtual}-${hojeIsoTabelaPrecos()}.${ext}`;}
+function linhasTabelaPrecos(interno){
+  return itensExportacaoTabelaPrecos().map(x=>{
+    const base={'Produto':x.produto,'Categoria':x.categoria||'','Unidade / embalagem':x.unidade_embalagem||'','Preço de venda':Number(x.preco_venda)||0,'Atualizado em':fmtData(x.data_atualizacao),'Observação':x.observacao||''};
+    if(!interno)return base;
+    const custo=Number(x.preco_custo)||0,venda=Number(x.preco_venda)||0;
+    return {'Produto':x.produto,'Categoria':x.categoria||'','Unidade / embalagem':x.unidade_embalagem||'','Preço de custo':custo,'Preço de venda':venda,'Lucro':venda-custo,'Margem (%)':Number(margemTabelaPrecos(x).toFixed(2)),'Atualizado em':fmtData(x.data_atualizacao),'Observação':x.observacao||'','Status':x.ativo?'Ativo':'Inativo'};
+  });
+}
+function exportarTabelaPrecosExcel(interno){
+  if(!window.XLSX){alert('Recurso de Excel não carregado.');return;}const linhas=linhasTabelaPrecos(interno);if(!linhas.length){alert('Nenhum produto disponível para exportar.');return;}
+  const ws=XLSX.utils.json_to_sheet(linhas);ws['!cols']=Object.keys(linhas[0]).map(k=>({wch:k.includes('Produto')?32:k.includes('Observação')?38:18}));const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,interno?'Tabela interna':'Tabela para envio');XLSX.writeFile(wb,nomeArquivoTabelaPrecos('xlsx',interno));
+}
+function exportarTabelaPrecosPdf(interno){
+  if(!window.jspdf||!window.jspdf.jsPDF){alert('Recurso de PDF não carregado.');return;}const itens=itensExportacaoTabelaPrecos();if(!itens.length){alert('Nenhum produto disponível para exportar.');return;}
+  const doc=new window.jspdf.jsPDF({orientation:'landscape',unit:'mm',format:'a4'}),loja=NOMES_LOJA[lojaAtual]||lojaAtual;
+  doc.setFont('helvetica','bold');doc.setFontSize(16);doc.text(interno?'Tabela de preços — uso interno':'Tabela de preços',14,15);doc.setFont('helvetica','normal');doc.setFontSize(10);doc.text(`${loja} • Atualizada em ${new Date().toLocaleDateString('pt-BR')}`,14,21);
+  const head=interno?['Produto','Categoria','Unidade','Custo','Venda','Lucro','Margem','Atualização']:['Produto','Categoria','Unidade','Preço de venda','Atualização','Observação'];
+  const body=itens.map(x=>{const custo=Number(x.preco_custo)||0,venda=Number(x.preco_venda)||0;return interno?[x.produto,x.categoria||'—',x.unidade_embalagem||'—',brl(custo),brl(venda),brl(venda-custo),margemTabelaPrecos(x).toFixed(1).replace('.',',')+'%',fmtData(x.data_atualizacao)]:[x.produto,x.categoria||'—',x.unidade_embalagem||'—',brl(venda),fmtData(x.data_atualizacao),x.observacao||''];});
+  doc.autoTable({startY:27,head:[head],body,styles:{fontSize:8,cellPadding:2.2},headStyles:{fillColor:[30,53,91]},columnStyles:interno?{0:{cellWidth:48}}:{0:{cellWidth:55},5:{cellWidth:65}},margin:{left:14,right:14}});doc.save(nomeArquivoTabelaPrecos('pdf',interno));
+}
+
+const VIEWS = ['checklist','duvidas','manutencao','contasPagar','despesasFixas','comprovantes','leituraComprovantes','diferencaCaixa','fluxoCaixa','pagamentos','pagamentoCaixa','contratos','vendasComCusto','vendasDelivery','orcamentos','tabelaPrecos','bancoHoras','compras','colaboradores','aniversarios','fornecedores','contasBancarias','inventario','controleEstoque','contagensEstoque','combinacaoPagamentos'];
 let colabCarregado = false;
 
 const CATEGORIA_POR_VIEW = {
   contasPagar:'financeiro', despesasFixas:'financeiro', comprovantes:'financeiro', leituraComprovantes:'financeiro',
   diferencaCaixa:'financeiro', fluxoCaixa:'financeiro', pagamentos:'financeiro',
   pagamentoCaixa:'financeiro', combinacaoPagamentos:'financeiro', contratos:'financeiro',
-  vendasComCusto:'vendas', vendasDelivery:'vendas', orcamentos:'vendas',
+  vendasComCusto:'vendas', vendasDelivery:'vendas', orcamentos:'vendas', tabelaPrecos:'vendas',
   compras:'comprasEstoque', inventario:'comprasEstoque', controleEstoque:'comprasEstoque', contagensEstoque:'comprasEstoque',
   bancoHoras:'equipe', colaboradores:'equipe', aniversarios:'equipe',
   fornecedores:'cadastros', contasBancarias:'cadastros',
   checklist:'checklist', duvidas:'duvidas', manutencao:'manutencao'
 };
-const VIEW_IDS = { checklist:'viewChecklist', duvidas:'viewDuvidas', manutencao:'viewManutencao', contasPagar:'viewContasPagar', despesasFixas:'viewDespesasFixas', comprovantes:'viewComprovantes', leituraComprovantes:'viewLeituraComprovantes', diferencaCaixa:'viewDiferencaCaixa', fluxoCaixa:'viewFluxoCaixa', pagamentos:'viewPagamentos', pagamentoCaixa:'viewPagamentoCaixa', contratos:'viewContratos', vendasComCusto:'viewVendasComCusto', vendasDelivery:'viewVendasDelivery', orcamentos:'viewOrcamentos', bancoHoras:'viewBancoHoras', compras:'viewCompras', colaboradores:'viewColaboradores', aniversarios:'viewAniversarios', fornecedores:'viewFornecedores', contasBancarias:'viewContasBancarias', inventario:'viewInventario', controleEstoque:'viewControleEstoque', contagensEstoque:'viewContagensEstoque', combinacaoPagamentos:'viewCombinacaoPagamentos' };
+const VIEW_IDS = { checklist:'viewChecklist', duvidas:'viewDuvidas', manutencao:'viewManutencao', contasPagar:'viewContasPagar', despesasFixas:'viewDespesasFixas', comprovantes:'viewComprovantes', leituraComprovantes:'viewLeituraComprovantes', diferencaCaixa:'viewDiferencaCaixa', fluxoCaixa:'viewFluxoCaixa', pagamentos:'viewPagamentos', pagamentoCaixa:'viewPagamentoCaixa', contratos:'viewContratos', vendasComCusto:'viewVendasComCusto', vendasDelivery:'viewVendasDelivery', orcamentos:'viewOrcamentos', tabelaPrecos:'viewTabelaPrecos', bancoHoras:'viewBancoHoras', compras:'viewCompras', colaboradores:'viewColaboradores', aniversarios:'viewAniversarios', fornecedores:'viewFornecedores', contasBancarias:'viewContasBancarias', inventario:'viewInventario', controleEstoque:'viewControleEstoque', contagensEstoque:'viewContagensEstoque', combinacaoPagamentos:'viewCombinacaoPagamentos' };
 
 let categoriaMenuAberta = null;
 
@@ -2781,6 +2924,8 @@ async function mudarViewPrincipal(view){
     await abrirVendasDelivery();
   }else if(view==='orcamentos'){
     await abrirOrcamentos();
+  }else if(view==='tabelaPrecos'){
+    await abrirTabelaPrecos();
   }else if(view==='bancoHoras'){
     if(!bhCarregado) await carregarFuncionarios();
   }else if(view==='compras'){

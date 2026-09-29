@@ -750,6 +750,7 @@
       <button class="top-module-btn" data-category="vendas" data-view="vendasComCusto" onclick="mudarViewPrincipal('vendasComCusto')"><span class="top-module-icon">📊</span>Vendas com Custo</button>
       <button class="top-module-btn" data-category="vendas" data-view="vendasDelivery" onclick="mudarViewPrincipal('vendasDelivery')"><span class="top-module-icon">🛵</span>Vendas Delivery</button>
       <button class="top-module-btn" data-category="vendas" data-view="orcamentos" onclick="mudarViewPrincipal('orcamentos')"><span class="top-module-icon">📝</span>Orçamentos</button>
+      <button class="top-module-btn" data-category="vendas" data-view="tabelaPrecos" onclick="mudarViewPrincipal('tabelaPrecos')"><span class="top-module-icon">🏷️</span>Tabela de Preços</button>
       <button class="top-module-btn" data-category="comprasEstoque" data-view="compras" onclick="mudarViewPrincipal('compras')"><span class="top-module-icon">🛒</span>Compras</button>
       <button class="top-module-btn" data-category="comprasEstoque" data-view="inventario" onclick="mudarViewPrincipal('inventario')"><span class="top-module-icon">📦</span>Inventário</button>
       <button class="top-module-btn" data-category="comprasEstoque" data-view="controleEstoque" onclick="mudarViewPrincipal('controleEstoque')"><span class="top-module-icon">📈</span>Controle de Estoque</button>
@@ -1811,6 +1812,45 @@
             <tbody id="vendasProdutoBody"></tbody>
           </table>
         </div>
+      </div>
+    </div>
+
+    <div id="viewTabelaPrecos" style="display:none;">
+      <div class="rec-toolbar">
+        <div><h2 style="margin:0 0 4px;font-size:20px;color:#17233c;">Tabela de preços</h2><div class="rec-config-status">Cadastre somente os produtos que deseja comparar com a outra unidade. O custo nunca aparece no relatório externo.</div></div>
+        <button class="addbtn" style="width:auto;" onclick="novoItemTabelaPrecos()">+ Novo produto</button>
+      </div>
+
+      <div class="panel" style="margin-bottom:20px;">
+        <div class="panel-head"><h2 id="tpFormTitulo">Novo produto</h2></div>
+        <div class="rec-form-grid">
+          <div class="fld rec-span-2"><label>Produto *</label><input id="tp_produto" maxlength="180" placeholder="Ex.: Cerveja lata 350 ml"></div>
+          <div class="fld"><label>Categoria</label><input id="tp_categoria" maxlength="80" placeholder="Ex.: Cervejas"></div>
+          <div class="fld"><label>Unidade / embalagem</label><input id="tp_unidade" maxlength="80" placeholder="Ex.: unidade, fardo com 12"></div>
+          <div class="fld"><label>Preço de custo — interno (R$)</label><input id="tp_custo" type="number" min="0" step="0.01" placeholder="0,00"></div>
+          <div class="fld"><label>Preço de venda (R$) *</label><input id="tp_venda" type="number" min="0.01" step="0.01" placeholder="0,00"></div>
+          <div class="fld"><label>Data da atualização</label><input id="tp_data" type="date"></div>
+          <div class="fld"><label>Situação</label><select id="tp_ativo"><option value="true">Ativo</option><option value="false">Inativo</option></select></div>
+          <div class="fld rec-span-3"><label>Observação</label><input id="tp_observacao" maxlength="300" placeholder="Ex.: preço promocional, validade ou condição"></div>
+        </div>
+        <div class="formerr" id="tpErr" style="margin:0 20px 12px;"></div>
+        <div class="rec-actions"><button class="addbtn" id="tpSalvarBtn" style="width:auto;" onclick="salvarItemTabelaPrecos()">Salvar produto</button><button class="cancelbtn" onclick="novoItemTabelaPrecos()">Limpar</button></div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-head" style="flex-wrap:wrap;gap:12px;">
+          <div><h2>Produtos cadastrados</h2><p style="font-size:12px;color:var(--muted);margin-top:4px;">Selecione os itens que deseja enviar para a outra unidade.</p></div>
+          <div class="filters" style="flex-wrap:wrap;">
+            <input id="tpBusca" class="sem-maiuscula" placeholder="Pesquisar produto ou categoria" oninput="renderTabelaPrecos()" style="min-width:230px;">
+            <select id="tpFiltroAtivo" onchange="renderTabelaPrecos()"><option value="ativos">Ativos</option><option value="todos">Todos</option><option value="inativos">Inativos</option></select>
+            <button class="filter-btn" onclick="exportarTabelaPrecosExcel(false)">📊 Excel para enviar</button>
+            <button class="filter-btn" onclick="exportarTabelaPrecosPdf(false)">📄 PDF para enviar</button>
+            <button class="filter-btn" onclick="exportarTabelaPrecosExcel(true)">🔒 Excel interno</button>
+            <button class="filter-btn" onclick="exportarTabelaPrecosPdf(true)">🔒 PDF interno</button>
+          </div>
+        </div>
+        <div class="tablewrap"><table class="ledger"><thead><tr><th style="width:38px;"><input id="tpSelecionarTodos" type="checkbox" onchange="selecionarTodosTabelaPrecos(this.checked)" title="Selecionar todos os itens visíveis"></th><th>Produto</th><th>Categoria</th><th>Unidade / embalagem</th><th style="text-align:right;">Custo</th><th style="text-align:right;">Venda</th><th style="text-align:right;">Lucro</th><th style="text-align:right;">Margem</th><th>Atualização</th><th>Status</th><th></th></tr></thead><tbody id="tpBody"></tbody></table></div>
+        <div class="empty" id="tpEmpty" style="display:none;">Nenhum produto encontrado.</div>
       </div>
     </div>
 
@@ -3253,6 +3293,15 @@
         <button class="addbtn" id="atualizacaoAcaoBtn" onclick="executarAcaoAtualizacao()" style="display:none;width:auto;">Baixar atualização</button>
       </div>
     </div>
+  </div>
+</div>
+
+<div id="tpExcluirModal" class="modal-overlay">
+  <div class="modal-box" style="max-width:480px;">
+    <button class="modal-close" onclick="fecharExclusaoTabelaPrecos()">✕</button>
+    <h2>Excluir produto da tabela?</h2>
+    <p class="modal-sub" id="tpExcluirTexto">Esta ação removerá somente este cadastro de preço da loja atual.</p>
+    <div class="modal-actions" style="margin-top:18px;"><button class="cancelbtn" onclick="fecharExclusaoTabelaPrecos()">Cancelar</button><button class="addbtn" id="tpExcluirBtn" style="width:auto;background:#b4233a;" onclick="confirmarExclusaoTabelaPrecos()">Excluir produto</button></div>
   </div>
 </div>
 
