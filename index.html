@@ -23,6 +23,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.23/jspdf.plugin.autotable.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
 <style>
   :root{
     --ink:#17233c; --paper:#f4f7fb; --paper2:#eaf0f8; --paper3:#d8e1ee;
@@ -822,13 +823,13 @@
         <div class="panel-head"><h2>Novo recibo</h2></div>
         <div class="rec-form-grid">
           <div class="fld"><label>Empresa ou pessoa pagadora</label><input id="rec_pagador_nome" placeholder="Nome de quem efetuou o pagamento" oninput="atualizarPreviaRecibo()"></div>
-          <div class="fld"><label>CPF/CNPJ do pagador (opcional)</label><input id="rec_pagador_documento" placeholder="CPF ou CNPJ" oninput="atualizarPreviaRecibo()"></div>
+          <div class="fld"><label>CPF/CNPJ do pagador (opcional)</label><input id="rec_pagador_documento" inputmode="numeric" maxlength="18" data-mask="documento" placeholder="CPF ou CNPJ" oninput="atualizarPreviaRecibo()"></div>
           <div class="fld"><label>Data</label><input id="rec_data" type="date" onchange="atualizarPreviaRecibo()"></div>
           <div class="fld rec-span-2"><label>Endereço do pagador</label><input id="rec_pagador_endereco" placeholder="Rua, número, bairro e cidade" oninput="atualizarPreviaRecibo()"></div>
           <div class="fld"><label>Valor (R$)</label><input id="rec_valor" type="number" min="0.01" step="0.01" placeholder="0,00" oninput="atualizarPreviaRecibo()"><div class="rec-extenso" id="recValorExtenso"></div></div>
           <div class="fld"><label>Selecionar colaborador (opcional)</label><select id="rec_recebedor_colaborador" onchange="selecionarColaboradorReciboSelect()"><option value="">Selecione um colaborador</option></select></div>
           <div class="fld"><label>Nome da pessoa que recebeu</label><input id="rec_recebedor_nome" list="recColaboradoresLista" placeholder="Selecione acima ou digite outro nome" autocomplete="off" oninput="atualizarPreviaRecibo()" onchange="selecionarRecebedorRecibo()"><datalist id="recColaboradoresLista"></datalist></div>
-          <div class="fld"><label>CPF da pessoa que recebeu</label><input id="rec_recebedor_documento" placeholder="CPF de quem assinará" oninput="atualizarPreviaRecibo()"></div>
+          <div class="fld"><label>CPF da pessoa que recebeu</label><input id="rec_recebedor_documento" inputmode="numeric" maxlength="14" data-mask="cpf" placeholder="CPF de quem assinará" oninput="atualizarPreviaRecibo()"></div>
           <div class="fld rec-span-3"><label>Referente a</label><input id="rec_referencia" placeholder="Ex.: prestação de serviços referente ao mês..." oninput="atualizarPreviaRecibo()"></div>
         </div>
         <div class="rec-preview" id="recPreviaTexto">Preencha os dados para visualizar o texto do recibo.</div>
@@ -853,7 +854,7 @@
           <div class="panel-head"><h2>Novo demonstrativo de pagamento</h2></div>
           <div class="rec-form-grid">
             <div class="fld"><label>Nome do funcionário</label><input id="hol_funcionario" placeholder="Nome completo"></div>
-            <div class="fld"><label>CPF</label><input id="hol_cpf" placeholder="CPF do funcionário"></div>
+            <div class="fld"><label>CPF</label><input id="hol_cpf" inputmode="numeric" maxlength="14" data-mask="cpf" placeholder="CPF do funcionário"></div>
             <div class="fld"><label>Cargo / função</label><input id="hol_cargo" placeholder="Ex.: Atendente"></div>
             <div class="fld"><label>Competência</label><input id="hol_competencia" type="month"></div>
             <div class="fld"><label>Data de pagamento</label><input id="hol_data_pagamento" type="date"></div>
@@ -1892,8 +1893,8 @@
         <div class="rec-form-grid">
           <div class="fld"><label>Loja do orçamento</label><select id="orc_loja"><option value="loja1">01 — Loja 01</option><option value="loja2">02 — Loja 02</option></select></div>
           <div class="fld"><label>Nome do cliente (opcional)</label><input id="orc_cliente_nome" placeholder="Nome ou empresa"></div>
-          <div class="fld"><label>Telefone / WhatsApp (opcional)</label><input id="orc_cliente_telefone" placeholder="(38) 99999-9999"></div>
-          <div class="fld"><label>CPF/CNPJ (opcional)</label><input id="orc_cliente_documento" placeholder="CPF ou CNPJ"></div>
+          <div class="fld"><label>Telefone / WhatsApp (opcional)</label><input id="orc_cliente_telefone" inputmode="tel" maxlength="15" data-mask="telefone" placeholder="(38) 99999-9999"></div>
+          <div class="fld"><label>CPF/CNPJ (opcional)</label><input id="orc_cliente_documento" inputmode="numeric" maxlength="18" data-mask="documento" placeholder="CPF ou CNPJ"></div>
           <div class="fld"><label>Data de emissão</label><input id="orc_data" type="date"></div>
           <div class="fld"><label>Válido até</label><input id="orc_validade" type="date"></div>
           <div class="fld"><label>Forma de pagamento</label><input id="orc_pagamento" placeholder="Ex.: PIX, dinheiro ou cartão"></div>
@@ -1904,7 +1905,7 @@
           <div class="fld"><label>Desconto total (R$)</label><input id="orc_desconto" type="number" min="0" step="0.01" value="0" oninput="calcularOrcamento()"></div>
           <div class="fld"><label>Frete / entrega (R$)</label><input id="orc_entrega" type="number" min="0" step="0.01" value="0" oninput="calcularOrcamento()"></div>
           <div class="fld"><label>Status</label><select id="orc_status"><option value="aberto">Em aberto</option><option value="aprovado">Aprovado</option><option value="recusado">Recusado</option><option value="vencido">Vencido</option></select></div>
-          <div class="fld rec-span-3"><label>Observações e condições</label><textarea id="orc_observacoes" rows="3" placeholder="Ex.: entrega após confirmação; preços válidos até a data indicada."></textarea></div>
+          <div class="fld rec-span-3"><label>Observações que aparecerão no PDF (opcional)</label><textarea id="orc_observacoes" rows="5" placeholder="Escreva aqui qualquer informação complementar para o cliente, condições de entrega, validade ou outra observação."></textarea></div>
         </div>
         <div class="orc-resumo"><div><span>Itens</span><strong id="orcQtdItens">0</strong></div><div><span>Subtotal</span><strong id="orcSubtotal">R$ 0,00</strong></div><div><span>Desconto + entrega</span><strong id="orcAjustes">R$ 0,00</strong></div><div class="total"><span>Total do orçamento</span><strong id="orcTotal">R$ 0,00</strong></div></div>
         <div class="formerr" id="orcErr" style="margin:0 20px 12px;"></div>
@@ -3132,12 +3133,12 @@
     <div class="rec-config-grid">
       <div class="fld full"><label>Razão social</label><input id="rec_cfg_empresa_razao" placeholder="Razão social da empresa"></div>
       <div class="fld"><label>Nome fantasia</label><input id="rec_cfg_empresa_fantasia" placeholder="Nome fantasia"></div>
-      <div class="fld"><label>CNPJ</label><input id="rec_cfg_empresa_cnpj" placeholder="CNPJ da empresa"></div>
+      <div class="fld"><label>CNPJ</label><input id="rec_cfg_empresa_cnpj" inputmode="numeric" maxlength="18" data-mask="cnpj" placeholder="CNPJ da empresa"></div>
       <div class="fld full"><label>Endereço da empresa</label><input id="rec_cfg_empresa_endereco" placeholder="Endereço completo da empresa"></div>
       <div class="fld"><label>Cidade</label><input id="rec_cfg_cidade" placeholder="Ex.: Inimutaba"></div>
       <div class="fld"><label>Estado</label><input id="rec_cfg_estado" maxlength="2" placeholder="MG"></div>
       <div class="fld"><label>Pagador padrão</label><input id="rec_cfg_pagador_nome" placeholder="Empresa ou pessoa mais utilizada"></div>
-      <div class="fld"><label>CPF/CNPJ do pagador padrão</label><input id="rec_cfg_pagador_documento" placeholder="Opcional"></div>
+      <div class="fld"><label>CPF/CNPJ do pagador padrão</label><input id="rec_cfg_pagador_documento" inputmode="numeric" maxlength="18" data-mask="documento" placeholder="Opcional"></div>
       <div class="fld full"><label>Endereço do pagador padrão</label><input id="rec_cfg_pagador_endereco" placeholder="Endereço completo"></div>
       <div class="fld full"><label>Referência padrão</label><input id="rec_cfg_referencia" placeholder="Ex.: serviços prestados"></div>
       <div class="fld full"><label>Observação no rodapé (opcional)</label><input id="rec_cfg_observacao" placeholder="Texto adicional para o recibo"></div>
