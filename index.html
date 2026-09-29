@@ -1605,13 +1605,13 @@
     <div id="viewLeituraComprovantes" style="display:none;">
       <div class="panel" style="margin-bottom:18px;padding:18px 20px;">
         <div class="lc-toolbar">
-          <div style="flex:1;min-width:260px;"><h1 style="font-size:22px;margin:0 0 4px;">🔎 Leitura de comprovantes</h1><p style="margin:0;color:var(--muted);font-size:13px;">Selecione até 50 PDFs. Confira os dados identificados antes de salvar.</p></div>
+          <div style="flex:1;min-width:260px;"><h1 style="font-size:22px;margin:0 0 4px;">🔎 Leitura de comprovantes</h1><p style="margin:0;color:var(--muted);font-size:13px;">Selecione até 200 PDFs. Confira os dados identificados antes de salvar.</p></div>
           <div class="fld"><label>Iniciar numeração em</label><input id="lcNumeroInicial" type="number" min="1" step="1" value="1" onchange="renumerarLeiturasComprovantes()"></div>
           <div class="fld"><label>Mês do histórico</label><input id="lcFiltroMes" type="month" onchange="carregarHistoricoLeituras()"></div>
         </div>
         <label class="lc-upload">
           <input id="lcFileInput" type="file" accept=".pdf,application/pdf" multiple onchange="selecionarLoteLeituraComprovantes(this.files)">
-          📄 Clique aqui para selecionar até 50 comprovantes em PDF
+          📄 Clique aqui para selecionar até 200 comprovantes em PDF
         </label>
         <div class="lc-progress" id="lcProgress"><strong id="lcProgressTexto">Preparando leitura…</strong><div class="lc-progress-track"><div class="lc-progress-bar" id="lcProgressBar"></div></div></div>
       </div>
