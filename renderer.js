@@ -3532,24 +3532,49 @@ async function lcHashArquivo(arquivo){
   return Array.from(new Uint8Array(hash)).map(b=>b.toString(16).padStart(2,'0')).join('');
 }
 
+let lcPdfJsSeguroPromise=null;
+
+async function lcCarregarPdfJsSeguro(){
+  if(window.pdfjsLib)return window.pdfjsLib;
+  if(!lcPdfJsSeguroPromise){
+    lcPdfJsSeguroPromise=import('./assets/vendor/pdfjs/pdf.mjs').then(mod=>{
+      mod.GlobalWorkerOptions.workerSrc=new URL('./assets/vendor/pdfjs/pdf.worker.mjs',document.baseURI).href;
+      window.pdfjsLib=mod;return mod;
+    }).catch(erro=>{lcPdfJsSeguroPromise=null;throw erro;});
+  }
+  return lcPdfJsSeguroPromise;
+}
+
+async function lcValidarEstruturaPdf(arquivo){
+  if(!arquivo||arquivo.size<20)return 'O arquivo está vazio ou incompleto.';
+  if(arquivo.size>15*1024*1024)return 'O arquivo ultrapassa o limite de segurança de 15 MB.';
+  const inicio=new Uint8Array(await arquivo.slice(0,1024).arrayBuffer()),fim=new Uint8Array(await arquivo.slice(Math.max(0,arquivo.size-4096)).arrayBuffer()),dec=new TextDecoder('latin1');
+  if(!dec.decode(inicio).includes('%PDF-'))return 'O conteúdo não possui uma assinatura PDF válida.';
+  if(!dec.decode(fim).includes('%%EOF'))return 'O PDF parece estar incompleto ou corrompido.';
+  return '';
+}
+
 async function lcExtrairPaginasPdf(arquivo){
-  if(!window.pdfjsLib)throw new Error('O leitor de PDF não foi carregado. Verifique a internet e abra o sistema novamente.');
-  if(!window.PDFLib)throw new Error('O separador de páginas não foi carregado. Verifique a internet e abra o sistema novamente.');
-  pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
-  const buffer=await arquivo.arrayBuffer(),bytes=new Uint8Array(buffer),pdf=await pdfjsLib.getDocument({data:bytes.slice()}).promise;
-  const origem=await PDFLib.PDFDocument.load(bytes,{ignoreEncryption:true}),paginas=[],base=arquivo.name.replace(/\.pdf$/i,'');
+  const pdfjs=await lcCarregarPdfJsSeguro();
+  if(!window.PDFLib)throw new Error('O separador seguro de páginas não foi carregado. Abra o sistema novamente.');
+  const erroEstrutura=await lcValidarEstruturaPdf(arquivo);if(erroEstrutura)throw new Error(erroEstrutura);
+  const buffer=await arquivo.arrayBuffer(),bytes=new Uint8Array(buffer);
+  const tarefa=pdfjs.getDocument({data:bytes.slice(),isEvalSupported:false,enableXfa:false});
+  const pdf=await tarefa.promise;if(!pdf.numPages||pdf.numPages>200){await pdf.destroy();throw new Error('O PDF deve possuir entre 1 e 200 páginas.');}
+  let origem;try{origem=await PDFLib.PDFDocument.load(bytes);}catch(e){await pdf.destroy();throw new Error('PDF protegido, criptografado ou inválido. Salve uma cópia sem senha e tente novamente.');}
+  const paginas=[],base=arquivo.name.replace(/\.pdf$/i,'');
   for(let n=1;n<=pdf.numPages;n++){
     const pagina=await pdf.getPage(n);
     const conteudo=await pagina.getTextContent();
     let texto='';
     conteudo.items.forEach(item=>{texto+=String(item.str||'')+(item.hasEOL?'\n':' ');});
-    let arquivoPagina=arquivo,nomeArquivo=arquivo.name;
-    if(pdf.numPages>1){
-      const destino=await PDFLib.PDFDocument.create(),[paginaCopiada]=await destino.copyPages(origem,[n-1]);destino.addPage(paginaCopiada);
-      const paginaBytes=await destino.save({useObjectStreams:true});nomeArquivo=base+' - pagina '+String(n).padStart(3,'0')+'.pdf';arquivoPagina=new File([paginaBytes],nomeArquivo,{type:'application/pdf'});
-    }
+    const destino=await PDFLib.PDFDocument.create(),[paginaCopiada]=await destino.copyPages(origem,[n-1]);
+    paginaCopiada.node.delete(PDFLib.PDFName.of('AA'));paginaCopiada.node.delete(PDFLib.PDFName.of('Annots'));destino.addPage(paginaCopiada);
+    const paginaBytes=await destino.save({useObjectStreams:true,addDefaultPage:false});
+    const nomeArquivo=pdf.numPages>1?base+' - pagina '+String(n).padStart(3,'0')+'.pdf':arquivo.name,arquivoPagina=new File([paginaBytes],nomeArquivo,{type:'application/pdf'});
     paginas.push({texto,arquivo:arquivoPagina,nomeArquivo,pagina:n,totalPaginas:pdf.numPages});
   }
+  await pdf.destroy();
   return paginas;
 }
 
@@ -3601,17 +3626,18 @@ function lcInterpretarTexto(texto){
     const rm=plano.match(/Realizado\s*:?\s*(\d{2}\/\d{2}\/\d{4})\s*(?:[àa]s)?\s*(\d{2}:\d{2}(?::\d{2})?)/i);
     if(dm)data=lcDataBrParaIso(dm[1]);else if(rm)data=lcDataBrParaIso(rm[1]);if(rm)horario=rm[2]||'';
   }else if(ehSicoobPix){
-    const dm=plano.match(/Dados do pagamento[\s\S]{0,180}?\bData\s*:?\s*(\d{2}\/\d{2}\/\d{4})\s*(\d{2}:\d{2}(?::\d{2})?)/i);
+    const dm=plano.match(/Dados do pagamento[\s\S]{0,220}?\bData(?:\s+do pagamento)?\s*:?\s*(\d{2}\/\d{2}\/\d{4})\s*(\d{2}:\d{2}(?::\d{2})?)/i);
     if(dm){data=lcDataBrParaIso(dm[1]);horario=dm[2]||'';}
   }
   const cab=t.match(/Comprovante de (?:transa[cç][aã]o|pagamento(?:\s+Pix)?|envio de Pix)[\s\S]{0,140}?(\d{2}\/\d{2}\/\d{4})(?:\s*(?:às|as)\s*(\d{2}:\d{2}))?/i);
   if(!data&&cab){data=lcDataBrParaIso(cab[1]);horario=cab[2]||'';}
-  if(!data){const dm=t.match(/(?:Data (?:do pagamento|da transa[cç][aã]o)|Pagamento realizado em)\s*\n?\s*(\d{2}\/\d{2}\/\d{4})/i);if(dm)data=lcDataBrParaIso(dm[1]);}
+  if(!data){const dm=t.match(/(?:Data (?:do pagamento|da transa[cç][aã]o)|Pagamento realizado em)\s*:?\s*\n?\s*(\d{2}\/\d{2}\/\d{4})(?:\s+(\d{2}:\d{2}(?::\d{2})?))?/i);if(dm){data=lcDataBrParaIso(dm[1]);horario=dm[2]||horario;}}
   const cm=plano.match(/ID Transa[cç][aã]o\s*:?\s*([A-Z0-9-]{12,})/i)
     ||plano.match(/Autentica[cç][aã]o\s*:?\s*([A-Z0-9-]{12,})/i)
     ||t.match(/C[oó]digo (?:de|da) transa[cç][aã]o(?:\s+(?:PagBank|Pix))?\s*\n?\s*([A-Z0-9-]{8,})/i)||t.match(/(?:ID|Identificador) da transa[cç][aã]o\s*\n?\s*([A-Z0-9-]{8,})/i);
   const codigo=cm?cm[1].trim():'';
-  const modelo=ehSicoobBoleto?'Sicoob - boleto':ehSicoobPix?'Sicoob - Pix copia e cola':ehPagBank?'PagBank':(/PIX/i.test(t)?'Pix - outro banco':'Outro PDF');
+  const tipoSicoobPix=(plano.match(/Tipo Pagamento\s*:?\s*([^:]{1,80}?)(?=\s+Pagador\s*:)/i)||[])[1]||'';
+  const modelo=ehSicoobBoleto?'Sicoob - boleto':ehSicoobPix?('Sicoob - '+(tipoSicoobPix.trim()||'Pix')):ehPagBank?'PagBank':(/PIX/i.test(t)?'Pix - outro banco':'Outro PDF');
   const faltando=[];if(!recebedor)faltando.push('recebedor');if(!valor)faltando.push('valor');if(!data)faltando.push('data');
   return {recebedor,documento,valor,data,horario,codigo,modelo,status:faltando.length?'revisar':'pronto',mensagem:faltando.length?'Confira: '+faltando.join(', '):'Leitura concluída'};
 }

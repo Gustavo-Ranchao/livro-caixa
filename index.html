@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="referrer" content="strict-origin-when-cross-origin">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'self'; object-src 'none'; form-action 'self'; frame-ancestors 'none'; frame-src 'self' blob: https://qgpkswienjhfkbipiwio.supabase.co; script-src 'self' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://cdn.sheetjs.com; script-src-elem 'self' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://cdn.sheetjs.com; script-src-attr 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob: https://qgpkswienjhfkbipiwio.supabase.co; connect-src 'self' https://qgpkswienjhfkbipiwio.supabase.co wss://qgpkswienjhfkbipiwio.supabase.co https://cdnjs.cloudflare.com; worker-src 'self' blob: https://cdnjs.cloudflare.com; manifest-src 'self'; upgrade-insecure-requests">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'self'; object-src 'none'; form-action 'self'; frame-ancestors 'none'; frame-src 'self' blob: https://qgpkswienjhfkbipiwio.supabase.co; script-src 'self' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://cdn.sheetjs.com; script-src-elem 'self' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://cdn.sheetjs.com; script-src-attr 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob: https://qgpkswienjhfkbipiwio.supabase.co; connect-src 'self' https://qgpkswienjhfkbipiwio.supabase.co wss://qgpkswienjhfkbipiwio.supabase.co https://cdnjs.cloudflare.com; worker-src 'self' blob:; manifest-src 'self'; upgrade-insecure-requests">
 <title>Ranchão Bebidas</title>
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#17233c">
@@ -22,8 +22,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.23/jspdf.plugin.autotable.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
+<script src="assets/vendor/pdf-lib/pdf-lib.min.js"></script>
 <style>
   :root{
     --ink:#17233c; --paper:#f4f7fb; --paper2:#eaf0f8; --paper3:#d8e1ee;
@@ -3230,7 +3229,7 @@
     <h2 id="previewLeituraComprovanteTitulo" style="padding-right:45px;">Visualizar comprovante</h2>
     <p class="modal-sub" style="margin-bottom:12px;">Confira o documento sem precisar baixá-lo.</p>
     <div id="previewLeituraCarregando" style="padding:18px;text-align:center;color:var(--muted);">Carregando comprovante…</div>
-    <iframe id="previewLeituraComprovanteFrame" title="Visualização do comprovante" style="display:none;flex:1;width:100%;border:1px solid var(--paper3);border-radius:10px;background:#f4f7fb;"></iframe>
+    <iframe id="previewLeituraComprovanteFrame" title="Visualização do comprovante" referrerpolicy="no-referrer" style="display:none;flex:1;width:100%;border:1px solid var(--paper3);border-radius:10px;background:#f4f7fb;"></iframe>
     <div class="modal-actions" style="margin-top:12px;"><button class="cancelbtn" onclick="fecharPreviewLeituraComprovante()">Fechar</button></div>
   </div>
 </div>
