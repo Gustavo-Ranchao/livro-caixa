@@ -2632,7 +2632,7 @@ function criarDocumentoPdfOrcamento(d){
   doc.setTextColor(35,48,65);doc.setFontSize(9);doc.setFont(fonte,'normal');let y=39;if(d.empresa_razao_social)doc.text(d.empresa_razao_social,15,y);if(d.empresa_cnpj)doc.text('CNPJ: '+d.empresa_cnpj,15,y+5);if(d.empresa_endereco)doc.text(doc.splitTextToSize(d.empresa_endereco,105),15,y+10);doc.setFont(fonte,'bold');doc.text('Emissão: '+fmtData(d.data_emissao),195,y,{align:'right'});doc.text('Válido até: '+fmtData(d.data_validade),195,y+6,{align:'right'});
   y=61;let inicioTabela=65;if(d.cliente_nome||d.cliente_telefone||d.cliente_documento){doc.setDrawColor(205,214,225);doc.line(15,y,195,y);y+=8;doc.setFont(fonte,'bold');doc.text('CLIENTE',15,y);doc.setFont(fonte,'normal');if(d.cliente_nome)doc.text(d.cliente_nome,15,y+6);if(d.cliente_telefone)doc.text('Telefone: '+d.cliente_telefone,15,y+12);if(d.cliente_documento)doc.text('CPF/CNPJ: '+d.cliente_documento,105,y+12);inicioTabela=y+18;}
   const corpo=(d.itens||[]).map(i=>[i.produto,String(i.quantidade).replace('.',','),brl(i.valor_unitario),brl(i.total)]);doc.autoTable({startY:inicioTabela,margin:{left:15,right:15},head:[['Produto / descrição','Quantidade','Valor unitário','Total']],body:corpo,theme:'grid',styles:{font:'times',fontSize:9,cellPadding:3},headStyles:{fillColor:[35,55,84],font:'times',fontStyle:'bold'},columnStyles:{1:{halign:'right'},2:{halign:'right'},3:{halign:'right'}}});
-  y=doc.lastAutoTable.finalY+8;if(y>245){doc.addPage();y=20;}doc.setFont(fonte,'normal');doc.setFontSize(9);doc.text('Subtotal',155,y,{align:'right'});doc.text(brl(d.subtotal),195,y,{align:'right'});if(Number(d.desconto)>0){y+=6;doc.text('Desconto',155,y,{align:'right'});doc.text('- '+brl(d.desconto),195,y,{align:'right'});}if(Number(d.valor_entrega)>0){y+=6;doc.text('Entrega',155,y,{align:'right'});doc.text('+ '+brl(d.valor_entrega),195,y,{align:'right'});}y+=9;doc.setFillColor(232,246,237);doc.rect(115,y-6,80,12,'F');doc.setTextColor(24,95,56);doc.setFont(fonte,'bold');doc.setFontSize(12);doc.text('TOTAL',155,y+2,{align:'right'});doc.text(brl(d.total),192,y+2,{align:'right'});doc.setTextColor(55,67,82);doc.setFontSize(9);doc.setFont(fonte,'normal');y+=16;if(d.forma_pagamento){doc.setFont(fonte,'bold');doc.text('Forma de pagamento:',15,y);doc.setFont(fonte,'normal');doc.text(d.forma_pagamento,51,y);y+=8;}if(d.observacoes){doc.setFont(fonte,'bold');doc.text('Observações:',15,y);doc.setFont(fonte,'normal');doc.text(doc.splitTextToSize(d.observacoes,180),15,y+6);}
+  y=doc.lastAutoTable.finalY+8;if(y>245){doc.addPage();y=20;}doc.setFont(fonte,'normal');doc.setFontSize(9);doc.text('Subtotal',155,y,{align:'right'});doc.text(brl(d.subtotal),195,y,{align:'right'});if(Number(d.desconto)>0){y+=6;doc.text('Desconto',155,y,{align:'right'});doc.text('- '+brl(d.desconto),195,y,{align:'right'});}if(Number(d.valor_entrega)>0){y+=6;doc.text('Entrega',155,y,{align:'right'});doc.text('+ '+brl(d.valor_entrega),195,y,{align:'right'});}y+=9;doc.setFillColor(232,246,237);doc.rect(115,y-6,80,12,'F');doc.setTextColor(24,95,56);doc.setFont(fonte,'bold');doc.setFontSize(12);doc.text('TOTAL',155,y+2,{align:'right'});doc.text(brl(d.total),192,y+2,{align:'right'});doc.setTextColor(55,67,82);doc.setFontSize(9);doc.setFont(fonte,'normal');y+=16;if(d.forma_pagamento){doc.setFont(fonte,'bold');doc.text('Forma de pagamento:',15,y);doc.setFont(fonte,'normal');doc.text(d.forma_pagamento,51,y);y+=8;}if(d.observacoes){const linhasObs=doc.splitTextToSize(d.observacoes,180),alturaObs=linhasObs.length*4.5+10;if(y+alturaObs>276){doc.addPage();y=20;}doc.setFont(fonte,'bold');doc.text('OBSERVAÇÕES',15,y);doc.setFont(fonte,'normal');doc.text(linhasObs,15,y+6);}
   doc.setFontSize(7.5);doc.setTextColor(110,120,132);doc.text('Este orçamento não é documento fiscal nem confirmação de venda. Valores sujeitos à validade e disponibilidade informadas.',105,286,{align:'center'});return doc;
 }
 function gerarPdfOrcamento(d){const doc=criarDocumentoPdfOrcamento(d);if(!doc){alert('Não foi possível carregar o recurso de PDF.');return;}const cliente=(d.cliente_nome||'sem-cliente').replace(/[^a-zA-Z0-9À-ÿ]+/g,'-');doc.save('orcamento-'+(d.id?numeroOrcamento(d):'novo')+'-'+cliente+'.pdf');}
@@ -2904,17 +2904,19 @@ function renderAtestados(){
       <div class="campo" style="text-align:right;"><span class="lbl-mobile">Dias</span><span>${diasAtestado(a.data_inicio, a.data_fim)}</span></div>
       <div class="campo"><span class="lbl-mobile">Observação</span><span>${escapeHtml(a.observacao || '—')}</span></div>
       <div class="campo" style="justify-content:flex-end;gap:8px;">
-        <button class="iconbtn" title="Ver arquivo" data-caminho="${escapeHtml(a.caminho_storage)}" onclick="abrirArquivoAtestado(this.dataset.caminho)">🖼️</button>
+        <button class="iconbtn" title="Ver atestado dentro do sistema" data-caminho="${escapeHtml(a.caminho_storage)}" data-nome="${escapeHtml(a.nome_arquivo||'Atestado')}" onclick="abrirArquivoAtestado(this.dataset.caminho,this.dataset.nome)">👁</button>
         <button class="iconbtn del" title="Excluir" onclick="confirmarExclusaoAtestado(${a.id})">✕</button>
       </div>
     </div>
   `).join('');
 }
 
-async function abrirArquivoAtestado(caminho){
+async function abrirArquivoAtestado(caminho,nome){
+  const modal=document.getElementById('previewLeituraComprovanteModal'),titulo=document.getElementById('previewLeituraComprovanteTitulo'),carregando=document.getElementById('previewLeituraCarregando'),frame=document.getElementById('previewLeituraComprovanteFrame');
+  titulo.textContent=nome||'Visualizar atestado';carregando.textContent='Carregando atestado…';carregando.style.display='block';frame.style.display='none';frame.removeAttribute('src');modal.style.display='flex';
   const { data, error } = await sb.storage.from('comprovantes').createSignedUrl(caminho, 3600);
-  if(error){ alert('Erro ao abrir o arquivo: ' + error.message); return; }
-  window.open(data.signedUrl, '_blank', 'noopener');
+  if(error){ carregando.textContent='Não foi possível abrir o atestado.';return; }
+  frame.onload=()=>{carregando.style.display='none';frame.style.display='block';};frame.src=data.signedUrl;
 }
 
 async function compactarImagemAtestado(blob){
@@ -3530,20 +3532,25 @@ async function lcHashArquivo(arquivo){
   return Array.from(new Uint8Array(hash)).map(b=>b.toString(16).padStart(2,'0')).join('');
 }
 
-async function lcExtrairTextoPdf(arquivo){
+async function lcExtrairPaginasPdf(arquivo){
   if(!window.pdfjsLib)throw new Error('O leitor de PDF não foi carregado. Verifique a internet e abra o sistema novamente.');
+  if(!window.PDFLib)throw new Error('O separador de páginas não foi carregado. Verifique a internet e abra o sistema novamente.');
   pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
-  const bytes=await arquivo.arrayBuffer();
-  const pdf=await pdfjsLib.getDocument({data:bytes}).promise;
-  const paginas=[];
+  const buffer=await arquivo.arrayBuffer(),bytes=new Uint8Array(buffer),pdf=await pdfjsLib.getDocument({data:bytes.slice()}).promise;
+  const origem=await PDFLib.PDFDocument.load(bytes,{ignoreEncryption:true}),paginas=[],base=arquivo.name.replace(/\.pdf$/i,'');
   for(let n=1;n<=pdf.numPages;n++){
     const pagina=await pdf.getPage(n);
     const conteudo=await pagina.getTextContent();
     let texto='';
     conteudo.items.forEach(item=>{texto+=String(item.str||'')+(item.hasEOL?'\n':' ');});
-    paginas.push(texto);
+    let arquivoPagina=arquivo,nomeArquivo=arquivo.name;
+    if(pdf.numPages>1){
+      const destino=await PDFLib.PDFDocument.create(),[paginaCopiada]=await destino.copyPages(origem,[n-1]);destino.addPage(paginaCopiada);
+      const paginaBytes=await destino.save({useObjectStreams:true});nomeArquivo=base+' - pagina '+String(n).padStart(3,'0')+'.pdf';arquivoPagina=new File([paginaBytes],nomeArquivo,{type:'application/pdf'});
+    }
+    paginas.push({texto,arquivo:arquivoPagina,nomeArquivo,pagina:n,totalPaginas:pdf.numPages});
   }
-  return paginas.join('\n');
+  return paginas;
 }
 
 function lcInterpretarTexto(texto){
@@ -3631,20 +3638,24 @@ async function selecionarLoteLeituraComprovantes(fileList){
   const grande=arquivos.find(a=>a.size>15*1024*1024);if(grande){alert('O arquivo "'+grande.name+'" ultrapassa 15 MB.');return;}
   limparLoteLeituras();
   const inicio=Math.max(1,Number(document.getElementById('lcNumeroInicial').value)||1);
+  const paginas=[];
   for(let i=0;i<arquivos.length;i++){
-    const arquivo=arquivos[i];lcAtualizarProgresso(i,arquivos.length,'Lendo '+(i+1)+' de '+arquivos.length+': '+arquivo.name);
-    let item={id:'lc_'+Date.now()+'_'+i,numero:inicio+i,arquivo,nomeArquivo:arquivo.name,url:URL.createObjectURL(arquivo),recebedor:'',documento:'',valor:0,data:'',horario:'',codigo:'',modelo:'Não identificado',status:'erro',mensagem:'Não foi possível ler',hash:''};
+    const arquivo=arquivos[i];lcAtualizarProgresso(i,arquivos.length,'Abrindo arquivo '+(i+1)+' de '+arquivos.length+': '+arquivo.name);
     try{
-      const [texto,hash]=await Promise.all([lcExtrairTextoPdf(arquivo),lcHashArquivo(arquivo)]);
-      item={...item,...lcInterpretarTexto(texto),hash};
-    }catch(e){item.mensagem=e&&e.message?e.message:'Não foi possível ler o PDF.';}
-    lcLote.push(item);renderLoteLeituras();
-    if(i%10===9)await new Promise(resolve=>setTimeout(resolve,0));
+      const novas=await lcExtrairPaginasPdf(arquivo);paginas.push(...novas);
+      if(paginas.length>200){limparLoteLeituras();alert('Os arquivos selecionados possuem '+paginas.length+' páginas. O limite é de 200 comprovantes/páginas por lote.');document.getElementById('lcProgress').style.display='none';return;}
+    }catch(e){limparLoteLeituras();alert('Não foi possível abrir "'+arquivo.name+'": '+(e&&e.message?e.message:'PDF inválido.'));document.getElementById('lcProgress').style.display='none';return;}
+  }
+  for(let i=0;i<paginas.length;i++){
+    const p=paginas[i],arquivo=p.arquivo;lcAtualizarProgresso(i,paginas.length,'Lendo comprovante '+(i+1)+' de '+paginas.length+': '+p.nomeArquivo);
+    let item={id:'lc_'+Date.now()+'_'+i,numero:inicio+i,arquivo,nomeArquivo:p.nomeArquivo,url:URL.createObjectURL(arquivo),recebedor:'',documento:'',valor:0,data:'',horario:'',codigo:'',modelo:'Não identificado',status:'erro',mensagem:'Não foi possível ler',hash:''};
+    try{const hash=await lcHashArquivo(arquivo);item={...item,...lcInterpretarTexto(p.texto),hash};}catch(e){item.mensagem=e&&e.message?e.message:'Não foi possível ler a página do PDF.';}
+    lcLote.push(item);if(i%5===4||i===paginas.length-1)renderLoteLeituras();if(i%10===9)await new Promise(resolve=>setTimeout(resolve,0));
   }
   lcLote.sort((a,b)=>(a.data||'9999-12-31').localeCompare(b.data||'9999-12-31')||(a.horario||'').localeCompare(b.horario||'')||a.nomeArquivo.localeCompare(b.nomeArquivo,undefined,{numeric:true}));
   renumerarLeiturasComprovantes();
   await lcMarcarDuplicados();
-  lcAtualizarProgresso(arquivos.length,arquivos.length,'Leitura concluída: '+arquivos.length+' comprovante(s).');
+  lcAtualizarProgresso(paginas.length,paginas.length,'Leitura concluída: '+paginas.length+' comprovante(s) em '+arquivos.length+' arquivo(s).');
   setTimeout(()=>{document.getElementById('lcProgress').style.display='none';},1200);
 }
 
@@ -12052,8 +12063,36 @@ async function iniciar(){
   });
 }
 
+function mascararCpf(valor){
+  const d=String(valor||'').replace(/\D/g,'').slice(0,11);
+  return d.replace(/^(\d{3})(\d)/,'$1.$2').replace(/^(\d{3})\.(\d{3})(\d)/,'$1.$2.$3').replace(/\.(\d{3})(\d)/,'.$1-$2');
+}
+
+function mascararCnpj(valor){
+  const d=String(valor||'').replace(/\D/g,'').slice(0,14);
+  return d.replace(/^(\d{2})(\d)/,'$1.$2').replace(/^(\d{2})\.(\d{3})(\d)/,'$1.$2.$3').replace(/\.(\d{3})(\d)/,'.$1/$2').replace(/(\/\d{4})(\d)/,'$1-$2');
+}
+
+function mascararTelefone(valor){
+  const d=String(valor||'').replace(/\D/g,'').slice(0,11);
+  if(d.length<=2)return d.length?'('+d:'';
+  if(d.length<=6)return '('+d.slice(0,2)+') '+d.slice(2);
+  if(d.length<=10)return '('+d.slice(0,2)+') '+d.slice(2,6)+'-'+d.slice(6);
+  return '('+d.slice(0,2)+') '+d.slice(2,7)+'-'+d.slice(7);
+}
+
+function aplicarMascaraCampo(el){
+  if(!el||!el.dataset||!el.dataset.mask)return false;
+  const tipo=el.dataset.mask,digitos=String(el.value||'').replace(/\D/g,'');
+  el.value=tipo==='telefone'?mascararTelefone(digitos):tipo==='cnpj'?mascararCnpj(digitos):tipo==='cpf'?mascararCpf(digitos):(digitos.length>11?mascararCnpj(digitos):mascararCpf(digitos));
+  return true;
+}
+
+document.addEventListener('focusin',e=>{if(aplicarMascaraCampo(e.target)){const n=e.target.value.length;try{e.target.setSelectionRange(n,n);}catch(_){}}});
+
 document.addEventListener('input', function(e){
   const el = e.target;
+  if(aplicarMascaraCampo(el))return;
   const tipoIgnorado = ['email','password','date','time','month','number','file','checkbox','radio'];
   const ehInputTexto = el.tagName==='INPUT' && !tipoIgnorado.includes(el.type);
   const ehTextarea = el.tagName==='TEXTAREA';
