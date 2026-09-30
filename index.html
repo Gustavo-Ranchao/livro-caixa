@@ -1818,14 +1818,24 @@
     <div id="viewTabelaPrecos" style="display:none;">
       <div class="rec-toolbar">
         <div><h2 style="margin:0 0 4px;font-size:20px;color:#17233c;">Tabela de preços</h2><div class="rec-config-status">Cadastre somente os produtos que deseja comparar com a outra unidade. O custo nunca aparece no relatório externo.</div></div>
-        <button class="addbtn" style="width:auto;" onclick="novoItemTabelaPrecos()">+ Novo produto</button>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;"><button class="filter-btn" onclick="alternarCategoriasTabelaPrecos()">⚙ Categorias</button><button class="addbtn" style="width:auto;" onclick="novoItemTabelaPrecos()">+ Novo produto</button></div>
+      </div>
+
+      <div id="tpCategoriasPanel" class="panel" style="display:none;margin-bottom:20px;">
+        <div class="panel-head"><div><h2>Categorias de produtos</h2><p style="font-size:12px;color:var(--muted);margin-top:4px;">As categorias são separadas por loja e ficarão disponíveis para seleção no cadastro.</p></div></div>
+        <div style="display:flex;gap:10px;align-items:flex-end;padding:0 20px 16px;flex-wrap:wrap;">
+          <div class="fld" style="min-width:280px;flex:1;"><label>Nova categoria</label><input id="tpNovaCategoria" maxlength="80" placeholder="Ex.: Cervejas" onkeydown="if(event.key==='Enter'){event.preventDefault();salvarCategoriaTabelaPrecos();}"></div>
+          <button class="addbtn" id="tpCategoriaSalvarBtn" style="width:auto;margin-bottom:1px;" onclick="salvarCategoriaTabelaPrecos()">Adicionar categoria</button>
+        </div>
+        <div id="tpCategoriasLista" style="display:flex;gap:8px;flex-wrap:wrap;padding:0 20px 20px;"></div>
+        <div class="formerr" id="tpCategoriaErr" style="margin:0 20px 16px;"></div>
       </div>
 
       <div class="panel" style="margin-bottom:20px;">
         <div class="panel-head"><h2 id="tpFormTitulo">Novo produto</h2></div>
         <div class="rec-form-grid">
           <div class="fld rec-span-2"><label>Produto *</label><input id="tp_produto" maxlength="180" placeholder="Ex.: Cerveja lata 350 ml"></div>
-          <div class="fld"><label>Categoria</label><input id="tp_categoria" maxlength="80" placeholder="Ex.: Cervejas"></div>
+          <div class="fld"><label>Categoria</label><select id="tp_categoria"><option value="">Sem categoria</option></select></div>
           <div class="fld"><label>Unidade / embalagem</label><input id="tp_unidade" maxlength="80" placeholder="Ex.: unidade, fardo com 12"></div>
           <div class="fld"><label>Preço de custo — interno (R$)</label><input id="tp_custo" type="number" min="0" step="0.01" placeholder="0,00"></div>
           <div class="fld"><label>Preço de venda (R$) *</label><input id="tp_venda" type="number" min="0.01" step="0.01" placeholder="0,00"></div>
@@ -1849,7 +1859,7 @@
             <button class="filter-btn" onclick="exportarTabelaPrecosPdf(true)">🔒 PDF interno</button>
           </div>
         </div>
-        <div class="tablewrap"><table class="ledger"><thead><tr><th style="width:38px;"><input id="tpSelecionarTodos" type="checkbox" onchange="selecionarTodosTabelaPrecos(this.checked)" title="Selecionar todos os itens visíveis"></th><th>Produto</th><th>Categoria</th><th>Unidade / embalagem</th><th style="text-align:right;">Custo</th><th style="text-align:right;">Venda</th><th style="text-align:right;">Lucro</th><th style="text-align:right;">Margem</th><th>Atualização</th><th>Status</th><th></th></tr></thead><tbody id="tpBody"></tbody></table></div>
+        <div class="tablewrap"><table class="ledger" style="table-layout:auto;"><thead><tr><th style="width:38px;"><input id="tpSelecionarTodos" type="checkbox" onchange="selecionarTodosTabelaPrecos(this.checked)" title="Selecionar todos os itens visíveis"></th><th style="min-width:250px;">Produto</th><th>Categoria</th><th>Unidade / embalagem</th><th style="text-align:right;min-width:135px;">Custo editável</th><th style="text-align:right;min-width:135px;">Venda editável</th><th style="text-align:right;">Lucro</th><th style="text-align:right;">Margem</th><th>Atualização</th><th>Status</th><th></th></tr></thead><tbody id="tpBody"></tbody></table></div>
         <div class="empty" id="tpEmpty" style="display:none;">Nenhum produto encontrado.</div>
       </div>
     </div>

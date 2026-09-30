@@ -458,7 +458,7 @@ const BACKUP_TABELAS = [
   'fluxo_caixa_saldos','fluxo_caixa_lancamentos','caixa_diferencas','checklist_itens','checklist_execucoes','bh_registros',
   'bh_atestados','vendas_delivery','vendas_itens','controle_estoque_mensal','estoque_inventarios','contagens_estoque',
   'contagens_estoque_itens','comb_pag_compras','comb_pag_pagamentos','pagamentos_caixa','pagamentos_caixa_memoria',
-  'recibos','contracheques','orcamentos','tabela_precos','duvidas','manutencoes','leituras_comprovantes','historico_alteracoes'
+  'recibos','contracheques','orcamentos','tabela_precos','tabela_precos_categorias','duvidas','manutencoes','leituras_comprovantes','historico_alteracoes'
 ];
 const BACKUP_ARQUIVOS = [
   {tabela:'comprovantes',campo:'caminho_storage',bucket:'comprovantes'},
@@ -599,7 +599,7 @@ const HISTORICO_TABELAS_NOMES={
   caixa_diferencas:'Diferença de caixa',checklist_itens:'Itens do checklist',checklist_execucoes:'Checklist',compras_empresas:'Empresas de compras',compras_marcas:'Marcas',fornecedores:'Fornecedores',
   compras_produtos:'Produtos de compras',controle_estoque_mensal:'Controle de estoque',estoque_inventarios:'Inventário de estoque',contagens_estoque:'Contagens de estoque',contagens_estoque_itens:'Itens da contagem',
   pagamentos:'Pagamentos',comb_pag_compras:'Compras combinadas',comb_pag_pagamentos:'Pagamentos combinados',pagamentos_caixa:'Pagamentos de caixa',pagamentos_caixa_memoria:'Memória de pagamentos',pagamentos_caixa_tipos:'Tipos de pagamento',
-  vendas_delivery:'Vendas Delivery',vendas_itens:'Vendas com custo',orcamentos:'Orçamentos',tabela_precos:'Tabela de preços',recibos:'Recibos',contracheques:'Contracheques',duvidas:'Dúvidas',manutencoes:'Manutenções',leituras_comprovantes:'Leitura de comprovantes',
+  vendas_delivery:'Vendas Delivery',vendas_itens:'Vendas com custo',orcamentos:'Orçamentos',tabela_precos:'Tabela de preços',tabela_precos_categorias:'Categorias da tabela de preços',recibos:'Recibos',contracheques:'Contracheques',duvidas:'Dúvidas',manutencoes:'Manutenções',leituras_comprovantes:'Leitura de comprovantes',
   despesas_fixas:'Despesas fixas',despesas_fixas_puladas:'Despesas fixas ignoradas'
 };
 let historicoCache=[];
@@ -2682,6 +2682,7 @@ function mudarAbaBancoHoras(aba){
 }
 
 let tabelaPrecosCache=[];
+let tabelaPrecosCategorias=[];
 let tabelaPrecosSelecionados=new Set();
 let tabelaPrecosEdicaoId=null;
 let tabelaPrecosExcluirId=null;
@@ -2692,15 +2693,68 @@ function hojeIsoTabelaPrecos(){
 }
 
 async function abrirTabelaPrecos(){
+  await carregarCategoriasTabelaPrecos();
   novoItemTabelaPrecos();
   await carregarTabelaPrecos();
+}
+
+function alternarCategoriasTabelaPrecos(){
+  const painel=document.getElementById('tpCategoriasPanel');
+  painel.style.display=painel.style.display==='none'?'block':'none';
+  if(painel.style.display==='block')setTimeout(()=>document.getElementById('tpNovaCategoria').focus(),0);
+}
+
+function preencherSelectCategoriasTabelaPrecos(valor=''){
+  const select=document.getElementById('tp_categoria');
+  const nomes=tabelaPrecosCategorias.map(x=>x.nome);
+  if(valor&&!nomes.includes(valor))nomes.push(valor);
+  select.innerHTML='<option value="">Sem categoria</option>'+nomes.sort((a,b)=>a.localeCompare(b,'pt-BR')).map(nome=>`<option value="${escapeHtml(nome)}">${escapeHtml(nome)}</option>`).join('');
+  select.value=valor||'';
+}
+
+async function carregarCategoriasTabelaPrecos(){
+  const {data,error}=await sb.from('tabela_precos_categorias').select('*').eq('loja',lojaAtual).order('nome');
+  if(error){
+    tabelaPrecosCategorias=[];
+    console.error('Categorias da tabela de preços:',error);
+  }else tabelaPrecosCategorias=data||[];
+  preencherSelectCategoriasTabelaPrecos(document.getElementById('tp_categoria')?.value||'');
+  renderCategoriasTabelaPrecos();
+}
+
+function renderCategoriasTabelaPrecos(){
+  const lista=document.getElementById('tpCategoriasLista');if(!lista)return;
+  lista.innerHTML=tabelaPrecosCategorias.length?tabelaPrecosCategorias.map(x=>`<span style="display:inline-flex;align-items:center;gap:7px;border:1px solid var(--paper3);background:#f7f9fc;border-radius:999px;padding:7px 9px 7px 12px;font-size:12px;font-weight:600;">${escapeHtml(x.nome)} <button class="iconbtn del" style="width:24px;height:24px;" onclick="excluirCategoriaTabelaPrecos(${Number(x.id)})" title="Excluir categoria">✕</button></span>`).join(''):'<span style="font-size:12px;color:var(--muted);">Nenhuma categoria cadastrada.</span>';
+}
+
+async function salvarCategoriaTabelaPrecos(){
+  const input=document.getElementById('tpNovaCategoria'),err=document.getElementById('tpCategoriaErr'),btn=document.getElementById('tpCategoriaSalvarBtn');
+  const nome=input.value.trim().replace(/\s+/g,' ');err.textContent='';err.style.display='none';
+  if(!nome){err.textContent='Digite o nome da categoria.';err.style.display='block';input.focus();return;}
+  if(tabelaPrecosCategorias.some(x=>x.nome.localeCompare(nome,'pt-BR',{sensitivity:'base'})===0)){err.textContent='Essa categoria já está cadastrada.';err.style.display='block';input.focus();return;}
+  btn.disabled=true;btn.textContent='Salvando…';
+  const {error}=await sb.from('tabela_precos_categorias').insert({loja:lojaAtual,nome});
+  btn.disabled=false;btn.textContent='Adicionar categoria';
+  if(error){err.textContent='Não foi possível salvar: '+error.message;err.style.display='block';return;}
+  input.value='';await carregarCategoriasTabelaPrecos();input.focus();
+}
+
+async function excluirCategoriaTabelaPrecos(id){
+  const categoria=tabelaPrecosCategorias.find(x=>Number(x.id)===Number(id));if(!categoria)return;
+  const emUso=tabelaPrecosCache.some(x=>String(x.categoria||'').localeCompare(categoria.nome,'pt-BR',{sensitivity:'base'})===0);
+  const err=document.getElementById('tpCategoriaErr');
+  if(emUso){err.textContent='Esta categoria está sendo usada por um ou mais produtos. Altere esses produtos antes de excluí-la.';err.style.display='block';return;}
+  const {error}=await sb.from('tabela_precos_categorias').delete().eq('id',id).eq('loja',lojaAtual);
+  if(error){err.textContent='Não foi possível excluir: '+error.message;err.style.display='block';return;}
+  await carregarCategoriasTabelaPrecos();
 }
 
 function novoItemTabelaPrecos(){
   tabelaPrecosEdicaoId=null;
   document.getElementById('tpFormTitulo').textContent='Novo produto';
   document.getElementById('tpSalvarBtn').textContent='Salvar produto';
-  ['tp_produto','tp_categoria','tp_unidade','tp_custo','tp_venda','tp_observacao'].forEach(id=>document.getElementById(id).value='');
+  ['tp_produto','tp_unidade','tp_custo','tp_venda','tp_observacao'].forEach(id=>document.getElementById(id).value='');
+  preencherSelectCategoriasTabelaPrecos('');
   document.getElementById('tp_data').value=hojeIsoTabelaPrecos();
   document.getElementById('tp_ativo').value='true';
   const err=document.getElementById('tpErr');err.textContent='';err.style.display='none';
@@ -2742,12 +2796,38 @@ function renderTabelaPrecos(){
   const itens=itensVisiveisTabelaPrecos(),body=document.getElementById('tpBody'),empty=document.getElementById('tpEmpty');
   body.innerHTML=itens.map(x=>{
     const custo=Number(x.preco_custo)||0,venda=Number(x.preco_venda)||0,lucro=venda-custo,margem=margemTabelaPrecos(x);
-    return `<tr><td><input type="checkbox" ${tabelaPrecosSelecionados.has(Number(x.id))?'checked':''} onchange="selecionarItemTabelaPrecos(${Number(x.id)},this.checked)" aria-label="Selecionar ${escapeHtml(x.produto)}"></td><td><strong>${escapeHtml(x.produto)}</strong>${x.observacao?`<div style="font-size:11px;color:var(--muted);margin-top:3px;">${escapeHtml(x.observacao)}</div>`:''}</td><td>${escapeHtml(x.categoria||'—')}</td><td>${escapeHtml(x.unidade_embalagem||'—')}</td><td style="text-align:right;font-family:var(--font-mono);">${brl(custo)}</td><td style="text-align:right;font-family:var(--font-mono);font-weight:700;">${brl(venda)}</td><td style="text-align:right;font-family:var(--font-mono);color:${lucro>=0?'var(--green)':'var(--rust)'};">${brl(lucro)}</td><td style="text-align:right;font-family:var(--font-mono);">${margem.toFixed(1).replace('.',',')}%</td><td>${fmtData(x.data_atualizacao)}</td><td><span style="color:${x.ativo?'var(--green)':'var(--muted)'};font-weight:600;">${x.ativo?'Ativo':'Inativo'}</span></td><td style="white-space:nowrap;"><button class="iconbtn" onclick="editarItemTabelaPrecos(${Number(x.id)})" title="Editar">✏️</button><button class="iconbtn" onclick="abrirExclusaoTabelaPrecos(${Number(x.id)})" title="Excluir">🗑️</button></td></tr>`;
+    return `<tr><td><input type="checkbox" ${tabelaPrecosSelecionados.has(Number(x.id))?'checked':''} onchange="selecionarItemTabelaPrecos(${Number(x.id)},this.checked)" aria-label="Selecionar ${escapeHtml(x.produto)}"></td><td style="white-space:normal;min-width:250px;max-width:420px;overflow:visible;text-overflow:clip;"><strong style="white-space:normal;overflow-wrap:anywhere;">${escapeHtml(x.produto)}</strong>${x.observacao?`<div style="font-size:11px;color:var(--muted);margin-top:3px;white-space:normal;overflow-wrap:anywhere;">${escapeHtml(x.observacao)}</div>`:''}</td><td>${escapeHtml(x.categoria||'—')}</td><td>${escapeHtml(x.unidade_embalagem||'—')}</td><td style="text-align:right;"><input id="tpCustoLinha${Number(x.id)}" type="number" min="0" step="0.01" value="${custo.toFixed(2)}" aria-label="Custo de ${escapeHtml(x.produto)}" onkeydown="atalhoPrecoLinhaTabelaPrecos(event,${Number(x.id)},'custo')" onchange="salvarPrecoLinhaTabelaPrecos(${Number(x.id)},'custo',this)" style="width:112px;text-align:right;font-family:var(--font-mono);padding:7px 8px;"></td><td style="text-align:right;"><input id="tpVendaLinha${Number(x.id)}" type="number" min="0.01" step="0.01" value="${venda.toFixed(2)}" aria-label="Venda de ${escapeHtml(x.produto)}" onkeydown="atalhoPrecoLinhaTabelaPrecos(event,${Number(x.id)},'venda')" onchange="salvarPrecoLinhaTabelaPrecos(${Number(x.id)},'venda',this)" style="width:112px;text-align:right;font-family:var(--font-mono);font-weight:700;padding:7px 8px;"><div id="tpLinhaStatus${Number(x.id)}" style="height:13px;font-size:10px;margin-top:2px;color:var(--muted);"></div></td><td id="tpLucroLinha${Number(x.id)}" style="text-align:right;font-family:var(--font-mono);color:${lucro>=0?'var(--green)':'var(--rust)'};">${brl(lucro)}</td><td id="tpMargemLinha${Number(x.id)}" style="text-align:right;font-family:var(--font-mono);">${margem.toFixed(1).replace('.',',')}%</td><td id="tpDataLinha${Number(x.id)}">${fmtData(x.data_atualizacao)}</td><td><span style="color:${x.ativo?'var(--green)':'var(--muted)'};font-weight:600;">${x.ativo?'Ativo':'Inativo'}</span></td><td style="white-space:nowrap;"><button class="iconbtn" onclick="editarItemTabelaPrecos(${Number(x.id)})" title="Editar demais informações">✏️</button><button class="iconbtn" onclick="abrirExclusaoTabelaPrecos(${Number(x.id)})" title="Excluir">🗑️</button></td></tr>`;
   }).join('');
   empty.style.display=itens.length?'none':'block';
   const todos=document.getElementById('tpSelecionarTodos');
   todos.checked=itens.length>0&&itens.every(x=>tabelaPrecosSelecionados.has(Number(x.id)));
   todos.indeterminate=itens.some(x=>tabelaPrecosSelecionados.has(Number(x.id)))&&!todos.checked;
+}
+
+function atalhoPrecoLinhaTabelaPrecos(event,id,campo){
+  if(event.key!=='Enter')return;
+  event.preventDefault();event.currentTarget.blur();
+  const proximo=campo==='custo'?document.getElementById('tpVendaLinha'+id):null;
+  if(proximo)setTimeout(()=>{proximo.focus();proximo.select();},80);
+}
+
+async function salvarPrecoLinhaTabelaPrecos(id,campo,input){
+  const item=tabelaPrecosCache.find(x=>Number(x.id)===Number(id));if(!item)return;
+  const valor=Number(input.value),status=document.getElementById('tpLinhaStatus'+id);
+  if(!Number.isFinite(valor)||valor<0||(campo==='venda'&&valor<=0)){input.value=Number(campo==='custo'?item.preco_custo:item.preco_venda).toFixed(2);status.textContent='Valor inválido';status.style.color='#b4233a';return;}
+  const nomeCampo=campo==='custo'?'preco_custo':'preco_venda';
+  if(Number(item[nomeCampo])===valor){status.textContent='';return;}
+  input.disabled=true;status.textContent='Salvando…';status.style.color='var(--muted)';
+  const atualizacao=hojeIsoTabelaPrecos();
+  const {error}=await sb.from('tabela_precos').update({[nomeCampo]:valor,data_atualizacao:atualizacao}).eq('id',id).eq('loja',lojaAtual);
+  input.disabled=false;
+  if(error){input.value=Number(item[nomeCampo]).toFixed(2);status.textContent='Erro ao salvar';status.style.color='#b4233a';return;}
+  item[nomeCampo]=valor;item.data_atualizacao=atualizacao;status.textContent='Salvo ✓';status.style.color='var(--green)';
+  const lucro=(Number(item.preco_venda)||0)-(Number(item.preco_custo)||0),margem=margemTabelaPrecos(item);
+  const lucroEl=document.getElementById('tpLucroLinha'+id),margemEl=document.getElementById('tpMargemLinha'+id),dataEl=document.getElementById('tpDataLinha'+id);
+  if(lucroEl){lucroEl.textContent=brl(lucro);lucroEl.style.color=lucro>=0?'var(--green)':'var(--rust)';}
+  if(margemEl)margemEl.textContent=margem.toFixed(1).replace('.',',')+'%';
+  if(dataEl)dataEl.textContent=fmtData(atualizacao);
 }
 
 function selecionarItemTabelaPrecos(id,marcado){
@@ -2780,7 +2860,7 @@ function editarItemTabelaPrecos(id){
   const x=tabelaPrecosCache.find(v=>Number(v.id)===Number(id));if(!x)return;
   tabelaPrecosEdicaoId=Number(id);
   document.getElementById('tpFormTitulo').textContent='Editar produto';document.getElementById('tpSalvarBtn').textContent='Salvar alterações';
-  document.getElementById('tp_produto').value=x.produto||'';document.getElementById('tp_categoria').value=x.categoria||'';document.getElementById('tp_unidade').value=x.unidade_embalagem||'';document.getElementById('tp_custo').value=Number(x.preco_custo)||0;document.getElementById('tp_venda').value=Number(x.preco_venda)||0;document.getElementById('tp_data').value=String(x.data_atualizacao||'').slice(0,10)||hojeIsoTabelaPrecos();document.getElementById('tp_observacao').value=x.observacao||'';document.getElementById('tp_ativo').value=String(x.ativo!==false);
+  document.getElementById('tp_produto').value=x.produto||'';preencherSelectCategoriasTabelaPrecos(x.categoria||'');document.getElementById('tp_unidade').value=x.unidade_embalagem||'';document.getElementById('tp_custo').value=Number(x.preco_custo)||0;document.getElementById('tp_venda').value=Number(x.preco_venda)||0;document.getElementById('tp_data').value=String(x.data_atualizacao||'').slice(0,10)||hojeIsoTabelaPrecos();document.getElementById('tp_observacao').value=x.observacao||'';document.getElementById('tp_ativo').value=String(x.ativo!==false);
   document.getElementById('tpErr').style.display='none';document.getElementById('tp_produto').focus();window.scrollTo({top:document.getElementById('viewTabelaPrecos').offsetTop-120,behavior:'smooth'});
 }
 
