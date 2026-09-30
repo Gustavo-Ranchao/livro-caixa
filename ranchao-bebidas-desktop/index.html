@@ -734,6 +734,7 @@
       <button class="top-category-btn" data-category="checklist" onclick="selecionarCategoria('checklist')">✅ Checklist</button>
       <button class="top-category-btn" data-category="duvidas" onclick="selecionarCategoria('duvidas')">❓ Dúvidas</button>
       <button class="top-category-btn" data-category="manutencao" onclick="selecionarCategoria('manutencao')">🛠️ Manutenção</button>
+      <button class="top-category-btn" data-category="agenda" onclick="selecionarCategoria('agenda')">🗓️ Agenda</button>
     </nav>
 
     <nav class="top-modules" aria-label="Módulos do sistema">
@@ -765,6 +766,7 @@
       <button class="top-module-btn" data-category="manutencao" data-view="manutencao" data-manutencao-tipo="computador" onclick="abrirModuloManutencao('computador')"><span class="top-module-icon">🖥️</span>Manutenção Computador</button>
       <button class="top-module-btn" data-category="manutencao" data-view="manutencao" data-manutencao-tipo="loja" onclick="abrirModuloManutencao('loja')"><span class="top-module-icon">🏪</span>Manutenção Loja</button>
       <button class="top-module-btn" data-category="manutencao" data-view="manutencao" data-manutencao-tipo="veiculo" onclick="abrirModuloManutencao('veiculo')"><span class="top-module-icon">🚗</span>Manutenção Veículos</button>
+      <button class="top-module-btn" data-category="agenda" data-view="agenda" onclick="mudarViewPrincipal('agenda')"><span class="top-module-icon">🗓️</span>Agenda e Lembretes</button>
     </nav>
   </header>
 
@@ -1625,8 +1627,39 @@
 
       <div class="panel">
         <div class="panel-head" style="flex-wrap:wrap;"><h2>Comprovantes salvos</h2><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;"><input id="lcBuscaHistorico" style="max-width:320px;" placeholder="Pesquisar recebedor, valor ou documento" oninput="renderHistoricoLeituras()"><button type="button" class="filter-btn foto-btn" onclick="baixarLeiturasComprovantesZip()" title="Baixar em ZIP os comprovantes exibidos no histórico">🗜️ Baixar exibidos (.zip)</button><button type="button" class="filter-btn" style="border-color:var(--rust);color:var(--rust);" onclick="abrirExclusaoLeiturasComprovantes()" title="Excluir todos os comprovantes exibidos no histórico">🗑 Excluir exibidos</button></div></div>
-        <div class="tablewrap"><table class="ledger"><thead><tr><th>Nº</th><th>Data</th><th>Recebedor</th><th>CPF/CNPJ</th><th>Modelo</th><th style="text-align:right;">Valor</th><th>Arquivo</th></tr></thead><tbody id="lcHistoricoBody"></tbody></table></div>
+        <div class="tablewrap"><table class="ledger"><thead><tr><th>Nº</th><th>Data</th><th>Recebedor / descrição editável</th><th>CPF/CNPJ</th><th>Modelo</th><th style="text-align:right;">Valor</th><th>Arquivo</th></tr></thead><tbody id="lcHistoricoBody"></tbody></table></div>
         <div class="empty" id="lcHistoricoEmpty" style="display:none;">Nenhum comprovante analisado neste período.</div>
+      </div>
+    </div>
+
+    <div id="viewAgenda" style="display:none;">
+      <div class="rec-toolbar">
+        <div><h1 style="margin:0 0 4px;font-size:22px;">🗓️ Agenda e lembretes</h1><p style="margin:0;color:var(--muted);font-size:13px;">Registre compromissos e tarefas. O sistema avisará quando a data estiver próxima.</p></div>
+        <button class="addbtn" style="width:auto;" onclick="novoCompromissoAgenda()">+ Novo lembrete</button>
+      </div>
+      <div class="panel" style="margin-bottom:20px;">
+        <div class="panel-head"><h2 id="agendaFormTitulo">Novo lembrete</h2></div>
+        <div class="rec-form-grid">
+          <div class="fld rec-span-2"><label>O que preciso fazer *</label><input id="agenda_titulo" maxlength="180" placeholder="Ex.: Enviar comprovantes para a contabilidade"></div>
+          <div class="fld"><label>Data *</label><input id="agenda_data" type="date"></div>
+          <div class="fld"><label>Horário (opcional)</label><input id="agenda_hora" type="time"></div>
+          <div class="fld"><label>Avisar com antecedência</label><select id="agenda_antecedencia"><option value="0">No próprio dia</option><option value="1">1 dia antes</option><option value="3" selected>3 dias antes</option><option value="7">7 dias antes</option><option value="15">15 dias antes</option><option value="30">30 dias antes</option></select></div>
+          <div class="fld"><label>Vincular a</label><select id="agenda_loja"><option value="">Geral</option><option value="loja1">Loja 01</option><option value="loja2">Loja 02</option></select></div>
+          <div class="fld"><label>Prioridade</label><select id="agenda_prioridade"><option value="normal">Normal</option><option value="alta">Alta</option><option value="baixa">Baixa</option></select></div>
+          <div class="fld rec-span-3"><label>Detalhes (opcional)</label><textarea id="agenda_descricao" rows="3" maxlength="1000" placeholder="Informações adicionais"></textarea></div>
+        </div>
+        <div class="formerr" id="agendaErr" style="margin:0 20px 12px;"></div>
+        <div class="rec-actions"><button class="addbtn" id="agendaSalvarBtn" style="width:auto;" onclick="salvarCompromissoAgenda()">Salvar lembrete</button><button class="cancelbtn" onclick="novoCompromissoAgenda()">Limpar</button></div>
+      </div>
+      <div class="bh-resumo" style="margin-bottom:20px;">
+        <div class="metric"><div class="lbl">Vencidos</div><div class="val" id="agendaTotalVencidos" style="color:var(--rust);">0</div></div>
+        <div class="metric"><div class="lbl">Próximos 7 dias</div><div class="val" id="agendaTotalProximos">0</div></div>
+        <div class="metric"><div class="lbl">Concluídos no filtro</div><div class="val" id="agendaTotalConcluidos" style="color:var(--green);">0</div></div>
+      </div>
+      <div class="panel">
+        <div class="panel-head" style="flex-wrap:wrap;gap:12px;"><h2>Meus lembretes</h2><div class="filters"><input id="agendaBusca" class="sem-maiuscula" placeholder="Pesquisar lembrete" oninput="renderAgenda()"><select id="agendaFiltro" onchange="renderAgenda()"><option value="pendentes">Pendentes</option><option value="todos">Todos</option><option value="concluidos">Concluídos</option><option value="vencidos">Vencidos</option></select></div></div>
+        <div class="tablewrap"><table class="ledger"><thead><tr><th>Data</th><th>Compromisso</th><th>Loja</th><th>Prioridade</th><th>Status</th><th></th></tr></thead><tbody id="agendaBody"></tbody></table></div>
+        <div class="empty" id="agendaEmpty" style="display:none;">Nenhum lembrete encontrado.</div>
       </div>
     </div>
 
@@ -1769,9 +1802,9 @@
           <option value="todos">Todos os meses</option>
         </select>
         <label>De</label>
-        <input id="vendasFiltroDe" type="date" onchange="carregarVendas()">
+        <input id="vendasFiltroDe" type="date" onchange="mudarPeriodoManualVendas()">
         <label>Até</label>
-        <input id="vendasFiltroAte" type="date" onchange="carregarVendas()">
+        <input id="vendasFiltroAte" type="date" onchange="mudarPeriodoManualVendas()">
         <button type="button" class="filter-btn" onclick="limparFiltroVendas()">limpar</button>
       </div>
 
@@ -1802,6 +1835,7 @@
             <tbody id="vendasCategoriaBody"></tbody>
           </table>
         </div>
+        <div style="margin:0 20px 18px;padding:12px 14px;border:1px solid #d7e1ee;background:#f8fafc;border-radius:10px;font-size:12px;color:#43546d;line-height:1.5;"><strong>Como funciona “Var. margem”:</strong> mostra quanto a margem aumentou ou diminuiu em porcentagem em relação ao mesmo período do mês anterior. Exemplo: se a margem anterior era 10% e agora é 12%, a variação exibida será <strong>+20%</strong>. Não é a diferença simples de 2 pontos.</div>
       </div>
 
       <div class="panel" style="margin-top:20px;">
@@ -2872,6 +2906,16 @@
   </div>
 </div>
 
+<div id="confirmarDiaVendasModal" class="modal-overlay">
+  <div class="modal-box" style="max-width:440px;">
+    <button class="modal-close" onclick="fecharConfirmacaoDiaVendas()">✕</button>
+    <h2>Confirmar exclusão do dia?</h2>
+    <p class="modal-sub" id="confirmarDiaVendasTexto">Você tem certeza de que deseja apagar as vendas desse dia?</p>
+    <div style="margin-top:14px;padding:12px 14px;border:1px solid #f0c7cc;background:#fff7f8;border-radius:10px;color:#8d2332;font-size:12px;">Essa ação não poderá ser desfeita. Somente as vendas da loja atual e da data escolhida serão apagadas.</div>
+    <div class="modal-actions" style="margin-top:16px;"><button class="cancelbtn" onclick="fecharConfirmacaoDiaVendas()">Cancelar</button><button class="addbtn" id="confirmarDiaVendasBtn" style="width:auto;background:var(--rust);" onclick="executarApagarDiaVendas()">Sim, apagar esse dia</button></div>
+  </div>
+</div>
+
 <div id="confirmApagarVendasModal" class="modal-overlay">
   <div class="modal-box" style="max-width:440px;">
     <h2>Apagar todas as vendas?</h2>
@@ -3303,6 +3347,25 @@
         <button class="addbtn" id="atualizacaoAcaoBtn" onclick="executarAcaoAtualizacao()" style="display:none;width:auto;">Baixar atualização</button>
       </div>
     </div>
+  </div>
+</div>
+
+<div id="agendaLembretePopup" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="agendaPopupTitulo">
+  <div class="modal-box" style="max-width:560px;">
+    <button class="modal-close" onclick="fecharPopupAgenda()">✕</button>
+    <h2 id="agendaPopupTitulo">🗓️ Lembretes próximos</h2>
+    <p class="modal-sub">Você tem compromissos que precisam de atenção.</p>
+    <div id="agendaPopupLista" style="display:flex;flex-direction:column;gap:10px;margin-top:16px;"></div>
+    <div class="modal-actions" style="margin-top:16px;"><button class="cancelbtn" onclick="fecharPopupAgenda()">Fechar</button><button class="addbtn" style="width:auto;" onclick="abrirAgendaPeloPopup()">Abrir agenda</button></div>
+  </div>
+</div>
+
+<div id="agendaExcluirModal" class="modal-overlay">
+  <div class="modal-box" style="max-width:460px;">
+    <button class="modal-close" onclick="fecharExclusaoAgenda()">✕</button>
+    <h2>Excluir lembrete?</h2>
+    <p class="modal-sub" id="agendaExcluirTexto">Este compromisso será removido da agenda.</p>
+    <div class="modal-actions" style="margin-top:16px;"><button class="cancelbtn" onclick="fecharExclusaoAgenda()">Cancelar</button><button class="addbtn" id="agendaExcluirBtn" style="width:auto;background:var(--rust);" onclick="confirmarExclusaoAgenda()">Excluir lembrete</button></div>
   </div>
 </div>
 

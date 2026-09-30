@@ -458,7 +458,7 @@ const BACKUP_TABELAS = [
   'fluxo_caixa_saldos','fluxo_caixa_lancamentos','caixa_diferencas','checklist_itens','checklist_execucoes','bh_registros',
   'bh_atestados','vendas_delivery','vendas_itens','controle_estoque_mensal','estoque_inventarios','contagens_estoque',
   'contagens_estoque_itens','comb_pag_compras','comb_pag_pagamentos','pagamentos_caixa','pagamentos_caixa_memoria',
-  'recibos','contracheques','orcamentos','tabela_precos','tabela_precos_categorias','duvidas','manutencoes','leituras_comprovantes','historico_alteracoes'
+  'recibos','contracheques','orcamentos','tabela_precos','tabela_precos_categorias','agenda_lembretes','duvidas','manutencoes','leituras_comprovantes','historico_alteracoes'
 ];
 const BACKUP_ARQUIVOS = [
   {tabela:'comprovantes',campo:'caminho_storage',bucket:'comprovantes'},
@@ -599,7 +599,7 @@ const HISTORICO_TABELAS_NOMES={
   caixa_diferencas:'Diferença de caixa',checklist_itens:'Itens do checklist',checklist_execucoes:'Checklist',compras_empresas:'Empresas de compras',compras_marcas:'Marcas',fornecedores:'Fornecedores',
   compras_produtos:'Produtos de compras',controle_estoque_mensal:'Controle de estoque',estoque_inventarios:'Inventário de estoque',contagens_estoque:'Contagens de estoque',contagens_estoque_itens:'Itens da contagem',
   pagamentos:'Pagamentos',comb_pag_compras:'Compras combinadas',comb_pag_pagamentos:'Pagamentos combinados',pagamentos_caixa:'Pagamentos de caixa',pagamentos_caixa_memoria:'Memória de pagamentos',pagamentos_caixa_tipos:'Tipos de pagamento',
-  vendas_delivery:'Vendas Delivery',vendas_itens:'Vendas com custo',orcamentos:'Orçamentos',tabela_precos:'Tabela de preços',tabela_precos_categorias:'Categorias da tabela de preços',recibos:'Recibos',contracheques:'Contracheques',duvidas:'Dúvidas',manutencoes:'Manutenções',leituras_comprovantes:'Leitura de comprovantes',
+  vendas_delivery:'Vendas Delivery',vendas_itens:'Vendas com custo',orcamentos:'Orçamentos',tabela_precos:'Tabela de preços',tabela_precos_categorias:'Categorias da tabela de preços',agenda_lembretes:'Agenda e lembretes',recibos:'Recibos',contracheques:'Contracheques',duvidas:'Dúvidas',manutencoes:'Manutenções',leituras_comprovantes:'Leitura de comprovantes',
   despesas_fixas:'Despesas fixas',despesas_fixas_puladas:'Despesas fixas ignoradas'
 };
 let historicoCache=[];
@@ -2796,7 +2796,7 @@ function renderTabelaPrecos(){
   const itens=itensVisiveisTabelaPrecos(),body=document.getElementById('tpBody'),empty=document.getElementById('tpEmpty');
   body.innerHTML=itens.map(x=>{
     const custo=Number(x.preco_custo)||0,venda=Number(x.preco_venda)||0,lucro=venda-custo,margem=margemTabelaPrecos(x);
-    return `<tr><td><input type="checkbox" ${tabelaPrecosSelecionados.has(Number(x.id))?'checked':''} onchange="selecionarItemTabelaPrecos(${Number(x.id)},this.checked)" aria-label="Selecionar ${escapeHtml(x.produto)}"></td><td style="white-space:normal;min-width:250px;max-width:420px;overflow:visible;text-overflow:clip;"><strong style="white-space:normal;overflow-wrap:anywhere;">${escapeHtml(x.produto)}</strong>${x.observacao?`<div style="font-size:11px;color:var(--muted);margin-top:3px;white-space:normal;overflow-wrap:anywhere;">${escapeHtml(x.observacao)}</div>`:''}</td><td>${escapeHtml(x.categoria||'—')}</td><td>${escapeHtml(x.unidade_embalagem||'—')}</td><td style="text-align:right;"><input id="tpCustoLinha${Number(x.id)}" type="number" min="0" step="0.01" value="${custo.toFixed(2)}" aria-label="Custo de ${escapeHtml(x.produto)}" onkeydown="atalhoPrecoLinhaTabelaPrecos(event,${Number(x.id)},'custo')" onchange="salvarPrecoLinhaTabelaPrecos(${Number(x.id)},'custo',this)" style="width:112px;text-align:right;font-family:var(--font-mono);padding:7px 8px;"></td><td style="text-align:right;"><input id="tpVendaLinha${Number(x.id)}" type="number" min="0.01" step="0.01" value="${venda.toFixed(2)}" aria-label="Venda de ${escapeHtml(x.produto)}" onkeydown="atalhoPrecoLinhaTabelaPrecos(event,${Number(x.id)},'venda')" onchange="salvarPrecoLinhaTabelaPrecos(${Number(x.id)},'venda',this)" style="width:112px;text-align:right;font-family:var(--font-mono);font-weight:700;padding:7px 8px;"><div id="tpLinhaStatus${Number(x.id)}" style="height:13px;font-size:10px;margin-top:2px;color:var(--muted);"></div></td><td id="tpLucroLinha${Number(x.id)}" style="text-align:right;font-family:var(--font-mono);color:${lucro>=0?'var(--green)':'var(--rust)'};">${brl(lucro)}</td><td id="tpMargemLinha${Number(x.id)}" style="text-align:right;font-family:var(--font-mono);">${margem.toFixed(1).replace('.',',')}%</td><td id="tpDataLinha${Number(x.id)}">${fmtData(x.data_atualizacao)}</td><td><span style="color:${x.ativo?'var(--green)':'var(--muted)'};font-weight:600;">${x.ativo?'Ativo':'Inativo'}</span></td><td style="white-space:nowrap;"><button class="iconbtn" onclick="editarItemTabelaPrecos(${Number(x.id)})" title="Editar demais informações">✏️</button><button class="iconbtn" onclick="abrirExclusaoTabelaPrecos(${Number(x.id)})" title="Excluir">🗑️</button></td></tr>`;
+    return `<tr><td><input type="checkbox" ${tabelaPrecosSelecionados.has(Number(x.id))?'checked':''} onchange="selecionarItemTabelaPrecos(${Number(x.id)},this.checked)" aria-label="Selecionar ${escapeHtml(x.produto)}"></td><td style="white-space:normal;min-width:250px;max-width:420px;overflow:visible;text-overflow:clip;"><strong style="white-space:normal;overflow-wrap:anywhere;">${escapeHtml(x.produto)}</strong>${x.observacao?`<div style="font-size:11px;color:var(--muted);margin-top:3px;white-space:normal;overflow-wrap:anywhere;">${escapeHtml(x.observacao)}</div>`:''}</td><td>${escapeHtml(x.categoria||'—')}</td><td>${escapeHtml(x.unidade_embalagem||'—')}</td><td style="text-align:right;vertical-align:top;"><input id="tpCustoLinha${Number(x.id)}" type="number" min="0" step="0.01" value="${custo.toFixed(2)}" aria-label="Custo de ${escapeHtml(x.produto)}" onkeydown="atalhoPrecoLinhaTabelaPrecos(event,${Number(x.id)},'custo')" onchange="salvarPrecoLinhaTabelaPrecos(${Number(x.id)},'custo',this)" style="width:112px;text-align:right;font-family:var(--font-mono);padding:7px 8px;"><div style="height:13px;margin-top:2px;"></div></td><td style="text-align:right;vertical-align:top;"><input id="tpVendaLinha${Number(x.id)}" type="number" min="0.01" step="0.01" value="${venda.toFixed(2)}" aria-label="Venda de ${escapeHtml(x.produto)}" onkeydown="atalhoPrecoLinhaTabelaPrecos(event,${Number(x.id)},'venda')" onchange="salvarPrecoLinhaTabelaPrecos(${Number(x.id)},'venda',this)" style="width:112px;text-align:right;font-family:var(--font-mono);font-weight:700;padding:7px 8px;"><div id="tpLinhaStatus${Number(x.id)}" style="height:13px;font-size:10px;margin-top:2px;color:var(--muted);"></div></td><td id="tpLucroLinha${Number(x.id)}" style="text-align:right;font-family:var(--font-mono);color:${lucro>=0?'var(--green)':'var(--rust)'};">${brl(lucro)}</td><td id="tpMargemLinha${Number(x.id)}" style="text-align:right;font-family:var(--font-mono);">${margem.toFixed(1).replace('.',',')}%</td><td id="tpDataLinha${Number(x.id)}">${fmtData(x.data_atualizacao)}</td><td><span style="color:${x.ativo?'var(--green)':'var(--muted)'};font-weight:600;">${x.ativo?'Ativo':'Inativo'}</span></td><td style="white-space:nowrap;"><button class="iconbtn" onclick="editarItemTabelaPrecos(${Number(x.id)})" title="Editar demais informações">✏️</button><button class="iconbtn" onclick="abrirExclusaoTabelaPrecos(${Number(x.id)})" title="Excluir">🗑️</button></td></tr>`;
   }).join('');
   empty.style.display=itens.length?'none':'block';
   const todos=document.getElementById('tpSelecionarTodos');
@@ -2896,12 +2896,80 @@ function exportarTabelaPrecosPdf(interno){
   if(!window.jspdf||!window.jspdf.jsPDF){alert('Recurso de PDF não carregado.');return;}const itens=itensExportacaoTabelaPrecos();if(!itens.length){alert('Nenhum produto disponível para exportar.');return;}
   const doc=new window.jspdf.jsPDF({orientation:'landscape',unit:'mm',format:'a4'}),loja=NOMES_LOJA[lojaAtual]||lojaAtual;
   doc.setFont('helvetica','bold');doc.setFontSize(16);doc.text(interno?'Tabela de preços — uso interno':'Tabela de preços',14,15);doc.setFont('helvetica','normal');doc.setFontSize(10);doc.text(`${loja} • Atualizada em ${new Date().toLocaleDateString('pt-BR')}`,14,21);
-  const head=interno?['Produto','Categoria','Unidade','Custo','Venda','Lucro','Margem','Atualização']:['Produto','Categoria','Unidade','Preço de venda','Atualização','Observação'];
+  const head=interno?['Produto','Categoria','Fator embalagem','Custo','Venda','Lucro','Margem','Atualização']:['Produto','Categoria','Fator embalagem','Preço de venda','Atualização','Observação'];
   const body=itens.map(x=>{const custo=Number(x.preco_custo)||0,venda=Number(x.preco_venda)||0;return interno?[x.produto,x.categoria||'—',x.unidade_embalagem||'—',brl(custo),brl(venda),brl(venda-custo),margemTabelaPrecos(x).toFixed(1).replace('.',',')+'%',fmtData(x.data_atualizacao)]:[x.produto,x.categoria||'—',x.unidade_embalagem||'—',brl(venda),fmtData(x.data_atualizacao),x.observacao||''];});
   doc.autoTable({startY:27,head:[head],body,styles:{fontSize:8,cellPadding:2.2},headStyles:{fillColor:[30,53,91]},columnStyles:interno?{0:{cellWidth:48}}:{0:{cellWidth:55},5:{cellWidth:65}},margin:{left:14,right:14}});doc.save(nomeArquivoTabelaPrecos('pdf',interno));
 }
 
-const VIEWS = ['checklist','duvidas','manutencao','contasPagar','despesasFixas','comprovantes','leituraComprovantes','diferencaCaixa','fluxoCaixa','pagamentos','pagamentoCaixa','contratos','vendasComCusto','vendasDelivery','orcamentos','tabelaPrecos','bancoHoras','compras','colaboradores','aniversarios','fornecedores','contasBancarias','inventario','controleEstoque','contagensEstoque','combinacaoPagamentos'];
+let agendaCache=[];
+let agendaEdicaoId=null;
+let agendaExcluirId=null;
+let timerPopupAgenda=null;
+
+function dataAgendaLocal(data){return new Date(String(data).slice(0,10)+'T12:00:00');}
+function diasAteAgenda(data){const hoje=new Date();hoje.setHours(12,0,0,0);return Math.round((dataAgendaLocal(data)-hoje)/86400000);}
+function rotuloDiasAgenda(dias){return dias<0?`Vencido há ${Math.abs(dias)} dia(s)`:dias===0?'Hoje':dias===1?'Amanhã':`Em ${dias} dias`;}
+
+async function abrirAgenda(){novoCompromissoAgenda();await carregarAgenda();}
+
+function novoCompromissoAgenda(){
+  agendaEdicaoId=null;document.getElementById('agendaFormTitulo').textContent='Novo lembrete';document.getElementById('agendaSalvarBtn').textContent='Salvar lembrete';
+  ['agenda_titulo','agenda_hora','agenda_descricao'].forEach(id=>document.getElementById(id).value='');document.getElementById('agenda_data').value=todayStr();document.getElementById('agenda_antecedencia').value='3';document.getElementById('agenda_loja').value='';document.getElementById('agenda_prioridade').value='normal';document.getElementById('agendaErr').style.display='none';
+}
+
+async function carregarAgenda(){
+  const {data,error}=await sb.from('agenda_lembretes').select('*').order('data_evento',{ascending:true}).order('hora_evento',{ascending:true,nullsFirst:false});
+  if(error){agendaCache=[];document.getElementById('agendaBody').innerHTML='<tr><td colspan="6" style="text-align:center;color:var(--rust);padding:24px;">Não foi possível carregar a agenda. Execute o SQL desta atualização no Supabase.</td></tr>';console.error('Agenda:',error);return;}
+  agendaCache=data||[];renderAgenda();
+}
+
+function compromissosAgendaFiltrados(){
+  const filtro=document.getElementById('agendaFiltro')?.value||'pendentes',busca=(document.getElementById('agendaBusca')?.value||'').trim().toLowerCase();
+  return agendaCache.filter(x=>{
+    const vencido=!x.concluido&&diasAteAgenda(x.data_evento)<0;
+    if(filtro==='pendentes'&&x.concluido)return false;if(filtro==='concluidos'&&!x.concluido)return false;if(filtro==='vencidos'&&!vencido)return false;
+    return !busca||[x.titulo,x.descricao,NOMES_LOJA[x.loja]].some(v=>String(v||'').toLowerCase().includes(busca));
+  });
+}
+
+function renderAgenda(){
+  const lista=compromissosAgendaFiltrados(),body=document.getElementById('agendaBody'),hoje=todayStr();
+  document.getElementById('agendaEmpty').style.display=lista.length?'none':'block';
+  document.getElementById('agendaTotalVencidos').textContent=agendaCache.filter(x=>!x.concluido&&String(x.data_evento)<hoje).length;
+  document.getElementById('agendaTotalProximos').textContent=agendaCache.filter(x=>!x.concluido&&diasAteAgenda(x.data_evento)>=0&&diasAteAgenda(x.data_evento)<=7).length;
+  document.getElementById('agendaTotalConcluidos').textContent=lista.filter(x=>x.concluido).length;
+  body.innerHTML=lista.map(x=>{const dias=diasAteAgenda(x.data_evento),cor=x.concluido?'var(--green)':dias<0?'var(--rust)':dias<=Number(x.antecedencia_dias||0)?'var(--gold)':'var(--muted)';return `<tr style="${x.concluido?'opacity:.68;':''}"><td><strong>${fmtData(x.data_evento)}</strong>${x.hora_evento?`<div style="font-size:11px;color:var(--muted);">${String(x.hora_evento).slice(0,5)}</div>`:''}<div style="font-size:10px;color:${cor};font-weight:700;margin-top:3px;">${x.concluido?'Concluído':rotuloDiasAgenda(dias)}</div></td><td style="white-space:normal;min-width:280px;"><strong>${escapeHtml(x.titulo)}</strong>${x.descricao?`<div style="font-size:11px;color:var(--muted);margin-top:4px;white-space:normal;">${escapeHtml(x.descricao)}</div>`:''}</td><td>${x.loja?escapeHtml(NOMES_LOJA[x.loja]||x.loja):'Geral'}</td><td><span style="font-weight:700;color:${x.prioridade==='alta'?'var(--rust)':x.prioridade==='baixa'?'var(--muted)':'var(--ink)'};">${x.prioridade==='alta'?'Alta':x.prioridade==='baixa'?'Baixa':'Normal'}</span></td><td><button class="filter-btn" onclick="alternarConclusaoAgenda(${Number(x.id)},${x.concluido?'false':'true'})">${x.concluido?'↩ Reabrir':'✓ Concluir'}</button></td><td><div class="rowactions"><button class="iconbtn edit" title="Editar" onclick="editarCompromissoAgenda(${Number(x.id)})">✎</button><button class="iconbtn del" title="Excluir" onclick="excluirCompromissoAgenda(${Number(x.id)})">✕</button></div></td></tr>`;}).join('');
+}
+
+async function salvarCompromissoAgenda(){
+  const titulo=document.getElementById('agenda_titulo').value.trim(),data=document.getElementById('agenda_data').value,err=document.getElementById('agendaErr'),btn=document.getElementById('agendaSalvarBtn');err.style.display='none';
+  if(!titulo||!data){err.textContent='Informe o compromisso e a data.';err.style.display='block';(!titulo?document.getElementById('agenda_titulo'):document.getElementById('agenda_data')).focus();return;}
+  const payload={titulo,descricao:document.getElementById('agenda_descricao').value.trim()||null,data_evento:data,hora_evento:document.getElementById('agenda_hora').value||null,antecedencia_dias:Number(document.getElementById('agenda_antecedencia').value)||0,loja:document.getElementById('agenda_loja').value||null,prioridade:document.getElementById('agenda_prioridade').value};
+  btn.disabled=true;btn.textContent='Salvando…';const resposta=agendaEdicaoId?await sb.from('agenda_lembretes').update(payload).eq('id',agendaEdicaoId):await sb.from('agenda_lembretes').insert(payload);btn.disabled=false;
+  if(resposta.error){err.textContent='Não foi possível salvar: '+resposta.error.message;err.style.display='block';btn.textContent=agendaEdicaoId?'Salvar alterações':'Salvar lembrete';return;}
+  novoCompromissoAgenda();await carregarAgenda();
+}
+
+function editarCompromissoAgenda(id){
+  const x=agendaCache.find(v=>Number(v.id)===Number(id));if(!x)return;agendaEdicaoId=Number(id);document.getElementById('agendaFormTitulo').textContent='Editar lembrete';document.getElementById('agendaSalvarBtn').textContent='Salvar alterações';document.getElementById('agenda_titulo').value=x.titulo||'';document.getElementById('agenda_data').value=String(x.data_evento||'').slice(0,10);document.getElementById('agenda_hora').value=String(x.hora_evento||'').slice(0,5);document.getElementById('agenda_antecedencia').value=String(x.antecedencia_dias??3);document.getElementById('agenda_loja').value=x.loja||'';document.getElementById('agenda_prioridade').value=x.prioridade||'normal';document.getElementById('agenda_descricao').value=x.descricao||'';document.getElementById('agenda_titulo').focus();window.scrollTo({top:document.getElementById('viewAgenda').offsetTop-120,behavior:'smooth'});
+}
+
+async function alternarConclusaoAgenda(id,concluido){const {error}=await sb.from('agenda_lembretes').update({concluido,concluido_em:concluido?new Date().toISOString():null}).eq('id',id);if(error){alert('Não foi possível atualizar o lembrete.');return;}const x=agendaCache.find(v=>Number(v.id)===Number(id));if(x)x.concluido=concluido;renderAgenda();}
+function excluirCompromissoAgenda(id){const x=agendaCache.find(v=>Number(v.id)===Number(id));if(!x)return;agendaExcluirId=Number(id);document.getElementById('agendaExcluirTexto').textContent=`O lembrete “${x.titulo}” será removido da agenda.`;document.getElementById('agendaExcluirModal').style.display='flex';}
+function fecharExclusaoAgenda(){agendaExcluirId=null;document.getElementById('agendaExcluirModal').style.display='none';}
+async function confirmarExclusaoAgenda(){if(!agendaExcluirId)return;const id=agendaExcluirId,btn=document.getElementById('agendaExcluirBtn');btn.disabled=true;btn.textContent='Excluindo…';const {error}=await sb.from('agenda_lembretes').delete().eq('id',id);btn.disabled=false;btn.textContent='Excluir lembrete';if(error){alert('Não foi possível excluir o lembrete.');return;}agendaCache=agendaCache.filter(x=>Number(x.id)!==id);fecharExclusaoAgenda();renderAgenda();}
+
+function fecharPopupAgenda(){document.getElementById('agendaLembretePopup').style.display='none';}
+function abrirAgendaPeloPopup(){fecharPopupAgenda();mudarViewPrincipal('agenda');}
+async function mostrarPopupAgenda(){
+  if(!sb||!document.getElementById('app').classList.contains('on'))return;
+  const {data,error}=await sb.from('agenda_lembretes').select('*').eq('concluido',false).order('data_evento',{ascending:true});if(error||!data)return;
+  const avisos=data.filter(x=>diasAteAgenda(x.data_evento)<=Number(x.antecedencia_dias||0));if(!avisos.length)return;
+  document.getElementById('agendaPopupLista').innerHTML=avisos.slice(0,6).map(x=>{const dias=diasAteAgenda(x.data_evento);return `<div style="border:1px solid ${dias<0?'#f0c7cc':'#d7e1ee'};background:${dias<0?'#fff7f8':'#f8fafc'};border-radius:10px;padding:12px 14px;"><strong style="display:block;">${escapeHtml(x.titulo)}</strong><span style="font-size:12px;color:${dias<0?'var(--rust)':'var(--muted)'};">${fmtData(x.data_evento)}${x.hora_evento?' às '+String(x.hora_evento).slice(0,5):''} • ${rotuloDiasAgenda(dias)}${x.loja?' • '+(NOMES_LOJA[x.loja]||x.loja):''}</span></div>`;}).join('')+(avisos.length>6?`<div style="font-size:12px;color:var(--muted);">E mais ${avisos.length-6} lembrete(s). Abra a agenda para conferir.</div>`:'');document.getElementById('agendaLembretePopup').style.display='flex';
+}
+function agendarPopupAgenda(){clearTimeout(timerPopupAgenda);fecharPopupAgenda();timerPopupAgenda=setTimeout(mostrarPopupAgenda,3200);}
+
+const VIEWS = ['checklist','duvidas','manutencao','agenda','contasPagar','despesasFixas','comprovantes','leituraComprovantes','diferencaCaixa','fluxoCaixa','pagamentos','pagamentoCaixa','contratos','vendasComCusto','vendasDelivery','orcamentos','tabelaPrecos','bancoHoras','compras','colaboradores','aniversarios','fornecedores','contasBancarias','inventario','controleEstoque','contagensEstoque','combinacaoPagamentos'];
 let colabCarregado = false;
 
 const CATEGORIA_POR_VIEW = {
@@ -2912,9 +2980,9 @@ const CATEGORIA_POR_VIEW = {
   compras:'comprasEstoque', inventario:'comprasEstoque', controleEstoque:'comprasEstoque', contagensEstoque:'comprasEstoque',
   bancoHoras:'equipe', colaboradores:'equipe', aniversarios:'equipe',
   fornecedores:'cadastros', contasBancarias:'cadastros',
-  checklist:'checklist', duvidas:'duvidas', manutencao:'manutencao'
+  checklist:'checklist', duvidas:'duvidas', manutencao:'manutencao', agenda:'agenda'
 };
-const VIEW_IDS = { checklist:'viewChecklist', duvidas:'viewDuvidas', manutencao:'viewManutencao', contasPagar:'viewContasPagar', despesasFixas:'viewDespesasFixas', comprovantes:'viewComprovantes', leituraComprovantes:'viewLeituraComprovantes', diferencaCaixa:'viewDiferencaCaixa', fluxoCaixa:'viewFluxoCaixa', pagamentos:'viewPagamentos', pagamentoCaixa:'viewPagamentoCaixa', contratos:'viewContratos', vendasComCusto:'viewVendasComCusto', vendasDelivery:'viewVendasDelivery', orcamentos:'viewOrcamentos', tabelaPrecos:'viewTabelaPrecos', bancoHoras:'viewBancoHoras', compras:'viewCompras', colaboradores:'viewColaboradores', aniversarios:'viewAniversarios', fornecedores:'viewFornecedores', contasBancarias:'viewContasBancarias', inventario:'viewInventario', controleEstoque:'viewControleEstoque', contagensEstoque:'viewContagensEstoque', combinacaoPagamentos:'viewCombinacaoPagamentos' };
+const VIEW_IDS = { checklist:'viewChecklist', duvidas:'viewDuvidas', manutencao:'viewManutencao', agenda:'viewAgenda', contasPagar:'viewContasPagar', despesasFixas:'viewDespesasFixas', comprovantes:'viewComprovantes', leituraComprovantes:'viewLeituraComprovantes', diferencaCaixa:'viewDiferencaCaixa', fluxoCaixa:'viewFluxoCaixa', pagamentos:'viewPagamentos', pagamentoCaixa:'viewPagamentoCaixa', contratos:'viewContratos', vendasComCusto:'viewVendasComCusto', vendasDelivery:'viewVendasDelivery', orcamentos:'viewOrcamentos', tabelaPrecos:'viewTabelaPrecos', bancoHoras:'viewBancoHoras', compras:'viewCompras', colaboradores:'viewColaboradores', aniversarios:'viewAniversarios', fornecedores:'viewFornecedores', contasBancarias:'viewContasBancarias', inventario:'viewInventario', controleEstoque:'viewControleEstoque', contagensEstoque:'viewContagensEstoque', combinacaoPagamentos:'viewCombinacaoPagamentos' };
 
 let categoriaMenuAberta = null;
 
@@ -2960,8 +3028,8 @@ async function mudarViewPrincipal(view){
   viewAtual = view;
   fecharMenuModulos(view);
   const barraContexto = document.getElementById('moduleContextBar');
-  barraContexto.style.display = view==='duvidas' ? 'none' : 'flex';
-  if(view!=='duvidas'){
+  barraContexto.style.display = (view==='duvidas'||view==='agenda') ? 'none' : 'flex';
+  if(view!=='duvidas'&&view!=='agenda'){
     document.getElementById('codigoLojaModulo').value = lojaAtual==='loja2' ? '02' : '01';
     document.getElementById('nomeLojaSelecionada').textContent = lojaAtual==='loja2' ? 'Loja 02' : 'Loja 01';
   }
@@ -3006,6 +3074,8 @@ async function mudarViewPrincipal(view){
     await abrirOrcamentos();
   }else if(view==='tabelaPrecos'){
     await abrirTabelaPrecos();
+  }else if(view==='agenda'){
+    await abrirAgenda();
   }else if(view==='bancoHoras'){
     if(!bhCarregado) await carregarFuncionarios();
   }else if(view==='compras'){
@@ -3997,8 +4067,20 @@ async function renderHistoricoLeituras(){
   const busca=(document.getElementById('lcBuscaHistorico')?.value||'').trim().toLowerCase();
   const lista=lcHistorico.filter(x=>!busca||[x.recebedor,x.documento,x.modelo,String(x.valor),x.data_pagamento].some(v=>String(v||'').toLowerCase().includes(busca)));
   document.getElementById('lcHistoricoEmpty').style.display=lista.length?'none':'block';
-  const linhas=lista.map(x=>{const indice=lcHistorico.findIndex(v=>Number(v.id)===Number(x.id));return `<tr><td><div class="rowactions" style="justify-content:flex-start;"><strong style="min-width:24px;text-align:center;">${x.numero_ordem??'—'}</strong><button type="button" class="iconbtn" title="Mover para cima" ${indice<=0?'disabled':''} onclick="moverLeituraComprovante(${Number(x.id)},-1)">▲</button><button type="button" class="iconbtn" title="Mover para baixo" ${indice<0||indice>=lcHistorico.length-1?'disabled':''} onclick="moverLeituraComprovante(${Number(x.id)},1)">▼</button></div></td><td>${fmtData(x.data_pagamento)}</td><td>${escapeHtml(x.recebedor)}</td><td>${escapeHtml(x.documento||'—')}</td><td>${escapeHtml(x.modelo||'—')}</td><td class="valor">${brl(x.valor)}</td><td><div class="rowactions"><button type="button" class="filter-btn" data-caminho="${escapeHtml(x.caminho_storage||'')}" data-nome="${escapeHtml(x.nome_arquivo||'Comprovante')}" onclick="abrirComprovanteLeituraSalvo(this.dataset.caminho,this.dataset.nome)">👁 Ver</button><button type="button" class="iconbtn del" title="Excluir comprovante" onclick="abrirExclusaoLeiturasComprovantes(${Number(x.id)})">✕</button></div></td></tr>`;});
+  const linhas=lista.map(x=>{const indice=lcHistorico.findIndex(v=>Number(v.id)===Number(x.id));return `<tr><td><div class="rowactions" style="justify-content:flex-start;"><strong style="min-width:24px;text-align:center;">${x.numero_ordem??'—'}</strong><button type="button" class="iconbtn" title="Mover para cima" ${indice<=0?'disabled':''} onclick="moverLeituraComprovante(${Number(x.id)},-1)">▲</button><button type="button" class="iconbtn" title="Mover para baixo" ${indice<0||indice>=lcHistorico.length-1?'disabled':''} onclick="moverLeituraComprovante(${Number(x.id)},1)">▼</button></div></td><td>${fmtData(x.data_pagamento)}</td><td style="min-width:280px;"><div style="display:flex;gap:6px;align-items:center;"><input id="lcRecebedorSalvo${Number(x.id)}" value="${escapeHtml(x.recebedor)}" maxlength="300" aria-label="Recebedor ou descrição" onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur();}" onchange="salvarRecebedorLeitura(${Number(x.id)},this)" style="min-width:240px;"><span id="lcRecebedorStatus${Number(x.id)}" style="font-size:10px;min-width:42px;color:var(--muted);"></span></div></td><td>${escapeHtml(x.documento||'—')}</td><td>${escapeHtml(x.modelo||'—')}</td><td class="valor">${brl(x.valor)}</td><td><div class="rowactions"><button type="button" class="filter-btn" data-caminho="${escapeHtml(x.caminho_storage||'')}" data-nome="${escapeHtml(x.nome_arquivo||'Comprovante')}" onclick="abrirComprovanteLeituraSalvo(this.dataset.caminho,this.dataset.nome)">👁 Ver</button><button type="button" class="iconbtn del" title="Excluir comprovante" onclick="abrirExclusaoLeiturasComprovantes(${Number(x.id)})">✕</button></div></td></tr>`;});
   document.getElementById('lcHistoricoBody').innerHTML=linhas.join('');
+}
+
+async function salvarRecebedorLeitura(id,input){
+  const item=lcHistorico.find(x=>Number(x.id)===Number(id)),status=document.getElementById('lcRecebedorStatus'+id);if(!item)return;
+  const nome=input.value.trim().replace(/\s+/g,' ');
+  if(!nome){input.value=item.recebedor||'';status.textContent='Obrigatório';status.style.color='var(--rust)';return;}
+  if(nome===item.recebedor){status.textContent='';return;}
+  input.disabled=true;status.textContent='Salvando…';status.style.color='var(--muted)';
+  const {error}=await sb.from('leituras_comprovantes').update({recebedor:nome}).eq('id',id).eq('loja',lojaAtual);
+  input.disabled=false;
+  if(error){input.value=item.recebedor||'';status.textContent='Erro';status.style.color='var(--rust)';return;}
+  item.recebedor=nome;input.value=nome;status.textContent='Salvo ✓';status.style.color='var(--green)';
 }
 
 async function moverLeituraComprovante(id,direcao){
@@ -5233,8 +5315,19 @@ async function confirmarApagarDiaVendas(){
   }
   err.style.display = 'none';
 
+  const quantidade=document.getElementById('apagarDiaVendasInfo').textContent||'';
+  document.getElementById('confirmarDiaVendasTexto').textContent='Você tem certeza de que deseja apagar as vendas de '+fmtData(data)+'? '+quantidade;
+  document.getElementById('confirmarDiaVendasModal').style.display='flex';
+}
+
+function fecharConfirmacaoDiaVendas(){document.getElementById('confirmarDiaVendasModal').style.display='none';}
+
+async function executarApagarDiaVendas(){
+  const data=document.getElementById('apagarDiaVendas_data').value;if(!data)return;
+  const btn=document.getElementById('confirmarDiaVendasBtn');btn.disabled=true;btn.textContent='Apagando…';
+
   const { error } = await sb.from('vendas_itens').delete().eq('loja', lojaAtual).eq('data', data);
-  fecharApagarDiaVendas();
+  btn.disabled=false;btn.textContent='Sim, apagar esse dia';fecharConfirmacaoDiaVendas();fecharApagarDiaVendas();
 
   if(error){
     alert('Erro ao apagar: ' + error.message);
@@ -5381,6 +5474,11 @@ function mudarMesVendas(valor){
     document.getElementById('vendasFiltroDe').value = valor + '-01';
     document.getElementById('vendasFiltroAte').value = valor + '-' + String(ultimoDia).padStart(2,'0');
   }
+  carregarVendas();
+}
+
+function mudarPeriodoManualVendas(){
+  document.getElementById('vendasFiltroMes').value='todos';
   carregarVendas();
 }
 
@@ -5607,7 +5705,9 @@ function abrirResultadoImportacaoVendas(itens, arquivos, pulados){
 
 function fecharResultadoImportacaoVendas(){document.getElementById('vendasImportSucessoModal').style.display='none';}
 
+let vendasCarregamentoSequencia=0;
 async function carregarVendas(){
+  const sequencia=++vendasCarregamentoSequencia;
   const de = document.getElementById('vendasFiltroDe').value;
   const ate = document.getElementById('vendasFiltroAte').value;
   const { data, error } = await buscarTodasLinhas((from, to)=>{
@@ -5616,6 +5716,7 @@ async function carregarVendas(){
     if(ate) query = query.lte('data', ate);
     return query.order('data').range(from, to);
   });
+  if(sequencia!==vendasCarregamentoSequencia)return;
   if(error){
     console.error('Erro ao carregar vendas:', error);
     vendasCache = [];
@@ -5633,6 +5734,7 @@ async function carregarVendas(){
     const ultimoAnt=new Date(anoAnt,anterior.getMonth()+1,0).getDate(),diaAnt=Math.min(diaLimite,ultimoAnt),deAnt=vendasMesComparacao+'-01',ateAnt=vendasMesComparacao+'-'+String(diaAnt).padStart(2,'0');
     vendasPeriodoComparacaoTexto=fmtData(deAnt)+' a '+fmtData(ateAnt);
     const respostaAnterior=await buscarTodasLinhas((from,to)=>sb.from('vendas_itens').select('*').eq('loja',lojaAtual).gte('data',deAnt).lte('data',ateAnt).order('data').range(from,to));
+    if(sequencia!==vendasCarregamentoSequencia)return;
     if(respostaAnterior.error)console.error('Erro ao carregar mês anterior:',respostaAnterior.error);else vendasCacheMesAnterior=respostaAnterior.data||[];
   }
   renderVendasDashboard();
@@ -12243,9 +12345,12 @@ async function aplicarSessao(session, opts){
     document.getElementById('app').classList.add('on');
     document.getElementById('loadingScreen').style.display = 'none';
     agendarPopupAniversario();
+    agendarPopupAgenda();
   }else{
     clearTimeout(timerPopupAniversario);
+    clearTimeout(timerPopupAgenda);
     fecharPopupAniversario();
+    fecharPopupAgenda();
     document.getElementById('app').classList.remove('on');
     document.getElementById('loginScreen').style.display = 'flex';
     document.getElementById('loadingScreen').style.display = 'none';
