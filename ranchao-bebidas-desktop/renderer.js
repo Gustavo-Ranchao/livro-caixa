@@ -3873,6 +3873,29 @@ async function lcExtrairPaginasPdf(arquivo){
   return paginas;
 }
 
+function lcEhImagem(arquivo){return !!arquivo&&(/^(image\/jpeg|image\/png|image\/webp)$/i.test(arquivo.type)||/\.(jpe?g|png|webp)$/i.test(arquivo.name||''));}
+
+async function lcValidarImagem(arquivo){
+  if(!arquivo||arquivo.size<16)return 'A imagem está vazia ou incompleta.';
+  if(arquivo.size>15*1024*1024)return 'A imagem ultrapassa o limite de segurança de 15 MB.';
+  const b=new Uint8Array(await arquivo.slice(0,16).arrayBuffer());
+  const jpeg=b[0]===0xff&&b[1]===0xd8&&b[2]===0xff;
+  const png=b[0]===0x89&&b[1]===0x50&&b[2]===0x4e&&b[3]===0x47;
+  const webp=String.fromCharCode(...b.slice(0,4))==='RIFF'&&String.fromCharCode(...b.slice(8,12))==='WEBP';
+  return jpeg||png||webp?'':'O conteúdo não corresponde a uma imagem JPG, PNG ou WebP válida.';
+}
+
+async function lcCriarWorkerOcr(){
+  if(!window.Tesseract)throw new Error('O leitor de imagens não foi carregado. Feche e abra o aplicativo novamente.');
+  return Tesseract.createWorker('por',1,{workerPath:'assets/vendor/tesseract/worker.min.js',corePath:'assets/vendor/tesseract/tesseract-core-simd-lstm.wasm.js',langPath:'assets/vendor/tesseract/lang',gzip:true});
+}
+
+async function lcExtrairTextoImagem(arquivo,worker){
+  const erro=await lcValidarImagem(arquivo);if(erro)throw new Error(erro);
+  const resultado=await worker.recognize(arquivo);
+  return String(resultado?.data?.text||'');
+}
+
 function lcInterpretarTexto(texto){
   const t=String(texto||'').replace(/\r/g,'').replace(/[ \t]+\n/g,'\n').replace(/\n{3,}/g,'\n\n');
   const plano=t.replace(/\s+/g,' ').trim();
@@ -3954,23 +3977,31 @@ async function selecionarLoteLeituraComprovantes(fileList){
   document.getElementById('lcFileInput').value='';
   if(!arquivos.length)return;
   if(arquivos.length>200){alert('Selecione no máximo 200 comprovantes por lote.');return;}
-  const invalido=arquivos.find(a=>a.type!=='application/pdf'&&!a.name.toLowerCase().endsWith('.pdf'));
-  if(invalido){alert('Nesta primeira versão, selecione somente arquivos PDF.');return;}
+  const ehPdf=a=>a.type==='application/pdf'||a.name.toLowerCase().endsWith('.pdf');
+  const invalido=arquivos.find(a=>!ehPdf(a)&&!lcEhImagem(a));
+  if(invalido){alert('Use somente arquivos PDF, JPG, PNG ou WebP.');return;}
   const grande=arquivos.find(a=>a.size>15*1024*1024);if(grande){alert('O arquivo "'+grande.name+'" ultrapassa 15 MB.');return;}
   limparLoteLeituras();
   const inicio=Math.max(1,Number(document.getElementById('lcNumeroInicial').value)||1);
-  const paginas=[];
+  const paginas=[];let workerOcr=null;
   for(let i=0;i<arquivos.length;i++){
     const arquivo=arquivos[i];lcAtualizarProgresso(i,arquivos.length,'Abrindo arquivo '+(i+1)+' de '+arquivos.length+': '+arquivo.name);
     try{
-      const novas=await lcExtrairPaginasPdf(arquivo);paginas.push(...novas);
+      if(ehPdf(arquivo)){const novas=await lcExtrairPaginasPdf(arquivo);paginas.push(...novas);}
+      else{
+        if(!workerOcr)workerOcr=await lcCriarWorkerOcr();
+        lcAtualizarProgresso(i,arquivos.length,'Lendo texto da imagem '+(i+1)+' de '+arquivos.length+': '+arquivo.name);
+        const texto=await lcExtrairTextoImagem(arquivo,workerOcr);
+        paginas.push({texto,arquivo,nomeArquivo:arquivo.name,pagina:1,totalPaginas:1});
+      }
       if(paginas.length>200){limparLoteLeituras();alert('Os arquivos selecionados possuem '+paginas.length+' páginas. O limite é de 200 comprovantes/páginas por lote.');document.getElementById('lcProgress').style.display='none';return;}
-    }catch(e){limparLoteLeituras();alert('Não foi possível abrir "'+arquivo.name+'": '+(e&&e.message?e.message:'PDF inválido.'));document.getElementById('lcProgress').style.display='none';return;}
+    }catch(e){if(workerOcr)await workerOcr.terminate().catch(()=>{});limparLoteLeituras();alert('Não foi possível abrir "'+arquivo.name+'": '+(e&&e.message?e.message:'Arquivo inválido.'));document.getElementById('lcProgress').style.display='none';return;}
   }
+  if(workerOcr)await workerOcr.terminate().catch(()=>{});
   for(let i=0;i<paginas.length;i++){
     const p=paginas[i],arquivo=p.arquivo;lcAtualizarProgresso(i,paginas.length,'Lendo comprovante '+(i+1)+' de '+paginas.length+': '+p.nomeArquivo);
-    let item={id:'lc_'+Date.now()+'_'+i,numero:inicio+i,arquivo,nomeArquivo:p.nomeArquivo,url:URL.createObjectURL(arquivo),recebedor:'',documento:'',valor:0,data:'',horario:'',codigo:'',modelo:'Não identificado',status:'erro',mensagem:'Não foi possível ler',hash:''};
-    try{const hash=await lcHashArquivo(arquivo);item={...item,...lcInterpretarTexto(p.texto),hash};}catch(e){item.mensagem=e&&e.message?e.message:'Não foi possível ler a página do PDF.';}
+    let item={id:'lc_'+Date.now()+'_'+i,numero:inicio+i,arquivo,nomeArquivo:p.nomeArquivo,tipoArquivo:arquivo.type||(lcEhImagem(arquivo)?'image/jpeg':'application/pdf'),url:URL.createObjectURL(arquivo),recebedor:'',documento:'',valor:0,data:'',horario:'',codigo:'',modelo:'Não identificado',status:'erro',mensagem:'Não foi possível ler',hash:''};
+    try{const hash=await lcHashArquivo(arquivo),dados=lcInterpretarTexto(p.texto);if(lcEhImagem(arquivo)&&dados.modelo==='Outro PDF')dados.modelo='Imagem - OCR';item={...item,...dados,hash};}catch(e){item.mensagem=e&&e.message?e.message:'Não foi possível ler o comprovante.';}
     lcLote.push(item);if(i%5===4||i===paginas.length-1)renderLoteLeituras();if(i%10===9)await new Promise(resolve=>setTimeout(resolve,0));
   }
   lcLote.sort((a,b)=>(a.data||'9999-12-31').localeCompare(b.data||'9999-12-31')||(a.horario||'').localeCompare(b.horario||'')||a.nomeArquivo.localeCompare(b.nomeArquivo,undefined,{numeric:true}));
@@ -4018,7 +4049,7 @@ function renderLoteLeituras(){
   document.getElementById('lcLoteBody').innerHTML=lcLote.map(x=>`<tr title="${escapeHtml(x.mensagem||'')}"><td><input type="number" min="1" value="${x.numero}" oninput="atualizarCampoLoteLeitura('${x.id}','numero',this.value)"></td><td><div class="lc-file-name" title="${escapeHtml(x.nomeArquivo)}">${escapeHtml(x.nomeArquivo)}</div></td><td><input value="${escapeHtml(x.recebedor)}" oninput="atualizarCampoLoteLeitura('${x.id}','recebedor',this.value)"></td><td><input value="${escapeHtml(x.documento)}" oninput="atualizarCampoLoteLeitura('${x.id}','documento',this.value)"></td><td><input type="number" min="0" step="0.01" value="${x.valor||''}" oninput="atualizarCampoLoteLeitura('${x.id}','valor',this.value)"></td><td><input type="date" value="${x.data}" oninput="atualizarCampoLoteLeitura('${x.id}','data',this.value)"></td><td>${escapeHtml(x.modelo)}</td><td><span class="lc-status ${x.status}">${x.status==='pronto'?'Pronto':x.status==='revisar'?'Revisar':x.status==='duplicado'?'Duplicado':'Erro'}</span></td><td><div class="rowactions"><button class="iconbtn" title="Abrir PDF" onclick="abrirPreviewLeitura('${x.id}')">↗</button><button class="iconbtn del" title="Remover do lote" onclick="removerLeituraDoLote('${x.id}')">✕</button></div></td></tr>`).join('');
 }
 
-function abrirPreviewLeitura(id){const x=lcLote.find(i=>i.id===id);if(x)mostrarPreviewLeituraComprovante(x.url,x.nomeArquivo);}
+function abrirPreviewLeitura(id){const x=lcLote.find(i=>i.id===id);if(x)mostrarPreviewLeituraComprovante(x.url,x.nomeArquivo,x.tipoArquivo);}
 function removerLeituraDoLote(id){const x=lcLote.find(i=>i.id===id);if(x&&x.url)URL.revokeObjectURL(x.url);lcLote=lcLote.filter(i=>i.id!==id);renumerarLeiturasComprovantes();}
 function limparLoteLeituras(){lcLote.forEach(x=>{if(x.url)URL.revokeObjectURL(x.url);});lcLote=[];const p=document.getElementById('lcLotePanel');if(p)p.style.display='none';const b=document.getElementById('lcLoteBody');if(b)b.innerHTML='';}
 
@@ -4030,9 +4061,10 @@ async function salvarTodasLeituras(){
   for(let i=0;i<validos.length;i++){
     const x=validos[i];lcAtualizarProgresso(i,validos.length,'Salvando '+(i+1)+' de '+validos.length+': '+x.nomeArquivo);
     const caminho='leitura/'+lojaAtual+'/'+x.data.slice(0,7)+'/'+Date.now()+'_'+Math.random().toString(36).slice(2,8)+'_'+nomeArquivoSeguro(x.nomeArquivo);
-    const {error:erroUpload}=await sb.storage.from('comprovantes').upload(caminho,x.arquivo,{contentType:'application/pdf',upsert:false});
+    const tipo=x.tipoArquivo||x.arquivo.type||'application/octet-stream';
+    const {error:erroUpload}=await sb.storage.from('comprovantes').upload(caminho,x.arquivo,{contentType:tipo,upsert:false});
     if(erroUpload){erros.push(x.nomeArquivo+': '+erroUpload.message);continue;}
-    const {error}=await sb.from('leituras_comprovantes').insert({loja:lojaAtual,numero:Number(x.numero)||null,recebedor:x.recebedor.trim(),documento:x.documento.trim()||null,valor:x.valor,data_pagamento:x.data,horario_pagamento:x.horario||null,modelo:x.modelo,codigo_transacao:x.codigo||null,arquivo_hash:x.hash,nome_arquivo:x.nomeArquivo,caminho_storage:caminho,tipo_arquivo:'application/pdf',tamanho_bytes:x.arquivo.size});
+    const {error}=await sb.from('leituras_comprovantes').insert({loja:lojaAtual,numero:Number(x.numero)||null,recebedor:x.recebedor.trim(),documento:x.documento.trim()||null,valor:x.valor,data_pagamento:x.data,horario_pagamento:x.horario||null,modelo:x.modelo,codigo_transacao:x.codigo||null,arquivo_hash:x.hash,nome_arquivo:x.nomeArquivo,caminho_storage:caminho,tipo_arquivo:tipo,tamanho_bytes:x.arquivo.size});
     if(error){await sb.storage.from('comprovantes').remove([caminho]);erros.push(x.nomeArquivo+': '+error.message);continue;}
     salvos++;idsSalvos.add(x.id);
   }
@@ -4067,7 +4099,7 @@ async function renderHistoricoLeituras(){
   const busca=(document.getElementById('lcBuscaHistorico')?.value||'').trim().toLowerCase();
   const lista=lcHistorico.filter(x=>!busca||[x.recebedor,x.documento,x.modelo,String(x.valor),x.data_pagamento].some(v=>String(v||'').toLowerCase().includes(busca)));
   document.getElementById('lcHistoricoEmpty').style.display=lista.length?'none':'block';
-  const linhas=lista.map(x=>{const indice=lcHistorico.findIndex(v=>Number(v.id)===Number(x.id));return `<tr><td><div class="rowactions" style="justify-content:flex-start;"><strong style="min-width:24px;text-align:center;">${x.numero_ordem??'—'}</strong><button type="button" class="iconbtn" title="Mover para cima" ${indice<=0?'disabled':''} onclick="moverLeituraComprovante(${Number(x.id)},-1)">▲</button><button type="button" class="iconbtn" title="Mover para baixo" ${indice<0||indice>=lcHistorico.length-1?'disabled':''} onclick="moverLeituraComprovante(${Number(x.id)},1)">▼</button></div></td><td>${fmtData(x.data_pagamento)}</td><td style="min-width:280px;"><div style="display:flex;gap:6px;align-items:center;"><input id="lcRecebedorSalvo${Number(x.id)}" value="${escapeHtml(x.recebedor)}" maxlength="300" aria-label="Recebedor ou descrição" onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur();}" onchange="salvarRecebedorLeitura(${Number(x.id)},this)" style="min-width:240px;"><span id="lcRecebedorStatus${Number(x.id)}" style="font-size:10px;min-width:42px;color:var(--muted);"></span></div></td><td>${escapeHtml(x.documento||'—')}</td><td>${escapeHtml(x.modelo||'—')}</td><td class="valor">${brl(x.valor)}</td><td><div class="rowactions"><button type="button" class="filter-btn" data-caminho="${escapeHtml(x.caminho_storage||'')}" data-nome="${escapeHtml(x.nome_arquivo||'Comprovante')}" onclick="abrirComprovanteLeituraSalvo(this.dataset.caminho,this.dataset.nome)">👁 Ver</button><button type="button" class="iconbtn del" title="Excluir comprovante" onclick="abrirExclusaoLeiturasComprovantes(${Number(x.id)})">✕</button></div></td></tr>`;});
+  const linhas=lista.map(x=>{const indice=lcHistorico.findIndex(v=>Number(v.id)===Number(x.id));return `<tr><td><div class="rowactions" style="justify-content:flex-start;"><strong style="min-width:24px;text-align:center;">${x.numero_ordem??'—'}</strong><button type="button" class="iconbtn" title="Mover para cima" ${indice<=0?'disabled':''} onclick="moverLeituraComprovante(${Number(x.id)},-1)">▲</button><button type="button" class="iconbtn" title="Mover para baixo" ${indice<0||indice>=lcHistorico.length-1?'disabled':''} onclick="moverLeituraComprovante(${Number(x.id)},1)">▼</button></div></td><td>${fmtData(x.data_pagamento)}</td><td style="min-width:280px;"><div style="display:flex;gap:6px;align-items:center;"><input id="lcRecebedorSalvo${Number(x.id)}" value="${escapeHtml(x.recebedor)}" maxlength="300" aria-label="Recebedor ou descrição" onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur();}" onchange="salvarRecebedorLeitura(${Number(x.id)},this)" style="min-width:240px;"><span id="lcRecebedorStatus${Number(x.id)}" style="font-size:10px;min-width:42px;color:var(--muted);"></span></div></td><td>${escapeHtml(x.documento||'—')}</td><td>${escapeHtml(x.modelo||'—')}</td><td class="valor">${brl(x.valor)}</td><td><div class="rowactions"><button type="button" class="filter-btn" data-caminho="${escapeHtml(x.caminho_storage||'')}" data-nome="${escapeHtml(x.nome_arquivo||'Comprovante')}" data-tipo="${escapeHtml(x.tipo_arquivo||'')}" onclick="abrirComprovanteLeituraSalvo(this.dataset.caminho,this.dataset.nome,this.dataset.tipo)">👁 Ver</button><button type="button" class="iconbtn del" title="Excluir comprovante" onclick="abrirExclusaoLeiturasComprovantes(${Number(x.id)})">✕</button></div></td></tr>`;});
   document.getElementById('lcHistoricoBody').innerHTML=linhas.join('');
 }
 
@@ -4094,22 +4126,24 @@ async function moverLeituraComprovante(id,direcao){
   if(a.error||b.error){alert('Não foi possível salvar a nova posição. A lista será recarregada.');await carregarHistoricoLeituras();}
 }
 
-function mostrarPreviewLeituraComprovante(url,nome){
-  const modal=document.getElementById('previewLeituraComprovanteModal'),frame=document.getElementById('previewLeituraComprovanteFrame'),carregando=document.getElementById('previewLeituraCarregando');
-  document.getElementById('previewLeituraComprovanteTitulo').textContent=nome||'Visualizar comprovante';carregando.textContent='Carregando comprovante…';carregando.style.display='block';frame.style.display='none';modal.style.display='flex';
-  frame.onload=()=>{carregando.style.display='none';frame.style.display='block';};frame.src=url;
+function mostrarPreviewLeituraComprovante(url,nome,tipo){
+  const modal=document.getElementById('previewLeituraComprovanteModal'),frame=document.getElementById('previewLeituraComprovanteFrame'),imagem=document.getElementById('previewLeituraComprovanteImagem'),carregando=document.getElementById('previewLeituraCarregando');
+  document.getElementById('previewLeituraComprovanteTitulo').textContent=nome||'Visualizar comprovante';carregando.textContent='Carregando comprovante…';carregando.style.display='block';frame.style.display='none';imagem.style.display='none';modal.style.display='flex';
+  const ehImagem=String(tipo||'').startsWith('image/')||/\.(jpe?g|png|webp)$/i.test(nome||'');
+  if(ehImagem){imagem.onload=()=>{carregando.style.display='none';imagem.style.display='block';};imagem.onerror=()=>{carregando.textContent='Não foi possível exibir esta imagem.';};imagem.src=url;}
+  else{frame.onload=()=>{carregando.style.display='none';frame.style.display='block';};frame.src=url;}
 }
 
-async function abrirComprovanteLeituraSalvo(caminho,nome){
+async function abrirComprovanteLeituraSalvo(caminho,nome,tipo){
   if(!caminho){alert('O arquivo deste comprovante não foi encontrado.');return;}
   document.getElementById('previewLeituraComprovanteTitulo').textContent=nome||'Visualizar comprovante';document.getElementById('previewLeituraCarregando').textContent='Carregando comprovante…';document.getElementById('previewLeituraCarregando').style.display='block';document.getElementById('previewLeituraComprovanteFrame').style.display='none';document.getElementById('previewLeituraComprovanteModal').style.display='flex';
   const {data,error}=await sb.storage.from('comprovantes').createSignedUrl(caminho,3600);
   if(error||!data?.signedUrl){document.getElementById('previewLeituraCarregando').textContent='Não foi possível abrir o arquivo. Verifique sua conexão e tente novamente.';return;}
-  mostrarPreviewLeituraComprovante(data.signedUrl,nome);
+  mostrarPreviewLeituraComprovante(data.signedUrl,nome,tipo);
 }
 
 function fecharPreviewLeituraComprovante(){
-  const frame=document.getElementById('previewLeituraComprovanteFrame');frame.onload=null;frame.src='about:blank';frame.style.display='none';document.getElementById('previewLeituraComprovanteModal').style.display='none';
+  const frame=document.getElementById('previewLeituraComprovanteFrame'),imagem=document.getElementById('previewLeituraComprovanteImagem');frame.onload=null;frame.src='about:blank';frame.style.display='none';imagem.onload=null;imagem.onerror=null;imagem.removeAttribute('src');imagem.style.display='none';document.getElementById('previewLeituraComprovanteModal').style.display='none';
 }
 
 function leiturasComprovantesFiltradas(){
@@ -4121,7 +4155,8 @@ function nomeArquivoLeituraZip(x,indice){
   const numero=String(x.numero_ordem??indice+1).padStart(3,'0');
   const recebedor=String(x.recebedor||'Recebedor').normalize('NFC').replace(/[<>:"/\\|?*\x00-\x1F]/g,'-').replace(/\s+/g,' ').trim().slice(0,90)||'Recebedor';
   const valor=brl(x.valor).replace(/\u00a0/g,' '),data=String(x.data_pagamento||'').split('-').reverse().join('-')||'sem-data';
-  return numero+' - '+recebedor+' - '+valor+' - '+data+'.pdf';
+  const ext=String(x.nome_arquivo||'').match(/\.(pdf|jpe?g|png|webp)$/i)?.[1]?.toLowerCase()||(String(x.tipo_arquivo||'').includes('png')?'png':String(x.tipo_arquivo||'').includes('webp')?'webp':String(x.tipo_arquivo||'').includes('jpeg')?'jpg':'pdf');
+  return numero+' - '+recebedor+' - '+valor+' - '+data+'.'+ext;
 }
 
 async function baixarLeiturasComprovantesZip(){
@@ -4136,8 +4171,8 @@ async function baixarLeiturasComprovantesZip(){
       const {data:urlData,error:urlErro}=await sb.storage.from('comprovantes').createSignedUrl(x.caminho_storage,3600);
       if(urlErro||!urlData?.signedUrl)throw urlErro||new Error('Arquivo indisponível');
       const resposta=await fetch(urlData.signedUrl);if(!resposta.ok)throw new Error('Falha ao baixar o arquivo');
-      const blob=await resposta.blob(),numero=String(x.numero_ordem??i+1).padStart(3,'0'),nomeBase=nomeArquivoLeituraZip(x,i).replace(/\.pdf$/i,'');
-      let nome=nomeBase+'.pdf',contador=2;while(usados.has(nome)){nome=nomeBase+' ('+contador+').pdf';contador++;}usados.add(nome);
+      const blob=await resposta.blob(),numero=String(x.numero_ordem??i+1).padStart(3,'0'),nomeOriginal=nomeArquivoLeituraZip(x,i),ponto=nomeOriginal.lastIndexOf('.'),nomeBase=nomeOriginal.slice(0,ponto),extensao=nomeOriginal.slice(ponto);
+      let nome=nomeOriginal,contador=2;while(usados.has(nome)){nome=nomeBase+' ('+contador+')'+extensao;contador++;}usados.add(nome);
       zip.file(nome,blob,{compression:'STORE'});adicionados++;
       manifesto.push(numero+' | '+fmtData(x.data_pagamento)+' | '+(x.recebedor||'—')+' | '+(x.documento||'—')+' | '+brl(x.valor));
     }catch(e){falhas++;console.error('Erro ao preparar comprovante analisado:',x.id,e);}
@@ -8540,6 +8575,7 @@ let pagCaixaMesAtual = 'todos';
 let pagCaixaBuscaTexto = '';
 let pagCaixaEditandoId = null;
 let excluindoPagCaixaId = null;
+let importarPagCaixaCache = [];
 
 // carrega os 49 códigos de tipo de pagamento uma única vez (reaproveitado por Pagamento no Caixa,
 // Pagamentos e Lançamentos em Dinheiro — é a mesma lista de códigos nos três lugares)
@@ -8590,6 +8626,56 @@ async function abrirPagamentoCaixa(){
   document.getElementById('pagCaixaFiltroMes').value = mesAtual;
   pagCaixaMesAtual = mesAtual;
   await carregarPagamentoCaixa();
+}
+
+function intervaloPagCaixaSelecionado(){
+  if(pagCaixaMesAtual==='todos')return {de:null,ate:null};
+  const [ano,mes]=pagCaixaMesAtual.split('-').map(Number),ultimo=new Date(ano,mes,0).getDate();
+  return {de:pagCaixaMesAtual+'-01',ate:pagCaixaMesAtual+'-'+String(ultimo).padStart(2,'0')};
+}
+
+async function buscarPagamentosParaCaixa(){
+  await carregarTiposPagCaixaSeNecessario();
+  const area=document.getElementById('importarPagCaixaArea'),resumo=document.getElementById('importarPagCaixaResumo'),body=document.getElementById('importarPagCaixaBody');
+  area.style.display='block';resumo.textContent='Buscando pagamentos…';body.innerHTML='';
+  const {de,ate}=intervaloPagCaixaSelecionado();
+  const origem=await buscarTodasLinhas((from,to)=>{let q=sb.from('pagamentos').select('id,data,descricao,valor,codigo_tipo_id,origem').eq('loja',lojaAtual).eq('excluido',false);if(de)q=q.gte('data',de);if(ate)q=q.lte('data',ate);return q.order('data').range(from,to);});
+  if(origem.error){resumo.textContent='Não foi possível carregar a aba Pagamentos.';console.error(origem.error);return;}
+  const destino=await buscarTodasLinhas((from,to)=>sb.from('pagamentos_caixa').select('pagamento_origem_id').eq('loja',lojaAtual).not('pagamento_origem_id','is',null).range(from,to));
+  if(destino.error){resumo.innerHTML='Execute primeiro o arquivo SQL desta atualização no Supabase e tente novamente.';console.error(destino.error);return;}
+  const jaImportados=new Set((destino.data||[]).map(x=>String(x.pagamento_origem_id)));
+  const chaveSemantica=x=>[x.data,String(x.descricao||x.descricao_pagamento||'').trim().toLowerCase().replace(/\s+/g,' '),Math.abs(Number(x.valor??x.valor_pagamento)||0).toFixed(2)].join('|');
+  const jaExistentes=new Set(pagCaixaCache.map(chaveSemantica));
+  importarPagCaixaCache=(origem.data||[]).map(x=>{const jaImportado=jaImportados.has(String(x.id)),possivelDuplicado=!jaImportado&&jaExistentes.has(chaveSemantica(x));return {...x,selecionado:!jaImportado&&!possivelDuplicado&&!!x.codigo_tipo_id,jaImportado,possivelDuplicado,tipoId:x.codigo_tipo_id||''};});
+  renderImportacaoPagamentosParaCaixa();
+}
+
+function opcoesTipoImportacaoPagCaixa(tipoId){return '<option value="">Selecione…</option>'+pagCaixaTiposCache.map(t=>`<option value="${escapeHtml(String(t.id))}" ${String(t.id)===String(tipoId)?'selected':''}>${escapeHtml(labelTipoPagCaixa(t))}</option>`).join('');}
+
+function renderImportacaoPagamentosParaCaixa(){
+  const body=document.getElementById('importarPagCaixaBody'),resumo=document.getElementById('importarPagCaixaResumo');
+  if(!importarPagCaixaCache.length){body.innerHTML='';resumo.textContent='Nenhum pagamento encontrado no período selecionado.';return;}
+  const disponiveis=importarPagCaixaCache.filter(x=>!x.jaImportado),selecionados=disponiveis.filter(x=>x.selecionado&&x.tipoId);
+  resumo.textContent=disponiveis.length+' disponível(is); '+selecionados.length+' selecionado(s). Já importados ficam bloqueados; possíveis duplicidades vêm desmarcadas para sua conferência.';
+  body.innerHTML=importarPagCaixaCache.map((x,i)=>{const status=x.jaImportado?'Já importado':x.possivelDuplicado?'Possível duplicidade':x.tipoId?'Pronto':'Escolha um código';return `<tr><td><input type="checkbox" ${x.selecionado?'checked':''} ${x.jaImportado?'disabled':''} onchange="alterarSelecaoImportacaoPagCaixa(${i},this.checked)"></td><td>${fmtData(x.data)}</td><td>${escapeHtml(x.descricao||'—')}</td><td>${x.origem==='manual'?'Manual':'Extrato'}</td><td><select ${x.jaImportado?'disabled':''} onchange="alterarTipoImportacaoPagCaixa(${i},this.value)">${opcoesTipoImportacaoPagCaixa(x.tipoId)}</select></td><td class="valor">${brl(Math.abs(Number(x.valor)||0))}</td><td><span class="lc-status ${x.jaImportado||x.possivelDuplicado?'duplicado':x.tipoId?'pronto':'revisar'}">${status}</span></td></tr>`;}).join('');
+}
+
+function alterarSelecaoImportacaoPagCaixa(i,marcado){const x=importarPagCaixaCache[i];if(x&&!x.jaImportado)x.selecionado=!!marcado;renderImportacaoPagamentosParaCaixa();}
+function alterarTipoImportacaoPagCaixa(i,tipoId){const x=importarPagCaixaCache[i];if(!x||x.jaImportado)return;x.tipoId=tipoId;x.selecionado=!!tipoId;renderImportacaoPagamentosParaCaixa();}
+function marcarTodosPagamentosParaCaixa(marcado){importarPagCaixaCache.forEach(x=>{if(!x.jaImportado&&x.tipoId&&!x.possivelDuplicado)x.selecionado=!!marcado;else if(marcado&&x.possivelDuplicado)x.selecionado=false;});renderImportacaoPagamentosParaCaixa();}
+function fecharImportacaoPagamentosParaCaixa(){document.getElementById('importarPagCaixaArea').style.display='none';importarPagCaixaCache=[];}
+
+async function confirmarImportacaoPagamentosParaCaixa(){
+  const lista=importarPagCaixaCache.filter(x=>!x.jaImportado&&x.selecionado&&x.tipoId&&Number(x.valor)!==0);
+  if(!lista.length){alert('Selecione pelo menos um pagamento com código de tipo.');return;}
+  const btn=document.getElementById('importarPagCaixaBtn');btn.disabled=true;btn.textContent='Importando…';
+  const registros=lista.map(x=>({loja:lojaAtual,pagamento_origem_id:x.id,codigo_tipo_id:x.tipoId,descricao_pagamento:String(x.descricao||'Pagamento').trim(),valor_pagamento:Math.abs(Number(x.valor)),data:x.data}));
+  const {data,error}=await sb.from('pagamentos_caixa').insert(registros).select('*, pagamentos_caixa_tipos(codigo,descricao)');
+  btn.disabled=false;btn.textContent='Importar selecionados';
+  if(error){alert(error.code==='23505'?'Um destes pagamentos já havia sido importado. Atualize a prévia e tente novamente.':'Não foi possível importar: '+error.message);return;}
+  for(const x of lista)await gravarMemoriaPagCaixa(x.descricao,x.tipoId);
+  pagCaixaCache.push(...(data||[]));pagCaixaCache.sort((a,b)=>String(a.data).localeCompare(String(b.data)));renderPagamentoCaixa();
+  await popularFiltroMesPagCaixa();fecharImportacaoPagamentosParaCaixa();alert(lista.length+' pagamento(s) importado(s) com sucesso.');
 }
 
 async function gravarMemoriaPagCaixa(descricao, tipoId){
