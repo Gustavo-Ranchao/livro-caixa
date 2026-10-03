@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       versao:
-        description: "Versão que será publicada (exemplo: 1.2.29)"
+        description: "Versão que será publicada (exemplo: 1.2.30)"
         required: true
         type: string
 
@@ -44,6 +44,18 @@ jobs:
             $arquivoApp = "ranchao-bebidas-desktop/$arquivo"
             if (-not (Test-Path $arquivo) -or -not (Test-Path $arquivoApp)) { throw "Biblioteca de PDF ausente: $arquivo. Envie a cópia da raiz e a do aplicativo." }
             if ((Get-FileHash $arquivo -Algorithm SHA256).Hash -ne (Get-FileHash $arquivoApp -Algorithm SHA256).Hash) { throw "Biblioteca de PDF diferente entre site e aplicativo: $arquivo." }
+          }
+          $arquivosOcr = @(
+            "assets/vendor/tesseract/tesseract.min.js",
+            "assets/vendor/tesseract/worker.min.js",
+            "assets/vendor/tesseract/tesseract-core-simd-lstm.wasm.js",
+            "assets/vendor/tesseract/tesseract-core-simd-lstm.wasm",
+            "assets/vendor/tesseract/lang/por.traineddata.gz"
+          )
+          foreach ($arquivo in $arquivosOcr) {
+            $arquivoApp = "ranchao-bebidas-desktop/$arquivo"
+            if (-not (Test-Path $arquivo) -or -not (Test-Path $arquivoApp)) { throw "Biblioteca de leitura de imagens ausente: $arquivo. Envie a cópia da raiz e a do aplicativo." }
+            if ((Get-FileHash $arquivo -Algorithm SHA256).Hash -ne (Get-FileHash $arquivoApp -Algorithm SHA256).Hash) { throw "Biblioteca de leitura de imagens diferente entre site e aplicativo: $arquivo." }
           }
 
       - name: Definir versão
