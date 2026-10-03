@@ -836,7 +836,7 @@
         </div>
         <div class="rec-preview" id="recPreviaTexto">Preencha os dados para visualizar o texto do recibo.</div>
         <div class="formerr" id="recErr" style="margin:0 20px 12px;"></div>
-        <div class="rec-actions"><button class="addbtn" style="width:auto;" onclick="salvarRecibo(true)">Salvar e gerar PDF</button><button class="cancelbtn" onclick="gerarPdfReciboFormulario()">Visualizar PDF sem salvar</button><button class="cancelbtn" onclick="limparFormularioRecibo()">Limpar</button></div>
+        <div class="rec-actions"><button class="addbtn" style="width:auto;" onclick="salvarRecibo(false)">Salvar recibo</button><button class="filter-btn" onclick="salvarRecibo(true)">Salvar e gerar PDF</button><button class="cancelbtn" onclick="gerarPdfReciboFormulario()">Visualizar PDF sem salvar</button><button class="cancelbtn" onclick="limparFormularioRecibo()">Limpar</button></div>
       </div>
 
       <div class="panel">
@@ -1608,13 +1608,13 @@
     <div id="viewLeituraComprovantes" style="display:none;">
       <div class="panel" style="margin-bottom:18px;padding:18px 20px;">
         <div class="lc-toolbar">
-          <div style="flex:1;min-width:260px;"><h1 style="font-size:22px;margin:0 0 4px;">🔎 Leitura de comprovantes</h1><p style="margin:0;color:var(--muted);font-size:13px;">Selecione até 200 PDFs. Confira os dados identificados antes de salvar.</p></div>
+          <div style="flex:1;min-width:260px;"><h1 style="font-size:22px;margin:0 0 4px;">🔎 Leitura de comprovantes</h1><p style="margin:0;color:var(--muted);font-size:13px;">Selecione até 200 PDFs ou imagens. Confira os dados identificados antes de salvar.</p></div>
           <div class="fld"><label>Iniciar numeração em</label><input id="lcNumeroInicial" type="number" min="1" step="1" value="1" onchange="renumerarLeiturasComprovantes()"></div>
           <div class="fld"><label>Mês do histórico</label><input id="lcFiltroMes" type="month" onchange="carregarHistoricoLeituras()"></div>
         </div>
         <label class="lc-upload">
-          <input id="lcFileInput" type="file" accept=".pdf,application/pdf" multiple onchange="selecionarLoteLeituraComprovantes(this.files)">
-          📄 Clique aqui para selecionar até 200 comprovantes em PDF
+          <input id="lcFileInput" type="file" accept=".pdf,.jpg,.jpeg,.png,.webp,application/pdf,image/jpeg,image/png,image/webp" multiple onchange="selecionarLoteLeituraComprovantes(this.files)">
+          📄 Clique aqui para selecionar até 200 comprovantes em PDF ou imagem
         </label>
         <div class="lc-progress" id="lcProgress"><strong id="lcProgressTexto">Preparando leitura…</strong><div class="lc-progress-track"><div class="lc-progress-bar" id="lcProgressBar"></div></div></div>
       </div>
@@ -2290,6 +2290,18 @@
           <button class="addbtn" style="width:auto;" onclick="salvarPagamentoCaixa()">Adicionar</button>
         </div>
         <div class="formerr" id="pagCaixaErr">Preencha descrição, código de tipo, data e um valor maior que zero.</div>
+      </div>
+
+      <div class="panel" style="margin-bottom:20px;">
+        <div class="panel-head">
+          <div><h2 style="margin:0;">Importar da aba Pagamentos</h2><p class="modal-sub" style="margin:4px 0 0;">Traz os pagamentos do período usando o mesmo código e sem alterar a aba Pagamentos.</p></div>
+          <button class="filter-btn foto-btn" onclick="buscarPagamentosParaCaixa()">🔄 Buscar pagamentos</button>
+        </div>
+        <div id="importarPagCaixaArea" style="display:none;padding:0 20px 20px;">
+          <div id="importarPagCaixaResumo" class="modal-sub" style="margin-bottom:10px;"></div>
+          <div class="tablewrap"><table class="ledger"><thead><tr><th><input id="importarPagCaixaTodos" type="checkbox" checked onchange="marcarTodosPagamentosParaCaixa(this.checked)"></th><th>Data</th><th>Descrição</th><th>Origem</th><th>Código / tipo</th><th style="text-align:right;">Valor</th><th>Status</th></tr></thead><tbody id="importarPagCaixaBody"></tbody></table></div>
+          <div style="display:flex;gap:10px;margin-top:12px;"><button class="addbtn" id="importarPagCaixaBtn" style="width:auto;" onclick="confirmarImportacaoPagamentosParaCaixa()">Importar selecionados</button><button class="cancelbtn" onclick="fecharImportacaoPagamentosParaCaixa()">Cancelar</button></div>
+        </div>
       </div>
 
       <div class="panel" style="margin-bottom:20px;">
@@ -3324,6 +3336,7 @@
     <p class="modal-sub" style="margin-bottom:12px;">Confira o documento sem precisar baixá-lo.</p>
     <div id="previewLeituraCarregando" style="padding:18px;text-align:center;color:var(--muted);">Carregando comprovante…</div>
     <iframe id="previewLeituraComprovanteFrame" title="Visualização do comprovante" referrerpolicy="no-referrer" style="display:none;flex:1;width:100%;border:1px solid var(--paper3);border-radius:10px;background:#f4f7fb;"></iframe>
+    <img id="previewLeituraComprovanteImagem" alt="Visualização do comprovante" style="display:none;flex:1;width:100%;min-height:0;object-fit:contain;border:1px solid var(--paper3);border-radius:10px;background:#f4f7fb;">
     <div class="modal-actions" style="margin-top:12px;"><button class="cancelbtn" onclick="fecharPreviewLeituraComprovante()">Fechar</button></div>
   </div>
 </div>
@@ -3378,6 +3391,7 @@
   </div>
 </div>
 
+<script src="assets/vendor/tesseract/tesseract.min.js"></script>
 <script src="renderer.js"></script>
 </body>
 </html>
