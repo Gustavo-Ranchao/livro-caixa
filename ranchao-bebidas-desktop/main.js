@@ -6,7 +6,57 @@ const { pathToFileURL } = require('url');
 const PAGINA_INICIAL = path.join(__dirname, 'index.html');
 const URL_INICIAL = pathToFileURL(PAGINA_INICIAL).href;
 let janelaPrincipal = null;
+const janelasModulos = new Map();
 let estadoAtualizacao = { tipo: 'inicial', mensagem: 'Pronto para verificar atualizações.', versaoAtual: app.getVersion() };
+
+const MODULOS_PERMITIDOS = new Set([
+  'checklist','duvidas','manutencao','agenda','contasPagar','despesasFixas','comprovantes','leituraComprovantes',
+  'diferencaCaixa','fluxoCaixa','pagamentos','pagamentoCaixa','contratos','vendasComCusto','vendasDelivery',
+  'orcamentos','tabelaPrecos','bancoHoras','compras','colaboradores','aniversarios','fornecedores','contasBancarias',
+  'inventario','controleEstoque','contagensEstoque','combinacaoPagamentos'
+]);
+const TITULOS_MODULOS = {
+  checklist:'Checklist',duvidas:'Dúvidas',manutencao:'Manutenção',agenda:'Agenda',contasPagar:'Contas a pagar',
+  despesasFixas:'Despesas fixas',comprovantes:'Comprovantes',leituraComprovantes:'Leitura de Comprovantes',
+  diferencaCaixa:'Diferença de Caixa',fluxoCaixa:'Fluxo de Caixa',pagamentos:'Pagamentos',pagamentoCaixa:'Pagamento no Caixa',
+  combinacaoPagamentos:'Combinação de Pagamentos',contratos:'Contratos e Recibos',vendasComCusto:'Vendas com Custo',
+  vendasDelivery:'Vendas Delivery',orcamentos:'Orçamentos',tabelaPrecos:'Tabela de Preços',compras:'Compras',
+  inventario:'Inventário',controleEstoque:'Controle de Estoque',contagensEstoque:'Contagens de Estoque',
+  bancoHoras:'Banco de Horas',colaboradores:'Colaboradores',aniversarios:'Aniversários',fornecedores:'Fornecedores',
+  contasBancarias:'Contas Bancárias'
+};
+
+function opcoesJanela(titulo) {
+  return {
+    width: 1440,height: 900,minWidth:1024,minHeight:700,show:false,title:titulo,
+    icon:path.join(__dirname,'assets','icon.png'),backgroundColor:'#f4f7fb',autoHideMenuBar:true,
+    webPreferences:{preload:path.join(__dirname,'preload.js'),nodeIntegration:false,contextIsolation:true,sandbox:true,webSecurity:true,allowRunningInsecureContent:false,spellcheck:false}
+  };
+}
+
+function protegerNavegacao(janela) {
+  janela.webContents.setWindowOpenHandler(({url})=>{if(/^https:\/\//i.test(url))shell.openExternal(url);return {action:'deny'};});
+  janela.webContents.on('will-navigate',(evento,url)=>{
+    let local=false;try{const destino=new URL(url),inicial=new URL(URL_INICIAL);local=destino.protocol==='file:'&&destino.pathname===inicial.pathname;}catch(_){local=false;}
+    if(!local){evento.preventDefault();if(/^https:\/\//i.test(url))shell.openExternal(url);}
+  });
+}
+
+function abrirJanelaModulo(view,tipo) {
+  if(!MODULOS_PERMITIDOS.has(view))return {ok:false};
+  const subtipo=view==='manutencao'&&['computador','loja','veiculo'].includes(tipo)?tipo:'';
+  const chave=view+(subtipo?':'+subtipo:'');
+  const existente=janelasModulos.get(chave);
+  if(existente&&!existente.isDestroyed()){if(existente.isMinimized())existente.restore();existente.show();existente.focus();return {ok:true,reutilizada:true};}
+  const sufixo=subtipo?(' - '+({computador:'Computadores',loja:'Loja',veiculo:'Veículos'}[subtipo])):'';
+  const janela=new BrowserWindow(opcoesJanela((TITULOS_MODULOS[view]||'Módulo')+sufixo+' — Ranchão Bebidas'));
+  janelasModulos.set(chave,janela);protegerNavegacao(janela);
+  janela.once('ready-to-show',()=>{janela.maximize();janela.show();});
+  janela.on('closed',()=>janelasModulos.delete(chave));
+  const query={janelaModulo:'1',view};if(subtipo)query.tipo=subtipo;
+  janela.loadFile(PAGINA_INICIAL,{query});
+  return {ok:true,reutilizada:false};
+}
 
 function enviarEstadoAtualizacao(tipo, mensagem, extras = {}) {
   estadoAtualizacao = { tipo, mensagem, versaoAtual: app.getVersion(), ...extras };
@@ -40,27 +90,8 @@ function configurarAtualizacoes() {
   });
 }
 
-function criarJanela() {
-  janelaPrincipal = new BrowserWindow({
-    width: 1440,
-    height: 900,
-    minWidth: 1024,
-    minHeight: 700,
-    show: false,
-    title: 'Ranchão Bebidas',
-    icon: path.join(__dirname, 'assets', 'icon.png'),
-    backgroundColor: '#f4f7fb',
-    autoHideMenuBar: true,
-    webPreferences: {
-      preload: path.join(__dirname, 'preload.js'),
-      nodeIntegration: false,
-      contextIsolation: true,
-      sandbox: true,
-      webSecurity: true,
-      allowRunningInsecureContent: false,
-      spellcheck: false
-    }
-  });
+function criarJanela(preservarSessao = false) {
+  janelaPrincipal = new BrowserWindow(opcoesJanela('Ranchão Bebidas'));
 
   janelaPrincipal.once('ready-to-show', () => {
     janelaPrincipal.maximize();
@@ -68,26 +99,18 @@ function criarJanela() {
     if (app.isPackaged) setTimeout(() => autoUpdater.checkForUpdates().catch(() => {}), 5000);
   });
 
-  janelaPrincipal.webContents.setWindowOpenHandler(({ url }) => {
-    if (/^https:\/\//i.test(url)) shell.openExternal(url);
-    return { action: 'deny' };
-  });
-
-  janelaPrincipal.webContents.on('will-navigate', (evento, url) => {
-    if (url !== URL_INICIAL) {
-      evento.preventDefault();
-      if (/^https:\/\//i.test(url)) shell.openExternal(url);
-    }
-  });
+  protegerNavegacao(janelaPrincipal);
 
   janelaPrincipal.on('closed', () => { janelaPrincipal = null; });
-  janelaPrincipal.loadFile(PAGINA_INICIAL);
+  janelaPrincipal.loadFile(PAGINA_INICIAL,preservarSessao?{query:{preservarSessao:'1'}}:undefined);
 }
 
 app.setAppUserModelId('br.com.ranchao.bebidas');
 
 app.whenReady().then(() => {
   configurarAtualizacoes();
+  ipcMain.handle('janela:abrir-modulo',(_evento,dados={})=>abrirJanelaModulo(String(dados.view||''),String(dados.tipo||'')));
+  ipcMain.handle('janela:focar-principal',()=>{if(janelaPrincipal&&!janelaPrincipal.isDestroyed()){if(janelaPrincipal.isMinimized())janelaPrincipal.restore();janelaPrincipal.show();janelaPrincipal.focus();return true;}criarJanela(true);return true;});
   session.defaultSession.setPermissionRequestHandler((_webContents, _permission, callback) => callback(false));
   criarJanela();
   app.on('activate', () => {
