@@ -2971,6 +2971,43 @@ function agendarPopupAgenda(){clearTimeout(timerPopupAgenda);fecharPopupAgenda()
 
 const VIEWS = ['checklist','duvidas','manutencao','agenda','contasPagar','despesasFixas','comprovantes','leituraComprovantes','diferencaCaixa','fluxoCaixa','pagamentos','pagamentoCaixa','contratos','vendasComCusto','vendasDelivery','orcamentos','tabelaPrecos','bancoHoras','compras','colaboradores','aniversarios','fornecedores','contasBancarias','inventario','controleEstoque','contagensEstoque','combinacaoPagamentos'];
 let colabCarregado = false;
+const PARAMETROS_JANELA = new URLSearchParams(location.search);
+const EH_JANELA_MODULO = PARAMETROS_JANELA.get('janelaModulo')==='1';
+let moduloInicialDaJanelaAberto = false;
+
+const TITULOS_JANELAS = {
+  checklist:'Checklist',duvidas:'Dúvidas',manutencao:'Manutenção',agenda:'Agenda',contasPagar:'Contas a pagar',despesasFixas:'Despesas fixas',
+  comprovantes:'Comprovantes',leituraComprovantes:'Leitura de Comprovantes',diferencaCaixa:'Diferença de Caixa',fluxoCaixa:'Fluxo de Caixa',
+  pagamentos:'Pagamentos',pagamentoCaixa:'Pagamento no Caixa',combinacaoPagamentos:'Combinação de Pagamentos',contratos:'Contratos e Recibos',
+  vendasComCusto:'Vendas com Custo',vendasDelivery:'Vendas Delivery',orcamentos:'Orçamentos',tabelaPrecos:'Tabela de Preços',compras:'Compras',
+  inventario:'Inventário',controleEstoque:'Controle de Estoque',contagensEstoque:'Contagens de Estoque',bancoHoras:'Banco de Horas',
+  colaboradores:'Colaboradores',aniversarios:'Aniversários',fornecedores:'Fornecedores',contasBancarias:'Contas Bancárias'
+};
+
+async function abrirModuloEmJanela(view,tipo=''){
+  if(window.ranchaoDesktop&&typeof window.ranchaoDesktop.abrirModulo==='function'){
+    const resultado=await window.ranchaoDesktop.abrirModulo(view,tipo);
+    if(!resultado?.ok)alert('Não foi possível abrir este módulo em uma nova janela.');
+    return;
+  }
+  if(view==='manutencao')await abrirModuloManutencao(tipo||'computador');else await mudarViewPrincipal(view);
+}
+
+async function abrirModuloInicialDaJanela(){
+  if(!EH_JANELA_MODULO||moduloInicialDaJanelaAberto)return;
+  const view=PARAMETROS_JANELA.get('view')||'',tipo=PARAMETROS_JANELA.get('tipo')||'';
+  if(!VIEWS.includes(view))return;
+  moduloInicialDaJanelaAberto=true;
+  document.title=(TITULOS_JANELAS[view]||'Módulo')+' — Ranchão Bebidas';
+  if(view==='manutencao')await abrirModuloManutencao(tipo||'computador');else await mudarViewPrincipal(view);
+}
+
+document.addEventListener('click',event=>{
+  if(!window.ranchaoDesktop||typeof window.ranchaoDesktop.abrirModulo!=='function')return;
+  const botao=event.target.closest&&event.target.closest('.top-module-btn');if(!botao)return;
+  event.preventDefault();event.stopPropagation();event.stopImmediatePropagation();
+  abrirModuloEmJanela(botao.dataset.view,botao.dataset.manutencaoTipo||'');
+},true);
 
 const CATEGORIA_POR_VIEW = {
   contasPagar:'financeiro', despesasFixas:'financeiro', comprovantes:'financeiro', leituraComprovantes:'financeiro',
@@ -3002,6 +3039,9 @@ function selecionarCategoria(categoria){
 }
 
 function voltarAoInicio(){
+  if(EH_JANELA_MODULO&&window.ranchaoDesktop&&typeof window.ranchaoDesktop.focarPrincipal==='function'){
+    window.ranchaoDesktop.focarPrincipal();return;
+  }
   viewAtual = null;
   categoriaMenuAberta = null;
   VIEWS.forEach(v=>document.getElementById(VIEW_IDS[v]).style.display = 'none');
@@ -12430,8 +12470,8 @@ async function aplicarSessao(session, opts){
     }
     document.getElementById('app').classList.add('on');
     document.getElementById('loadingScreen').style.display = 'none';
-    agendarPopupAniversario();
-    agendarPopupAgenda();
+    await abrirModuloInicialDaJanela();
+    if(!EH_JANELA_MODULO){agendarPopupAniversario();agendarPopupAgenda();}
   }else{
     clearTimeout(timerPopupAniversario);
     clearTimeout(timerPopupAgenda);
@@ -12465,7 +12505,7 @@ async function iniciar(){
   configurarTecladoPagamentosDinheiro();
   // No aplicativo instalado, exigir um novo login a cada abertura.
   // sessionStorage sobrevive a recarregamentos da tela, mas e limpa ao fechar o app.
-  if(/Electron\//i.test(navigator.userAgent) && !sessionStorage.getItem('ranchao-login-preparado')){
+  if(/Electron\//i.test(navigator.userAgent) && !EH_JANELA_MODULO && PARAMETROS_JANELA.get('preservarSessao')!=='1' && !sessionStorage.getItem('ranchao-login-preparado')){
     sessionStorage.setItem('ranchao-login-preparado', '1');
     try{
       Object.keys(localStorage).forEach(k=>{
@@ -12553,21 +12593,30 @@ iniciar();
 
 const TEMPO_INATIVIDADE_MS = 20 * 60 * 1000; // 20 minutos
 let timerInatividade = null;
+const CHAVE_ULTIMA_ATIVIDADE = 'ranchao-ultima-atividade';
+let ultimaAtividadeRegistrada = 0;
 
 function reiniciarTimerInatividade(){
   clearTimeout(timerInatividade);
+  let ultima=Date.now();try{ultima=Number(localStorage.getItem(CHAVE_ULTIMA_ATIVIDADE))||ultima;}catch(_){}
+  const restante=Math.max(1000,TEMPO_INATIVIDADE_MS-(Date.now()-ultima));
   timerInatividade = setTimeout(async ()=>{
+    let atividade=0;try{atividade=Number(localStorage.getItem(CHAVE_ULTIMA_ATIVIDADE))||0;}catch(_){}
+    if(Date.now()-atividade<TEMPO_INATIVIDADE_MS){reiniciarTimerInatividade();return;}
     if(sb && document.getElementById('app').classList.contains('on')){
       await sb.auth.signOut({ scope: 'local' });
       alert('Você foi desconectado por inatividade. Faça login novamente.');
     }
-  }, TEMPO_INATIVIDADE_MS);
+  }, restante);
 }
 
+function registrarAtividadeGlobal(){const agora=Date.now();if(agora-ultimaAtividadeRegistrada<1000)return;ultimaAtividadeRegistrada=agora;try{localStorage.setItem(CHAVE_ULTIMA_ATIVIDADE,String(agora));}catch(_){}reiniciarTimerInatividade();}
+
 ['mousemove','keydown','click','touchstart','scroll'].forEach(evento=>{
-  document.addEventListener(evento, reiniciarTimerInatividade, { passive: true });
+  document.addEventListener(evento, registrarAtividadeGlobal, { passive: true });
 });
-reiniciarTimerInatividade();
+window.addEventListener('storage',evento=>{if(evento.key===CHAVE_ULTIMA_ATIVIDADE)reiniciarTimerInatividade();});
+registrarAtividadeGlobal();
 
 if('serviceWorker' in navigator){
   window.addEventListener('load', () => {
