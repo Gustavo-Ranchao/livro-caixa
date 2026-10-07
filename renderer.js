@@ -2531,18 +2531,48 @@ function exportarExcelControleEstoque(){
   XLSX.writeFile(wb,`controle-estoque-${lojaAtual}-${controleEstoqueMesAtual}.xlsx`);
 }
 
+function desenharCabecalhoPdfVisual(doc,titulo,subtitulo,largura){
+  largura=largura||doc.internal.pageSize.getWidth();
+  doc.setFillColor(23,35,60);doc.rect(0,0,largura,32,'F');
+  doc.setTextColor(255,255,255);doc.setFont('helvetica','bold');doc.setFontSize(18);doc.text(titulo,14,13);
+  doc.setFont('helvetica','normal');doc.setFontSize(9.5);doc.setTextColor(210,223,243);doc.text(subtitulo,14,22);
+  doc.setFillColor(37,99,235);doc.rect(0,31,largura,1.2,'F');
+}
+
+function desenharCardPdfVisual(doc,x,y,w,h,rotulo,valor,cor,detalhe){
+  const rgb=cor||[37,99,235];
+  doc.setFillColor(255,255,255);doc.setDrawColor(218,226,239);doc.roundedRect(x,y,w,h,2.5,2.5,'FD');
+  doc.setFillColor(...rgb);doc.roundedRect(x,y,2.4,h,1.2,1.2,'F');
+  doc.setFont('helvetica','bold');doc.setFontSize(7.4);doc.setTextColor(96,112,137);doc.text(String(rotulo).toUpperCase(),x+6,y+8);
+  doc.setFontSize(13.5);doc.setTextColor(23,35,60);doc.text(String(valor),x+6,y+21);
+  if(detalhe){doc.setFont('helvetica','normal');doc.setFontSize(6.8);doc.setTextColor(105,120,142);doc.text(doc.splitTextToSize(String(detalhe),w-11).slice(0,2),x+6,y+h-8);}
+}
+
+function rotuloFonteControleEstoque(fonte){return ({manual:'Informado manualmente',herdado:'Herdado do mês anterior',calculado:'Calculado pelo sistema',pendente:'Valor ainda não informado'})[fonte]||fonte;}
+
 function exportarPdfControleEstoque(){
-  if(!controleEstoqueAtual) return;
-  const {jsPDF}=window.jspdf; const doc=new jsPDF({orientation:'landscape',unit:'mm',format:'a4'});
-  doc.setFillColor(23,35,60); doc.rect(0,0,297,35,'F');
-  doc.setTextColor(255,255,255); doc.setFontSize(19); doc.text('Ranchão Bebidas — Resumo do Período',14,15);
-  doc.setFontSize(10); doc.text(`${NOMES_LOJA[lojaAtual]}  •  ${rotuloMesControleEstoque(controleEstoqueMesAtual)}`,14,24);
-  doc.autoTable({startY:44,head:[['Indicador','Mês atual','Mês anterior','Variação','Origem']],body:linhasExportacaoControleEstoque().map((l,i)=>{
-    const percentual=i===7; const atual=percentual?Number(l[1]).toLocaleString('pt-BR',{minimumFractionDigits:2})+'%':brl(l[1]);
-    const anterior=percentual?Number(l[2]||0).toLocaleString('pt-BR',{minimumFractionDigits:2})+'%':brl(l[2]||0);
-    return [l[0],atual,anterior,variacaoControleEstoque(l[1],l[2]),l[3]];
-  }),theme:'grid',headStyles:{fillColor:[37,99,235]},styles:{fontSize:10,cellPadding:4},columnStyles:{1:{halign:'right'},2:{halign:'right'}}});
-  doc.setTextColor(90,105,125); doc.setFontSize(8); doc.text('Valores informados manualmente no Controle de Estoque.',14,doc.internal.pageSize.height-9);
+  if(!controleEstoqueAtual)return;
+  if(!window.jspdf?.jsPDF){alert('Não foi possível carregar o recurso de PDF.');return;}
+  const {jsPDF}=window.jspdf,doc=new jsPDF({orientation:'landscape',unit:'mm',format:'a4'}),a=controleEstoqueAtual.valores,p=controleEstoqueAnterior?.valores||{};
+  desenharCabecalhoPdfVisual(doc,'Controle de Estoque — Resumo do Período',`${NOMES_LOJA[lojaAtual]}  •  ${rotuloMesControleEstoque(controleEstoqueMesAtual)}  •  Gerado em ${new Date().toLocaleString('pt-BR')}`,297);
+  const cards=[
+    ['Estoque inicial',brl(a.estoqueInicial),[37,99,235],controleEstoqueAtual.estoqueInicialHerdado?'Estoque final de '+rotuloMesControleEstoque(controleEstoqueAnterior?.mes):variacaoControleEstoque(a.estoqueInicial,p.estoqueInicial)],
+    ['Compras totais',brl(a.compras),[124,58,237],variacaoControleEstoque(a.compras,p.compras)],
+    ['Bonificações',brl(a.bonificacoes),[217,119,6],variacaoControleEstoque(a.bonificacoes,p.bonificacoes)],
+    ['Estoque final',brl(a.estoqueFinal),[8,145,178],variacaoControleEstoque(a.estoqueFinal,p.estoqueFinal)],
+    ['CMV',brl(a.cmv),[220,38,38],variacaoControleEstoque(a.cmv,p.cmv)],
+    ['Receita total',brl(a.receita),[5,150,105],variacaoControleEstoque(a.receita,p.receita)],
+    ['Lucro bruto',brl(a.lucro),a.lucro>=0?[22,163,74]:[190,36,55],variacaoControleEstoque(a.lucro,p.lucro)],
+    ['Margem de lucro',Number(a.margem||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})+'%',[79,70,229],variacaoControleEstoque(a.margem,p.margem)]
+  ];
+  const margem=14,gap=5,w=(297-margem*2-gap*3)/4,h=43;
+  cards.forEach((c,i)=>desenharCardPdfVisual(doc,margem+(i%4)*(w+gap),39+Math.floor(i/4)*48,w,h,c[0],c[1],c[2],c[3]));
+  doc.setFillColor(241,245,249);doc.setDrawColor(215,225,238);doc.roundedRect(14,139,269,19,2.5,2.5,'FD');
+  doc.setFont('helvetica','bold');doc.setFontSize(9);doc.setTextColor(23,35,60);doc.text('Cálculo do CMV',20,147);
+  doc.setFont('helvetica','normal');doc.setTextColor(75,91,116);doc.text(`${brl(a.estoqueInicial)} + ${brl(a.compras)} - ${brl(a.bonificacoes)} - ${brl(a.estoqueFinal)} = ${brl(a.cmv)}`,20,153);
+  doc.setFont('helvetica','normal');doc.setFontSize(7.5);doc.setTextColor(105,120,142);doc.text('O estoque final deste mês será utilizado como estoque inicial do mês seguinte.',14,174);
+  doc.addPage();desenharCabecalhoPdfVisual(doc,'Controle de Estoque — Comparativo Mensal',`${NOMES_LOJA[lojaAtual]}  •  ${rotuloMesControleEstoque(controleEstoqueMesAtual)} comparado ao mês anterior`,297);
+  doc.autoTable({startY:40,head:[['Indicador','Mês atual','Mês anterior','Variação','Origem']],body:linhasExportacaoControleEstoque().map((l,i)=>{const percentual=i===7;return [l[0],percentual?Number(l[1]).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})+'%':brl(l[1]),percentual?Number(l[2]||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})+'%':brl(l[2]||0),variacaoControleEstoque(l[1],l[2]),rotuloFonteControleEstoque(l[3])];}),theme:'grid',headStyles:{fillColor:[30,64,175]},styles:{fontSize:9,cellPadding:3.4},columnStyles:{1:{halign:'right'},2:{halign:'right'}},margin:{left:14,right:14,top:36}});
   doc.save(`controle-estoque-${lojaAtual}-${controleEstoqueMesAtual}.pdf`);
 }
 
@@ -6095,11 +6125,38 @@ let fluxoFornecedoresAtual = [];
 let fluxoResumoTotalAtual = { totalEntradas: 0, totalSaidas: 0, dinheiroEntradas: 0, dinheiroSaidas: 0 };
 let fluxoImportParsed = [];
 let fluxoImportSaldos = [];
+let fluxoSaldosFinaisAtual = new Map();
 
 function nomeDaContaFluxo(id){
   if(id === CONTA_SEM_ID) return 'Sem conta específica';
   const c = fluxoContasCache.find(x=>x.id===id);
   return c ? c.nome : '';
+}
+
+function resumoPorContasFluxo(){
+  const linhas=[],porChave=new Map();
+  fluxoContasCache.forEach(c=>porChave.set(String(c.id),{chave:String(c.id),nome:c.nome,entradas:0,saidas:0,ehDinheiro:false}));
+  fluxoCache.forEach(l=>{
+    const ehDinheiro=l.tipo==='Dinheiro',chave=ehDinheiro?'dinheiro':(l.conta_id?String(l.conta_id):CONTA_SEM_ID);
+    if(!porChave.has(chave))porChave.set(chave,{chave,nome:ehDinheiro?'Dinheiro':(chave===CONTA_SEM_ID?'Sem conta específica':nomeDaContaFluxo(l.conta_id)||'Conta não cadastrada'),entradas:0,saidas:0,ehDinheiro});
+    const item=porChave.get(chave),valor=Number(l.valor)||0;if(valor>0)item.entradas+=valor;else item.saidas+=Math.abs(valor);
+  });
+  porChave.forEach(item=>{const saldo=fluxoSaldosFinaisAtual.get(item.chave);linhas.push({...item,resultado:item.entradas-item.saidas,saldoFinal:saldo?.saldo??null,dataSaldo:saldo?.data||null});});
+  return linhas.sort((a,b)=>{if(a.ehDinheiro)return 1;if(b.ehDinheiro)return -1;return a.nome.localeCompare(b.nome,'pt-BR');});
+}
+
+async function carregarSaldosFinaisTodasContasFluxo(){
+  const ate=document.getElementById('fluxoFiltroAte')?.value||todayStr(),chaves=new Set(fluxoContasCache.map(c=>String(c.id)));
+  if(fluxoCache.some(l=>l.tipo!=='Dinheiro'&&!l.conta_id))chaves.add(CONTA_SEM_ID);
+  const novoMapa=new Map();
+  await Promise.all([...chaves].map(async chave=>{let q=sb.from('fluxo_caixa_saldos').select('saldo,data').eq('loja',lojaAtual).lte('data',ate);q=chave===CONTA_SEM_ID?q.is('conta_id',null):q.eq('conta_id',chave);const {data,error}=await q.order('data',{ascending:false}).limit(1);if(!error&&data?.length)novoMapa.set(chave,{saldo:Number(data[0].saldo)||0,data:data[0].data});}));
+  fluxoSaldosFinaisAtual=novoMapa;renderResumoContasFluxo();return novoMapa;
+}
+
+function renderResumoContasFluxo(){
+  const body=document.getElementById('fluxoContasResumoBody');if(!body)return;const linhas=resumoPorContasFluxo();
+  if(!linhas.length){body.innerHTML='<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:16px;">Nenhuma conta ou movimentação no período.</td></tr>';return;}
+  body.innerHTML=linhas.map(x=>`<tr><td><strong>${escapeHtml(x.nome)}</strong></td><td class="valor" style="color:var(--green);">${brl(x.entradas)}</td><td class="valor" style="color:var(--rust);">${brl(x.saidas)}</td><td class="valor" style="color:${x.resultado>=0?'var(--green)':'var(--rust)'};font-weight:600;">${brl(x.resultado)}</td><td class="valor" style="color:${x.saldoFinal===null?'var(--muted)':x.saldoFinal>=0?'var(--green)':'var(--rust)'};font-weight:600;">${x.saldoFinal===null?'Não informado':brl(x.saldoFinal)}</td><td>${x.dataSaldo?fmtData(x.dataSaldo):(x.ehDinheiro?'Sem saldo inicial':'—')}</td></tr>`).join('');
 }
 
 async function existeDadoSemContaFluxo(){
@@ -6925,6 +6982,7 @@ async function carregarFluxoCaixa(){
   }
   renderFluxoCaixa();
   await carregarSaldoExtrato();
+  await carregarSaldosFinaisTodasContasFluxo();
 }
 
 async function carregarSaldoExtrato(){
@@ -7115,6 +7173,7 @@ function renderFluxoCaixa(){
   document.getElementById('fluxoCombinadoSaidas').textContent = brl(totalSaidasTodasContas + dinheiroSaidas);
   document.getElementById('fluxoCombinadoSaldo').textContent = brl((totalEntradasTodasContas + dinheiroEntradas) - (totalSaidasTodasContas + dinheiroSaidas));
   fluxoResumoTotalAtual = { totalEntradas: totalEntradasTodasContas, totalSaidas: totalSaidasTodasContas, dinheiroEntradas, dinheiroSaidas };
+  renderResumoContasFluxo();
 
   let dinheiroExibido = dinheiro;
   const filtroTipoDinheiro = document.getElementById('fluxoDinheiroFiltroTipo').value;
@@ -7332,9 +7391,7 @@ function exportarPdfTotalFluxo(){
 /* ---------- Relatório único (extrato + dinheiro juntos) ---------- */
 
 function montarListaFluxoCompleto(){
-  return [...fluxoExtratoTodasContasAtual, ...fluxoDinheiroAtual]
-    .slice()
-    .sort((a,b)=> a.data.localeCompare(b.data));
+  return fluxoCache.slice().sort((a,b)=>a.data.localeCompare(b.data));
 }
 
 function exportarExcelFluxoCompleto(){
@@ -7342,10 +7399,11 @@ function exportarExcelFluxoCompleto(){
   if(todos.length===0){ alert('Não há lançamentos para exportar com o período/busca atual.'); return; }
   if(!window.XLSX){ alert('Não foi possível carregar o recurso de Excel. Recarregue a página e tente de novo.'); return; }
 
-  const dinheiroEnt = fluxoDinheiroAtual.filter(l=>Number(l.valor)>0).reduce((s,l)=>s+Number(l.valor),0);
-  const dinheiroSai = fluxoDinheiroAtual.filter(l=>Number(l.valor)<0).reduce((s,l)=>s+Math.abs(Number(l.valor)),0);
-  const extratoEnt = fluxoExtratoTodasContasAtual.filter(l=>Number(l.valor)>0).reduce((s,l)=>s+Number(l.valor),0);
-  const extratoSai = fluxoExtratoTodasContasAtual.filter(l=>Number(l.valor)<0).reduce((s,l)=>s+Math.abs(Number(l.valor)),0);
+  const dinheiroCompleto=todos.filter(l=>l.tipo==='Dinheiro'),extratoCompleto=todos.filter(l=>l.tipo!=='Dinheiro');
+  const dinheiroEnt = dinheiroCompleto.filter(l=>Number(l.valor)>0).reduce((s,l)=>s+Number(l.valor),0);
+  const dinheiroSai = dinheiroCompleto.filter(l=>Number(l.valor)<0).reduce((s,l)=>s+Math.abs(Number(l.valor)),0);
+  const extratoEnt = extratoCompleto.filter(l=>Number(l.valor)>0).reduce((s,l)=>s+Number(l.valor),0);
+  const extratoSai = extratoCompleto.filter(l=>Number(l.valor)<0).reduce((s,l)=>s+Math.abs(Number(l.valor)),0);
 
   const resumo = [
     ['Período', textoPeriodoFluxo()],
@@ -7372,44 +7430,48 @@ function exportarExcelFluxoCompleto(){
   XLSX.writeFile(livro, nomeArquivoFluxo('fluxo-de-caixa-completo','xlsx'));
 }
 
-function exportarPdfFluxoCompleto(){
+async function exportarPdfFluxoCompleto(){
   const todos = montarListaFluxoCompleto();
   if(todos.length===0){ alert('Não há lançamentos para exportar com o período/busca atual.'); return; }
-  const doc = iniciarPdf('Fluxo de Caixa Completo — ' + (NOMES_LOJA[lojaAtual]||''), 'Período: ' + textoPeriodoFluxo());
-  if(!doc) return;
+  if(!window.jspdf?.jsPDF){alert('Não foi possível carregar o recurso de PDF.');return;}
+  await carregarSaldosFinaisTodasContasFluxo();
+  const {jsPDF}=window.jspdf,doc=new jsPDF({orientation:'landscape',unit:'mm',format:'a4'}),subtitulo=`${NOMES_LOJA[lojaAtual]||''}  •  Período: ${textoPeriodoFluxo()}  •  Gerado em ${new Date().toLocaleString('pt-BR')}`;
 
-  const dinheiroEnt = fluxoDinheiroAtual.filter(l=>Number(l.valor)>0).reduce((s,l)=>s+Number(l.valor),0);
-  const dinheiroSai = fluxoDinheiroAtual.filter(l=>Number(l.valor)<0).reduce((s,l)=>s+Math.abs(Number(l.valor)),0);
-  const extratoEnt = fluxoExtratoTodasContasAtual.filter(l=>Number(l.valor)>0).reduce((s,l)=>s+Number(l.valor),0);
-  const extratoSai = fluxoExtratoTodasContasAtual.filter(l=>Number(l.valor)<0).reduce((s,l)=>s+Math.abs(Number(l.valor)),0);
+  const dinheiroCompleto=todos.filter(l=>l.tipo==='Dinheiro'),extratoCompleto=todos.filter(l=>l.tipo!=='Dinheiro');
+  const dinheiroEnt = dinheiroCompleto.filter(l=>Number(l.valor)>0).reduce((s,l)=>s+Number(l.valor),0);
+  const dinheiroSai = dinheiroCompleto.filter(l=>Number(l.valor)<0).reduce((s,l)=>s+Math.abs(Number(l.valor)),0);
+  const extratoEnt = extratoCompleto.filter(l=>Number(l.valor)>0).reduce((s,l)=>s+Number(l.valor),0);
+  const extratoSai = extratoCompleto.filter(l=>Number(l.valor)<0).reduce((s,l)=>s+Math.abs(Number(l.valor)),0);
 
-  doc.autoTable({
-    startY: 32,
-    head: [['', 'Entradas', 'Saídas', 'Resultado']],
-    body: [
-      ['Dinheiro', brl(dinheiroEnt), brl(dinheiroSai), brl(dinheiroEnt - dinheiroSai)],
-      ['Conta bancária (extrato)', brl(extratoEnt), brl(extratoSai), brl(extratoEnt - extratoSai)]
-    ],
-    foot: [['Total', brl(dinheiroEnt + extratoEnt), brl(dinheiroSai + extratoSai), brl((dinheiroEnt + extratoEnt) - (dinheiroSai + extratoSai))]],
-    styles: { fontSize: 9.5, cellPadding: 4 },
-    headStyles: { fillColor: [38,51,43] },
-    footStyles: { fillColor: [233,225,203], textColor:20, fontStyle:'bold' },
-    columnStyles: { 0: { fontStyle: 'bold' } },
-    theme: 'grid'
-  });
-
-  const corpo = todos.map(l=>[fmtData(l.data), l.tipo==='Dinheiro'?'Dinheiro':nomeDaContaFluxo(l.conta_id || CONTA_SEM_ID), l.tipo, l.descricao||'—', brl(l.valor)]);
   const totalEnt = todos.filter(l=>Number(l.valor)>0).reduce((s,l)=>s+Number(l.valor),0);
   const totalSai = todos.filter(l=>Number(l.valor)<0).reduce((s,l)=>s+Math.abs(Number(l.valor)),0);
+  const resultado=totalEnt-totalSai,contas=resumoPorContasFluxo(),comSaldo=contas.filter(x=>!x.ehDinheiro&&x.saldoFinal!==null),saldoBancario=comSaldo.reduce((s,x)=>s+Number(x.saldoFinal),0);
+  desenharCabecalhoPdfVisual(doc,'Fluxo de Caixa — Relatório Completo',subtitulo,297);
+  const cards=[['Total de entradas',brl(totalEnt),[5,150,105],'Bancos + dinheiro'],['Total de saídas',brl(totalSai),[220,38,38],'Bancos + dinheiro'],['Resultado do período',brl(resultado),resultado>=0?[22,163,74]:[180,35,55],resultado>=0?'Entradas maiores que saídas':'Saídas maiores que entradas'],['Saldos bancários finais',comSaldo.length?brl(saldoBancario):'Não informado',[37,99,235],comSaldo.length+' conta(s) com saldo importado']];
+  const margem=14,gap=5,w=(297-margem*2-gap*3)/4;cards.forEach((c,i)=>desenharCardPdfVisual(doc,margem+i*(w+gap),39,w,31,c[0],c[1],c[2],c[3]));
+  doc.autoTable({startY:77,head:[['Conta / origem','Entradas','Saídas','Resultado','Saldo final','Data do saldo']],body:contas.map(x=>[x.nome,brl(x.entradas),brl(x.saidas),brl(x.resultado),x.saldoFinal===null?'Não informado':brl(x.saldoFinal),x.dataSaldo?fmtData(x.dataSaldo):(x.ehDinheiro?'Sem saldo inicial':'—')]),theme:'grid',styles:{fontSize:8.2,cellPadding:2.7},headStyles:{fillColor:[30,64,175]},columnStyles:{1:{halign:'right'},2:{halign:'right'},3:{halign:'right'},4:{halign:'right'}},margin:{left:14,right:14,top:36},didParseCell:data=>{if(data.section!=='body')return;if(data.column.index===1)data.cell.styles.textColor=[5,130,90];if(data.column.index===2)data.cell.styles.textColor=[180,35,55];if([3,4].includes(data.column.index)){const n=Number(String(data.cell.raw||'').replace(/[^\d,-]/g,'').replace('.','').replace(',','.'));if(Number.isFinite(n))data.cell.styles.textColor=n>=0?[5,130,90]:[180,35,55];}}});
+
+  let y=doc.lastAutoTable.finalY+9;if(y>172){doc.addPage();desenharCabecalhoPdfVisual(doc,'Fluxo de Caixa — Composição',subtitulo,297);y=40;}
+  doc.autoTable({startY:y,head:[['Entradas por meio de pagamento','Valor']],body:(fluxoFormasAtual.length?fluxoFormasAtual:[['Nenhuma entrada classificada',0]]).map(([forma,valor])=>[forma,brl(valor)]),styles:{fontSize:8,cellPadding:2.5},headStyles:{fillColor:[5,130,90]},columnStyles:{1:{halign:'right'}},margin:{left:14,right:154,top:36}});
+  const yFornecedores=y;
+  doc.autoTable({startY:yFornecedores,head:[['Principais saídas por fornecedor / descrição','Valor']],body:(fluxoFornecedoresAtual.length?fluxoFornecedoresAtual.slice(0,20):[['Nenhuma saída classificada',0]]).map(([nome,valor])=>[nome,brl(valor)]),styles:{fontSize:8,cellPadding:2.5},headStyles:{fillColor:[180,35,55]},columnStyles:{1:{halign:'right'}},margin:{left:154,right:14,top:36}});
+
+  doc.addPage();desenharCabecalhoPdfVisual(doc,'Fluxo de Caixa — Lançamentos Detalhados',subtitulo,297);
+  const corpo = todos.map(l=>[fmtData(l.data),l.tipo==='Dinheiro'?'Dinheiro':nomeDaContaFluxo(l.conta_id||CONTA_SEM_ID),l.tipo,l.descricao||'—',brl(l.valor)]),paginaDetalhe=doc.internal.getNumberOfPages();
   doc.autoTable({
-    startY: doc.lastAutoTable.finalY + 12,
+    startY: 39,
     head: [['Data','Origem','Tipo','Descrição','Valor']],
     body: corpo,
     foot: [['TOTAL','','','Entradas: '+brl(totalEnt)+'  ·  Saídas: '+brl(totalSai), 'Líquido: '+brl(totalEnt-totalSai)]],
-    styles: { fontSize: 7.5, cellPadding: 2.5 },
-    headStyles: { fillColor: [38,51,43] },
+    styles: { fontSize: 7.3, cellPadding: 2.3 },
+    headStyles: { fillColor: [30,64,175] },
     footStyles: { fillColor: [233,225,203], textColor:20, fontStyle:'bold' }
+    ,columnStyles:{0:{cellWidth:22},1:{cellWidth:38},2:{cellWidth:43},4:{halign:'right',cellWidth:31}}
+    ,margin:{left:14,right:14,top:36,bottom:12}
+    ,didParseCell:data=>{if(data.section==='body'&&data.column.index===4)data.cell.styles.textColor=String(data.cell.raw||'').includes('-')?[180,35,55]:[5,130,90];}
+    ,didDrawPage:()=>{if(doc.internal.getNumberOfPages()>paginaDetalhe)desenharCabecalhoPdfVisual(doc,'Fluxo de Caixa — Lançamentos Detalhados',subtitulo,297);}
   });
+  const paginas=doc.internal.getNumberOfPages();for(let i=1;i<=paginas;i++){doc.setPage(i);doc.setFont('helvetica','normal');doc.setFontSize(7);doc.setTextColor(110,124,145);doc.text(`Ranchão Bebidas  •  Página ${i} de ${paginas}`,283,203,{align:'right'});}
   doc.save(nomeArquivoFluxo('fluxo-de-caixa-completo','pdf'));
 }
 
@@ -8559,18 +8621,70 @@ async function confirmarExclusaoPagamentoOk(){
   fecharConfirmacaoPagamento();
 }
 
+function obterTipoPagamentoRelatorio(l){
+  const tipo = pagCaixaTiposCache.find(t=>String(t.id)===String(l.codigo_tipo_id||''));
+  return tipo ? labelTipoPagCaixa(tipo) : 'Não classificado';
+}
+
+function normalizarTextoRelatorioPagamento(texto){
+  return String(texto||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase();
+}
+
+function pagamentoEhCartao(l){
+  const tipo = obterTipoPagamentoRelatorio(l);
+  const textoTipo = normalizarTextoRelatorioPagamento(tipo);
+  if(tipo!=='Não classificado') return /CARTAO|CREDITO|DEBITO/.test(textoTipo);
+  // Compatibilidade com registros antigos que ainda não receberam uma classificação.
+  return /CARTAO|CREDITO|DEBITO|MASTERCARD|VISA|ELO|HIPERCARD|AMEX/.test(normalizarTextoRelatorioPagamento(l.descricao));
+}
+
+function resumoRelatorioPagamentos(){
+  const total = pagamentosCache.reduce((s,l)=>s+Math.abs(Number(l.valor)||0),0);
+  const totalCartao = pagamentosCache.reduce((s,l)=>s+(pagamentoEhCartao(l)?Math.abs(Number(l.valor)||0):0),0);
+  return { total, totalCartao, outros: total-totalCartao };
+}
+
 function exportarExcelPagamentos(){
   if(pagamentosCache.length===0){ alert('Não há pagamentos para exportar.'); return; }
   if(!window.XLSX){ alert('Não foi possível carregar o recurso de Excel. Recarregue a página e tente de novo.'); return; }
-  const dados = pagamentosCache.map(l=>({
-    'Data': fmtData(l.data),
-    'Descrição': l.descricao || '—',
-    'Origem': l._origem_pagamento==='manual' ? 'Manual' : 'Extrato',
-    'Valor': brl(Math.abs(Number(l.valor)))
-  }));
-  const planilha = XLSX.utils.json_to_sheet(dados);
-  planilha['!cols'] = [{wch:12},{wch:40},{wch:12},{wch:14}];
+  const resumo = resumoRelatorioPagamentos();
+  const inicioTabela = 9;
+  const inicioDados = inicioTabela+1;
+  const fimDados = inicioDados+pagamentosCache.length-1;
+  const linhas = [
+    ['PAGAMENTOS — '+(NOMES_LOJA[lojaAtual]||'')],
+    ['Gerado em', new Date()],
+    [],
+    ['RESUMO','VALOR'],
+    ['Total geral', null],
+    ['Total pago no cartão', null],
+    ['Outros pagamentos', null],
+    [],
+    ['Data','Descrição','Origem','Tipo de pagamento','Pago no cartão','Valor (R$)'],
+    ...pagamentosCache.map(l=>[
+      l.data ? new Date(l.data+'T12:00:00') : null,
+      l.descricao || '—',
+      l._origem_pagamento==='manual' ? 'Manual' : 'Extrato',
+      obterTipoPagamentoRelatorio(l),
+      pagamentoEhCartao(l) ? 'Sim' : 'Não',
+      Math.abs(Number(l.valor)||0)
+    ])
+  ];
+  const planilha = XLSX.utils.aoa_to_sheet(linhas, {cellDates:true});
+  planilha.B5 = {t:'n',f:`SUM(F${inicioDados}:F${fimDados})`,v:resumo.total};
+  planilha.B6 = {t:'n',f:`SUMIF(E${inicioDados}:E${fimDados},"Sim",F${inicioDados}:F${fimDados})`,v:resumo.totalCartao};
+  planilha.B7 = {t:'n',f:'B5-B6',v:resumo.outros};
+  ['B5','B6','B7'].forEach(ref=>{ planilha[ref].z='R$ #,##0.00'; });
+  for(let linha=inicioDados;linha<=fimDados;linha++){
+    if(planilha['A'+linha]) planilha['A'+linha].z='dd/mm/yyyy';
+    if(planilha['F'+linha]) planilha['F'+linha].z='R$ #,##0.00';
+  }
+  if(planilha.B2) planilha.B2.z='dd/mm/yyyy hh:mm';
+  planilha['!autofilter'] = {ref:`A${inicioTabela}:F${fimDados}`};
+  planilha['!cols'] = [{wch:13},{wch:42},{wch:12},{wch:34},{wch:16},{wch:16}];
+  planilha['!rows'] = [{hpt:24}];
   const livro = XLSX.utils.book_new();
+  livro.Workbook = {CalcPr:{fullCalcOnLoad:true,forceFullCalc:true}};
   XLSX.utils.book_append_sheet(livro, planilha, 'Pagamentos');
   const nomeLoja = (NOMES_LOJA[lojaAtual]||'').toLowerCase().replace(' ','');
   XLSX.writeFile(livro, 'pagamentos-' + nomeLoja + '-' + new Date().toISOString().slice(0,10) + '.xlsx');
@@ -8580,27 +8694,34 @@ function exportarPdfPagamentos(){
   if(pagamentosCache.length===0){ alert('Não há pagamentos para exportar.'); return; }
   if(!window.jspdf || !window.jspdf.jsPDF){ alert('Não foi possível carregar o recurso de PDF. Recarregue a página e tente de novo.'); return; }
   const { jsPDF } = window.jspdf;
-  const doc = new jsPDF();
+  const doc = new jsPDF({orientation:'landscape'});
   const agora = new Date();
   const dataHora = fmtData(agora.toISOString().slice(0,10)) + ' ' + agora.toTimeString().slice(0,5);
+  const resumo = resumoRelatorioPagamentos();
 
-  doc.setFontSize(16);
-  doc.text('Pagamentos — ' + (NOMES_LOJA[lojaAtual]||''), 14, 18);
-  doc.setFontSize(10);
-  doc.setTextColor(120);
-  doc.text('Gerado em ' + dataHora, 14, 25);
+  desenharCabecalhoPdfVisual(doc, 'RELATÓRIO DE PAGAMENTOS', (NOMES_LOJA[lojaAtual]||'')+' • Gerado em '+dataHora);
+  desenharCardPdfVisual(doc, 14, 31, 82, 27, 'TOTAL GERAL', brl(resumo.total), [30,58,95]);
+  desenharCardPdfVisual(doc, 107, 31, 82, 27, 'PAGO NO CARTÃO', brl(resumo.totalCartao), [182,128,28]);
+  desenharCardPdfVisual(doc, 200, 31, 82, 27, 'OUTROS PAGAMENTOS', brl(resumo.outros), [44,116,84]);
 
-  const corpo = pagamentosCache.map(l=>[fmtData(l.data), l.descricao||'—', l._origem_pagamento==='manual'?'Manual':'Extrato', brl(Math.abs(Number(l.valor)))]);
-  const total = pagamentosCache.reduce((s,l)=>s+Math.abs(Number(l.valor)),0);
+  const corpo = pagamentosCache.map(l=>[
+    fmtData(l.data),
+    l.descricao||'—',
+    l._origem_pagamento==='manual'?'Manual':'Extrato',
+    obterTipoPagamentoRelatorio(l),
+    pagamentoEhCartao(l)?'Sim':'Não',
+    brl(Math.abs(Number(l.valor)||0))
+  ]);
 
   doc.autoTable({
-    startY: 32,
-    head: [['Data','Descrição','Origem','Valor']],
+    startY: 66,
+    head: [['Data','Descrição','Origem','Tipo de pagamento','Cartão','Valor']],
     body: corpo,
-    foot: [['TOTAL','','', brl(total)]],
+    foot: [['TOTAL GERAL','','','','', brl(resumo.total)]],
     styles: { fontSize: 8.5, cellPadding: 3 },
-    headStyles: { fillColor: [38,51,43] },
-    footStyles: { fillColor: [233,225,203], textColor:20, fontStyle:'bold' }
+    headStyles: { fillColor: [30,58,95] },
+    footStyles: { fillColor: [233,225,203], textColor:20, fontStyle:'bold' },
+    columnStyles: {0:{cellWidth:22},1:{cellWidth:72},2:{cellWidth:25},3:{cellWidth:75},4:{cellWidth:18,halign:'center'},5:{cellWidth:30,halign:'right'}}
   });
 
   const nomeLoja = (NOMES_LOJA[lojaAtual]||'').toLowerCase().replace(' ','');
@@ -9028,6 +9149,23 @@ function calcularResultadoInventario(sobras, faltas, vencidos, negativos){
   return (negativos||0) + (sobras||0) - (faltas||0) - (vencidos||0);
 }
 
+function resumoInventarioAtual(){
+  const resumo={quantidade:invCache.length,negativos:0,sobras:0,faltas:0,vencidos:0,resultado:0};
+  invCache.forEach(l=>{resumo.negativos+=Number(l.negativos)||0;resumo.sobras+=Number(l.sobras)||0;resumo.faltas+=Number(l.faltas)||0;resumo.vencidos+=Number(l.vencidos)||0;resumo.resultado+=calcularResultadoInventario(Number(l.sobras)||0,Number(l.faltas)||0,Number(l.vencidos)||0,Number(l.negativos)||0);});
+  return resumo;
+}
+
+function renderResumoInventario(){
+  const el=document.getElementById('invResumoCards');if(!el)return;const r=resumoInventarioAtual();
+  const card=(rotulo,valor,cor,sub)=>`<div class="inv-summary-card" style="--inv-accent:${cor}"><div class="lbl">${rotulo}</div><div class="val">${valor}</div><div class="sub">${sub}</div></div>`;
+  el.innerHTML=card('Inventários no período',String(r.quantidade),'#2563eb',r.quantidade===1?'1 lançamento':'Lançamentos exibidos no filtro')+
+    card('Negativos',brl(r.negativos),'#7c3aed','Total informado como estoque negativo')+
+    card('Sobras',brl(r.sobras),'#059669','Valores encontrados a mais')+
+    card('Faltas',brl(r.faltas),'#dc2626','Valores que não foram encontrados')+
+    card('Vencidos',brl(r.vencidos),'#d97706','Perdas por produtos vencidos')+
+    card(r.resultado>=0?'Resultado líquido — sobra':'Resultado líquido — falta',brl(Math.abs(r.resultado)),r.resultado>=0?'#16a34a':'#b4233a','Sobras + negativos − faltas − vencidos');
+}
+
 function num(v){
   const n = parseFloat(v);
   return isNaN(n) ? 0 : n;
@@ -9131,6 +9269,7 @@ async function carregarInventario(){
 }
 
 function renderInventario(){
+  renderResumoInventario();
   const body = document.getElementById('invBody');
   const empty = document.getElementById('invEmpty');
   if(invCache.length===0){
@@ -9312,15 +9451,17 @@ function exportarPdfInventario(){
   if(invCache.length===0){ alert('Não há inventários para exportar.'); return; }
   if(!window.jspdf || !window.jspdf.jsPDF){ alert('Não foi possível carregar o recurso de PDF. Recarregue a página e tente de novo.'); return; }
   const { jsPDF } = window.jspdf;
-  const doc = new jsPDF('l');
+  const doc = new jsPDF({orientation:'landscape',unit:'mm',format:'a4'});
   const agora = new Date();
   const dataHora = fmtData(agora.toISOString().slice(0,10)) + ' ' + agora.toTimeString().slice(0,5);
-
-  doc.setFontSize(16);
-  doc.text('Inventário — ' + (NOMES_LOJA[lojaAtual]||''), 14, 18);
-  doc.setFontSize(10);
-  doc.setTextColor(120);
-  doc.text('Gerado em ' + dataHora, 14, 25);
+  const r=resumoInventarioAtual(),periodo=invMesAtual==='todos'?'Todos os períodos':rotuloMesControleEstoque(invMesAtual);
+  desenharCabecalhoPdfVisual(doc,'Inventário — Análise de Faltas e Sobras',`${NOMES_LOJA[lojaAtual]||''}  •  ${periodo}  •  Gerado em ${dataHora}`,297);
+  const cards=[
+    ['Inventários',String(r.quantidade),[37,99,235],'Lançamentos no período'],['Negativos',brl(r.negativos),[124,58,237],'Estoque negativo informado'],['Sobras',brl(r.sobras),[5,150,105],'Valores encontrados a mais'],
+    ['Faltas',brl(r.faltas),[220,38,38],'Valores não encontrados'],['Vencidos',brl(r.vencidos),[217,119,6],'Perdas por vencimento'],[r.resultado>=0?'Resultado — sobra':'Resultado — falta',brl(Math.abs(r.resultado)),r.resultado>=0?[22,163,74]:[180,35,55],'Sobras + negativos - faltas - vencidos']
+  ];
+  const margem=14,gap=6,w=(297-margem*2-gap*2)/3,h=28;
+  cards.forEach((c,i)=>desenharCardPdfVisual(doc,margem+(i%3)*(w+gap),39+Math.floor(i/3)*33,w,h,c[0],c[1],c[2],c[3]));
 
   const corpo = invCache.map(l=>{
     const resultado = calcularResultadoInventario(l.sobras, l.faltas, l.vencidos, l.negativos);
@@ -9330,11 +9471,14 @@ function exportarPdfInventario(){
   });
 
   doc.autoTable({
-    startY: 32,
+    startY: 111,
     head: [['Data','Estoque inicial','Negativos','Sobras','Faltas','Vencidos','Resultado','Estoque final']],
     body: corpo,
-    styles: { fontSize: 9, cellPadding: 3 },
-    headStyles: { fillColor: [38,51,43] }
+    styles: { fontSize: 8.2, cellPadding: 2.7 },
+    headStyles: { fillColor: [30,64,175] },
+    margin:{left:14,right:14,top:36},
+    didParseCell:data=>{if(data.section!=='body')return;if(data.column.index===3)data.cell.styles.textColor=[5,130,90];if([2,4,5].includes(data.column.index))data.cell.styles.textColor=[180,35,55];if(data.column.index===6)data.cell.styles.textColor=String(data.cell.raw||'').startsWith('Sobra')?[5,130,90]:[180,35,55];},
+    didDrawPage:data=>{if(data.pageNumber>1)desenharCabecalhoPdfVisual(doc,'Inventário — Detalhamento',`${NOMES_LOJA[lojaAtual]||''}  •  ${periodo}`,297);}
   });
 
   const nomeLoja = (NOMES_LOJA[lojaAtual]||'').toLowerCase().replace(' ','');

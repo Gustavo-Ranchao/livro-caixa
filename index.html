@@ -541,6 +541,12 @@
   .ce-card-icon{width:34px;height:34px;border-radius:9px;display:grid;place-items:center;background:#edf3ff;font-size:17px;}
   .ce-card-value{font-size:25px;line-height:1.15;font-weight:700;color:#17233c;margin:18px 0 10px;letter-spacing:-.4px;}
   .ce-card-detail{font-size:11px;line-height:1.35;color:#718096;display:flex;justify-content:space-between;gap:8px;}
+  .inv-summary-grid{display:grid;grid-template-columns:repeat(3,minmax(190px,1fr));gap:14px;margin-bottom:20px;}
+  .inv-summary-card{position:relative;overflow:hidden;background:#fff;border:1px solid #d9e2ef;border-radius:11px;padding:16px 18px;box-shadow:0 3px 12px rgba(23,35,60,.055);}
+  .inv-summary-card:before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--inv-accent,#2563eb);}
+  .inv-summary-card .lbl{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.065em;color:#64748b;margin-bottom:7px;}
+  .inv-summary-card .val{font-family:var(--font-mono);font-size:21px;font-weight:700;color:#17233c;}
+  .inv-summary-card .sub{font-size:10.5px;color:#718096;margin-top:5px;}
   .ce-source{display:inline-flex;align-items:center;padding:3px 7px;border-radius:999px;background:#edf3fb;color:#52647c;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;}
   .ce-source.manual{background:#fff3d6;color:#925f00;}.ce-source.pendente{background:#feecec;color:#a83232;}.ce-source.herdado{background:#e7f2ff;color:#1d5c9d;}
   .ce-variation.positive{color:#16794b;font-weight:600;}.ce-variation.negative{color:#b13b3b;font-weight:600;}
@@ -548,8 +554,8 @@
   .ce-modal-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
   .ce-modal-help{font-size:12px;line-height:1.5;color:#607089;background:#f3f7fc;border-radius:8px;padding:10px 12px;margin-bottom:15px;}
   #ce_estoque_inicial[readonly],#ce_cmv_calculado[readonly]{background:#eef3f8;color:#43546b;cursor:not-allowed;}
-  @media(max-width:1050px){.ce-grid{grid-template-columns:repeat(2,minmax(190px,1fr));}}
-  @media(max-width:620px){.ce-grid,.ce-modal-grid{grid-template-columns:1fr;}.ce-toolbar-actions{width:100%;}.ce-toolbar-actions button{flex:1;}.ce-card{min-height:130px;}}
+  @media(max-width:1050px){.ce-grid{grid-template-columns:repeat(2,minmax(190px,1fr));}.inv-summary-grid{grid-template-columns:repeat(2,minmax(190px,1fr));}}
+  @media(max-width:620px){.ce-grid,.ce-modal-grid,.inv-summary-grid{grid-template-columns:1fr;}.ce-toolbar-actions{width:100%;}.ce-toolbar-actions button{flex:1;}.ce-card{min-height:130px;}}
   .rec-toolbar{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:18px;}
   .contratos-tabs{display:flex;gap:8px;margin-bottom:18px;border-bottom:1px solid var(--line);padding-bottom:10px;}
   .contratos-tab{border:1px solid var(--line);background:#fff;color:var(--ink);padding:10px 16px;border-radius:9px;font-weight:700;cursor:pointer;}
@@ -1332,6 +1338,8 @@
         </select>
       </div>
 
+      <div class="inv-summary-grid" id="invResumoCards"></div>
+
       <div class="panel" style="margin-bottom:20px;">
         <div class="panel-head"><h2>Novo inventário</h2></div>
         <div class="bh-form" style="grid-template-columns:0.9fr 1fr 1fr 1fr 1fr 1fr;">
@@ -2026,6 +2034,11 @@
           <div class="metric"><div class="lbl">Total entradas</div><div class="val" id="fluxoCombinadoEntradas" style="color:var(--green);">R$ 0,00</div></div>
           <div class="metric"><div class="lbl">Total saídas</div><div class="val" id="fluxoCombinadoSaidas" style="color:var(--rust);">R$ 0,00</div></div>
           <div class="metric"><div class="lbl">Saldo líquido</div><div class="val" id="fluxoCombinadoSaldo">R$ 0,00</div></div>
+        </div>
+
+        <div class="panel" style="margin-bottom:20px;">
+          <div class="panel-head"><h2>Movimentação por conta</h2><span style="font-size:12px;color:var(--muted);">Entradas, saídas e saldo final informado no extrato</span></div>
+          <div class="tablewrap"><table class="ledger"><thead><tr><th>Conta / origem</th><th style="text-align:right;">Entradas</th><th style="text-align:right;">Saídas</th><th style="text-align:right;">Resultado</th><th style="text-align:right;">Saldo final</th><th>Data do saldo</th></tr></thead><tbody id="fluxoContasResumoBody"></tbody></table></div>
         </div>
 
         <div class="colab-body">
