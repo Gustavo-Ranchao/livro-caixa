@@ -2544,8 +2544,8 @@ function desenharCardPdfVisual(doc,x,y,w,h,rotulo,valor,cor,detalhe){
   doc.setFillColor(255,255,255);doc.setDrawColor(218,226,239);doc.roundedRect(x,y,w,h,2.5,2.5,'FD');
   doc.setFillColor(...rgb);doc.roundedRect(x,y,2.4,h,1.2,1.2,'F');
   doc.setFont('helvetica','bold');doc.setFontSize(7.4);doc.setTextColor(96,112,137);doc.text(String(rotulo).toUpperCase(),x+6,y+8);
-  doc.setFontSize(13.5);doc.setTextColor(23,35,60);doc.text(String(valor),x+6,y+21);
-  if(detalhe){doc.setFont('helvetica','normal');doc.setFontSize(6.8);doc.setTextColor(105,120,142);doc.text(doc.splitTextToSize(String(detalhe),w-11).slice(0,2),x+6,y+h-8);}
+  doc.setFontSize(13.5);doc.setTextColor(23,35,60);doc.text(String(valor),x+6,y+(detalhe?19.5:21));
+  if(detalhe){doc.setFont('helvetica','normal');doc.setFontSize(6.8);doc.setTextColor(105,120,142);doc.text(doc.splitTextToSize(String(detalhe),w-11).slice(0,2),x+6,y+h-4.5);}
 }
 
 function rotuloFonteControleEstoque(fonte){return ({manual:'Informado manualmente',herdado:'Herdado do mês anterior',calculado:'Calculado pelo sistema',pendente:'Valor ainda não informado'})[fonte]||fonte;}
@@ -2607,9 +2607,31 @@ function adicionarItemOrcamento(item){orcamentoItens.push(item||{produto:'',quan
 function removerItemOrcamento(i){if(orcamentoItens.length===1){orcamentoItens[0]={produto:'',quantidade:1,valor_unitario:0};}else orcamentoItens.splice(i,1);renderItensOrcamento();}
 function alterarItemOrcamento(i,campo,valor){if(!orcamentoItens[i])return;orcamentoItens[i][campo]=campo==='produto'?valor:Math.max(0,Number(valor)||0);calcularOrcamento();}
 
+function navegarItemOrcamentoEnter(event,indice,campo){
+  if(event.key!=='Enter')return;
+  event.preventDefault();
+  const proximoCampo=campo==='produto'?'quantidade':campo==='quantidade'?'valor_unitario':null;
+  if(proximoCampo){
+    const proximo=document.querySelector(`[data-orc-item="${indice}"][data-orc-campo="${proximoCampo}"]`);
+    if(proximo){proximo.focus();proximo.select();}
+    return;
+  }
+  const proximoIndice=indice+1;
+  if(proximoIndice<orcamentoItens.length){
+    const proximo=document.querySelector(`[data-orc-item="${proximoIndice}"][data-orc-campo="produto"]`);
+    if(proximo){proximo.focus();proximo.select();}
+    return;
+  }
+  adicionarItemOrcamento();
+  setTimeout(()=>{
+    const novo=document.querySelector(`[data-orc-item="${proximoIndice}"][data-orc-campo="produto"]`);
+    if(novo){novo.focus();novo.select();}
+  },0);
+}
+
 function renderItensOrcamento(){
   const el=document.getElementById('orcItens');if(!el)return;
-  el.innerHTML=orcamentoItens.map((x,i)=>'<div class="orc-item-row"><div class="fld"><label>Produto / descrição</label><input value="'+escapeHtml(x.produto||'')+'" placeholder="Ex.: Cerveja lata 350 ml" oninput="alterarItemOrcamento('+i+',\'produto\',this.value)"></div><div class="fld"><label>Quantidade</label><input type="number" min="0.001" step="0.001" value="'+(Number(x.quantidade)||'')+'" oninput="alterarItemOrcamento('+i+',\'quantidade\',this.value)"></div><div class="fld"><label>Valor unitário</label><input type="number" min="0" step="0.01" value="'+(Number(x.valor_unitario)||'')+'" oninput="alterarItemOrcamento('+i+',\'valor_unitario\',this.value)"></div><div><label style="display:block;font-size:10px;text-transform:uppercase;color:var(--muted);margin-bottom:6px;">Total</label><div class="orc-total-item" id="orcItemTotal'+i+'">'+brl((Number(x.quantidade)||0)*(Number(x.valor_unitario)||0))+'</div></div><button class="iconbtn del" type="button" onclick="removerItemOrcamento('+i+')">✕</button></div>').join('');
+  el.innerHTML=orcamentoItens.map((x,i)=>'<div class="orc-item-row"><div class="fld"><label>Produto / descrição</label><input data-orc-item="'+i+'" data-orc-campo="produto" value="'+escapeHtml(x.produto||'')+'" placeholder="Ex.: Cerveja lata 350 ml" oninput="alterarItemOrcamento('+i+',\'produto\',this.value)" onkeydown="navegarItemOrcamentoEnter(event,'+i+',\'produto\')"></div><div class="fld"><label>Quantidade</label><input data-orc-item="'+i+'" data-orc-campo="quantidade" type="number" min="0.001" step="0.001" value="'+(Number(x.quantidade)||'')+'" oninput="alterarItemOrcamento('+i+',\'quantidade\',this.value)" onkeydown="navegarItemOrcamentoEnter(event,'+i+',\'quantidade\')"></div><div class="fld"><label>Valor unitário</label><input data-orc-item="'+i+'" data-orc-campo="valor_unitario" type="number" min="0" step="0.01" value="'+(Number(x.valor_unitario)||'')+'" oninput="alterarItemOrcamento('+i+',\'valor_unitario\',this.value)" onkeydown="navegarItemOrcamentoEnter(event,'+i+',\'valor_unitario\')"></div><div><label style="display:block;font-size:10px;text-transform:uppercase;color:var(--muted);margin-bottom:6px;">Total</label><div class="orc-total-item" id="orcItemTotal'+i+'">'+brl((Number(x.quantidade)||0)*(Number(x.valor_unitario)||0))+'</div></div><button class="iconbtn del" type="button" onclick="removerItemOrcamento('+i+')">✕</button></div>').join('');
   calcularOrcamento();
 }
 
@@ -6196,6 +6218,7 @@ function mudarSubAbaFluxo(aba){
     fluxoContaAtivaId = aba;
     document.getElementById('fluxoContaAtivaTitulo').textContent = nomeDaContaFluxo(aba);
     renderFluxoCaixa();
+    carregarSaldoExtrato();
     atualizarUltimoDiaFluxo();
   }
 
@@ -6986,13 +7009,17 @@ async function carregarFluxoCaixa(){
 }
 
 async function carregarSaldoExtrato(){
+  const contaConsultada = fluxoContaAtivaId;
   const de = document.getElementById('fluxoFiltroDe').value;
   const ate = document.getElementById('fluxoFiltroAte').value;
   let query = sb.from('fluxo_caixa_saldos').select('*').eq('loja', lojaAtual);
-  query = fluxoContaAtivaId === CONTA_SEM_ID ? query.is('conta_id', null) : query.eq('conta_id', fluxoContaAtivaId);
+  query = contaConsultada === CONTA_SEM_ID ? query.is('conta_id', null) : query.eq('conta_id', contaConsultada);
   if(de) query = query.gte('data', de);
   if(ate) query = query.lte('data', ate);
   const { data, error } = await query.order('data', { ascending: false }).limit(1);
+  // Se o usuário já mudou de banco enquanto a consulta estava em andamento,
+  // ignora a resposta antiga para ela não sobrescrever o saldo da conta atual.
+  if(contaConsultada !== fluxoContaAtivaId) return;
   const elValor = document.getElementById('fluxoSaldoExtrato');
   const elData = document.getElementById('fluxoSaldoExtratoData');
   if(error || !data || data.length===0){
@@ -9217,6 +9244,13 @@ async function abrirInventario(){
   await carregarInventario();
 }
 
+function navegarInventarioEnter(event,idProximo){
+  if(event.key!=='Enter')return;
+  event.preventDefault();
+  const proximo=document.getElementById(idProximo);
+  if(proximo){proximo.focus();if(typeof proximo.select==='function')proximo.select();}
+}
+
 async function popularFiltroMesInventario(){
   const { data, error } = await buscarTodasLinhas((from, to) =>
     sb.from('estoque_inventarios').select('data').eq('loja', lojaAtual).range(from, to)
@@ -9338,6 +9372,8 @@ async function salvarInventario(){
   calcularPreviaInventario();
   renderInventario();
   await popularFiltroMesInventario();
+  const campoInicial=document.getElementById('inv_inicial');
+  if(campoInicial){campoInicial.focus();campoInicial.select();}
 }
 
 function abrirEditarInventario(id){

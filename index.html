@@ -1343,18 +1343,18 @@
       <div class="panel" style="margin-bottom:20px;">
         <div class="panel-head"><h2>Novo inventário</h2></div>
         <div class="bh-form" style="grid-template-columns:0.9fr 1fr 1fr 1fr 1fr 1fr;">
-          <div class="fld"><label>Data</label><input id="inv_data" type="date"></div>
-          <div class="fld"><label>Estoque inicial (R$)</label><input id="inv_inicial" type="number" step="0.01" placeholder="0,00" oninput="calcularPreviaInventario()"></div>
-          <div class="fld"><label>Negativos (R$)</label><input id="inv_negativos" type="number" step="0.01" placeholder="0,00" oninput="calcularPreviaInventario()"></div>
-          <div class="fld"><label>Sobras (R$)</label><input id="inv_sobras" type="number" step="0.01" placeholder="0,00" oninput="calcularPreviaInventario()"></div>
-          <div class="fld"><label>Faltas (R$)</label><input id="inv_faltas" type="number" step="0.01" placeholder="0,00" oninput="calcularPreviaInventario()"></div>
-          <div class="fld"><label>Vencidos (R$)</label><input id="inv_vencidos" type="number" step="0.01" placeholder="0,00" oninput="calcularPreviaInventario()"></div>
+          <div class="fld"><label>Data</label><input id="inv_data" type="date" onkeydown="navegarInventarioEnter(event,'inv_inicial')"></div>
+          <div class="fld"><label>Estoque inicial (R$)</label><input id="inv_inicial" type="number" step="0.01" placeholder="0,00" oninput="calcularPreviaInventario()" onkeydown="navegarInventarioEnter(event,'inv_negativos')"></div>
+          <div class="fld"><label>Negativos (R$)</label><input id="inv_negativos" type="number" step="0.01" placeholder="0,00" oninput="calcularPreviaInventario()" onkeydown="navegarInventarioEnter(event,'inv_sobras')"></div>
+          <div class="fld"><label>Sobras (R$)</label><input id="inv_sobras" type="number" step="0.01" placeholder="0,00" oninput="calcularPreviaInventario()" onkeydown="navegarInventarioEnter(event,'inv_faltas')"></div>
+          <div class="fld"><label>Faltas (R$)</label><input id="inv_faltas" type="number" step="0.01" placeholder="0,00" oninput="calcularPreviaInventario()" onkeydown="navegarInventarioEnter(event,'inv_vencidos')"></div>
+          <div class="fld"><label>Vencidos (R$)</label><input id="inv_vencidos" type="number" step="0.01" placeholder="0,00" oninput="calcularPreviaInventario()" onkeydown="navegarInventarioEnter(event,'invAdicionarBtn')"></div>
         </div>
         <div class="bh-resumo" style="margin-top:14px;">
           <div class="metric"><div class="lbl" id="invPreviaResultadoLbl">Resultado (sobra/falta geral)</div><div class="val" id="invPreviaResultado">R$ 0,00</div></div>
           <div class="metric"><div class="lbl">Estoque final</div><div class="val" id="invPreviaFinal">R$ 0,00</div></div>
         </div>
-        <button class="addbtn" style="width:auto;margin-top:14px;" onclick="salvarInventario()">Adicionar</button>
+        <button class="addbtn" id="invAdicionarBtn" style="width:auto;margin-top:14px;" onclick="salvarInventario()" onkeydown="if(event.key==='Enter'){event.preventDefault();salvarInventario();}">Adicionar</button>
         <div class="formerr" id="invErr">Preencha a data e ao menos o estoque inicial.</div>
       </div>
 
