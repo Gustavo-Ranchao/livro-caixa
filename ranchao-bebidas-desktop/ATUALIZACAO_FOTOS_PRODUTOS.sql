@@ -18,8 +18,17 @@ drop policy if exists compras_produtos_fotos_insert on storage.objects;
 create policy compras_produtos_fotos_insert on storage.objects for insert to authenticated
 with check (bucket_id='compras-produtos' and auth.uid() is not null);
 
+drop policy if exists compras_produtos_fotos_update on storage.objects;
+create policy compras_produtos_fotos_update on storage.objects for update to authenticated
+using (bucket_id='compras-produtos' and auth.uid() is not null)
+with check (bucket_id='compras-produtos' and auth.uid() is not null);
+
 drop policy if exists compras_produtos_fotos_delete on storage.objects;
 create policy compras_produtos_fotos_delete on storage.objects for delete to authenticated
 using (bucket_id='compras-produtos' and auth.uid() is not null);
 
 notify pgrst, 'reload schema';
+
+select id, name, public, file_size_limit, allowed_mime_types
+from storage.buckets
+where id='compras-produtos';

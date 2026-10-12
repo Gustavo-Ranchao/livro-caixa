@@ -2844,11 +2844,28 @@ function margemTabelaPrecos(x){
   return venda>0?((venda-custo)/venda)*100:0;
 }
 
+function fatorNumericoTabelaPrecos(x){
+  const texto=String(x?.unidade_embalagem||'').replace(',','.');
+  const encontrado=texto.match(/\d+(?:\.\d+)?/);
+  const fator=encontrado?Number(encontrado[0]):1;
+  return Number.isFinite(fator)&&fator>0?fator:1;
+}
+
+function precoUnitarioTabelaPrecos(x){
+  const fator=fatorNumericoTabelaPrecos(x);
+  return fator!==1?(Number(x?.preco_venda)||0)/fator:null;
+}
+
+function custoUnitarioTabelaPrecos(x){
+  const fator=fatorNumericoTabelaPrecos(x);
+  return fator!==1?(Number(x?.preco_custo)||0)/fator:null;
+}
+
 function renderTabelaPrecos(){
   const itens=itensVisiveisTabelaPrecos(),body=document.getElementById('tpBody'),empty=document.getElementById('tpEmpty');
   body.innerHTML=itens.map(x=>{
-    const custo=Number(x.preco_custo)||0,venda=Number(x.preco_venda)||0,lucro=venda-custo,margem=margemTabelaPrecos(x);
-    return `<tr><td><input type="checkbox" ${tabelaPrecosSelecionados.has(Number(x.id))?'checked':''} onchange="selecionarItemTabelaPrecos(${Number(x.id)},this.checked)" aria-label="Selecionar ${escapeHtml(x.produto)}"></td><td style="white-space:normal;min-width:250px;max-width:420px;overflow:visible;text-overflow:clip;"><strong style="white-space:normal;overflow-wrap:anywhere;">${escapeHtml(x.produto)}</strong>${x.observacao?`<div style="font-size:11px;color:var(--muted);margin-top:3px;white-space:normal;overflow-wrap:anywhere;">${escapeHtml(x.observacao)}</div>`:''}</td><td>${escapeHtml(x.categoria||'—')}</td><td>${escapeHtml(x.unidade_embalagem||'—')}</td><td style="text-align:right;vertical-align:top;"><input id="tpCustoLinha${Number(x.id)}" type="number" min="0" step="0.01" value="${custo.toFixed(2)}" aria-label="Custo de ${escapeHtml(x.produto)}" onkeydown="atalhoPrecoLinhaTabelaPrecos(event,${Number(x.id)},'custo')" onchange="salvarPrecoLinhaTabelaPrecos(${Number(x.id)},'custo',this)" style="width:112px;text-align:right;font-family:var(--font-mono);padding:7px 8px;"><div style="height:13px;margin-top:2px;"></div></td><td style="text-align:right;vertical-align:top;"><input id="tpVendaLinha${Number(x.id)}" type="number" min="0.01" step="0.01" value="${venda.toFixed(2)}" aria-label="Venda de ${escapeHtml(x.produto)}" onkeydown="atalhoPrecoLinhaTabelaPrecos(event,${Number(x.id)},'venda')" onchange="salvarPrecoLinhaTabelaPrecos(${Number(x.id)},'venda',this)" style="width:112px;text-align:right;font-family:var(--font-mono);font-weight:700;padding:7px 8px;"><div id="tpLinhaStatus${Number(x.id)}" style="height:13px;font-size:10px;margin-top:2px;color:var(--muted);"></div></td><td id="tpLucroLinha${Number(x.id)}" style="text-align:right;font-family:var(--font-mono);color:${lucro>=0?'var(--green)':'var(--rust)'};">${brl(lucro)}</td><td id="tpMargemLinha${Number(x.id)}" style="text-align:right;font-family:var(--font-mono);">${margem.toFixed(1).replace('.',',')}%</td><td id="tpDataLinha${Number(x.id)}">${fmtData(x.data_atualizacao)}</td><td><span style="color:${x.ativo?'var(--green)':'var(--muted)'};font-weight:600;">${x.ativo?'Ativo':'Inativo'}</span></td><td style="white-space:nowrap;"><button class="iconbtn" onclick="editarItemTabelaPrecos(${Number(x.id)})" title="Editar demais informações">✏️</button><button class="iconbtn" onclick="abrirExclusaoTabelaPrecos(${Number(x.id)})" title="Excluir">🗑️</button></td></tr>`;
+    const custo=Number(x.preco_custo)||0,venda=Number(x.preco_venda)||0,lucro=venda-custo,margem=margemTabelaPrecos(x),unitario=precoUnitarioTabelaPrecos(x),custoUnitario=custoUnitarioTabelaPrecos(x);
+    return `<tr><td><input type="checkbox" ${tabelaPrecosSelecionados.has(Number(x.id))?'checked':''} onchange="selecionarItemTabelaPrecos(${Number(x.id)},this.checked)" aria-label="Selecionar ${escapeHtml(x.produto)}"></td><td style="white-space:normal;min-width:250px;max-width:420px;overflow:visible;text-overflow:clip;"><strong style="white-space:normal;overflow-wrap:anywhere;">${escapeHtml(x.produto)}</strong>${x.observacao?`<div style="font-size:11px;color:var(--muted);margin-top:3px;white-space:normal;overflow-wrap:anywhere;">${escapeHtml(x.observacao)}</div>`:''}</td><td>${escapeHtml(x.categoria||'—')}</td><td>${escapeHtml(x.unidade_embalagem||'—')}</td><td style="text-align:right;vertical-align:top;"><input id="tpCustoLinha${Number(x.id)}" type="number" min="0" step="0.01" value="${custo.toFixed(2)}" aria-label="Custo de ${escapeHtml(x.produto)}" onkeydown="atalhoPrecoLinhaTabelaPrecos(event,${Number(x.id)},'custo')" onchange="salvarPrecoLinhaTabelaPrecos(${Number(x.id)},'custo',this)" style="width:112px;text-align:right;font-family:var(--font-mono);padding:7px 8px;"><div id="tpCustoUnitarioLinha${Number(x.id)}" style="min-height:13px;font-size:10px;margin-top:2px;color:var(--muted);">${custoUnitario===null?'':`Unitário: ${brl(custoUnitario)}`}</div><div style="height:13px;"></div></td><td style="text-align:right;vertical-align:top;"><input id="tpVendaLinha${Number(x.id)}" type="number" min="0.01" step="0.01" value="${venda.toFixed(2)}" aria-label="Venda de ${escapeHtml(x.produto)}" onkeydown="atalhoPrecoLinhaTabelaPrecos(event,${Number(x.id)},'venda')" onchange="salvarPrecoLinhaTabelaPrecos(${Number(x.id)},'venda',this)" style="width:112px;text-align:right;font-family:var(--font-mono);font-weight:700;padding:7px 8px;"><div id="tpUnitarioLinha${Number(x.id)}" style="min-height:13px;font-size:10px;margin-top:2px;color:var(--muted);">${unitario===null?'':`Unitário: ${brl(unitario)}`}</div><div id="tpLinhaStatus${Number(x.id)}" style="height:13px;font-size:10px;color:var(--muted);"></div></td><td id="tpLucroLinha${Number(x.id)}" style="text-align:right;font-family:var(--font-mono);color:${lucro>=0?'var(--green)':'var(--rust)'};">${brl(lucro)}</td><td id="tpMargemLinha${Number(x.id)}" style="text-align:right;font-family:var(--font-mono);">${margem.toFixed(1).replace('.',',')}%</td><td id="tpDataLinha${Number(x.id)}">${fmtData(x.data_atualizacao)}</td><td><span style="color:${x.ativo?'var(--green)':'var(--muted)'};font-weight:600;">${x.ativo?'Ativo':'Inativo'}</span></td><td style="white-space:nowrap;"><button class="iconbtn" onclick="editarItemTabelaPrecos(${Number(x.id)})" title="Editar demais informações">✏️</button><button class="iconbtn" onclick="abrirExclusaoTabelaPrecos(${Number(x.id)})" title="Excluir">🗑️</button></td></tr>`;
   }).join('');
   empty.style.display=itens.length?'none':'block';
   const todos=document.getElementById('tpSelecionarTodos');
@@ -2876,10 +2893,12 @@ async function salvarPrecoLinhaTabelaPrecos(id,campo,input){
   if(error){input.value=Number(item[nomeCampo]).toFixed(2);status.textContent='Erro ao salvar';status.style.color='#b4233a';return;}
   item[nomeCampo]=valor;item.data_atualizacao=atualizacao;status.textContent='Salvo ✓';status.style.color='var(--green)';
   const lucro=(Number(item.preco_venda)||0)-(Number(item.preco_custo)||0),margem=margemTabelaPrecos(item);
-  const lucroEl=document.getElementById('tpLucroLinha'+id),margemEl=document.getElementById('tpMargemLinha'+id),dataEl=document.getElementById('tpDataLinha'+id);
+  const lucroEl=document.getElementById('tpLucroLinha'+id),margemEl=document.getElementById('tpMargemLinha'+id),dataEl=document.getElementById('tpDataLinha'+id),unitarioEl=document.getElementById('tpUnitarioLinha'+id),custoUnitarioEl=document.getElementById('tpCustoUnitarioLinha'+id);
   if(lucroEl){lucroEl.textContent=brl(lucro);lucroEl.style.color=lucro>=0?'var(--green)':'var(--rust)';}
   if(margemEl)margemEl.textContent=margem.toFixed(1).replace('.',',')+'%';
   if(dataEl)dataEl.textContent=fmtData(atualizacao);
+  if(unitarioEl){const unitario=precoUnitarioTabelaPrecos(item);unitarioEl.textContent=unitario===null?'':'Unitário: '+brl(unitario);}
+  if(custoUnitarioEl){const custoUnitario=custoUnitarioTabelaPrecos(item);custoUnitarioEl.textContent=custoUnitario===null?'':'Unitário: '+brl(custoUnitario);}
 }
 
 function selecionarItemTabelaPrecos(id,marcado){
@@ -2934,10 +2953,11 @@ function itensExportacaoTabelaPrecos(){
 function nomeArquivoTabelaPrecos(ext,interno){return `tabela-precos-${interno?'interna-':''}${lojaAtual}-${hojeIsoTabelaPrecos()}.${ext}`;}
 function linhasTabelaPrecos(interno){
   return itensExportacaoTabelaPrecos().map(x=>{
-    const base={'Produto':x.produto,'Categoria':x.categoria||'','Unidade / embalagem':x.unidade_embalagem||'','Preço de venda':Number(x.preco_venda)||0,'Atualizado em':fmtData(x.data_atualizacao),'Observação':x.observacao||''};
+    const unitario=precoUnitarioTabelaPrecos(x),custoUnitario=custoUnitarioTabelaPrecos(x);
+    const base={'Produto':x.produto,'Categoria':x.categoria||'','Fator embalagem':x.unidade_embalagem||'','Preço de venda':Number(x.preco_venda)||0,'Preço unitário':unitario===null?'':Number(unitario.toFixed(2)),'Atualizado em':fmtData(x.data_atualizacao),'Observação':x.observacao||''};
     if(!interno)return base;
     const custo=Number(x.preco_custo)||0,venda=Number(x.preco_venda)||0;
-    return {'Produto':x.produto,'Categoria':x.categoria||'','Unidade / embalagem':x.unidade_embalagem||'','Preço de custo':custo,'Preço de venda':venda,'Lucro':venda-custo,'Margem (%)':Number(margemTabelaPrecos(x).toFixed(2)),'Atualizado em':fmtData(x.data_atualizacao),'Observação':x.observacao||'','Status':x.ativo?'Ativo':'Inativo'};
+    return {'Produto':x.produto,'Categoria':x.categoria||'','Fator embalagem':x.unidade_embalagem||'','Preço de custo':custo,'Custo unitário':custoUnitario===null?'':Number(custoUnitario.toFixed(2)),'Preço de venda':venda,'Venda unitária':unitario===null?'':Number(unitario.toFixed(2)),'Lucro':venda-custo,'Margem (%)':Number(margemTabelaPrecos(x).toFixed(2)),'Atualizado em':fmtData(x.data_atualizacao),'Observação':x.observacao||'','Status':x.ativo?'Ativo':'Inativo'};
   });
 }
 function exportarTabelaPrecosExcel(interno){
@@ -2948,9 +2968,9 @@ function exportarTabelaPrecosPdf(interno){
   if(!window.jspdf||!window.jspdf.jsPDF){alert('Recurso de PDF não carregado.');return;}const itens=itensExportacaoTabelaPrecos();if(!itens.length){alert('Nenhum produto disponível para exportar.');return;}
   const doc=new window.jspdf.jsPDF({orientation:'landscape',unit:'mm',format:'a4'}),loja=NOMES_LOJA[lojaAtual]||lojaAtual;
   doc.setFont('helvetica','bold');doc.setFontSize(16);doc.text(interno?'Tabela de preços — uso interno':'Tabela de preços',14,15);doc.setFont('helvetica','normal');doc.setFontSize(10);doc.text(`${loja} • Atualizada em ${new Date().toLocaleDateString('pt-BR')}`,14,21);
-  const head=interno?['Produto','Categoria','Fator embalagem','Custo','Venda','Lucro','Margem','Atualização']:['Produto','Categoria','Fator embalagem','Preço de venda','Atualização','Observação'];
-  const body=itens.map(x=>{const custo=Number(x.preco_custo)||0,venda=Number(x.preco_venda)||0;return interno?[x.produto,x.categoria||'—',x.unidade_embalagem||'—',brl(custo),brl(venda),brl(venda-custo),margemTabelaPrecos(x).toFixed(1).replace('.',',')+'%',fmtData(x.data_atualizacao)]:[x.produto,x.categoria||'—',x.unidade_embalagem||'—',brl(venda),fmtData(x.data_atualizacao),x.observacao||''];});
-  doc.autoTable({startY:27,head:[head],body,styles:{fontSize:8,cellPadding:2.2},headStyles:{fillColor:[30,53,91]},columnStyles:interno?{0:{cellWidth:48}}:{0:{cellWidth:55},5:{cellWidth:65}},margin:{left:14,right:14}});doc.save(nomeArquivoTabelaPrecos('pdf',interno));
+  const head=interno?['Produto','Categoria','Fator embalagem','Custo','Custo unit.','Venda','Venda unit.','Lucro','Margem','Atualização']:['Produto','Categoria','Fator embalagem','Preço de venda','Preço unitário','Atualização','Observação'];
+  const body=itens.map(x=>{const custo=Number(x.preco_custo)||0,venda=Number(x.preco_venda)||0,unitario=precoUnitarioTabelaPrecos(x),custoUnitario=custoUnitarioTabelaPrecos(x),unitarioTexto=unitario===null?'—':brl(unitario),custoUnitarioTexto=custoUnitario===null?'—':brl(custoUnitario);return interno?[x.produto,x.categoria||'—',x.unidade_embalagem||'—',brl(custo),custoUnitarioTexto,brl(venda),unitarioTexto,brl(venda-custo),margemTabelaPrecos(x).toFixed(1).replace('.',',')+'%',fmtData(x.data_atualizacao)]:[x.produto,x.categoria||'—',x.unidade_embalagem||'—',brl(venda),unitarioTexto,fmtData(x.data_atualizacao),x.observacao||''];});
+  doc.autoTable({startY:27,head:[head],body,styles:{fontSize:8,cellPadding:2.2},headStyles:{fillColor:[30,53,91]},columnStyles:interno?{0:{cellWidth:44}}:{0:{cellWidth:52},6:{cellWidth:55}},margin:{left:14,right:14}});doc.save(nomeArquivoTabelaPrecos('pdf',interno));
 }
 
 let agendaCache=[];
@@ -8130,7 +8150,7 @@ async function salvarProduto(){
   if(fotoArquivo){
     const fotoPreparada=await compactarFotoProduto(fotoArquivo);novoCaminho=lojaAtual+'/'+Date.now()+'_'+Math.random().toString(36).slice(2,9)+'.'+fotoPreparada.ext;
     const {error:erroUpload}=await sb.storage.from('compras-produtos').upload(novoCaminho,fotoPreparada.blob,{contentType:fotoPreparada.tipo,upsert:false});
-    if(erroUpload){err.textContent='Não foi possível enviar a foto. Execute primeiro o SQL de fotos dos produtos no Supabase.';err.style.display='block';console.error(erroUpload);return;}
+    if(erroUpload){const detalhe=erroUpload.message||erroUpload.error||String(erroUpload);err.textContent='Não foi possível enviar a foto. Execute o SQL ATUALIZACAO_FOTOS_PRODUTOS.sql no Supabase. Detalhe: '+detalhe;err.style.display='block';console.error(erroUpload);return;}
     payload.foto_caminho=novoCaminho;payload.foto_nome=fotoArquivo.name;payload.foto_tipo=fotoPreparada.tipo;
   }else if(removerFoto&&produtoAtual?.foto_caminho){payload.foto_caminho=null;payload.foto_nome=null;payload.foto_tipo=null;}
 

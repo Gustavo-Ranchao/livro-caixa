@@ -1,0 +1,111 @@
+RANCHÃO BEBIDAS — ATUALIZAÇÃO 1.2.36
+
+ORDEM DA ATUALIZAÇÃO
+
+1. No SQL Editor do Supabase, execute todo o arquivo
+   ATUALIZACAO_FOTOS_PRODUTOS.sql. Ele cria o armazenamento privado e libera
+   o envio das fotos dos produtos no módulo Compras.
+2. Se você ainda não executou o SQL da versão 1.2.30, execute o arquivo
+   ATUALIZACAO_IMPORTAR_PAGAMENTOS_CAIXA.sql incluído neste pacote.
+3. Envie TODOS os arquivos e pastas deste pacote para a raiz do GitHub,
+   preservando a estrutura e substituindo os arquivos existentes.
+4. Substitua também .github/workflows/main.yml. Não crie outro workflow.
+5. Abra Actions > Publicar atualização do aplicativo > Run workflow.
+6. Informe a versão 1.2.36 e confirme.
+
+IMPORTANTE
+
+- A pasta assets/vendor/tesseract deve ser enviada tanto na raiz quanto dentro de
+  ranchao-bebidas-desktop. Ela contém o leitor local de imagens.
+- O primeiro SQL precisa ser executado antes de usar a importação de pagamentos.
+- Importar, editar ou excluir em Pagamento no Caixa não altera a aba Pagamentos.
+
+ALTERAÇÕES
+
+TABELA DE PREÇOS
+- Quando o fator de embalagem é diferente de 1, o sistema calcula o preço unitário.
+- O custo unitário aparece abaixo do preço de custo na tabela do sistema.
+- A venda unitária aparece abaixo do preço de venda na tabela do sistema.
+- Excel e PDF internos mostram custo unitário e venda unitária.
+- Excel e PDF para o cliente mostram somente a venda unitária, sem revelar o custo.
+- O cálculo utilizado é: preço de venda dividido pelo fator da embalagem.
+- O custo unitário é calculado por: preço de custo dividido pelo fator da embalagem.
+- Registros antigos como "fardo com 12" continuam sendo reconhecidos.
+
+COMPRAS — FOTOS DOS PRODUTOS
+- Incluído no pacote o SQL que configura o armazenamento privado das fotos.
+- Adicionada permissão de atualização, além de leitura, envio e exclusão.
+- Em caso de nova falha, a mensagem agora mostra o detalhe devolvido pelo Supabase.
+
+FLUXO DE CAIXA
+- Corrigido o saldo do extrato que permanecia igual ao do Sicoob ao trocar de banco.
+- Cada aba bancária consulta e mostra somente o saldo da própria conta.
+- Respostas atrasadas de uma conta não substituem mais o saldo da conta atualmente aberta.
+- Aumentado o espaço entre os valores e os textos explicativos nos cards do PDF completo.
+
+INVENTÁRIO
+- A tecla Enter avança por Data, Estoque inicial, Negativos, Sobras, Faltas e Vencidos.
+- Depois de Vencidos, o foco segue para o botão Adicionar.
+- Após salvar, o cursor retorna ao campo Estoque inicial para agilizar o próximo lançamento.
+
+ORÇAMENTOS
+- Nos itens do orçamento, Enter avança por Produto, Quantidade e Valor unitário.
+- Ao confirmar o valor unitário com Enter, uma nova linha é criada automaticamente.
+- O cursor fica pronto no campo Produto do item seguinte.
+
+PAGAMENTOS
+- O PDF agora mostra separadamente o total geral, o total pago no cartão e os demais pagamentos.
+- A tabela do PDF passou a exibir o tipo de pagamento e indicar quais registros são de cartão.
+- O Excel ganhou um resumo com fórmulas para total geral, cartão e outros pagamentos.
+- Datas e valores são exportados como células reais, com formatação de data e moeda.
+- Os valores podem ser somados, filtrados e usados em novas fórmulas normalmente no Excel.
+- A planilha também inclui origem, tipo de pagamento e a coluna "Pago no cartão".
+
+CONTROLE DE ESTOQUE
+- PDF redesenhado para acompanhar o visual do módulo.
+- Primeira página com os oito cards do período, cores e indicadores.
+- Fórmula completa do CMV com os valores utilizados no cálculo.
+- Segunda página com comparativo do mês anterior, variações e origem dos dados.
+
+INVENTÁRIO
+- Novo painel com inventários, negativos, sobras, faltas, vencidos e resultado líquido.
+- Destaques em verde para sobras e em vermelho para faltas e perdas.
+- PDF visual com os mesmos indicadores e detalhamento completo por data.
+- Resultado consolidado respeitando a fórmula já utilizada pelo módulo.
+
+FLUXO DE CAIXA
+- Nova tabela na tela Total de Entradas e Saídas, separada por conta.
+- Exibe entradas, saídas, resultado, saldo final importado e data do saldo.
+- PDF completo redesenhado com cards de totais e situação financeira do período.
+- Separação individual de Sicoob, Mercado Pago, PagSeguro, dinheiro e demais contas cadastradas.
+- Entradas detalhadas por meio de pagamento.
+- Principais saídas por fornecedor ou descrição.
+- Saldos finais bancários obtidos dos próprios extratos, sem estimar valores inexistentes.
+- Lançamentos detalhados com paginação e cores para entradas e saídas.
+
+JANELAS INDEPENDENTES DO WINDOWS
+- Um clique em qualquer módulo abre uma janela própria do Ranchão Bebidas.
+- As janelas aparecem separadamente ao passar o mouse sobre o ícone do aplicativo.
+- É possível minimizar, restaurar e organizar módulos lado a lado.
+- Clicar novamente no mesmo módulo traz a janela existente para frente, sem duplicá-la.
+- O login é compartilhado com segurança entre as janelas.
+- A atividade em qualquer janela mantém a sessão ativa nas demais.
+- Clicar no nome Ranchão Bebidas em uma janela de módulo retorna para a janela principal.
+
+RECIBOS
+- Novo botão "Salvar recibo", que grava sem gerar o PDF.
+- O botão "Salvar e gerar PDF" continua disponível.
+
+LEITOR DE COMPROVANTES
+- Aceita PDF, JPG, JPEG, PNG e WebP, até 200 comprovantes/páginas por lote.
+- A leitura das fotos é feita localmente no aplicativo.
+- Validação da assinatura real do arquivo antes da leitura.
+- Prévia de imagens dentro do sistema e inclusão correta no ZIP.
+
+PAGAMENTO NO CAIXA
+- Nova opção "Importar da aba Pagamentos".
+- Usa data, descrição, valor e o mesmo código/tipo já classificado.
+- Mostra prévia completa antes de confirmar.
+- Itens já importados ficam bloqueados.
+- Possíveis duplicidades por data, descrição e valor vêm desmarcadas.
+- Pagamentos sem código podem ser classificados diretamente na prévia.
