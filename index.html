@@ -405,6 +405,16 @@
   table.ledger tbody tr.vencido:hover{background:rgba(163,67,45,0.09);}
   table.ledger td{padding:11px 10px;vertical-align:middle;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
   #vendasProdutoBody td:first-child, #vendasCategoriaBody td:first-child{white-space:normal;overflow:visible;text-overflow:clip;}
+  .meta-config-grid{display:grid;grid-template-columns:minmax(220px,1.4fr) repeat(5,minmax(105px,.7fr));gap:12px;padding:18px 20px;align-items:end;}
+  .meta-calendario{display:grid;grid-template-columns:repeat(7,minmax(150px,1fr));gap:10px;padding:0 20px 20px;min-width:1120px;}
+  .meta-semana{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);text-align:center;padding:8px;}
+  .meta-dia{min-height:180px;border:1px solid var(--paper3);border-radius:12px;background:#fff;padding:12px;display:flex;flex-direction:column;gap:7px;}
+  .meta-dia.vazio{visibility:hidden;min-height:0;}.meta-dia.feriado{border-color:#e4bd63;background:#fffaf0;}
+  .meta-dia.concluido{box-shadow:inset 4px 0 0 var(--green);}.meta-dia.atrasado{box-shadow:inset 4px 0 0 var(--rust);}
+  .meta-dia-topo{display:flex;justify-content:space-between;align-items:flex-start;gap:8px;}.meta-dia-num{font-size:20px;font-weight:700;color:var(--ink);}.meta-dia-nome{font-size:10px;color:#91650d;text-align:right;line-height:1.25;}
+  .meta-linha{display:flex;justify-content:space-between;gap:8px;font-size:11px;color:var(--muted);}.meta-linha strong{color:var(--ink);font-family:var(--font-mono);font-size:11px;text-align:right;}
+  .meta-venda-input{width:100%;font-family:var(--font-mono);font-weight:600;text-align:right;}.meta-status{margin-top:auto;padding:5px 7px;border-radius:6px;font-size:10px;text-align:center;background:#eef3f8;color:var(--muted);}.meta-status.positivo{background:#eaf7ef;color:#17733b}.meta-status.negativo{background:#fff0f1;color:#a92b3b}
+  @media(max-width:900px){.meta-config-grid{grid-template-columns:1fr 1fr}.meta-calendario{grid-template-columns:repeat(7,minmax(135px,1fr));}}
   #fluxoExtratoBody td:nth-child(3), #fluxoDinheiroBody td:nth-child(2), #fluxoFornecedorBody td:first-child{white-space:normal;overflow:visible;text-overflow:clip;}
   #comprasBody td:nth-child(2), #comprasBody td:nth-child(3){white-space:normal;overflow:visible;text-overflow:clip;}
   td.valor{font-family:var(--font-mono);text-align:right;white-space:nowrap;}
@@ -759,6 +769,7 @@
       <button class="top-module-btn" data-category="financeiro" data-view="combinacaoPagamentos" onclick="mudarViewPrincipal('combinacaoPagamentos')"><span class="top-module-icon">🔗</span>Combinação</button>
       <button class="top-module-btn" data-category="financeiro" data-view="contratos" onclick="mudarViewPrincipal('contratos')"><span class="top-module-icon">📄</span>Contratos</button>
       <button class="top-module-btn" data-category="vendas" data-view="vendasComCusto" onclick="mudarViewPrincipal('vendasComCusto')"><span class="top-module-icon">📊</span>Vendas com Custo</button>
+      <button class="top-module-btn" data-category="vendas" data-view="metasVendas" onclick="mudarViewPrincipal('metasVendas')"><span class="top-module-icon">🎯</span>Metas de Vendas</button>
       <button class="top-module-btn" data-category="vendas" data-view="vendasDelivery" onclick="mudarViewPrincipal('vendasDelivery')"><span class="top-module-icon">🛵</span>Vendas Delivery</button>
       <button class="top-module-btn" data-category="vendas" data-view="orcamentos" onclick="mudarViewPrincipal('orcamentos')"><span class="top-module-icon">📝</span>Orçamentos</button>
       <button class="top-module-btn" data-category="vendas" data-view="tabelaPrecos" onclick="mudarViewPrincipal('tabelaPrecos')"><span class="top-module-icon">🏷️</span>Tabela de Preços</button>
@@ -1777,6 +1788,37 @@
         <div class="tablewrap"><table class="ledger"><thead><tr><th>Data</th><th>Item</th><th>Serviço / problema</th><th>Fornecedor</th><th>Status</th><th>Próxima</th><th>Arquivo</th><th style="text-align:right;">Valor</th><th></th></tr></thead><tbody id="manBody"></tbody></table></div>
         <div class="empty" id="manEmpty" style="display:none;">Nenhuma manutenção encontrada neste período.</div>
       </div>
+    </div>
+
+    <div id="viewMetasVendas" style="display:none;">
+      <div class="rec-toolbar">
+        <div><h2 style="margin:0 0 4px;font-size:20px;color:#17233c;">🎯 Metas de Vendas</h2><div class="rec-config-status">A meta restante é redistribuída automaticamente, respeitando o movimento de cada dia da semana.</div></div>
+        <button class="filter-btn" onclick="carregarMetasVendas()">↻ Atualizar vendas</button>
+      </div>
+      <div class="panel" style="margin-bottom:20px;"><div class="meta-config-grid">
+        <div class="fld"><label>Mês de referência</label><input id="metaMes" type="month" onchange="carregarMetasVendas()"></div>
+        <div class="fld"><label>Meta mensal (R$)</label><input id="metaValorMensal" type="number" min="0" step="0.01" placeholder="200000,00"></div>
+        <div class="fld"><label>Segunda a quarta</label><input id="metaPesoSegQua" type="number" min="0.1" step="0.1" value="0.7"></div>
+        <div class="fld"><label>Quinta</label><input id="metaPesoQui" type="number" min="0.1" step="0.1" value="1"></div>
+        <div class="fld"><label>Sexta</label><input id="metaPesoSex" type="number" min="0.1" step="0.1" value="1.4"></div>
+        <div class="fld"><label>Sábado</label><input id="metaPesoSab" type="number" min="0.1" step="0.1" value="1.8"></div>
+        <div class="fld"><label>Domingo</label><input id="metaPesoDom" type="number" min="0.1" step="0.1" value="1.1"></div>
+        <div class="fld"><label>Feriado</label><input id="metaPesoFeriado" type="number" min="0.1" step="0.1" value="1.5"></div>
+        <button class="addbtn" id="metaSalvarConfigBtn" style="width:auto;" onclick="salvarConfiguracaoMeta()">Salvar configuração</button>
+      </div></div>
+      <div class="bh-resumo" style="margin-bottom:20px;">
+        <div class="metric"><div class="lbl">Meta mensal</div><div class="val" id="metaResumoMensal">R$ 0,00</div></div>
+        <div class="metric"><div class="lbl">Vendido</div><div class="val" id="metaResumoVendido" style="color:var(--green);">R$ 0,00</div></div>
+        <div class="metric"><div class="lbl">Falta para a meta</div><div class="val" id="metaResumoFalta">R$ 0,00</div></div>
+        <div class="metric"><div class="lbl">Percentual atingido</div><div class="val" id="metaResumoPercentual">0%</div></div>
+        <div class="metric"><div class="lbl">Projeção do mês</div><div class="val" id="metaResumoProjecao">R$ 0,00</div></div>
+      </div>
+      <div class="panel" style="margin-bottom:20px;">
+        <div class="panel-head"><div><h2>Data especial ou feriado municipal</h2><div class="rec-config-status">Os feriados nacionais já aparecem automaticamente.</div></div></div>
+        <div class="rec-form-grid"><div class="fld"><label>Data</label><input id="metaEspecialData" type="date"></div><div class="fld"><label>Nome</label><input id="metaEspecialNome" placeholder="Ex.: feriado municipal ou evento"></div><div class="fld"><label>Peso especial</label><input id="metaEspecialPeso" type="number" min="0.1" step="0.1" placeholder="1,5"></div></div>
+        <div class="rec-actions"><button class="addbtn" style="width:auto;" onclick="salvarDataEspecialMeta()">Salvar data especial</button></div>
+      </div>
+      <div class="panel"><div class="panel-head"><div><h2 id="metaCalendarioTitulo">Calendário da meta</h2><div class="rec-config-status">Preencha a venda realizada em cada dia. Dias importados em Vendas com Custo aparecem automaticamente.</div></div></div><div class="tablewrap"><div id="metaCalendario" class="meta-calendario"></div></div></div>
     </div>
 
     <div id="viewVendasComCusto" style="display:none;">

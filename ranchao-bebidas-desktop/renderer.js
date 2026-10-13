@@ -100,6 +100,7 @@ function trocarLoja(l){
     });
     atualizarUltimoDiaVendas();
   }
+  if(viewAtual === 'metasVendas') carregarMetasVendas();
   if(viewAtual === 'vendasDelivery'){
     abrirVendasDelivery();
   }
@@ -456,7 +457,7 @@ const BACKUP_TABELAS = [
   'configuracoes','recibos_configuracoes','bh_funcionarios','compras_empresas','compras_marcas','fornecedores','compras_produtos',
   'pagamentos','pagamentos_caixa_tipos','despesas_fixas','despesas_fixas_puladas','lancamentos','comprovantes','fluxo_caixa_contas',
   'fluxo_caixa_saldos','fluxo_caixa_lancamentos','caixa_diferencas','checklist_itens','checklist_execucoes','bh_registros',
-  'bh_atestados','vendas_delivery','vendas_itens','controle_estoque_mensal','estoque_inventarios','contagens_estoque',
+  'bh_atestados','vendas_delivery','vendas_itens','metas_vendas_config','metas_vendas_dias','controle_estoque_mensal','estoque_inventarios','contagens_estoque',
   'contagens_estoque_itens','comb_pag_compras','comb_pag_pagamentos','pagamentos_caixa','pagamentos_caixa_memoria',
   'recibos','contracheques','orcamentos','tabela_precos','tabela_precos_categorias','agenda_lembretes','duvidas','manutencoes','leituras_comprovantes','historico_alteracoes'
 ];
@@ -599,7 +600,7 @@ const HISTORICO_TABELAS_NOMES={
   caixa_diferencas:'Diferença de caixa',checklist_itens:'Itens do checklist',checklist_execucoes:'Checklist',compras_empresas:'Empresas de compras',compras_marcas:'Marcas',fornecedores:'Fornecedores',
   compras_produtos:'Produtos de compras',controle_estoque_mensal:'Controle de estoque',estoque_inventarios:'Inventário de estoque',contagens_estoque:'Contagens de estoque',contagens_estoque_itens:'Itens da contagem',
   pagamentos:'Pagamentos',comb_pag_compras:'Compras combinadas',comb_pag_pagamentos:'Pagamentos combinados',pagamentos_caixa:'Pagamentos de caixa',pagamentos_caixa_memoria:'Memória de pagamentos',pagamentos_caixa_tipos:'Tipos de pagamento',
-  vendas_delivery:'Vendas Delivery',vendas_itens:'Vendas com custo',orcamentos:'Orçamentos',tabela_precos:'Tabela de preços',tabela_precos_categorias:'Categorias da tabela de preços',agenda_lembretes:'Agenda e lembretes',recibos:'Recibos',contracheques:'Contracheques',duvidas:'Dúvidas',manutencoes:'Manutenções',leituras_comprovantes:'Leitura de comprovantes',
+  vendas_delivery:'Vendas Delivery',vendas_itens:'Vendas com custo',metas_vendas_config:'Configuração das metas',metas_vendas_dias:'Vendas diárias das metas',orcamentos:'Orçamentos',tabela_precos:'Tabela de preços',tabela_precos_categorias:'Categorias da tabela de preços',agenda_lembretes:'Agenda e lembretes',recibos:'Recibos',contracheques:'Contracheques',duvidas:'Dúvidas',manutencoes:'Manutenções',leituras_comprovantes:'Leitura de comprovantes',
   despesas_fixas:'Despesas fixas',despesas_fixas_puladas:'Despesas fixas ignoradas'
 };
 let historicoCache=[];
@@ -3041,7 +3042,38 @@ async function mostrarPopupAgenda(){
 }
 function agendarPopupAgenda(){clearTimeout(timerPopupAgenda);fecharPopupAgenda();timerPopupAgenda=setTimeout(mostrarPopupAgenda,3200);}
 
-const VIEWS = ['checklist','duvidas','manutencao','agenda','contasPagar','despesasFixas','comprovantes','leituraComprovantes','diferencaCaixa','fluxoCaixa','pagamentos','pagamentoCaixa','contratos','vendasComCusto','vendasDelivery','orcamentos','tabelaPrecos','bancoHoras','compras','colaboradores','aniversarios','fornecedores','contasBancarias','inventario','controleEstoque','contagensEstoque','combinacaoPagamentos'];
+let metaConfig={meta_mensal:0,peso_seg_qua:.7,peso_quinta:1,peso_sexta:1.4,peso_sabado:1.8,peso_domingo:1.1,peso_feriado:1.5};
+let metaDiasCache=[],metaVendasImportadas={};
+function metaDataLocal(ano,mes,dia){return `${ano}-${String(mes).padStart(2,'0')}-${String(dia).padStart(2,'0')}`;}
+function metaPascoa(ano){let a=ano%19,b=Math.floor(ano/100),c=ano%100,d=Math.floor(b/4),e=b%4,f=Math.floor((b+8)/25),g=Math.floor((b-f+1)/3),h=(19*a+b-d-g+15)%30,i=Math.floor(c/4),k=c%4,l=(32+2*e+2*i-h-k)%7,m=Math.floor((a+11*h+22*l)/451),mes=Math.floor((h+l-7*m+114)/31),dia=(h+l-7*m+114)%31+1;return new Date(ano,mes-1,dia,12);}
+function metaSomarDias(data,dias){const d=new Date(data);d.setDate(d.getDate()+dias);return metaDataLocal(d.getFullYear(),d.getMonth()+1,d.getDate());}
+function metaFeriadosBrasil(ano){const p=metaPascoa(ano);return {
+  [`${ano}-01-01`]:'Confraternização Universal',[`${ano}-04-21`]:'Tiradentes',[`${ano}-05-01`]:'Dia do Trabalho',[`${ano}-09-07`]:'Independência do Brasil',[`${ano}-10-12`]:'Nossa Senhora Aparecida',[`${ano}-11-02`]:'Finados',[`${ano}-11-15`]:'Proclamação da República',[`${ano}-11-20`]:'Consciência Negra',[`${ano}-12-25`]:'Natal',
+  [metaSomarDias(p,-48)]:'Carnaval',[metaSomarDias(p,-47)]:'Carnaval',[metaSomarDias(p,-2)]:'Sexta-feira Santa',[metaSomarDias(p,60)]:'Corpus Christi'
+};}
+function metaPesoDia(data,especial){if(especial?.peso_manual>0)return Number(especial.peso_manual);if(metaFeriadosBrasil(Number(data.slice(0,4)))[data])return Number(metaConfig.peso_feriado);const dow=new Date(data+'T12:00:00').getDay();if(dow===0)return Number(metaConfig.peso_domingo);if(dow===6)return Number(metaConfig.peso_sabado);if(dow===5)return Number(metaConfig.peso_sexta);if(dow===4)return Number(metaConfig.peso_quinta);return Number(metaConfig.peso_seg_qua);}
+function metaLerConfigFormulario(){return {meta_mensal:Math.max(0,Number(document.getElementById('metaValorMensal').value)||0),peso_seg_qua:Math.max(.1,Number(document.getElementById('metaPesoSegQua').value)||.7),peso_quinta:Math.max(.1,Number(document.getElementById('metaPesoQui').value)||1),peso_sexta:Math.max(.1,Number(document.getElementById('metaPesoSex').value)||1.4),peso_sabado:Math.max(.1,Number(document.getElementById('metaPesoSab').value)||1.8),peso_domingo:Math.max(.1,Number(document.getElementById('metaPesoDom').value)||1.1),peso_feriado:Math.max(.1,Number(document.getElementById('metaPesoFeriado').value)||1.5)};}
+function metaPreencherConfig(){document.getElementById('metaValorMensal').value=Number(metaConfig.meta_mensal)||'';document.getElementById('metaPesoSegQua').value=metaConfig.peso_seg_qua;document.getElementById('metaPesoQui').value=metaConfig.peso_quinta;document.getElementById('metaPesoSex').value=metaConfig.peso_sexta;document.getElementById('metaPesoSab').value=metaConfig.peso_sabado;document.getElementById('metaPesoDom').value=metaConfig.peso_domingo;document.getElementById('metaPesoFeriado').value=metaConfig.peso_feriado;}
+async function abrirMetasVendas(){const campo=document.getElementById('metaMes');if(!campo.value)campo.value=todayStr().slice(0,7);await carregarMetasVendas();}
+async function carregarMetasVendas(){
+  const campo=document.getElementById('metaMes');if(!campo.value)campo.value=todayStr().slice(0,7);const mes=campo.value,[ano,numeroMes]=mes.split('-').map(Number),ultimo=metaDataLocal(ano,numeroMes,new Date(ano,numeroMes,0).getDate());
+  const [cfg,dias,vendas]=await Promise.all([sb.from('metas_vendas_config').select('*').eq('loja',lojaAtual).eq('mes',mes+'-01').maybeSingle(),sb.from('metas_vendas_dias').select('*').eq('loja',lojaAtual).gte('data',mes+'-01').lte('data',ultimo),buscarTodasLinhas((from,to)=>sb.from('vendas_itens').select('data,valor_venda').eq('loja',lojaAtual).gte('data',mes+'-01').lte('data',ultimo).range(from,to))]);
+  if(cfg.error&&String(cfg.error.message||'').includes('metas_vendas')){alert('Execute primeiro o SQL do módulo Metas de Vendas no Supabase.');return;}
+  metaConfig={...{meta_mensal:0,peso_seg_qua:.7,peso_quinta:1,peso_sexta:1.4,peso_sabado:1.8,peso_domingo:1.1,peso_feriado:1.5},...(cfg.data||{})};metaDiasCache=dias.data||[];metaVendasImportadas={};(vendas.data||[]).forEach(v=>metaVendasImportadas[v.data]=(metaVendasImportadas[v.data]||0)+(Number(v.valor_venda)||0));metaPreencherConfig();renderMetasVendas();
+}
+async function salvarConfiguracaoMeta(){const mes=document.getElementById('metaMes').value;if(!mes)return;const valores=metaLerConfigFormulario();metaConfig={...metaConfig,...valores};const btn=document.getElementById('metaSalvarConfigBtn');btn.disabled=true;const {error}=await sb.from('metas_vendas_config').upsert({loja:lojaAtual,mes:mes+'-01',...valores,atualizado_em:new Date().toISOString()},{onConflict:'loja,mes'});btn.disabled=false;if(error){alert('Não foi possível salvar: '+error.message);return;}renderMetasVendas();}
+async function salvarVendaDiaMeta(data,input){const texto=String(input.value||'').replace(',','.'),valor=texto===''?null:Math.max(0,Number(texto)||0),existente=metaDiasCache.find(x=>x.data===data),registro={loja:lojaAtual,data,venda_manual:valor,nome_especial:existente?.nome_especial||null,peso_manual:existente?.peso_manual||null,atualizado_em:new Date().toISOString()};const {data:salvo,error}=await sb.from('metas_vendas_dias').upsert(registro,{onConflict:'loja,data'}).select().single();if(error){alert('Não foi possível salvar a venda do dia.');return;}const i=metaDiasCache.findIndex(x=>x.data===data);if(i>=0)metaDiasCache[i]=salvo;else metaDiasCache.push(salvo);renderMetasVendas();}
+async function salvarDataEspecialMeta(){const data=document.getElementById('metaEspecialData').value,nome=document.getElementById('metaEspecialNome').value.trim(),peso=Number(document.getElementById('metaEspecialPeso').value);if(!data||!nome||!(peso>0)){alert('Informe a data, o nome e o peso da data especial.');return;}const existente=metaDiasCache.find(x=>x.data===data);const {data:salvo,error}=await sb.from('metas_vendas_dias').upsert({loja:lojaAtual,data,venda_manual:existente?.venda_manual??null,nome_especial:nome,peso_manual:peso,atualizado_em:new Date().toISOString()},{onConflict:'loja,data'}).select().single();if(error){alert('Não foi possível salvar a data especial.');return;}const i=metaDiasCache.findIndex(x=>x.data===data);if(i>=0)metaDiasCache[i]=salvo;else metaDiasCache.push(salvo);document.getElementById('metaEspecialNome').value='';document.getElementById('metaEspecialPeso').value='';if(data.startsWith(document.getElementById('metaMes').value))renderMetasVendas();}
+function renderMetasVendas(){
+  const mes=document.getElementById('metaMes').value;if(!mes)return;const [ano,m]=mes.split('-').map(Number),qtd=new Date(ano,m,0).getDate(),feriados=metaFeriadosBrasil(ano),mapa=new Map(metaDiasCache.map(x=>[x.data,x])),dias=[];
+  for(let d=1;d<=qtd;d++){const data=metaDataLocal(ano,m,d),especial=mapa.get(data),importado=Number(metaVendasImportadas[data])||0,manual=especial?.venda_manual,temManual=manual!==null&&manual!==undefined,realizado=temManual?Number(manual):importado,concluido=temManual||importado>0;dias.push({d,data,especial,feriado:especial?.nome_especial||feriados[data]||'',peso:metaPesoDia(data,especial),realizado,importado,temManual,concluido});}
+  const meta=Number(metaConfig.meta_mensal)||0,somaPesos=dias.reduce((s,x)=>s+x.peso,0);dias.forEach(x=>x.original=somaPesos?meta*x.peso/somaPesos:0);const concluidos=dias.filter(x=>x.concluido),pendentes=dias.filter(x=>!x.concluido),vendido=concluidos.reduce((s,x)=>s+x.realizado,0),restante=Math.max(0,meta-vendido),pesoRestante=pendentes.reduce((s,x)=>s+x.peso,0);pendentes.forEach(x=>x.ajustada=pesoRestante?restante*x.peso/pesoRestante:0);concluidos.forEach(x=>x.ajustada=x.original);
+  const baseConcluida=concluidos.reduce((s,x)=>s+x.original,0),projecao=baseConcluida>0?vendido/baseConcluida*meta:0,primeiro=new Date(ano,m-1,1,12).getDay(),desloc=(primeiro+6)%7,nomes=['Seg','Ter','Qua','Qui','Sex','Sáb','Dom'];let html=nomes.map(n=>`<div class="meta-semana">${n}</div>`).join('')+'<div class="meta-dia vazio"></div>'.repeat(desloc);
+  dias.forEach(x=>{const diff=x.realizado-x.original,classe=x.feriado?' feriado':'',estado=x.concluido?(diff>=0?' concluido':' atrasado'):'',status=x.concluido?(diff>=0?`Acima da meta em ${brl(diff)}`:`Abaixo da meta em ${brl(Math.abs(diff))}`):`Nova meta do dia: ${brl(x.ajustada)}`;html+=`<div class="meta-dia${classe}${estado}"><div class="meta-dia-topo"><span class="meta-dia-num">${x.d}</span><span class="meta-dia-nome">${escapeHtml(x.feriado||'')}</span></div><div class="meta-linha"><span>Meta original</span><strong>${brl(x.original)}</strong></div><div class="meta-linha"><span>Meta reajustada</span><strong>${brl(x.concluido?x.original:x.ajustada)}</strong></div><label style="font-size:10px;color:var(--muted);">VENDA REALIZADA</label><input class="meta-venda-input" type="number" min="0" step="0.01" value="${x.temManual?x.realizado:(x.importado||'')}" placeholder="0,00" title="${x.importado&&!x.temManual?'Valor importado de Vendas com Custo':''}" onchange="salvarVendaDiaMeta('${x.data}',this)"><div class="meta-status ${x.concluido?(diff>=0?'positivo':'negativo'):''}">${status}</div></div>`;});
+  document.getElementById('metaCalendario').innerHTML=html;document.getElementById('metaCalendarioTitulo').textContent='Calendário — '+new Date(ano,m-1,1,12).toLocaleDateString('pt-BR',{month:'long',year:'numeric'});document.getElementById('metaResumoMensal').textContent=brl(meta);document.getElementById('metaResumoVendido').textContent=brl(vendido);document.getElementById('metaResumoFalta').textContent=brl(Math.max(0,meta-vendido));document.getElementById('metaResumoPercentual').textContent=(meta?vendido/meta*100:0).toFixed(1)+'%';document.getElementById('metaResumoProjecao').textContent=baseConcluida?brl(projecao):'—';
+}
+
+const VIEWS = ['checklist','duvidas','manutencao','agenda','contasPagar','despesasFixas','comprovantes','leituraComprovantes','diferencaCaixa','fluxoCaixa','pagamentos','pagamentoCaixa','contratos','vendasComCusto','metasVendas','vendasDelivery','orcamentos','tabelaPrecos','bancoHoras','compras','colaboradores','aniversarios','fornecedores','contasBancarias','inventario','controleEstoque','contagensEstoque','combinacaoPagamentos'];
 let colabCarregado = false;
 const PARAMETROS_JANELA = new URLSearchParams(location.search);
 const EH_JANELA_MODULO = PARAMETROS_JANELA.get('janelaModulo')==='1';
@@ -3051,7 +3083,7 @@ const TITULOS_JANELAS = {
   checklist:'Checklist',duvidas:'Dúvidas',manutencao:'Manutenção',agenda:'Agenda',contasPagar:'Contas a pagar',despesasFixas:'Despesas fixas',
   comprovantes:'Comprovantes',leituraComprovantes:'Leitura de Comprovantes',diferencaCaixa:'Diferença de Caixa',fluxoCaixa:'Fluxo de Caixa',
   pagamentos:'Pagamentos',pagamentoCaixa:'Pagamento no Caixa',combinacaoPagamentos:'Combinação de Pagamentos',contratos:'Contratos e Recibos',
-  vendasComCusto:'Vendas com Custo',vendasDelivery:'Vendas Delivery',orcamentos:'Orçamentos',tabelaPrecos:'Tabela de Preços',compras:'Compras',
+  vendasComCusto:'Vendas com Custo',metasVendas:'Metas de Vendas',vendasDelivery:'Vendas Delivery',orcamentos:'Orçamentos',tabelaPrecos:'Tabela de Preços',compras:'Compras',
   inventario:'Inventário',controleEstoque:'Controle de Estoque',contagensEstoque:'Contagens de Estoque',bancoHoras:'Banco de Horas',
   colaboradores:'Colaboradores',aniversarios:'Aniversários',fornecedores:'Fornecedores',contasBancarias:'Contas Bancárias'
 };
@@ -3085,13 +3117,13 @@ const CATEGORIA_POR_VIEW = {
   contasPagar:'financeiro', despesasFixas:'financeiro', comprovantes:'financeiro', leituraComprovantes:'financeiro',
   diferencaCaixa:'financeiro', fluxoCaixa:'financeiro', pagamentos:'financeiro',
   pagamentoCaixa:'financeiro', combinacaoPagamentos:'financeiro', contratos:'financeiro',
-  vendasComCusto:'vendas', vendasDelivery:'vendas', orcamentos:'vendas', tabelaPrecos:'vendas',
+  vendasComCusto:'vendas', metasVendas:'vendas', vendasDelivery:'vendas', orcamentos:'vendas', tabelaPrecos:'vendas',
   compras:'comprasEstoque', inventario:'comprasEstoque', controleEstoque:'comprasEstoque', contagensEstoque:'comprasEstoque',
   bancoHoras:'equipe', colaboradores:'equipe', aniversarios:'equipe',
   fornecedores:'cadastros', contasBancarias:'cadastros',
   checklist:'checklist', duvidas:'duvidas', manutencao:'manutencao', agenda:'agenda'
 };
-const VIEW_IDS = { checklist:'viewChecklist', duvidas:'viewDuvidas', manutencao:'viewManutencao', agenda:'viewAgenda', contasPagar:'viewContasPagar', despesasFixas:'viewDespesasFixas', comprovantes:'viewComprovantes', leituraComprovantes:'viewLeituraComprovantes', diferencaCaixa:'viewDiferencaCaixa', fluxoCaixa:'viewFluxoCaixa', pagamentos:'viewPagamentos', pagamentoCaixa:'viewPagamentoCaixa', contratos:'viewContratos', vendasComCusto:'viewVendasComCusto', vendasDelivery:'viewVendasDelivery', orcamentos:'viewOrcamentos', tabelaPrecos:'viewTabelaPrecos', bancoHoras:'viewBancoHoras', compras:'viewCompras', colaboradores:'viewColaboradores', aniversarios:'viewAniversarios', fornecedores:'viewFornecedores', contasBancarias:'viewContasBancarias', inventario:'viewInventario', controleEstoque:'viewControleEstoque', contagensEstoque:'viewContagensEstoque', combinacaoPagamentos:'viewCombinacaoPagamentos' };
+const VIEW_IDS = { checklist:'viewChecklist', duvidas:'viewDuvidas', manutencao:'viewManutencao', agenda:'viewAgenda', contasPagar:'viewContasPagar', despesasFixas:'viewDespesasFixas', comprovantes:'viewComprovantes', leituraComprovantes:'viewLeituraComprovantes', diferencaCaixa:'viewDiferencaCaixa', fluxoCaixa:'viewFluxoCaixa', pagamentos:'viewPagamentos', pagamentoCaixa:'viewPagamentoCaixa', contratos:'viewContratos', vendasComCusto:'viewVendasComCusto', metasVendas:'viewMetasVendas', vendasDelivery:'viewVendasDelivery', orcamentos:'viewOrcamentos', tabelaPrecos:'viewTabelaPrecos', bancoHoras:'viewBancoHoras', compras:'viewCompras', colaboradores:'viewColaboradores', aniversarios:'viewAniversarios', fornecedores:'viewFornecedores', contasBancarias:'viewContasBancarias', inventario:'viewInventario', controleEstoque:'viewControleEstoque', contagensEstoque:'viewContagensEstoque', combinacaoPagamentos:'viewCombinacaoPagamentos' };
 
 let categoriaMenuAberta = null;
 
@@ -3180,6 +3212,8 @@ async function mudarViewPrincipal(view){
     await carregarManutencoes();
   }else if(view==='vendasComCusto'){
     await abrirVendas();
+  }else if(view==='metasVendas'){
+    await abrirMetasVendas();
   }else if(view==='vendasDelivery'){
     await abrirVendasDelivery();
   }else if(view==='orcamentos'){
@@ -4006,12 +4040,18 @@ async function lcValidarImagem(arquivo){
 
 async function lcCriarWorkerOcr(){
   if(!window.Tesseract)throw new Error('O leitor de imagens não foi carregado. Feche e abra o aplicativo novamente.');
-  return Tesseract.createWorker('por',1,{workerPath:'assets/vendor/tesseract/worker.min.js',corePath:'assets/vendor/tesseract/tesseract-core-simd-lstm.wasm.js',langPath:'assets/vendor/tesseract/lang',gzip:true});
+  const worker=await Tesseract.createWorker('por',1,{workerPath:'assets/vendor/tesseract/worker.min.js',corePath:'assets/vendor/tesseract/tesseract-core-simd-lstm.wasm.js',langPath:'assets/vendor/tesseract/lang',gzip:true});
+  await worker.setParameters({tessedit_pageseg_mode:'6',preserve_interword_spaces:'1'});return worker;
 }
 
 async function lcExtrairTextoImagem(arquivo,worker){
   const erro=await lcValidarImagem(arquivo);if(erro)throw new Error(erro);
-  const resultado=await worker.recognize(arquivo);
+  let fonte=arquivo,bitmap=null;
+  try{
+    bitmap=await createImageBitmap(arquivo);const menor=Math.min(bitmap.width,bitmap.height),escala=Math.min(4,Math.max(1,900/Math.max(1,menor)));
+    if(escala>1.05){const canvas=document.createElement('canvas');canvas.width=Math.round(bitmap.width*escala);canvas.height=Math.round(bitmap.height*escala);const ctx=canvas.getContext('2d',{willReadFrequently:true});ctx.fillStyle='#fff';ctx.fillRect(0,0,canvas.width,canvas.height);ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality='high';ctx.drawImage(bitmap,0,0,canvas.width,canvas.height);const img=ctx.getImageData(0,0,canvas.width,canvas.height),p=img.data;for(let i=0;i<p.length;i+=4){let g=.299*p[i]+.587*p[i+1]+.114*p[i+2];g=Math.max(0,Math.min(255,(g-128)*1.35+128));p[i]=p[i+1]=p[i+2]=g;}ctx.putImageData(img,0,0);fonte=canvas;}
+  }catch(e){console.warn('OCR usará a imagem original:',e);}finally{if(bitmap&&bitmap.close)bitmap.close();}
+  const resultado=await worker.recognize(fonte);
   return String(resultado?.data?.text||'');
 }
 
@@ -4022,6 +4062,7 @@ function lcInterpretarTexto(texto){
   const ehSicoob=/SICOOB|SISBR|sicoob\.com\.br/i.test(t);
   const ehSicoobBoleto=ehSicoob&&/PAGAMENTO DE BOLETO|Linha digit[aá]vel|Nosso n[uú]mero/i.test(t);
   const ehSicoobPix=ehSicoob&&/Pix copia e cola|ID Transa[cç][aã]o|Destinat[aá]rio/i.test(t);
+  const ehExtratoImagem=/PIX RECEBIDO|DEB\.?\s*CONV|Rece\S{0,8}\s+Pix/i.test(t)&&/\d{2}\/\d{2}\/\d{4}/.test(t);
   let recebedor=lcAposRotulo(t,['Favorecido','Recebedor','Benefici[aá]rio','Destinat[aá]rio']);
   let documento='';
   if(ehSicoobBoleto){
@@ -4052,11 +4093,13 @@ function lcInterpretarTexto(texto){
     const dm=trecho.match(/(?:CPF|CNPJ)\s*\n?\s*([\d.\/-]{11,20})/i);if(dm)documento=dm[1];
   }
   if(!documento){const dm=t.match(/(?:CPF|CNPJ)\s*(?:do favorecido|do recebedor)?\s*\n?\s*([\d.\/-]{11,20})/i);if(dm)documento=dm[1];}
+  if(!recebedor&&ehExtratoImagem){const rm=t.match(/Rece\S{0,8}\s+Pix\s*\n\s*([^\n]+?)(?=\n|\s+[*\d]{3}[.\s]\d{3})/i);if(rm)recebedor=rm[1].trim();}
   let valor=0;
   const vm=(ehSicoobBoleto?plano.match(/(?:^|\s)Pago\s*:?\s*R\$\s*([\d.]+,\d{2})/i):null)
     ||(ehSicoobPix?plano.match(/Dados do pagamento[\s\S]{0,300}?\bValor\s*:?\s*(?:R\$\s*)?([\d.]+,\d{2})/i):null)
     ||t.match(/Valor (?:do pagamento|da transfer[eê]ncia)\s*\n?\s*R?\$?\s*([\d.]+,\d{2})/i)||t.match(/Valor (?:pago|da transa[cç][aã]o|transferido)\s*\n?\s*R?\$?\s*([\d.]+,\d{2})/i);
   if(vm)valor=lcValorNumero(vm[1]);
+  if(!valor&&ehExtratoImagem){const em=plano.match(/DEB\.?\s*CONV[\s\S]{0,80}?([\d.,]+)\s*[D0O]\b/i)||plano.match(/[-−~]\s*([\d.,]+)\s*[D0O]\b/i)||plano.match(/[-−~]\s*([\d.,]+(?:[.,]\d{2}))/);if(em){let v=em[1];if(/[,\.]\d{3}$/.test(v)&&/0$/.test(v))v=v.slice(0,-1);if((v.match(/,/g)||[]).length>1){const partes=v.split(','),dec=partes.pop();v=partes.join('.')+','+dec;}valor=lcValorNumero(v);}}
   let data='';let horario='';
   if(ehSicoobBoleto){
     const dm=plano.match(/(?:^|\s)Pagamento\s*:?\s*(\d{2}\/\d{2}\/\d{4})(?!\s+DE\s+BOLETO)/i);
@@ -4069,12 +4112,13 @@ function lcInterpretarTexto(texto){
   const cab=t.match(/Comprovante de (?:transa[cç][aã]o|pagamento(?:\s+Pix)?|envio de Pix)[\s\S]{0,140}?(\d{2}\/\d{2}\/\d{4})(?:\s*(?:às|as)\s*(\d{2}:\d{2}))?/i);
   if(!data&&cab){data=lcDataBrParaIso(cab[1]);horario=cab[2]||'';}
   if(!data){const dm=t.match(/(?:Data (?:do pagamento|da transa[cç][aã]o)|Pagamento realizado em)\s*:?\s*\n?\s*(\d{2}\/\d{2}\/\d{4})(?:\s+(\d{2}:\d{2}(?::\d{2})?))?/i);if(dm){data=lcDataBrParaIso(dm[1]);horario=dm[2]||horario;}}
+  if(!data&&ehExtratoImagem){const dm=t.match(/\b(\d{2}\/\d{2}\/\d{4})\b/);if(dm)data=lcDataBrParaIso(dm[1]);}
   const cm=plano.match(/ID Transa[cç][aã]o\s*:?\s*([A-Z0-9-]{12,})/i)
     ||plano.match(/Autentica[cç][aã]o\s*:?\s*([A-Z0-9-]{12,})/i)
     ||t.match(/C[oó]digo (?:de|da) transa[cç][aã]o(?:\s+(?:PagBank|Pix))?\s*\n?\s*([A-Z0-9-]{8,})/i)||t.match(/(?:ID|Identificador) da transa[cç][aã]o\s*\n?\s*([A-Z0-9-]{8,})/i);
   const codigo=cm?cm[1].trim():'';
   const tipoSicoobPix=(plano.match(/Tipo Pagamento\s*:?\s*([^:]{1,80}?)(?=\s+Pagador\s*:)/i)||[])[1]||'';
-  const modelo=ehSicoobBoleto?'Sicoob - boleto':ehSicoobPix?('Sicoob - '+(tipoSicoobPix.trim()||'Pix')):ehPagBank?'PagBank':(/PIX/i.test(t)?'Pix - outro banco':'Outro PDF');
+  const modelo=ehSicoobBoleto?'Sicoob - boleto':ehSicoobPix?('Sicoob - '+(tipoSicoobPix.trim()||'Pix')):ehPagBank?'PagBank':ehExtratoImagem?'Imagem - extrato bancário':(/PIX/i.test(t)?'Pix - outro banco':'Outro PDF');
   const faltando=[];if(!recebedor)faltando.push('recebedor');if(!valor)faltando.push('valor');if(!data)faltando.push('data');
   return {recebedor,documento,valor,data,horario,codigo,modelo,status:faltando.length?'revisar':'pronto',mensagem:faltando.length?'Confira: '+faltando.join(', '):'Leitura concluída'};
 }
