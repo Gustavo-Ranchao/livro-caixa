@@ -1,4 +1,4 @@
-RANCHÃO BEBIDAS — ATUALIZAÇÃO 1.2.36
+RANCHÃO BEBIDAS — ATUALIZAÇÃO 1.2.37
 
 ORDEM DA ATUALIZAÇÃO
 
@@ -11,7 +11,7 @@ ORDEM DA ATUALIZAÇÃO
    preservando a estrutura e substituindo os arquivos existentes.
 4. Substitua também .github/workflows/main.yml. Não crie outro workflow.
 5. Abra Actions > Publicar atualização do aplicativo > Run workflow.
-6. Informe a versão 1.2.36 e confirme.
+6. Informe a versão 1.2.37 e confirme.
 
 IMPORTANTE
 
@@ -21,6 +21,15 @@ IMPORTANTE
 - Importar, editar ou excluir em Pagamento no Caixa não altera a aba Pagamentos.
 
 ALTERAÇÕES
+
+LEITOR DE COMPROVANTES — LOJA 01
+- Compatível com o comprovante Sicoob de efetivação de débito Pix por chave.
+- Reconhece o valor mesmo quando o documento não mostra o prefixo "R$".
+- Reconhece datas no formato AAAA-MM-DD, inclusive com horário e milissegundos.
+- Mantém a identificação do destinatário, documento e código da transação.
+- Ao preencher recebedor, valor e data, o status muda imediatamente de "Revisar" para "Pronto".
+- Quando ainda falta algum dado obrigatório, a mensagem informa exatamente qual campo conferir.
+- O campo de recebedor/descrição no histórico ficou mais largo e o aviso de salvamento aparece abaixo dele.
 
 TABELA DE PREÇOS
 - Quando o fator de embalagem é diferente de 1, o sistema calcula o preço unitário.

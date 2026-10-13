@@ -3901,6 +3901,13 @@ function lcDataBrParaIso(valor){
   return m?m[3]+'-'+m[2]+'-'+m[1]:'';
 }
 
+function lcDataParaIso(valor){
+  const texto=String(valor||'').trim();
+  const iso=texto.match(/(\d{4})-(\d{2})-(\d{2})/);
+  if(iso)return iso[1]+'-'+iso[2]+'-'+iso[3];
+  return lcDataBrParaIso(texto);
+}
+
 function lcValorNumero(valor){
   const limpo=String(valor||'').replace(/[^\d,.-]/g,'').replace(/\./g,'').replace(',','.');
   const n=Number(limpo);return Number.isFinite(n)?Math.abs(n):0;
@@ -4047,7 +4054,7 @@ function lcInterpretarTexto(texto){
   if(!documento){const dm=t.match(/(?:CPF|CNPJ)\s*(?:do favorecido|do recebedor)?\s*\n?\s*([\d.\/-]{11,20})/i);if(dm)documento=dm[1];}
   let valor=0;
   const vm=(ehSicoobBoleto?plano.match(/(?:^|\s)Pago\s*:?\s*R\$\s*([\d.]+,\d{2})/i):null)
-    ||(ehSicoobPix?plano.match(/Dados do pagamento[\s\S]{0,250}?\bValor\s*:?\s*R\$\s*([\d.]+,\d{2})/i):null)
+    ||(ehSicoobPix?plano.match(/Dados do pagamento[\s\S]{0,300}?\bValor\s*:?\s*(?:R\$\s*)?([\d.]+,\d{2})/i):null)
     ||t.match(/Valor (?:do pagamento|da transfer[eê]ncia)\s*\n?\s*R?\$?\s*([\d.]+,\d{2})/i)||t.match(/Valor (?:pago|da transa[cç][aã]o|transferido)\s*\n?\s*R?\$?\s*([\d.]+,\d{2})/i);
   if(vm)valor=lcValorNumero(vm[1]);
   let data='';let horario='';
@@ -4056,8 +4063,8 @@ function lcInterpretarTexto(texto){
     const rm=plano.match(/Realizado\s*:?\s*(\d{2}\/\d{2}\/\d{4})\s*(?:[àa]s)?\s*(\d{2}:\d{2}(?::\d{2})?)/i);
     if(dm)data=lcDataBrParaIso(dm[1]);else if(rm)data=lcDataBrParaIso(rm[1]);if(rm)horario=rm[2]||'';
   }else if(ehSicoobPix){
-    const dm=plano.match(/Dados do pagamento[\s\S]{0,220}?\bData(?:\s+do pagamento)?\s*:?\s*(\d{2}\/\d{2}\/\d{4})\s*(\d{2}:\d{2}(?::\d{2})?)/i);
-    if(dm){data=lcDataBrParaIso(dm[1]);horario=dm[2]||'';}
+    const dm=plano.match(/Dados do pagamento[\s\S]{0,260}?\bData(?:\s+do pagamento)?\s*:?\s*(\d{4}-\d{2}-\d{2}|\d{2}\/\d{2}\/\d{4})(?:[ T]+(\d{2}:\d{2}(?::\d{2})?)(?:\.\d+)?)?/i);
+    if(dm){data=lcDataParaIso(dm[1]);horario=dm[2]||'';}
   }
   const cab=t.match(/Comprovante de (?:transa[cç][aã]o|pagamento(?:\s+Pix)?|envio de Pix)[\s\S]{0,140}?(\d{2}\/\d{2}\/\d{4})(?:\s*(?:às|as)\s*(\d{2}:\d{2}))?/i);
   if(!data&&cab){data=lcDataBrParaIso(cab[1]);horario=cab[2]||'';}
@@ -4147,7 +4154,13 @@ function renumerarLeiturasComprovantes(){const inicio=Math.max(1,Number(document
 function atualizarCampoLoteLeitura(id,campo,valor){
   const x=lcLote.find(i=>i.id===id);if(!x)return;
   x[campo]=campo==='valor'?Math.max(0,Number(valor)||0):valor;
-  if(x.status!=='duplicado')x.status=x.recebedor&&x.valor>0&&x.data?'pronto':'revisar';
+  if(x.status!=='duplicado'){
+    const faltando=[];if(!String(x.recebedor||'').trim())faltando.push('recebedor');if(!(Number(x.valor)>0))faltando.push('valor');if(!x.data)faltando.push('data');
+    x.status=faltando.length?'revisar':'pronto';
+    x.mensagem=faltando.length?'Confira: '+faltando.join(', '):'Revisão concluída';
+    const badge=document.getElementById('lcStatusLote'+id);
+    if(badge){badge.className='lc-status '+x.status;badge.textContent=x.status==='pronto'?'Pronto':'Revisar';badge.closest('tr')?.setAttribute('title',x.mensagem);}
+  }
   renderResumoLoteLeituras();
 }
 
@@ -4158,7 +4171,7 @@ function renderResumoLoteLeituras(){
 
 function renderLoteLeituras(){
   document.getElementById('lcLotePanel').style.display=lcLote.length?'block':'none';renderResumoLoteLeituras();
-  document.getElementById('lcLoteBody').innerHTML=lcLote.map(x=>`<tr title="${escapeHtml(x.mensagem||'')}"><td><input type="number" min="1" value="${x.numero}" oninput="atualizarCampoLoteLeitura('${x.id}','numero',this.value)"></td><td><div class="lc-file-name" title="${escapeHtml(x.nomeArquivo)}">${escapeHtml(x.nomeArquivo)}</div></td><td><input value="${escapeHtml(x.recebedor)}" oninput="atualizarCampoLoteLeitura('${x.id}','recebedor',this.value)"></td><td><input value="${escapeHtml(x.documento)}" oninput="atualizarCampoLoteLeitura('${x.id}','documento',this.value)"></td><td><input type="number" min="0" step="0.01" value="${x.valor||''}" oninput="atualizarCampoLoteLeitura('${x.id}','valor',this.value)"></td><td><input type="date" value="${x.data}" oninput="atualizarCampoLoteLeitura('${x.id}','data',this.value)"></td><td>${escapeHtml(x.modelo)}</td><td><span class="lc-status ${x.status}">${x.status==='pronto'?'Pronto':x.status==='revisar'?'Revisar':x.status==='duplicado'?'Duplicado':'Erro'}</span></td><td><div class="rowactions"><button class="iconbtn" title="Abrir PDF" onclick="abrirPreviewLeitura('${x.id}')">↗</button><button class="iconbtn del" title="Remover do lote" onclick="removerLeituraDoLote('${x.id}')">✕</button></div></td></tr>`).join('');
+  document.getElementById('lcLoteBody').innerHTML=lcLote.map(x=>`<tr title="${escapeHtml(x.mensagem||'')}"><td><input type="number" min="1" value="${x.numero}" oninput="atualizarCampoLoteLeitura('${x.id}','numero',this.value)"></td><td><div class="lc-file-name" title="${escapeHtml(x.nomeArquivo)}">${escapeHtml(x.nomeArquivo)}</div></td><td><input value="${escapeHtml(x.recebedor)}" oninput="atualizarCampoLoteLeitura('${x.id}','recebedor',this.value)"></td><td><input value="${escapeHtml(x.documento)}" oninput="atualizarCampoLoteLeitura('${x.id}','documento',this.value)"></td><td><input type="number" min="0" step="0.01" value="${x.valor||''}" oninput="atualizarCampoLoteLeitura('${x.id}','valor',this.value)"></td><td><input type="date" value="${x.data}" oninput="atualizarCampoLoteLeitura('${x.id}','data',this.value)"></td><td>${escapeHtml(x.modelo)}</td><td><span id="lcStatusLote${x.id}" class="lc-status ${x.status}">${x.status==='pronto'?'Pronto':x.status==='revisar'?'Revisar':x.status==='duplicado'?'Duplicado':'Erro'}</span></td><td><div class="rowactions"><button class="iconbtn" title="Abrir PDF" onclick="abrirPreviewLeitura('${x.id}')">↗</button><button class="iconbtn del" title="Remover do lote" onclick="removerLeituraDoLote('${x.id}')">✕</button></div></td></tr>`).join('');
 }
 
 function abrirPreviewLeitura(id){const x=lcLote.find(i=>i.id===id);if(x)mostrarPreviewLeituraComprovante(x.url,x.nomeArquivo,x.tipoArquivo);}
@@ -4211,7 +4224,7 @@ async function renderHistoricoLeituras(){
   const busca=(document.getElementById('lcBuscaHistorico')?.value||'').trim().toLowerCase();
   const lista=lcHistorico.filter(x=>!busca||[x.recebedor,x.documento,x.modelo,String(x.valor),x.data_pagamento].some(v=>String(v||'').toLowerCase().includes(busca)));
   document.getElementById('lcHistoricoEmpty').style.display=lista.length?'none':'block';
-  const linhas=lista.map(x=>{const indice=lcHistorico.findIndex(v=>Number(v.id)===Number(x.id));return `<tr><td><div class="rowactions" style="justify-content:flex-start;"><strong style="min-width:24px;text-align:center;">${x.numero_ordem??'—'}</strong><button type="button" class="iconbtn" title="Mover para cima" ${indice<=0?'disabled':''} onclick="moverLeituraComprovante(${Number(x.id)},-1)">▲</button><button type="button" class="iconbtn" title="Mover para baixo" ${indice<0||indice>=lcHistorico.length-1?'disabled':''} onclick="moverLeituraComprovante(${Number(x.id)},1)">▼</button></div></td><td>${fmtData(x.data_pagamento)}</td><td style="min-width:280px;"><div style="display:flex;gap:6px;align-items:center;"><input id="lcRecebedorSalvo${Number(x.id)}" value="${escapeHtml(x.recebedor)}" maxlength="300" aria-label="Recebedor ou descrição" onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur();}" onchange="salvarRecebedorLeitura(${Number(x.id)},this)" style="min-width:240px;"><span id="lcRecebedorStatus${Number(x.id)}" style="font-size:10px;min-width:42px;color:var(--muted);"></span></div></td><td>${escapeHtml(x.documento||'—')}</td><td>${escapeHtml(x.modelo||'—')}</td><td class="valor">${brl(x.valor)}</td><td><div class="rowactions"><button type="button" class="filter-btn" data-caminho="${escapeHtml(x.caminho_storage||'')}" data-nome="${escapeHtml(x.nome_arquivo||'Comprovante')}" data-tipo="${escapeHtml(x.tipo_arquivo||'')}" onclick="abrirComprovanteLeituraSalvo(this.dataset.caminho,this.dataset.nome,this.dataset.tipo)">👁 Ver</button><button type="button" class="iconbtn del" title="Excluir comprovante" onclick="abrirExclusaoLeiturasComprovantes(${Number(x.id)})">✕</button></div></td></tr>`;});
+  const linhas=lista.map(x=>{const indice=lcHistorico.findIndex(v=>Number(v.id)===Number(x.id));return `<tr><td><div class="rowactions" style="justify-content:flex-start;"><strong style="min-width:24px;text-align:center;">${x.numero_ordem??'—'}</strong><button type="button" class="iconbtn" title="Mover para cima" ${indice<=0?'disabled':''} onclick="moverLeituraComprovante(${Number(x.id)},-1)">▲</button><button type="button" class="iconbtn" title="Mover para baixo" ${indice<0||indice>=lcHistorico.length-1?'disabled':''} onclick="moverLeituraComprovante(${Number(x.id)},1)">▼</button></div></td><td>${fmtData(x.data_pagamento)}</td><td class="lc-recebedor-historico-cell"><div class="lc-recebedor-historico-wrap"><input id="lcRecebedorSalvo${Number(x.id)}" value="${escapeHtml(x.recebedor)}" title="${escapeHtml(x.recebedor)}" maxlength="300" aria-label="Recebedor ou descrição" onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur();}" onchange="salvarRecebedorLeitura(${Number(x.id)},this)"><span id="lcRecebedorStatus${Number(x.id)}" class="lc-recebedor-historico-status"></span></div></td><td>${escapeHtml(x.documento||'—')}</td><td>${escapeHtml(x.modelo||'—')}</td><td class="valor">${brl(x.valor)}</td><td><div class="rowactions"><button type="button" class="filter-btn" data-caminho="${escapeHtml(x.caminho_storage||'')}" data-nome="${escapeHtml(x.nome_arquivo||'Comprovante')}" data-tipo="${escapeHtml(x.tipo_arquivo||'')}" onclick="abrirComprovanteLeituraSalvo(this.dataset.caminho,this.dataset.nome,this.dataset.tipo)">👁 Ver</button><button type="button" class="iconbtn del" title="Excluir comprovante" onclick="abrirExclusaoLeiturasComprovantes(${Number(x.id)})">✕</button></div></td></tr>`;});
   document.getElementById('lcHistoricoBody').innerHTML=linhas.join('');
 }
 
