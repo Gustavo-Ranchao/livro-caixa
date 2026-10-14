@@ -1,17 +1,19 @@
-RANCHÃO BEBIDAS — ATUALIZAÇÃO 1.2.37
+RANCHÃO BEBIDAS — ATUALIZAÇÃO 1.2.39
 
 ORDEM DA ATUALIZAÇÃO
 
 1. No SQL Editor do Supabase, execute todo o arquivo
+   modulo_metas_vendas_supabase.sql. Ele cria as tabelas do novo módulo.
+2. Se ainda não executou o SQL das fotos, execute todo o arquivo
    ATUALIZACAO_FOTOS_PRODUTOS.sql. Ele cria o armazenamento privado e libera
    o envio das fotos dos produtos no módulo Compras.
-2. Se você ainda não executou o SQL da versão 1.2.30, execute o arquivo
+3. Se você ainda não executou o SQL da versão 1.2.30, execute o arquivo
    ATUALIZACAO_IMPORTAR_PAGAMENTOS_CAIXA.sql incluído neste pacote.
-3. Envie TODOS os arquivos e pastas deste pacote para a raiz do GitHub,
+4. Envie TODOS os arquivos e pastas deste pacote para a raiz do GitHub,
    preservando a estrutura e substituindo os arquivos existentes.
-4. Substitua também .github/workflows/main.yml. Não crie outro workflow.
-5. Abra Actions > Publicar atualização do aplicativo > Run workflow.
-6. Informe a versão 1.2.37 e confirme.
+5. Substitua também .github/workflows/main.yml. Não crie outro workflow.
+6. Abra Actions > Publicar atualização do aplicativo > Run workflow.
+7. Informe a versão 1.2.39 e confirme.
 
 IMPORTANTE
 
@@ -22,7 +24,28 @@ IMPORTANTE
 
 ALTERAÇÕES
 
+CORREÇÕES DA VERSÃO 1.2.39
+- Metas de Vendas foi incluído na lista segura de módulos que podem abrir em janela própria.
+- Imagens JPEG pequenas passam por uma conversão segura para PNG antes do OCR.
+- Se a imagem preparada falhar, o leitor tenta automaticamente o JPEG original.
+- Mantido o reconhecimento do modelo de extrato em imagem enviado para teste.
+
+METAS DE VENDAS
+- Novo módulo dentro de Vendas, com configuração separada por loja e mês.
+- Distribui a meta mensal por pesos: segunda a quarta, quinta, sexta, sábado, domingo e feriado.
+- Feriados brasileiros fixos e móveis aparecem automaticamente no calendário.
+- Permite cadastrar feriados municipais, eventos e outras datas especiais com peso próprio.
+- Aproveita automaticamente os valores já importados em Vendas com Custo.
+- Também permite preencher ou corrigir manualmente o total vendido de cada dia.
+- Se um dia vende acima da meta, o excedente reduz proporcionalmente as metas dos dias pendentes.
+- Se vende abaixo, o valor que faltou é redistribuído entre os próximos dias.
+- Exibe meta original, meta reajustada, realizado, valor restante, percentual e projeção do fechamento.
+- Os dados do novo módulo foram incluídos no backup geral do sistema.
+
 LEITOR DE COMPROVANTES — LOJA 01
+- Corrigida a leitura de imagens JPEG muito baixas e largas, como capturas enviadas pelo WhatsApp.
+- A imagem é ampliada, convertida para tons de cinza e recebe reforço de contraste antes do OCR.
+- Adicionado reconhecimento do modelo de extrato em imagem com data, recebedor e valor de débito.
 - Compatível com o comprovante Sicoob de efetivação de débito Pix por chave.
 - Reconhece o valor mesmo quando o documento não mostra o prefixo "R$".
 - Reconhece datas no formato AAAA-MM-DD, inclusive com horário e milissegundos.

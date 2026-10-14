@@ -11,7 +11,7 @@ let estadoAtualizacao = { tipo: 'inicial', mensagem: 'Pronto para verificar atua
 
 const MODULOS_PERMITIDOS = new Set([
   'checklist','duvidas','manutencao','agenda','contasPagar','despesasFixas','comprovantes','leituraComprovantes',
-  'diferencaCaixa','fluxoCaixa','pagamentos','pagamentoCaixa','contratos','vendasComCusto','vendasDelivery',
+  'diferencaCaixa','fluxoCaixa','pagamentos','pagamentoCaixa','contratos','vendasComCusto','metasVendas','vendasDelivery',
   'orcamentos','tabelaPrecos','bancoHoras','compras','colaboradores','aniversarios','fornecedores','contasBancarias',
   'inventario','controleEstoque','contagensEstoque','combinacaoPagamentos'
 ]);
@@ -19,7 +19,7 @@ const TITULOS_MODULOS = {
   checklist:'Checklist',duvidas:'Dúvidas',manutencao:'Manutenção',agenda:'Agenda',contasPagar:'Contas a pagar',
   despesasFixas:'Despesas fixas',comprovantes:'Comprovantes',leituraComprovantes:'Leitura de Comprovantes',
   diferencaCaixa:'Diferença de Caixa',fluxoCaixa:'Fluxo de Caixa',pagamentos:'Pagamentos',pagamentoCaixa:'Pagamento no Caixa',
-  combinacaoPagamentos:'Combinação de Pagamentos',contratos:'Contratos e Recibos',vendasComCusto:'Vendas com Custo',
+  combinacaoPagamentos:'Combinação de Pagamentos',contratos:'Contratos e Recibos',vendasComCusto:'Vendas com Custo',metasVendas:'Metas de Vendas',
   vendasDelivery:'Vendas Delivery',orcamentos:'Orçamentos',tabelaPrecos:'Tabela de Preços',compras:'Compras',
   inventario:'Inventário',controleEstoque:'Controle de Estoque',contagensEstoque:'Contagens de Estoque',
   bancoHoras:'Banco de Horas',colaboradores:'Colaboradores',aniversarios:'Aniversários',fornecedores:'Fornecedores',
