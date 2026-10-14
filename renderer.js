@@ -4041,7 +4041,7 @@ async function lcValidarImagem(arquivo){
 async function lcCriarWorkerOcr(){
   if(!window.Tesseract)throw new Error('O leitor de imagens não foi carregado. Feche e abra o aplicativo novamente.');
   const worker=await Tesseract.createWorker('por',1,{workerPath:'assets/vendor/tesseract/worker.min.js',corePath:'assets/vendor/tesseract/tesseract-core-simd-lstm.wasm.js',langPath:'assets/vendor/tesseract/lang',gzip:true});
-  await worker.setParameters({tessedit_pageseg_mode:'6',preserve_interword_spaces:'1'});return worker;
+  try{await worker.setParameters({tessedit_pageseg_mode:'6',preserve_interword_spaces:'1'});}catch(e){console.warn('OCR continuará com a configuração padrão.',e);}return worker;
 }
 
 async function lcExtrairTextoImagem(arquivo,worker){
@@ -4049,9 +4049,9 @@ async function lcExtrairTextoImagem(arquivo,worker){
   let fonte=arquivo,bitmap=null;
   try{
     bitmap=await createImageBitmap(arquivo);const menor=Math.min(bitmap.width,bitmap.height),escala=Math.min(4,Math.max(1,900/Math.max(1,menor)));
-    if(escala>1.05){const canvas=document.createElement('canvas');canvas.width=Math.round(bitmap.width*escala);canvas.height=Math.round(bitmap.height*escala);const ctx=canvas.getContext('2d',{willReadFrequently:true});ctx.fillStyle='#fff';ctx.fillRect(0,0,canvas.width,canvas.height);ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality='high';ctx.drawImage(bitmap,0,0,canvas.width,canvas.height);const img=ctx.getImageData(0,0,canvas.width,canvas.height),p=img.data;for(let i=0;i<p.length;i+=4){let g=.299*p[i]+.587*p[i+1]+.114*p[i+2];g=Math.max(0,Math.min(255,(g-128)*1.35+128));p[i]=p[i+1]=p[i+2]=g;}ctx.putImageData(img,0,0);fonte=canvas;}
+    if(escala>1.05){const canvas=document.createElement('canvas');canvas.width=Math.round(bitmap.width*escala);canvas.height=Math.round(bitmap.height*escala);const ctx=canvas.getContext('2d',{willReadFrequently:true});ctx.fillStyle='#fff';ctx.fillRect(0,0,canvas.width,canvas.height);ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality='high';ctx.drawImage(bitmap,0,0,canvas.width,canvas.height);const img=ctx.getImageData(0,0,canvas.width,canvas.height),p=img.data;for(let i=0;i<p.length;i+=4){let g=.299*p[i]+.587*p[i+1]+.114*p[i+2];g=Math.max(0,Math.min(255,(g-128)*1.35+128));p[i]=p[i+1]=p[i+2]=g;}ctx.putImageData(img,0,0);const blob=await new Promise(resolve=>canvas.toBlob(resolve,'image/png'));if(blob)fonte=new File([blob],'imagem-preparada.png',{type:'image/png'});}
   }catch(e){console.warn('OCR usará a imagem original:',e);}finally{if(bitmap&&bitmap.close)bitmap.close();}
-  const resultado=await worker.recognize(fonte);
+  let resultado;try{resultado=await worker.recognize(fonte);}catch(erroOcr){if(fonte!==arquivo){console.warn('Falha na imagem preparada; tentando a original.',erroOcr);resultado=await worker.recognize(arquivo);}else throw erroOcr;}
   return String(resultado?.data?.text||'');
 }
 
