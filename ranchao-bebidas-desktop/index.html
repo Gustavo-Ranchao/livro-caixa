@@ -1793,11 +1793,11 @@
     <div id="viewMetasVendas" style="display:none;">
       <div class="rec-toolbar">
         <div><h2 style="margin:0 0 4px;font-size:20px;color:#17233c;">🎯 Metas de Vendas</h2><div class="rec-config-status">A meta restante é redistribuída automaticamente, respeitando o movimento de cada dia da semana.</div></div>
-        <button class="filter-btn" onclick="carregarMetasVendas()">↻ Atualizar vendas</button>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;"><button class="filter-btn" onclick="carregarMetasVendas()">↻ Atualizar</button><button class="filter-btn" onclick="exportarImagemMetaEquipe()">🖼️ Imagem para a equipe</button><button class="addbtn" style="width:auto;" onclick="exportarPdfMetaEquipe()">📄 PDF para a equipe</button></div>
       </div>
       <div class="panel" style="margin-bottom:20px;"><div class="meta-config-grid">
         <div class="fld"><label>Mês de referência</label><input id="metaMes" type="month" onchange="carregarMetasVendas()"></div>
-        <div class="fld"><label>Meta mensal (R$)</label><input id="metaValorMensal" type="number" min="0" step="0.01" placeholder="200000,00"></div>
+        <div class="fld"><label>Meta mensal (R$)</label><input id="metaValorMensal" type="text" inputmode="decimal" placeholder="R$ 200.000,00" onfocus="metaPrepararCampoMoeda(this)"></div>
         <div class="fld"><label>Segunda a quarta</label><input id="metaPesoSegQua" type="number" min="0.1" step="0.1" value="0.7"></div>
         <div class="fld"><label>Quinta</label><input id="metaPesoQui" type="number" min="0.1" step="0.1" value="1"></div>
         <div class="fld"><label>Sexta</label><input id="metaPesoSex" type="number" min="0.1" step="0.1" value="1.4"></div>
@@ -1806,6 +1806,20 @@
         <div class="fld"><label>Feriado</label><input id="metaPesoFeriado" type="number" min="0.1" step="0.1" value="1.5"></div>
         <button class="addbtn" id="metaSalvarConfigBtn" style="width:auto;" onclick="salvarConfiguracaoMeta()">Salvar configuração</button>
       </div></div>
+      <details class="panel" style="margin-bottom:20px;overflow:hidden;">
+        <summary style="cursor:pointer;padding:16px 20px;font-weight:700;color:var(--ink);user-select:none;">ℹ️ Entenda os pesos usados nas metas diárias</summary>
+        <div style="padding:0 20px 18px;color:#43546d;font-size:12px;line-height:1.65;">
+          <p style="margin:0 0 12px;">O peso indica quanto movimento se espera em cada dia. Ele serve para distribuir a meta mensal; não é o valor da venda e nem uma porcentagem pronta.</p>
+          <div class="tablewrap"><table class="ledger"><thead><tr><th>Peso</th><th>Significado</th><th>Exemplo prático</th></tr></thead><tbody>
+            <tr><td><strong>0,7</strong></td><td>Dia com movimento menor</td><td>Recebe 30% menos meta que um dia de peso 1,0.</td></tr>
+            <tr><td><strong>1,0</strong></td><td>Dia-base</td><td>Serve como referência para comparar os outros dias.</td></tr>
+            <tr><td><strong>1,4</strong></td><td>Dia mais movimentado</td><td>Recebe 40% mais meta que um dia de peso 1,0.</td></tr>
+            <tr><td><strong>1,5</strong></td><td>Dia forte ou feriado</td><td>Recebe 50% mais meta que um dia de peso 1,0.</td></tr>
+            <tr><td><strong>1,8</strong></td><td>Dia de movimento muito alto</td><td>Recebe 80% mais meta que um dia de peso 1,0.</td></tr>
+          </tbody></table></div>
+          <p style="margin:12px 0 0;"><strong>Importante:</strong> o sistema soma os pesos de todos os dias e distribui a meta proporcionalmente. Mesmo com valores diferentes, a soma das metas originais será exatamente igual à meta mensal.</p>
+        </div>
+      </details>
       <div class="bh-resumo" style="margin-bottom:20px;">
         <div class="metric"><div class="lbl">Meta mensal</div><div class="val" id="metaResumoMensal">R$ 0,00</div></div>
         <div class="metric"><div class="lbl">Vendido</div><div class="val" id="metaResumoVendido" style="color:var(--green);">R$ 0,00</div></div>
@@ -1818,7 +1832,7 @@
         <div class="rec-form-grid"><div class="fld"><label>Data</label><input id="metaEspecialData" type="date"></div><div class="fld"><label>Nome</label><input id="metaEspecialNome" placeholder="Ex.: feriado municipal ou evento"></div><div class="fld"><label>Peso especial</label><input id="metaEspecialPeso" type="number" min="0.1" step="0.1" placeholder="1,5"></div></div>
         <div class="rec-actions"><button class="addbtn" style="width:auto;" onclick="salvarDataEspecialMeta()">Salvar data especial</button></div>
       </div>
-      <div class="panel"><div class="panel-head"><div><h2 id="metaCalendarioTitulo">Calendário da meta</h2><div class="rec-config-status">Preencha a venda realizada em cada dia. Dias importados em Vendas com Custo aparecem automaticamente.</div></div></div><div class="tablewrap"><div id="metaCalendario" class="meta-calendario"></div></div></div>
+      <div class="panel"><div class="panel-head"><div><h2 id="metaCalendarioTitulo">Calendário da meta</h2><div class="rec-config-status">Preencha as vendas diretamente neste módulo. Estes valores são independentes das demais vendas do sistema.</div></div></div><div class="tablewrap"><div id="metaCalendario" class="meta-calendario"></div></div></div>
     </div>
 
     <div id="viewVendasComCusto" style="display:none;">
