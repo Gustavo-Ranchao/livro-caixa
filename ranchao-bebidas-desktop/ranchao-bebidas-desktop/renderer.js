@@ -474,10 +474,9 @@ let backupEmAndamento=false;
 function abrirBackupModal(){
   document.getElementById('perfilMenu').classList.remove('open');
   document.getElementById('backupModal').style.display='flex';
-  limparEstadoBackup();
+  if(!backupEmAndamento)limparEstadoBackup();
 }
 function fecharBackupModal(){
-  if(backupEmAndamento)return;
   document.getElementById('backupModal').style.display='none';
 }
 function limparEstadoBackup(){
@@ -494,8 +493,9 @@ function informarProgressoBackup(texto,tipo='normal'){
   el.style.display='block';el.textContent=texto;
   el.style.background=tipo==='sucesso'?'#ecfdf3':tipo==='aviso'?'#fff8e6':'#eef4ff';
   el.style.color=tipo==='sucesso'?'#176b3a':tipo==='aviso'?'#835d12':'#24436e';
+  const flutuante=document.getElementById('backupBackgroundStatus'),msg=document.getElementById('backupBackgroundTexto');if(flutuante&&msg){flutuante.style.display='block';msg.textContent=texto;flutuante.style.borderColor=tipo==='sucesso'?'#abd9bd':tipo==='aviso'?'#e7cf91':'#bfd0e8';flutuante.style.color=tipo==='sucesso'?'#176b3a':tipo==='aviso'?'#835d12':'#24436e';if(tipo==='sucesso'||tipo==='aviso')setTimeout(()=>{if(!backupEmAndamento)flutuante.style.display='none';},10000);}
 }
-function informarErroBackup(texto){const el=document.getElementById('backupErro');el.textContent=texto;el.style.display='block';}
+function informarErroBackup(texto){const el=document.getElementById('backupErro');el.textContent=texto;el.style.display='block';const flutuante=document.getElementById('backupBackgroundStatus'),msg=document.getElementById('backupBackgroundTexto');if(flutuante&&msg){flutuante.style.display='block';flutuante.style.borderColor='#e4b6bd';flutuante.style.color='#8b2635';msg.textContent=texto;setTimeout(()=>{if(!backupEmAndamento)flutuante.style.display='none';},12000);}}
 function nomeSeguroBackup(valor){return String(valor||'arquivo').replace(/[\\/:*?"<>|\u0000-\u001f]/g,'_');}
 function baixarBlobBackup(blob,nome){const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=nome;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),2000);}
 
@@ -514,8 +514,8 @@ async function gerarBackupCompleto(){
   if(backupEmAndamento)return;
   if(!window.JSZip){informarErroBackup('O recurso de compactação não carregou. Reabra o sistema e tente novamente.');return;}
   backupEmAndamento=true;
-  const btn=document.getElementById('backupGerarBtn'),fechar=document.getElementById('backupFecharBtn');
-  btn.disabled=true;btn.textContent='Preparando…';fechar.disabled=true;document.getElementById('backupErro').style.display='none';
+  const btn=document.getElementById('backupGerarBtn');
+  btn.disabled=true;btn.textContent='Preparando…';document.getElementById('backupErro').style.display='none';
   const zip=new JSZip(),dados={},avisos=[];
   const manifesto={formato:'ranchao-bebidas-backup',versao:1,criado_em:new Date().toISOString(),origem:'Ranchão Bebidas',tabelas:{},arquivos:[],avisos};
   try{
@@ -546,7 +546,7 @@ async function gerarBackupCompleto(){
     const resumo=`Backup concluído: ${Object.values(manifesto.tabelas).reduce((a,b)=>a+b,0)} registros e ${manifesto.arquivos.length} arquivos.${avisos.length?` ${avisos.length} item(ns) não puderam ser copiados.`:''}`;
     informarProgressoBackup(resumo,avisos.length?'aviso':'sucesso');
   }catch(e){console.error(e);informarErroBackup('Não foi possível concluir o backup: '+(e?.message||e));}
-  finally{backupEmAndamento=false;btn.disabled=false;btn.textContent='💾 Gerar e baixar backup';fechar.disabled=false;}
+  finally{backupEmAndamento=false;btn.disabled=false;btn.textContent='💾 Gerar e baixar backup';}
 }
 
 async function prepararRestauracaoBackup(files){
@@ -3043,7 +3043,7 @@ async function mostrarPopupAgenda(){
 function agendarPopupAgenda(){clearTimeout(timerPopupAgenda);fecharPopupAgenda();timerPopupAgenda=setTimeout(mostrarPopupAgenda,3200);}
 
 let metaConfig={meta_mensal:0,peso_seg_qua:.7,peso_quinta:1,peso_sexta:1.4,peso_sabado:1.8,peso_domingo:1.1,peso_feriado:1.5};
-let metaDiasCache=[];
+let metaDiasCache=[],metaVendasImportadas={};
 function metaDataLocal(ano,mes,dia){return `${ano}-${String(mes).padStart(2,'0')}-${String(dia).padStart(2,'0')}`;}
 function metaPascoa(ano){let a=ano%19,b=Math.floor(ano/100),c=ano%100,d=Math.floor(b/4),e=b%4,f=Math.floor((b+8)/25),g=Math.floor((b-f+1)/3),h=(19*a+b-d-g+15)%30,i=Math.floor(c/4),k=c%4,l=(32+2*e+2*i-h-k)%7,m=Math.floor((a+11*h+22*l)/451),mes=Math.floor((h+l-7*m+114)/31),dia=(h+l-7*m+114)%31+1;return new Date(ano,mes-1,dia,12);}
 function metaSomarDias(data,dias){const d=new Date(data);d.setDate(d.getDate()+dias);return metaDataLocal(d.getFullYear(),d.getMonth()+1,d.getDate());}
@@ -3052,44 +3052,25 @@ function metaFeriadosBrasil(ano){const p=metaPascoa(ano);return {
   [metaSomarDias(p,-48)]:'Carnaval',[metaSomarDias(p,-47)]:'Carnaval',[metaSomarDias(p,-2)]:'Sexta-feira Santa',[metaSomarDias(p,60)]:'Corpus Christi'
 };}
 function metaPesoDia(data,especial){if(especial?.peso_manual>0)return Number(especial.peso_manual);if(metaFeriadosBrasil(Number(data.slice(0,4)))[data])return Number(metaConfig.peso_feriado);const dow=new Date(data+'T12:00:00').getDay();if(dow===0)return Number(metaConfig.peso_domingo);if(dow===6)return Number(metaConfig.peso_sabado);if(dow===5)return Number(metaConfig.peso_sexta);if(dow===4)return Number(metaConfig.peso_quinta);return Number(metaConfig.peso_seg_qua);}
-function metaNumeroMoeda(valor){let t=String(valor??'').replace(/R\$/gi,'').replace(/\s/g,'').trim();if(!t)return 0;if(t.includes(','))t=t.replace(/\./g,'').replace(',','.');return Math.max(0,Number(t)||0);}
-function metaPrepararCampoMoeda(input){const valor=metaNumeroMoeda(input.value);input.value=valor?valor.toFixed(2).replace('.',','):'';setTimeout(()=>input.select(),0);}
-function metaLerConfigFormulario(){return {meta_mensal:metaNumeroMoeda(document.getElementById('metaValorMensal').value),peso_seg_qua:Math.max(.1,Number(document.getElementById('metaPesoSegQua').value)||.7),peso_quinta:Math.max(.1,Number(document.getElementById('metaPesoQui').value)||1),peso_sexta:Math.max(.1,Number(document.getElementById('metaPesoSex').value)||1.4),peso_sabado:Math.max(.1,Number(document.getElementById('metaPesoSab').value)||1.8),peso_domingo:Math.max(.1,Number(document.getElementById('metaPesoDom').value)||1.1),peso_feriado:Math.max(.1,Number(document.getElementById('metaPesoFeriado').value)||1.5)};}
-function metaPreencherConfig(){document.getElementById('metaValorMensal').value=Number(metaConfig.meta_mensal)?formatarCampoMoeda(metaConfig.meta_mensal):'';document.getElementById('metaPesoSegQua').value=metaConfig.peso_seg_qua;document.getElementById('metaPesoQui').value=metaConfig.peso_quinta;document.getElementById('metaPesoSex').value=metaConfig.peso_sexta;document.getElementById('metaPesoSab').value=metaConfig.peso_sabado;document.getElementById('metaPesoDom').value=metaConfig.peso_domingo;document.getElementById('metaPesoFeriado').value=metaConfig.peso_feriado;}
+function metaLerConfigFormulario(){return {meta_mensal:Math.max(0,Number(document.getElementById('metaValorMensal').value)||0),peso_seg_qua:Math.max(.1,Number(document.getElementById('metaPesoSegQua').value)||.7),peso_quinta:Math.max(.1,Number(document.getElementById('metaPesoQui').value)||1),peso_sexta:Math.max(.1,Number(document.getElementById('metaPesoSex').value)||1.4),peso_sabado:Math.max(.1,Number(document.getElementById('metaPesoSab').value)||1.8),peso_domingo:Math.max(.1,Number(document.getElementById('metaPesoDom').value)||1.1),peso_feriado:Math.max(.1,Number(document.getElementById('metaPesoFeriado').value)||1.5)};}
+function metaPreencherConfig(){document.getElementById('metaValorMensal').value=Number(metaConfig.meta_mensal)||'';document.getElementById('metaPesoSegQua').value=metaConfig.peso_seg_qua;document.getElementById('metaPesoQui').value=metaConfig.peso_quinta;document.getElementById('metaPesoSex').value=metaConfig.peso_sexta;document.getElementById('metaPesoSab').value=metaConfig.peso_sabado;document.getElementById('metaPesoDom').value=metaConfig.peso_domingo;document.getElementById('metaPesoFeriado').value=metaConfig.peso_feriado;}
 async function abrirMetasVendas(){const campo=document.getElementById('metaMes');if(!campo.value)campo.value=todayStr().slice(0,7);await carregarMetasVendas();}
 async function carregarMetasVendas(){
   const campo=document.getElementById('metaMes');if(!campo.value)campo.value=todayStr().slice(0,7);const mes=campo.value,[ano,numeroMes]=mes.split('-').map(Number),ultimo=metaDataLocal(ano,numeroMes,new Date(ano,numeroMes,0).getDate());
-  const [cfg,dias]=await Promise.all([sb.from('metas_vendas_config').select('*').eq('loja',lojaAtual).eq('mes',mes+'-01').maybeSingle(),sb.from('metas_vendas_dias').select('*').eq('loja',lojaAtual).gte('data',mes+'-01').lte('data',ultimo)]);
+  const [cfg,dias,vendas]=await Promise.all([sb.from('metas_vendas_config').select('*').eq('loja',lojaAtual).eq('mes',mes+'-01').maybeSingle(),sb.from('metas_vendas_dias').select('*').eq('loja',lojaAtual).gte('data',mes+'-01').lte('data',ultimo),buscarTodasLinhas((from,to)=>sb.from('vendas_itens').select('data,valor_venda').eq('loja',lojaAtual).gte('data',mes+'-01').lte('data',ultimo).range(from,to))]);
   if(cfg.error&&String(cfg.error.message||'').includes('metas_vendas')){alert('Execute primeiro o SQL do módulo Metas de Vendas no Supabase.');return;}
-  metaConfig={...{meta_mensal:0,peso_seg_qua:.7,peso_quinta:1,peso_sexta:1.4,peso_sabado:1.8,peso_domingo:1.1,peso_feriado:1.5},...(cfg.data||{})};metaDiasCache=dias.data||[];metaPreencherConfig();renderMetasVendas();
+  metaConfig={...{meta_mensal:0,peso_seg_qua:.7,peso_quinta:1,peso_sexta:1.4,peso_sabado:1.8,peso_domingo:1.1,peso_feriado:1.5},...(cfg.data||{})};metaDiasCache=dias.data||[];metaVendasImportadas={};(vendas.data||[]).forEach(v=>metaVendasImportadas[v.data]=(metaVendasImportadas[v.data]||0)+(Number(v.valor_venda)||0));metaPreencherConfig();renderMetasVendas();
 }
 async function salvarConfiguracaoMeta(){const mes=document.getElementById('metaMes').value;if(!mes)return;const valores=metaLerConfigFormulario();metaConfig={...metaConfig,...valores};const btn=document.getElementById('metaSalvarConfigBtn');btn.disabled=true;const {error}=await sb.from('metas_vendas_config').upsert({loja:lojaAtual,mes:mes+'-01',...valores,atualizado_em:new Date().toISOString()},{onConflict:'loja,mes'});btn.disabled=false;if(error){alert('Não foi possível salvar: '+error.message);return;}renderMetasVendas();}
-async function salvarVendaDiaMeta(data,input){const vazio=!String(input.value||'').trim(),valor=vazio?null:metaNumeroMoeda(input.value),existente=metaDiasCache.find(x=>x.data===data),registro={loja:lojaAtual,data,venda_manual:valor,nome_especial:existente?.nome_especial||null,peso_manual:existente?.peso_manual||null,atualizado_em:new Date().toISOString()};const {data:salvo,error}=await sb.from('metas_vendas_dias').upsert(registro,{onConflict:'loja,data'}).select().single();if(error){alert('Não foi possível salvar a venda do dia.');return;}const i=metaDiasCache.findIndex(x=>x.data===data);if(i>=0)metaDiasCache[i]=salvo;else metaDiasCache.push(salvo);renderMetasVendas();}
-async function apagarVendaDiaMeta(data){const existente=metaDiasCache.find(x=>x.data===data);if(!existente)return;if(!confirm('Apagar o valor de venda lançado em '+fmtData(data)+'?'))return;let resposta;if(existente.nome_especial||existente.peso_manual)resposta=await sb.from('metas_vendas_dias').update({venda_manual:null,atualizado_em:new Date().toISOString()}).eq('id',existente.id).eq('loja',lojaAtual);else resposta=await sb.from('metas_vendas_dias').delete().eq('id',existente.id).eq('loja',lojaAtual);if(resposta.error){alert('Não foi possível apagar este valor.');return;}if(existente.nome_especial||existente.peso_manual)existente.venda_manual=null;else metaDiasCache=metaDiasCache.filter(x=>Number(x.id)!==Number(existente.id));renderMetasVendas();}
+async function salvarVendaDiaMeta(data,input){const texto=String(input.value||'').replace(',','.'),valor=texto===''?null:Math.max(0,Number(texto)||0),existente=metaDiasCache.find(x=>x.data===data),registro={loja:lojaAtual,data,venda_manual:valor,nome_especial:existente?.nome_especial||null,peso_manual:existente?.peso_manual||null,atualizado_em:new Date().toISOString()};const {data:salvo,error}=await sb.from('metas_vendas_dias').upsert(registro,{onConflict:'loja,data'}).select().single();if(error){alert('Não foi possível salvar a venda do dia.');return;}const i=metaDiasCache.findIndex(x=>x.data===data);if(i>=0)metaDiasCache[i]=salvo;else metaDiasCache.push(salvo);renderMetasVendas();}
 async function salvarDataEspecialMeta(){const data=document.getElementById('metaEspecialData').value,nome=document.getElementById('metaEspecialNome').value.trim(),peso=Number(document.getElementById('metaEspecialPeso').value);if(!data||!nome||!(peso>0)){alert('Informe a data, o nome e o peso da data especial.');return;}const existente=metaDiasCache.find(x=>x.data===data);const {data:salvo,error}=await sb.from('metas_vendas_dias').upsert({loja:lojaAtual,data,venda_manual:existente?.venda_manual??null,nome_especial:nome,peso_manual:peso,atualizado_em:new Date().toISOString()},{onConflict:'loja,data'}).select().single();if(error){alert('Não foi possível salvar a data especial.');return;}const i=metaDiasCache.findIndex(x=>x.data===data);if(i>=0)metaDiasCache[i]=salvo;else metaDiasCache.push(salvo);document.getElementById('metaEspecialNome').value='';document.getElementById('metaEspecialPeso').value='';if(data.startsWith(document.getElementById('metaMes').value))renderMetasVendas();}
 function renderMetasVendas(){
   const mes=document.getElementById('metaMes').value;if(!mes)return;const [ano,m]=mes.split('-').map(Number),qtd=new Date(ano,m,0).getDate(),feriados=metaFeriadosBrasil(ano),mapa=new Map(metaDiasCache.map(x=>[x.data,x])),dias=[];
-  for(let d=1;d<=qtd;d++){const data=metaDataLocal(ano,m,d),especial=mapa.get(data),manual=especial?.venda_manual,temManual=manual!==null&&manual!==undefined,realizado=temManual?Number(manual):0,concluido=temManual;dias.push({d,data,especial,feriado:especial?.nome_especial||feriados[data]||'',peso:metaPesoDia(data,especial),realizado,temManual,concluido});}
+  for(let d=1;d<=qtd;d++){const data=metaDataLocal(ano,m,d),especial=mapa.get(data),importado=Number(metaVendasImportadas[data])||0,manual=especial?.venda_manual,temManual=manual!==null&&manual!==undefined,realizado=temManual?Number(manual):importado,concluido=temManual||importado>0;dias.push({d,data,especial,feriado:especial?.nome_especial||feriados[data]||'',peso:metaPesoDia(data,especial),realizado,importado,temManual,concluido});}
   const meta=Number(metaConfig.meta_mensal)||0,somaPesos=dias.reduce((s,x)=>s+x.peso,0);dias.forEach(x=>x.original=somaPesos?meta*x.peso/somaPesos:0);const concluidos=dias.filter(x=>x.concluido),pendentes=dias.filter(x=>!x.concluido),vendido=concluidos.reduce((s,x)=>s+x.realizado,0),restante=Math.max(0,meta-vendido),pesoRestante=pendentes.reduce((s,x)=>s+x.peso,0);pendentes.forEach(x=>x.ajustada=pesoRestante?restante*x.peso/pesoRestante:0);concluidos.forEach(x=>x.ajustada=x.original);
   const baseConcluida=concluidos.reduce((s,x)=>s+x.original,0),projecao=baseConcluida>0?vendido/baseConcluida*meta:0,primeiro=new Date(ano,m-1,1,12).getDay(),desloc=(primeiro+6)%7,nomes=['Seg','Ter','Qua','Qui','Sex','Sáb','Dom'];let html=nomes.map(n=>`<div class="meta-semana">${n}</div>`).join('')+'<div class="meta-dia vazio"></div>'.repeat(desloc);
-  dias.forEach(x=>{const diff=x.realizado-x.original,classe=x.feriado?' feriado':'',estado=x.concluido?(diff>=0?' concluido':' atrasado'):'',status=x.concluido?(diff>=0?`Acima da meta em ${brl(diff)}`:`Abaixo da meta em ${brl(Math.abs(diff))}`):`Nova meta do dia: ${brl(x.ajustada)}`;html+=`<div class="meta-dia${classe}${estado}"><div class="meta-dia-topo"><span class="meta-dia-num">${x.d}</span><span class="meta-dia-nome">${escapeHtml(x.feriado||'')}</span></div><div class="meta-linha"><span>Meta original</span><strong>${brl(x.original)}</strong></div><div class="meta-linha"><span>Meta reajustada</span><strong>${brl(x.concluido?x.original:x.ajustada)}</strong></div><label style="font-size:10px;color:var(--muted);">VENDA REALIZADA</label><div style="display:flex;gap:5px;align-items:center;"><input class="meta-venda-input" type="text" inputmode="decimal" value="${x.temManual?formatarCampoMoeda(x.realizado):''}" placeholder="R$ 0,00" onfocus="metaPrepararCampoMoeda(this)" onchange="salvarVendaDiaMeta('${x.data}',this)">${x.temManual?`<button type="button" class="iconbtn del" title="Apagar venda deste dia" onclick="apagarVendaDiaMeta('${x.data}')">✕</button>`:''}</div><div class="meta-status ${x.concluido?(diff>=0?'positivo':'negativo'):''}">${status}</div></div>`;});
+  dias.forEach(x=>{const diff=x.realizado-x.original,classe=x.feriado?' feriado':'',estado=x.concluido?(diff>=0?' concluido':' atrasado'):'',status=x.concluido?(diff>=0?`Acima da meta em ${brl(diff)}`:`Abaixo da meta em ${brl(Math.abs(diff))}`):`Nova meta do dia: ${brl(x.ajustada)}`;html+=`<div class="meta-dia${classe}${estado}"><div class="meta-dia-topo"><span class="meta-dia-num">${x.d}</span><span class="meta-dia-nome">${escapeHtml(x.feriado||'')}</span></div><div class="meta-linha"><span>Meta original</span><strong>${brl(x.original)}</strong></div><div class="meta-linha"><span>Meta reajustada</span><strong>${brl(x.concluido?x.original:x.ajustada)}</strong></div><label style="font-size:10px;color:var(--muted);">VENDA REALIZADA</label><input class="meta-venda-input" type="number" min="0" step="0.01" value="${x.temManual?x.realizado:(x.importado||'')}" placeholder="0,00" title="${x.importado&&!x.temManual?'Valor importado de Vendas com Custo':''}" onchange="salvarVendaDiaMeta('${x.data}',this)"><div class="meta-status ${x.concluido?(diff>=0?'positivo':'negativo'):''}">${status}</div></div>`;});
   document.getElementById('metaCalendario').innerHTML=html;document.getElementById('metaCalendarioTitulo').textContent='Calendário — '+new Date(ano,m-1,1,12).toLocaleDateString('pt-BR',{month:'long',year:'numeric'});document.getElementById('metaResumoMensal').textContent=brl(meta);document.getElementById('metaResumoVendido').textContent=brl(vendido);document.getElementById('metaResumoFalta').textContent=brl(Math.max(0,meta-vendido));document.getElementById('metaResumoPercentual').textContent=(meta?vendido/meta*100:0).toFixed(1)+'%';document.getElementById('metaResumoProjecao').textContent=baseConcluida?brl(projecao):'—';
-}
-
-function exportarPdfMetaEquipe(){
-  if(!window.jspdf||!window.jspdf.jsPDF){alert('O recurso de PDF não foi carregado.');return;}const mes=document.getElementById('metaMes').value;if(!mes){alert('Selecione o mês.');return;}const [ano,m]=mes.split('-').map(Number),qtd=new Date(ano,m,0).getDate(),feriados=metaFeriadosBrasil(ano),mapa=new Map(metaDiasCache.map(x=>[x.data,x])),dias=[];
-  for(let d=1;d<=qtd;d++){const data=metaDataLocal(ano,m,d),especial=mapa.get(data);dias.push({data,d,nome:new Date(data+'T12:00:00').toLocaleDateString('pt-BR',{weekday:'long'}),feriado:especial?.nome_especial||feriados[data]||'',peso:metaPesoDia(data,especial)});}const meta=Number(metaConfig.meta_mensal)||0,soma=dias.reduce((s,x)=>s+x.peso,0);dias.forEach(x=>x.original=soma?meta*x.peso/soma:0);
-  const doc=new window.jspdf.jsPDF({orientation:'portrait',unit:'mm',format:'a4'}),loja=NOMES_LOJA[lojaAtual]||lojaAtual,titulo=new Date(ano,m-1,1,12).toLocaleDateString('pt-BR',{month:'long',year:'numeric'});doc.setFillColor(30,53,91);doc.rect(0,0,210,31,'F');doc.setTextColor(255);doc.setFont('helvetica','bold');doc.setFontSize(18);doc.text('Meta de Vendas',14,14);doc.setFontSize(11);doc.text(loja+' • '+titulo.charAt(0).toUpperCase()+titulo.slice(1),14,22);doc.setTextColor(25);doc.setFontSize(13);doc.text('Meta mensal: '+brl(meta),14,41);doc.setFont('helvetica','normal');doc.setFontSize(9);doc.setTextColor(90);doc.text('As metas abaixo são as metas originais definidas para a equipe.',14,47);
-  doc.autoTable({startY:53,head:[['Data','Dia da semana','Data especial','Meta original']],body:dias.map(x=>[fmtData(x.data),x.nome.charAt(0).toUpperCase()+x.nome.slice(1),x.feriado||'—',brl(x.original)]),foot:[['','','TOTAL',brl(meta)]],styles:{fontSize:9,cellPadding:2.4},headStyles:{fillColor:[30,53,91]},footStyles:{fillColor:[233,225,203],textColor:20,fontStyle:'bold'},columnStyles:{3:{halign:'right'}},margin:{left:14,right:14}});doc.save('meta-equipe-'+lojaAtual+'-'+mes+'.pdf');
-}
-
-function exportarImagemMetaEquipe(){
-  const mes=document.getElementById('metaMes').value;if(!mes){alert('Selecione o mês.');return;}const [ano,m]=mes.split('-').map(Number),qtd=new Date(ano,m,0).getDate(),feriados=metaFeriadosBrasil(ano),mapa=new Map(metaDiasCache.map(x=>[x.data,x])),dias=[];
-  for(let d=1;d<=qtd;d++){const data=metaDataLocal(ano,m,d),especial=mapa.get(data);dias.push({data,d,feriado:especial?.nome_especial||feriados[data]||'',peso:metaPesoDia(data,especial)});}const meta=Number(metaConfig.meta_mensal)||0,soma=dias.reduce((s,x)=>s+x.peso,0);dias.forEach(x=>x.original=soma?meta*x.peso/soma:0);
-  const largura=1080,altura=1350,canvas=document.createElement('canvas');canvas.width=largura;canvas.height=altura;const ctx=canvas.getContext('2d');ctx.fillStyle='#f3f6fb';ctx.fillRect(0,0,largura,altura);ctx.fillStyle='#1e355b';ctx.fillRect(0,0,largura,190);ctx.fillStyle='#fff';ctx.font='700 48px Arial';ctx.fillText('META DE VENDAS',55,72);const titulo=new Date(ano,m-1,1,12).toLocaleDateString('pt-BR',{month:'long',year:'numeric'}),loja=NOMES_LOJA[lojaAtual]||lojaAtual;ctx.font='500 25px Arial';ctx.fillText(loja+'  •  '+titulo.charAt(0).toUpperCase()+titulo.slice(1),55,116);ctx.font='700 31px Arial';ctx.fillStyle='#f5d67b';ctx.fillText('Meta mensal: '+brl(meta),55,163);
-  const margem=35,gap=8,colunas=7,cellW=(largura-margem*2-gap*(colunas-1))/colunas,topo=245,cellH=160;ctx.textAlign='center';ctx.fillStyle='#607089';ctx.font='700 18px Arial';['SEG','TER','QUA','QUI','SEX','SÁB','DOM'].forEach((n,i)=>ctx.fillText(n,margem+i*(cellW+gap)+cellW/2,222));const primeiro=new Date(ano,m-1,1,12).getDay(),desloc=(primeiro+6)%7;
-  dias.forEach(x=>{const pos=desloc+x.d-1,col=pos%7,lin=Math.floor(pos/7),px=margem+col*(cellW+gap),py=topo+lin*(cellH+gap);ctx.fillStyle=x.feriado?'#fff7df':'#fff';ctx.strokeStyle=x.feriado?'#d5a933':'#d9e1ec';ctx.lineWidth=2;ctx.beginPath();ctx.roundRect(px,py,cellW,cellH,12);ctx.fill();ctx.stroke();ctx.textAlign='left';ctx.fillStyle='#1e355b';ctx.font='700 26px Arial';ctx.fillText(String(x.d).padStart(2,'0'),px+14,py+36);ctx.textAlign='right';ctx.fillStyle='#17733b';ctx.font='700 19px Arial';ctx.fillText(brl(x.original),px+cellW-12,py+79);ctx.textAlign='left';ctx.fillStyle='#75839a';ctx.font='500 14px Arial';ctx.fillText('META ORIGINAL',px+14,py+105);if(x.feriado){let nome=x.feriado.length>20?x.feriado.slice(0,19)+'…':x.feriado;ctx.fillStyle='#946b12';ctx.font='600 13px Arial';ctx.fillText(nome,px+14,py+137);}});
-  ctx.textAlign='center';ctx.fillStyle='#53647b';ctx.font='500 18px Arial';ctx.fillText('Vamos juntos alcançar nossa meta!',largura/2,1310);const link=document.createElement('a');link.href=canvas.toDataURL('image/png');link.download='meta-equipe-'+lojaAtual+'-'+mes+'.png';link.click();
 }
 
 const VIEWS = ['checklist','duvidas','manutencao','agenda','contasPagar','despesasFixas','comprovantes','leituraComprovantes','diferencaCaixa','fluxoCaixa','pagamentos','pagamentoCaixa','contratos','vendasComCusto','metasVendas','vendasDelivery','orcamentos','tabelaPrecos','bancoHoras','compras','colaboradores','aniversarios','fornecedores','contasBancarias','inventario','controleEstoque','contagensEstoque','combinacaoPagamentos'];
@@ -4412,6 +4393,7 @@ async function executarExclusaoLeiturasComprovantes(){
 /* ================= MANUTENÇÃO ================= */
 
 let manutencaoTipoAtual='computador';
+let manutencaoTodoHistorico=false;
 let manutencoesCache=[];
 let manutencaoEditandoId=null;
 let manutencaoExcluindoId=null;
@@ -4444,12 +4426,16 @@ function intervaloMesManutencao(){
 async function carregarManutencoes(){
   const campo=document.getElementById('manFiltroMes');if(!campo)return;
   if(!campo.value)campo.value=mesAtualPadrao();
-  const periodo=intervaloMesManutencao();
-  const {data,error}=await sb.from('manutencoes').select('*').eq('loja',lojaAtual).eq('tipo',manutencaoTipoAtual).gte('data_manutencao',periodo.inicio).lt('data_manutencao',periodo.fim).order('data_manutencao',{ascending:false}).order('id',{ascending:false});
+  let consulta=sb.from('manutencoes').select('*').eq('loja',lojaAtual).eq('tipo',manutencaoTipoAtual);
+  if(!manutencaoTodoHistorico){const periodo=intervaloMesManutencao();consulta=consulta.gte('data_manutencao',periodo.inicio).lt('data_manutencao',periodo.fim);}
+  const {data,error}=await consulta.order('data_manutencao',{ascending:false}).order('id',{ascending:false});
   if(error){console.error('Erro ao carregar manutenções:',error);manutencoesCache=[];document.getElementById('manErr').textContent='Não foi possível carregar. Execute o SQL do módulo de Manutenção no Supabase.';document.getElementById('manErr').style.display='block';}
   else{manutencoesCache=data||[];document.getElementById('manErr').style.display='none';}
   renderManutencoes();
 }
+
+function usarMesManutencao(){manutencaoTodoHistorico=false;const campo=document.getElementById('manFiltroMes'),btn=document.getElementById('manTodosPeriodosBtn');campo.disabled=false;if(btn){btn.classList.remove('active');btn.textContent='Todo histórico';}carregarManutencoes();}
+function alternarTodoHistoricoManutencao(){manutencaoTodoHistorico=!manutencaoTodoHistorico;const campo=document.getElementById('manFiltroMes'),btn=document.getElementById('manTodosPeriodosBtn');campo.disabled=manutencaoTodoHistorico;if(btn){btn.classList.toggle('active',manutencaoTodoHistorico);btn.textContent=manutencaoTodoHistorico?'Exibindo tudo':'Todo histórico';}carregarManutencoes();}
 
 function textoStatusManutencao(status){return ({realizada:'Realizada',agendada:'Agendada',em_andamento:'Em andamento',cancelada:'Cancelada'})[status]||status;}
 
@@ -6256,7 +6242,7 @@ function resumoPorContasFluxo(){
   fluxoContasCache.forEach(c=>porChave.set(String(c.id),{chave:String(c.id),nome:c.nome,entradas:0,saidas:0,ehDinheiro:false}));
   fluxoCache.forEach(l=>{
     const ehDinheiro=l.tipo==='Dinheiro',chave=ehDinheiro?'dinheiro':(l.conta_id?String(l.conta_id):CONTA_SEM_ID);
-    if(!porChave.has(chave))porChave.set(chave,{chave,nome:ehDinheiro?'Dinheiro':(chave===CONTA_SEM_ID?'Sem conta específica':nomeDaContaFluxo(l.conta_id)||'Conta não cadastrada'),entradas:0,saidas:0,ehDinheiro});
+    if(!porChave.has(chave))porChave.set(chave,{chave,nome:ehDinheiro?'DINHEIRO':(chave===CONTA_SEM_ID?'Sem conta específica':nomeDaContaFluxo(l.conta_id)||'Conta não cadastrada'),entradas:0,saidas:0,ehDinheiro});
     const item=porChave.get(chave),valor=Number(l.valor)||0;if(valor>0)item.entradas+=valor;else item.saidas+=Math.abs(valor);
   });
   porChave.forEach(item=>{const saldo=fluxoSaldosFinaisAtual.get(item.chave);linhas.push({...item,resultado:item.entradas-item.saidas,saldoFinal:saldo?.saldo??null,dataSaldo:saldo?.data||null});});
@@ -7822,6 +7808,8 @@ function renderCompras(){
       <div class="campo"><span class="lbl-mobile">Mín. (emb)</span>${p.estoque_min_caixas ?? 0}</div>
       <div class="campo"><span class="lbl-mobile">Atual (un)</span><input class="comprar-input" data-compra-campo="estoque_atual_unidades" data-produto-id="${p.id}" type="number" min="0" step="1" value="${p.estoque_atual_unidades ?? 0}" onblur="atualizarEstoqueAtual('${p.id}', 'estoque_atual_unidades', this.value)" onkeydown="avancarCompraAoEnter(event, '${p.id}', 'estoque_atual_unidades')"></div>
       <div class="campo"><span class="lbl-mobile">Atual (emb)</span><input class="comprar-input" data-compra-campo="estoque_atual_caixas" data-produto-id="${p.id}" type="number" min="0" step="1" value="${p.estoque_atual_caixas ?? 0}" onblur="atualizarEstoqueAtual('${p.id}', 'estoque_atual_caixas', this.value)" onkeydown="avancarCompraAoEnter(event, '${p.id}', 'estoque_atual_caixas')"></div>
+      <div class="campo"><span class="lbl-mobile">Último preço</span><strong style="font-family:var(--font-mono);color:var(--muted);">${p.ultimo_preco_compra==null?'—':brl(p.ultimo_preco_compra)}</strong></div>
+      <div class="campo"><span class="lbl-mobile">Preço agora</span><div><input class="comprar-input" inputmode="decimal" value="${p.preco_compra_atual==null?'':formatarCampoMoeda(p.preco_compra_atual)}" onfocus="prepararPrecoCompra(this)" onblur="atualizarPrecoCompra('${p.id}',this)" onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur();}">${comparacaoPrecoCompra(p)}</div></div>
       <div class="campo"><span class="lbl-mobile">Comprar</span><input class="comprar-input ${temFalta?'tem-falta':''}" data-compra-campo="quantidade_comprar" data-produto-id="${p.id}" type="number" min="0" step="1" value="${p.quantidade_comprar ?? 0}" onblur="atualizarQuantidadeComprar('${p.id}', this.value)" onkeydown="avancarCompraAoEnter(event, '${p.id}', 'quantidade_comprar')"></div>
       <div class="campo"><span class="lbl-mobile">Ações</span><div class="rowactions">
         <button class="iconbtn edit" title="Editar" onclick="abrirEditarProduto('${p.id}')">✎</button>
@@ -7971,6 +7959,11 @@ async function atualizarQuantidadeComprar(id, valor){
   const { error } = await sb.from('compras_produtos').update({ quantidade_comprar: v }).eq('id', id);
   if(error) console.error('Erro ao salvar quantidade a comprar:', error);
 }
+
+function numeroPrecoCompra(valor){return Number(String(valor||'').replace(/[^0-9,.-]/g,'').replace(/\./g,'').replace(',','.'))||0;}
+function prepararPrecoCompra(input){const n=numeroPrecoCompra(input.value);input.value=n?n.toFixed(2).replace('.',','):'';input.select();}
+function comparacaoPrecoCompra(p){const anterior=Number(p.ultimo_preco_compra),atual=Number(p.preco_compra_atual);if(!(anterior>0)||!(atual>0))return '<div style="font-size:9px;color:var(--muted);margin-top:3px;">Sem comparação</div>';const pct=(atual-anterior)/anterior*100,cor=pct>0?'var(--rust)':pct<0?'var(--green)':'var(--muted)',seta=pct>0?'▲':pct<0?'▼':'•';return `<div style="font-size:9px;color:${cor};font-weight:700;margin-top:3px;">${seta} ${pct>0?'+':''}${pct.toFixed(1).replace('.',',')}%</div>`;}
+async function atualizarPrecoCompra(id,input){const novo=numeroPrecoCompra(input.value),p=comprasProdutos.find(x=>String(x.id)===String(id));if(!p)return;const atual=p.preco_compra_atual==null?null:Number(p.preco_compra_atual);if(novo<=0){input.value=atual==null?'':formatarCampoMoeda(atual);return;}if(atual!==null&&Math.abs(atual-novo)<.005){input.value=formatarCampoMoeda(atual);return;}const payload={preco_compra_atual:novo,ultimo_preco_compra:atual,preco_compra_atualizado_em:new Date().toISOString()},{error}=await sb.from('compras_produtos').update(payload).eq('id',id).eq('loja',lojaAtual);if(error){alert('Não foi possível salvar o preço. Execute o SQL desta atualização no Supabase.');input.value=atual==null?'':formatarCampoMoeda(atual);return;}Object.assign(p,payload);renderCompras();}
 
 function avancarCompraAoEnter(event, id, campo){
   if(event.key !== 'Enter') return;
