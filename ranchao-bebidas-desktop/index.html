@@ -213,7 +213,7 @@
   .compras-chip-ok{background:#e3f3e6;border-color:var(--green);color:var(--green);font-weight:600;}
   .compras-chip-ok.active{background:var(--green);color:var(--paper);border-color:var(--green);}
   input.comprar-input{width:80px;font-family:var(--font-mono);font-size:12px;padding:5px 7px;border:1px solid var(--line);border-radius:4px;background:#fff;}
-  .compras-row{display:grid;grid-template-columns:54px 1fr 1fr 1.5fr 0.85fr 60px 60px 70px 70px 80px 70px;gap:8px;align-items:center;padding:10px 16px;border-top:1px solid var(--paper3);font-size:12.5px;}
+  .compras-row{display:grid;grid-template-columns:54px 1fr 1fr 1.5fr 0.85fr 60px 60px 70px 70px 90px 105px 90px 70px;gap:8px;align-items:center;padding:10px 16px;border-top:1px solid var(--paper3);font-size:12.5px;}
   .compras-row.header{background:var(--paper2);font-size:10px;text-transform:uppercase;letter-spacing:0.04em;color:var(--muted);font-weight:500;border-top:none;padding:8px 16px;}
   .compras-foto{width:44px;height:44px;border-radius:8px;border:1px solid var(--paper3);background:var(--paper2);display:flex;align-items:center;justify-content:center;overflow:hidden;color:var(--muted);font-size:18px;}
   .compras-foto.com-imagem{cursor:pointer;background:#fff;}
@@ -1604,7 +1604,7 @@
         <div class="compras-lista" id="comprasListaWrap">
           <div class="compras-row header">
             <div>Foto</div><div>Empresa</div><div>Marca</div><div>Produto</div><div>Embalagem</div>
-            <div>Mín. (un)</div><div>Mín. (emb)</div><div>Atual (un)</div><div>Atual (emb)</div><div>Comprar</div><div></div>
+            <div>Mín. (un)</div><div>Mín. (emb)</div><div>Atual (un)</div><div>Atual (emb)</div><div>Último preço</div><div>Preço agora</div><div>Comprar</div><div></div>
           </div>
           <div id="comprasBody"></div>
         </div>
@@ -1780,7 +1780,7 @@
         <div class="panel-head" style="flex-wrap:wrap;">
           <h2>Histórico</h2>
           <div class="man-filtros">
-            <div class="man-filtro"><label>Mês</label><input id="manFiltroMes" type="month" onchange="carregarManutencoes()"></div>
+            <div class="man-filtro"><label>Mês</label><div style="display:flex;gap:6px;"><input id="manFiltroMes" type="month" onchange="usarMesManutencao()"><button type="button" class="filter-btn" id="manTodosPeriodosBtn" onclick="alternarTodoHistoricoManutencao()">Todo histórico</button></div></div>
             <div class="man-filtro"><label>Status</label><select id="manFiltroStatus" onchange="renderManutencoes()"><option value="todos">Todos</option><option value="realizada">Realizadas</option><option value="agendada">Agendadas</option><option value="em_andamento">Em andamento</option><option value="cancelada">Canceladas</option></select></div>
             <div class="man-filtro busca"><label>Pesquisar</label><input id="manBusca" placeholder="Item, serviço ou fornecedor" oninput="renderManutencoes()"></div>
           </div>
@@ -1793,11 +1793,11 @@
     <div id="viewMetasVendas" style="display:none;">
       <div class="rec-toolbar">
         <div><h2 style="margin:0 0 4px;font-size:20px;color:#17233c;">🎯 Metas de Vendas</h2><div class="rec-config-status">A meta restante é redistribuída automaticamente, respeitando o movimento de cada dia da semana.</div></div>
-        <div style="display:flex;gap:8px;flex-wrap:wrap;"><button class="filter-btn" onclick="carregarMetasVendas()">↻ Atualizar</button><button class="filter-btn" onclick="exportarImagemMetaEquipe()">🖼️ Imagem para a equipe</button><button class="addbtn" style="width:auto;" onclick="exportarPdfMetaEquipe()">📄 PDF para a equipe</button></div>
+        <button class="filter-btn" onclick="carregarMetasVendas()">↻ Atualizar vendas</button>
       </div>
       <div class="panel" style="margin-bottom:20px;"><div class="meta-config-grid">
         <div class="fld"><label>Mês de referência</label><input id="metaMes" type="month" onchange="carregarMetasVendas()"></div>
-        <div class="fld"><label>Meta mensal (R$)</label><input id="metaValorMensal" type="text" inputmode="decimal" placeholder="R$ 200.000,00" onfocus="metaPrepararCampoMoeda(this)"></div>
+        <div class="fld"><label>Meta mensal (R$)</label><input id="metaValorMensal" type="number" min="0" step="0.01" placeholder="200000,00"></div>
         <div class="fld"><label>Segunda a quarta</label><input id="metaPesoSegQua" type="number" min="0.1" step="0.1" value="0.7"></div>
         <div class="fld"><label>Quinta</label><input id="metaPesoQui" type="number" min="0.1" step="0.1" value="1"></div>
         <div class="fld"><label>Sexta</label><input id="metaPesoSex" type="number" min="0.1" step="0.1" value="1.4"></div>
@@ -1806,20 +1806,6 @@
         <div class="fld"><label>Feriado</label><input id="metaPesoFeriado" type="number" min="0.1" step="0.1" value="1.5"></div>
         <button class="addbtn" id="metaSalvarConfigBtn" style="width:auto;" onclick="salvarConfiguracaoMeta()">Salvar configuração</button>
       </div></div>
-      <details class="panel" style="margin-bottom:20px;overflow:hidden;">
-        <summary style="cursor:pointer;padding:16px 20px;font-weight:700;color:var(--ink);user-select:none;">ℹ️ Entenda os pesos usados nas metas diárias</summary>
-        <div style="padding:0 20px 18px;color:#43546d;font-size:12px;line-height:1.65;">
-          <p style="margin:0 0 12px;">O peso indica quanto movimento se espera em cada dia. Ele serve para distribuir a meta mensal; não é o valor da venda e nem uma porcentagem pronta.</p>
-          <div class="tablewrap"><table class="ledger"><thead><tr><th>Peso</th><th>Significado</th><th>Exemplo prático</th></tr></thead><tbody>
-            <tr><td><strong>0,7</strong></td><td>Dia com movimento menor</td><td>Recebe 30% menos meta que um dia de peso 1,0.</td></tr>
-            <tr><td><strong>1,0</strong></td><td>Dia-base</td><td>Serve como referência para comparar os outros dias.</td></tr>
-            <tr><td><strong>1,4</strong></td><td>Dia mais movimentado</td><td>Recebe 40% mais meta que um dia de peso 1,0.</td></tr>
-            <tr><td><strong>1,5</strong></td><td>Dia forte ou feriado</td><td>Recebe 50% mais meta que um dia de peso 1,0.</td></tr>
-            <tr><td><strong>1,8</strong></td><td>Dia de movimento muito alto</td><td>Recebe 80% mais meta que um dia de peso 1,0.</td></tr>
-          </tbody></table></div>
-          <p style="margin:12px 0 0;"><strong>Importante:</strong> o sistema soma os pesos de todos os dias e distribui a meta proporcionalmente. Mesmo com valores diferentes, a soma das metas originais será exatamente igual à meta mensal.</p>
-        </div>
-      </details>
       <div class="bh-resumo" style="margin-bottom:20px;">
         <div class="metric"><div class="lbl">Meta mensal</div><div class="val" id="metaResumoMensal">R$ 0,00</div></div>
         <div class="metric"><div class="lbl">Vendido</div><div class="val" id="metaResumoVendido" style="color:var(--green);">R$ 0,00</div></div>
@@ -1832,7 +1818,7 @@
         <div class="rec-form-grid"><div class="fld"><label>Data</label><input id="metaEspecialData" type="date"></div><div class="fld"><label>Nome</label><input id="metaEspecialNome" placeholder="Ex.: feriado municipal ou evento"></div><div class="fld"><label>Peso especial</label><input id="metaEspecialPeso" type="number" min="0.1" step="0.1" placeholder="1,5"></div></div>
         <div class="rec-actions"><button class="addbtn" style="width:auto;" onclick="salvarDataEspecialMeta()">Salvar data especial</button></div>
       </div>
-      <div class="panel"><div class="panel-head"><div><h2 id="metaCalendarioTitulo">Calendário da meta</h2><div class="rec-config-status">Preencha as vendas diretamente neste módulo. Estes valores são independentes das demais vendas do sistema.</div></div></div><div class="tablewrap"><div id="metaCalendario" class="meta-calendario"></div></div></div>
+      <div class="panel"><div class="panel-head"><div><h2 id="metaCalendarioTitulo">Calendário da meta</h2><div class="rec-config-status">Preencha a venda realizada em cada dia. Dias importados em Vendas com Custo aparecem automaticamente.</div></div></div><div class="tablewrap"><div id="metaCalendario" class="meta-calendario"></div></div></div>
     </div>
 
     <div id="viewVendasComCusto" style="display:none;">
@@ -3354,6 +3340,11 @@
     <div id="backupErro" class="formerr" style="margin-top:12px;"></div>
     <div class="modal-actions" style="margin-top:16px;"><button class="cancelbtn" id="backupFecharBtn" onclick="fecharBackupModal()">Fechar</button></div>
   </div>
+</div>
+
+<div id="backupBackgroundStatus" style="display:none;position:fixed;right:22px;bottom:22px;z-index:2500;width:min(390px,calc(100vw - 44px));padding:14px 16px;border:1px solid #bfd0e8;border-radius:12px;background:#fff;box-shadow:0 12px 35px rgba(22,40,70,.18);font-size:12px;line-height:1.5;color:#24436e;">
+  <strong style="display:block;margin-bottom:4px;">Backup do sistema</strong>
+  <span id="backupBackgroundTexto">Preparando backup…</span>
 </div>
 
 <div id="historicoModal" class="modal-overlay">
