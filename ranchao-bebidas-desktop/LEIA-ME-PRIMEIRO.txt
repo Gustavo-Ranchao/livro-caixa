@@ -1,10 +1,10 @@
-RANCHÃO BEBIDAS — ATUALIZAÇÃO 1.2.40
+RANCHÃO BEBIDAS — ATUALIZAÇÃO 1.2.42 (PACOTE CORRETO)
 
 ORDEM DA ATUALIZAÇÃO
 
-1. No SQL Editor do Supabase, execute todo o arquivo
-   ATUALIZACAO_COMPRAS_ULTIMO_PRECO.sql. Ele cria os campos utilizados para
-   comparar o preço atual com o último preço de compra.
+1. Se ainda não executou, no SQL Editor do Supabase execute o arquivo
+   ATUALIZACAO_COMPRAS_ULTIMO_PRECO.sql. Ele pode ser executado novamente
+   com segurança caso o SQL do pacote anterior já tenha sido aplicado.
 2. Se ainda não executou o SQL das metas, execute todo o arquivo
    modulo_metas_vendas_supabase.sql.
 3. Se ainda não executou o SQL das fotos, execute todo o arquivo
@@ -16,7 +16,7 @@ ORDEM DA ATUALIZAÇÃO
    preservando a estrutura e substituindo os arquivos existentes.
 6. Substitua também .github/workflows/main.yml. Não crie outro workflow.
 7. Abra Actions > Publicar atualização do aplicativo > Run workflow.
-8. Informe a versão 1.2.40 e confirme.
+8. Informe a versão 1.2.42 e confirme.
 
 IMPORTANTE
 
@@ -27,12 +27,30 @@ IMPORTANTE
 
 ALTERAÇÕES
 
-NOVIDADES DA VERSÃO 1.2.40
-- O backup completo continua em segundo plano depois que a janela for fechada.
+NOVIDADES DA VERSÃO 1.2.42
+- Pacote reconstruído sobre a versão 1.2.41, preservando suas alterações.
+- O backup continua em segundo plano depois que a janela de progresso é fechada.
 - Um aviso flutuante mostra o andamento e o resultado do backup.
 - Manutenção de computador, loja e veículos ganhou "Todo histórico".
 - Compras mostra o último preço, o preço atual e a variação percentual.
 - No movimento por conta, dinheiro passa a aparecer como "DINHEIRO".
+
+IMAGEM DA META PARA A EQUIPE
+- Novo botão "Imagem para a equipe" no módulo Metas de Vendas.
+- Gera uma imagem PNG vertical, pronta para enviar pelo WhatsApp.
+- Mostra a loja, o mês, a meta mensal, as datas especiais e a meta original de cada dia.
+- Não mostra vendas realizadas, diferenças ou metas reajustadas.
+- Mantida também a opção de relatório em PDF.
+
+METAS DE VENDAS — INDEPENDÊNCIA E RELATÓRIO DA EQUIPE
+- As vendas realizadas em Metas agora são totalmente independentes de Vendas com Custo.
+- Valores de outros módulos não são mais carregados automaticamente.
+- Cada dia preenchido possui um botão para apagar definitivamente o valor lançado.
+- Os valores apagados não voltam ao atualizar ou reabrir o módulo.
+- Novo PDF para a equipe com apenas a meta mensal e as metas originais de cada dia.
+- A meta reajustada continua disponível somente na tela administrativa do sistema.
+- Valores monetários e campos de digitação usam o padrão brasileiro: R$ 1.000,00.
+- Nova aba explicativa mostra o significado dos pesos 0,7, 1,0, 1,4, 1,5 e 1,8.
 
 CORREÇÕES DA VERSÃO 1.2.39
 - Metas de Vendas foi incluído na lista segura de módulos que podem abrir em janela própria.
