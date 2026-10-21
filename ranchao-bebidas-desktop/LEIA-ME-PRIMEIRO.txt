@@ -1,4 +1,4 @@
-RANCHÃO BEBIDAS — ATUALIZAÇÃO 1.2.42 (PACOTE CORRETO)
+RANCHÃO BEBIDAS — ATUALIZAÇÃO 1.2.43
 
 ORDEM DA ATUALIZAÇÃO
 
@@ -16,7 +16,7 @@ ORDEM DA ATUALIZAÇÃO
    preservando a estrutura e substituindo os arquivos existentes.
 6. Substitua também .github/workflows/main.yml. Não crie outro workflow.
 7. Abra Actions > Publicar atualização do aplicativo > Run workflow.
-8. Informe a versão 1.2.42 e confirme.
+8. Informe a versão 1.2.43 e confirme.
 
 IMPORTANTE
 
@@ -26,6 +26,17 @@ IMPORTANTE
 - Importar, editar ou excluir em Pagamento no Caixa não altera a aba Pagamentos.
 
 ALTERAÇÕES
+
+NOVIDADES DA VERSÃO 1.2.43
+- Metas de Vendas ganhou explicação completa sobre pesos e meta diária.
+- Incluídas as fórmulas da meta diária e da projeção mensal, com exemplos.
+- Explicado por que a soma dos pesos pode ser diferente da quantidade de dias.
+- Explicada a diferença entre meta original e meta reajustada.
+- Vendas com Custo ganhou uma área explicativa para vendas, lucro e margem.
+- Incluídas as fórmulas das três variações, com exemplo completo.
+- A comparação de período personalizado agora usa as mesmas datas do mês anterior.
+- O acesso a todo o histórico de Manutenção ficou em um botão destacado
+  ao lado do título Histórico, nas três categorias de manutenção.
 
 NOVIDADES DA VERSÃO 1.2.42
 - Pacote reconstruído sobre a versão 1.2.41, preservando suas alterações.

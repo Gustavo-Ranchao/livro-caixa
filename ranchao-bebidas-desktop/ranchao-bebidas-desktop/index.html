@@ -1778,9 +1778,9 @@
       </div>
       <div class="panel">
         <div class="panel-head" style="flex-wrap:wrap;">
-          <h2>Histórico</h2>
+          <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;"><h2>Histórico</h2><button type="button" class="filter-btn" id="manTodosPeriodosBtn" onclick="alternarTodoHistoricoManutencao()">🗂️ Ver todo o histórico</button></div>
           <div class="man-filtros">
-            <div class="man-filtro"><label>Mês</label><div style="display:flex;gap:6px;"><input id="manFiltroMes" type="month" onchange="usarMesManutencao()"><button type="button" class="filter-btn" id="manTodosPeriodosBtn" onclick="alternarTodoHistoricoManutencao()">Todo histórico</button></div></div>
+            <div class="man-filtro"><label>Mês</label><input id="manFiltroMes" type="month" onchange="usarMesManutencao()"></div>
             <div class="man-filtro"><label>Status</label><select id="manFiltroStatus" onchange="renderManutencoes()"><option value="todos">Todos</option><option value="realizada">Realizadas</option><option value="agendada">Agendadas</option><option value="em_andamento">Em andamento</option><option value="cancelada">Canceladas</option></select></div>
             <div class="man-filtro busca"><label>Pesquisar</label><input id="manBusca" placeholder="Item, serviço ou fornecedor" oninput="renderManutencoes()"></div>
           </div>
@@ -1809,7 +1809,7 @@
       <details class="panel" style="margin-bottom:20px;overflow:hidden;">
         <summary style="cursor:pointer;padding:16px 20px;font-weight:700;color:var(--ink);user-select:none;">ℹ️ Entenda os pesos usados nas metas diárias</summary>
         <div style="padding:0 20px 18px;color:#43546d;font-size:12px;line-height:1.65;">
-          <p style="margin:0 0 12px;">O peso indica quanto movimento se espera em cada dia. Ele serve para distribuir a meta mensal; não é o valor da venda e nem uma porcentagem pronta.</p>
+          <p style="margin:0 0 12px;">O peso indica quanto movimento se espera em cada dia. Ele serve para distribuir a meta mensal; <strong>não é um valor em reais e não representa uma porcentagem da meta mensal.</strong></p>
           <div class="tablewrap"><table class="ledger"><thead><tr><th>Peso</th><th>Significado</th><th>Exemplo prático</th></tr></thead><tbody>
             <tr><td><strong>0,7</strong></td><td>Dia com movimento menor</td><td>Recebe 30% menos meta que um dia de peso 1,0.</td></tr>
             <tr><td><strong>1,0</strong></td><td>Dia-base</td><td>Serve como referência para comparar os outros dias.</td></tr>
@@ -1817,7 +1817,20 @@
             <tr><td><strong>1,5</strong></td><td>Dia forte ou feriado</td><td>Recebe 50% mais meta que um dia de peso 1,0.</td></tr>
             <tr><td><strong>1,8</strong></td><td>Dia de movimento muito alto</td><td>Recebe 80% mais meta que um dia de peso 1,0.</td></tr>
           </tbody></table></div>
-          <p style="margin:12px 0 0;"><strong>Importante:</strong> o sistema soma os pesos de todos os dias e distribui a meta proporcionalmente. Mesmo com valores diferentes, a soma das metas originais será exatamente igual à meta mensal.</p>
+          <div style="margin-top:14px;padding:14px;border-radius:10px;background:#eef4ff;border:1px solid #cbd9ee;">
+            <strong style="display:block;margin-bottom:7px;">Como a meta de cada dia é calculada</strong>
+            <div style="font-family:var(--font-mono);font-size:12px;overflow-wrap:anywhere;">Meta do dia = (Meta mensal ÷ Soma dos pesos do mês) × Peso do dia</div>
+            <p style="margin:8px 0 0;">A soma dos pesos pode ser diferente da quantidade de dias e isso não indica erro. Em outubro de 2026, por exemplo, existem 31 dias, mas, usando pesos como 0,4, 0,7, 1,2 e 1,6, a soma pode resultar em 29 pontos de peso.</p>
+            <p style="margin:8px 0 0;"><strong>Exemplo:</strong> com meta mensal de R$ 259.000,00 e soma dos pesos igual a 29, cada ponto vale R$ 8.931,03. Um dia de peso 0,4 recebe meta original de R$ 3.572,41.</p>
+            <p style="margin:8px 0 0;">A soma de todas as metas originais permanece exatamente igual à meta mensal.</p>
+          </div>
+          <div style="margin-top:12px;padding:14px;border-radius:10px;background:#f7f9fc;border:1px solid #d7e1ee;">
+            <strong style="display:block;margin-bottom:7px;">Como a projeção do mês é calculada</strong>
+            <div style="font-family:var(--font-mono);font-size:12px;overflow-wrap:anywhere;">Projeção = (Vendas dos dias preenchidos ÷ Soma das metas originais desses dias) × Meta mensal</div>
+            <p style="margin:8px 0 0;">A projeção usa a <strong>meta original</strong>, e não a meta reajustada. Ela estima quanto o mês pode fechar se a loja mantiver o mesmo desempenho proporcional dos dias já informados.</p>
+            <p style="margin:8px 0 0;"><strong>Exemplo:</strong> se as metas originais dos dias preenchidos somam R$ 100.000,00 e as vendas somam R$ 110.000,00, o desempenho está 10% acima. Para uma meta mensal de R$ 259.000,00, a projeção será R$ 284.900,00.</p>
+            <p style="margin:8px 0 0;">A <strong>meta reajustada</strong> tem outra finalidade: redistribuir entre os dias ainda pendentes aquilo que ficou acima ou abaixo da meta. Dias sem venda preenchida não entram na projeção; um dia preenchido com R$ 0,00 entra como concluído.</p>
+          </div>
         </div>
       </details>
       <div class="bh-resumo" style="margin-bottom:20px;">
@@ -1903,7 +1916,17 @@
             <tbody id="vendasCategoriaBody"></tbody>
           </table>
         </div>
-        <div style="margin:0 20px 18px;padding:12px 14px;border:1px solid #d7e1ee;background:#f8fafc;border-radius:10px;font-size:12px;color:#43546d;line-height:1.5;"><strong>Como funciona “Var. margem”:</strong> mostra quanto a margem aumentou ou diminuiu em porcentagem em relação ao mesmo período do mês anterior. Exemplo: se a margem anterior era 10% e agora é 12%, a variação exibida será <strong>+20%</strong>. Não é a diferença simples de 2 pontos.</div>
+        <details style="margin:0 20px 18px;border:1px solid #d7e1ee;background:#f8fafc;border-radius:10px;font-size:12px;color:#43546d;line-height:1.6;overflow:hidden;">
+          <summary style="cursor:pointer;padding:13px 14px;font-weight:700;color:var(--ink);user-select:none;">ℹ️ Entenda vendas, lucro, margem e suas variações</summary>
+          <div style="padding:0 14px 14px;">
+            <p><strong>Variação de vendas:</strong> (Venda atual − Venda anterior) ÷ Venda anterior × 100. Exemplo: de R$ 100.000,00 para R$ 120.000,00 = <strong>+20%</strong>.</p>
+            <p><strong>Lucro:</strong> Vendas − Custo. Exemplo: R$ 120.000,00 vendidos − R$ 90.000,00 de custo = <strong>R$ 30.000,00 de lucro bruto</strong>.</p>
+            <p><strong>Variação do lucro:</strong> (Lucro atual − Lucro anterior) ÷ Lucro anterior × 100. Exemplo: de R$ 20.000,00 para R$ 30.000,00 = <strong>+50%</strong>.</p>
+            <p><strong>Margem:</strong> Lucro ÷ Vendas × 100. Se o lucro foi R$ 30.000,00 sobre vendas de R$ 120.000,00, a margem é <strong>25%</strong>. Isso significa que, a cada R$ 100 vendidos, ficaram R$ 25 de lucro bruto antes das demais despesas.</p>
+            <p><strong>Variação da margem:</strong> (Margem atual − Margem anterior) ÷ Margem anterior × 100. Se a margem passou de 20% para 25%, o sistema mostra <strong>+25%</strong>. A diferença simples seria 5 pontos percentuais, mas aqui a exibição é em porcentagem.</p>
+            <p style="margin-bottom:0;"><strong>Período comparado:</strong> o sistema compara com as mesmas datas do mês anterior. Se o filtro atual for de 15/09 a 15/09, a comparação será com 15/08 a 15/08. Em um mês ainda incompleto, considera somente até o último dia com lançamento.</p>
+          </div>
+        </details>
       </div>
 
       <div class="panel" style="margin-top:20px;">
