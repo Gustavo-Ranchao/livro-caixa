@@ -50,9 +50,20 @@
   .lc-table input[type="number"]{min-width:82px;}
   .lc-table input[type="date"]{min-width:135px;}
   .lc-file-name{max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11px;color:var(--muted);}
-  .lc-recebedor-historico-cell{min-width:410px;}
+  table.ledger.lc-history-table{min-width:1420px;table-layout:fixed;}
+  table.ledger.lc-history-table col:nth-child(1){width:125px;}
+  table.ledger.lc-history-table col:nth-child(2){width:105px;}
+  table.ledger.lc-history-table col:nth-child(3){width:370px;}
+  table.ledger.lc-history-table col:nth-child(4){width:190px;}
+  table.ledger.lc-history-table col:nth-child(5){width:155px;}
+  table.ledger.lc-history-table col:nth-child(6){width:150px;}
+  table.ledger.lc-history-table col:nth-child(7){width:130px;}
+  table.ledger.lc-history-table col:nth-child(8){width:195px;}
+  table.ledger.lc-history-table td{overflow:visible;text-overflow:clip;}
+  .lc-recebedor-historico-cell{min-width:0;}
   .lc-recebedor-historico-wrap{display:flex;flex-direction:column;align-items:stretch;gap:3px;width:100%;}
-  .lc-recebedor-historico-wrap input{display:block;width:100%;min-width:370px;}
+  .lc-recebedor-historico-wrap input{display:block;width:100%;min-width:0;padding:8px 10px;border:1px solid var(--line);border-radius:6px;background:#fff;color:var(--ink);font:12px var(--font-sans);}
+  .lc-history-category{display:block;width:100%;min-width:0;padding:8px 9px;border:1px solid var(--line);border-radius:6px;background:#fff;color:var(--ink);font:12px var(--font-sans);}
   .lc-recebedor-historico-status{display:block;min-height:13px;font-size:10px;color:var(--muted);text-align:left;}
   .lc-summary{display:flex;gap:10px;flex-wrap:wrap;margin:14px 0;}
   .lc-summary span{background:#fff;border:1px solid var(--paper3);border-radius:7px;padding:7px 10px;font-size:11px;color:var(--muted);}
@@ -1658,7 +1669,7 @@
           <div class="metric"><div class="lbl">Comprovantes exibidos</div><div class="val" id="lcTotalQuantidade">0</div></div>
         </div>
         <div class="lc-category-summary" id="lcResumoCategorias"></div>
-        <div class="tablewrap"><table class="ledger"><thead><tr><th>Nº</th><th>Data</th><th>Recebedor / descrição editável</th><th>Classificação</th><th>CPF/CNPJ</th><th>Modelo</th><th style="text-align:right;">Valor</th><th>Arquivo</th></tr></thead><tbody id="lcHistoricoBody"></tbody></table></div>
+        <div class="tablewrap"><table class="ledger lc-history-table"><colgroup><col><col><col><col><col><col><col><col></colgroup><thead><tr><th>Nº</th><th>Data</th><th>Recebedor / descrição editável</th><th>Classificação</th><th>CPF/CNPJ</th><th>Modelo</th><th style="text-align:right;">Valor</th><th>Arquivo</th></tr></thead><tbody id="lcHistoricoBody"></tbody></table></div>
         <div class="empty" id="lcHistoricoEmpty" style="display:none;">Nenhum comprovante analisado neste período.</div>
       </div>
     </div>
