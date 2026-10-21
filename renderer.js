@@ -4453,8 +4453,8 @@ async function carregarManutencoes(){
   renderManutencoes();
 }
 
-function usarMesManutencao(){manutencaoTodoHistorico=false;const campo=document.getElementById('manFiltroMes'),btn=document.getElementById('manTodosPeriodosBtn');campo.disabled=false;if(btn){btn.classList.remove('active');btn.textContent='Todo histórico';}carregarManutencoes();}
-function alternarTodoHistoricoManutencao(){manutencaoTodoHistorico=!manutencaoTodoHistorico;const campo=document.getElementById('manFiltroMes'),btn=document.getElementById('manTodosPeriodosBtn');campo.disabled=manutencaoTodoHistorico;if(btn){btn.classList.toggle('active',manutencaoTodoHistorico);btn.textContent=manutencaoTodoHistorico?'Exibindo tudo':'Todo histórico';}carregarManutencoes();}
+function usarMesManutencao(){manutencaoTodoHistorico=false;const campo=document.getElementById('manFiltroMes'),btn=document.getElementById('manTodosPeriodosBtn');campo.disabled=false;if(btn){btn.classList.remove('active');btn.textContent='🗂️ Ver todo o histórico';}carregarManutencoes();}
+function alternarTodoHistoricoManutencao(){manutencaoTodoHistorico=!manutencaoTodoHistorico;const campo=document.getElementById('manFiltroMes'),btn=document.getElementById('manTodosPeriodosBtn');campo.disabled=manutencaoTodoHistorico;if(btn){btn.classList.toggle('active',manutencaoTodoHistorico);btn.textContent=manutencaoTodoHistorico?'📅 Voltar ao mês':'🗂️ Ver todo o histórico';}carregarManutencoes();}
 
 function textoStatusManutencao(status){return ({realizada:'Realizada',agendada:'Agendada',em_andamento:'Em andamento',cancelada:'Cancelada'})[status]||status;}
 
@@ -5958,8 +5958,8 @@ async function carregarVendas(){
   if(mesSelecionado && mesSelecionado!=='todos'){
     const [ano,mes]=mesSelecionado.split('-').map(Number),anterior=new Date(ano,mes-2,1),anoAnt=anterior.getFullYear(),mesAnt=String(anterior.getMonth()+1).padStart(2,'0');
     vendasMesComparacao=anoAnt+'-'+mesAnt;
-    const datasAtuais=vendasCache.map(v=>v.data).filter(d=>d&&d.startsWith(mesSelecionado)).sort(),ultimoAtual=new Date(ano,mes,0).getDate(),hoje=todayStr(),diaLimite=datasAtuais.length?Number(datasAtuais[datasAtuais.length-1].slice(8,10)):(hoje.startsWith(mesSelecionado)?Number(hoje.slice(8,10)):ultimoAtual);
-    const ultimoAnt=new Date(anoAnt,anterior.getMonth()+1,0).getDate(),diaAnt=Math.min(diaLimite,ultimoAnt),deAnt=vendasMesComparacao+'-01',ateAnt=vendasMesComparacao+'-'+String(diaAnt).padStart(2,'0');
+    const datasAtuais=vendasCache.map(v=>v.data).filter(d=>d&&d.startsWith(mesSelecionado)).sort(),ultimoAtual=new Date(ano,mes,0).getDate(),hoje=todayStr(),diaInicioAtual=de&&de.startsWith(mesSelecionado)?Number(de.slice(8,10)):1,diaLimite=datasAtuais.length?Number(datasAtuais[datasAtuais.length-1].slice(8,10)):(ate&&ate.startsWith(mesSelecionado)?Number(ate.slice(8,10)):(hoje.startsWith(mesSelecionado)?Number(hoje.slice(8,10)):ultimoAtual));
+    const ultimoAnt=new Date(anoAnt,anterior.getMonth()+1,0).getDate(),diaInicioAnt=Math.min(diaInicioAtual,ultimoAnt),diaAnt=Math.max(diaInicioAnt,Math.min(diaLimite,ultimoAnt)),deAnt=vendasMesComparacao+'-'+String(diaInicioAnt).padStart(2,'0'),ateAnt=vendasMesComparacao+'-'+String(diaAnt).padStart(2,'0');
     vendasPeriodoComparacaoTexto=fmtData(deAnt)+' a '+fmtData(ateAnt);
     const respostaAnterior=await buscarTodasLinhas((from,to)=>sb.from('vendas_itens').select('*').eq('loja',lojaAtual).gte('data',deAnt).lte('data',ateAnt).order('data').range(from,to));
     if(sequencia!==vendasCarregamentoSequencia)return;
