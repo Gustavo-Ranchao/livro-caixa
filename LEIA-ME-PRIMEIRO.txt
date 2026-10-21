@@ -1,4 +1,4 @@
-RANCHÃO BEBIDAS — ATUALIZAÇÃO 1.2.44
+RANCHÃO BEBIDAS — ATUALIZAÇÃO 1.2.45
 
 ORDEM DA ATUALIZAÇÃO
 
@@ -19,7 +19,7 @@ ORDEM DA ATUALIZAÇÃO
    preservando a estrutura e substituindo os arquivos existentes.
 7. Substitua também .github/workflows/main.yml. Não crie outro workflow.
 8. Abra Actions > Publicar atualização do aplicativo > Run workflow.
-9. Informe a versão 1.2.44 e confirme.
+9. Informe a versão 1.2.45 e confirme.
 
 IMPORTANTE
 
@@ -29,6 +29,13 @@ IMPORTANTE
 - Importar, editar ou excluir em Pagamento no Caixa não altera a aba Pagamentos.
 
 ALTERAÇÕES
+
+NOVIDADES DA VERSÃO 1.2.45
+- Reorganizada a tabela do histórico no Leitor de Comprovantes.
+- Recebedor, classificação e demais informações ficam alinhados lado a lado.
+- O campo Recebedor / descrição editável agora possui borda completa,
+  espaçamento interno e largura própria, sem ficar cortado pela classificação.
+- A tabela ganhou rolagem horizontal quando a tela não comportar todas as colunas.
 
 NOVIDADES DA VERSÃO 1.2.44
 - No Fluxo de Caixa, LANÇAMENTOS EM DINHEIRO aparece em letras maiúsculas.
