@@ -1,22 +1,25 @@
-RANCHÃO BEBIDAS — ATUALIZAÇÃO 1.2.43
+RANCHÃO BEBIDAS — ATUALIZAÇÃO 1.2.44
 
 ORDEM DA ATUALIZAÇÃO
 
-1. Se ainda não executou, no SQL Editor do Supabase execute o arquivo
+1. No SQL Editor do Supabase, execute todo o arquivo
+   ATUALIZACAO_LEITOR_CLASSIFICACAO_1.2.44.sql. Ele pode ser executado
+   novamente com segurança e não apaga nenhum comprovante.
+2. Se ainda não executou, no SQL Editor do Supabase execute o arquivo
    ATUALIZACAO_COMPRAS_ULTIMO_PRECO.sql. Ele pode ser executado novamente
    com segurança caso o SQL do pacote anterior já tenha sido aplicado.
-2. Se ainda não executou o SQL das metas, execute todo o arquivo
+3. Se ainda não executou o SQL das metas, execute todo o arquivo
    modulo_metas_vendas_supabase.sql.
-3. Se ainda não executou o SQL das fotos, execute todo o arquivo
+4. Se ainda não executou o SQL das fotos, execute todo o arquivo
    ATUALIZACAO_FOTOS_PRODUTOS.sql. Ele cria o armazenamento privado e libera
    o envio das fotos dos produtos no módulo Compras.
-4. Se você ainda não executou o SQL da versão 1.2.30, execute o arquivo
+5. Se você ainda não executou o SQL da versão 1.2.30, execute o arquivo
    ATUALIZACAO_IMPORTAR_PAGAMENTOS_CAIXA.sql incluído neste pacote.
-5. Envie TODOS os arquivos e pastas deste pacote para a raiz do GitHub,
+6. Envie TODOS os arquivos e pastas deste pacote para a raiz do GitHub,
    preservando a estrutura e substituindo os arquivos existentes.
-6. Substitua também .github/workflows/main.yml. Não crie outro workflow.
-7. Abra Actions > Publicar atualização do aplicativo > Run workflow.
-8. Informe a versão 1.2.43 e confirme.
+7. Substitua também .github/workflows/main.yml. Não crie outro workflow.
+8. Abra Actions > Publicar atualização do aplicativo > Run workflow.
+9. Informe a versão 1.2.44 e confirme.
 
 IMPORTANTE
 
@@ -26,6 +29,19 @@ IMPORTANTE
 - Importar, editar ou excluir em Pagamento no Caixa não altera a aba Pagamentos.
 
 ALTERAÇÕES
+
+NOVIDADES DA VERSÃO 1.2.44
+- No Fluxo de Caixa, LANÇAMENTOS EM DINHEIRO aparece em letras maiúsculas.
+- Saídas em dinheiro exigem uma classificação financeira antes de salvar.
+- A mesma validação também foi aplicada ao editar uma saída em dinheiro.
+- O Leitor de Comprovantes mostra cards com total pago, total em mercadorias
+  e quantidade de comprovantes exibidos.
+- Cada comprovante pode ser classificado como Mercadoria, Despesa operacional,
+  Impostos e taxas, Pessoal, Investimento, Outros ou Não classificado.
+- A classificação pode ser escolhida durante a conferência do lote e alterada
+  posteriormente no histórico.
+- O resumo por classificação é atualizado imediatamente e respeita a pesquisa.
+- A lista incluída no ZIP também informa a classificação e o total em mercadorias.
 
 NOVIDADES DA VERSÃO 1.2.43
 - Metas de Vendas ganhou explicação completa sobre pesos e meta diária.
