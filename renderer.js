@@ -4142,6 +4142,18 @@ function lcInterpretarTexto(texto){
   return {recebedor,documento,valor,data,horario,codigo,modelo,status:faltando.length?'revisar':'pronto',mensagem:faltando.length?'Confira: '+faltando.join(', '):'Leitura concluída'};
 }
 
+const LC_CATEGORIAS=[
+  ['','Não classificado'],
+  ['mercadoria','Mercadoria'],
+  ['despesa_operacional','Despesa operacional'],
+  ['impostos_taxas','Impostos e taxas'],
+  ['pessoal','Pessoal'],
+  ['investimento','Investimento'],
+  ['outros','Outros']
+];
+function lcNomeCategoria(valor){return LC_CATEGORIAS.find(x=>x[0]===String(valor||''))?.[1]||'Não classificado';}
+function lcOpcoesCategoria(valor){return LC_CATEGORIAS.map(([id,nome])=>`<option value="${id}" ${String(valor||'')===id?'selected':''}>${nome}</option>`).join('');}
+
 async function abrirLeituraComprovantes(){
   const mes=mesAtualPadrao();
   if(!document.getElementById('lcFiltroMes').value)document.getElementById('lcFiltroMes').value=mes;
@@ -4182,7 +4194,7 @@ async function selecionarLoteLeituraComprovantes(fileList){
   if(workerOcr)await workerOcr.terminate().catch(()=>{});
   for(let i=0;i<paginas.length;i++){
     const p=paginas[i],arquivo=p.arquivo;lcAtualizarProgresso(i,paginas.length,'Lendo comprovante '+(i+1)+' de '+paginas.length+': '+p.nomeArquivo);
-    let item={id:'lc_'+Date.now()+'_'+i,numero:inicio+i,arquivo,nomeArquivo:p.nomeArquivo,tipoArquivo:arquivo.type||(lcEhImagem(arquivo)?'image/jpeg':'application/pdf'),url:URL.createObjectURL(arquivo),recebedor:'',documento:'',valor:0,data:'',horario:'',codigo:'',modelo:'Não identificado',status:'erro',mensagem:'Não foi possível ler',hash:''};
+    let item={id:'lc_'+Date.now()+'_'+i,numero:inicio+i,arquivo,nomeArquivo:p.nomeArquivo,tipoArquivo:arquivo.type||(lcEhImagem(arquivo)?'image/jpeg':'application/pdf'),url:URL.createObjectURL(arquivo),recebedor:'',documento:'',valor:0,data:'',horario:'',codigo:'',modelo:'Não identificado',categoria:'',status:'erro',mensagem:'Não foi possível ler',hash:''};
     try{const hash=await lcHashArquivo(arquivo),dados=lcInterpretarTexto(p.texto);if(lcEhImagem(arquivo)&&dados.modelo==='Outro PDF')dados.modelo='Imagem - OCR';item={...item,...dados,hash};}catch(e){item.mensagem=e&&e.message?e.message:'Não foi possível ler o comprovante.';}
     lcLote.push(item);if(i%5===4||i===paginas.length-1)renderLoteLeituras();if(i%10===9)await new Promise(resolve=>setTimeout(resolve,0));
   }
@@ -4234,7 +4246,7 @@ function renderResumoLoteLeituras(){
 
 function renderLoteLeituras(){
   document.getElementById('lcLotePanel').style.display=lcLote.length?'block':'none';renderResumoLoteLeituras();
-  document.getElementById('lcLoteBody').innerHTML=lcLote.map(x=>`<tr title="${escapeHtml(x.mensagem||'')}"><td><input type="number" min="1" value="${x.numero}" oninput="atualizarCampoLoteLeitura('${x.id}','numero',this.value)"></td><td><div class="lc-file-name" title="${escapeHtml(x.nomeArquivo)}">${escapeHtml(x.nomeArquivo)}</div></td><td><input value="${escapeHtml(x.recebedor)}" oninput="atualizarCampoLoteLeitura('${x.id}','recebedor',this.value)"></td><td><input value="${escapeHtml(x.documento)}" oninput="atualizarCampoLoteLeitura('${x.id}','documento',this.value)"></td><td><input type="number" min="0" step="0.01" value="${x.valor||''}" oninput="atualizarCampoLoteLeitura('${x.id}','valor',this.value)"></td><td><input type="date" value="${x.data}" oninput="atualizarCampoLoteLeitura('${x.id}','data',this.value)"></td><td>${escapeHtml(x.modelo)}</td><td><span id="lcStatusLote${x.id}" class="lc-status ${x.status}">${x.status==='pronto'?'Pronto':x.status==='revisar'?'Revisar':x.status==='duplicado'?'Duplicado':'Erro'}</span></td><td><div class="rowactions"><button class="iconbtn" title="Abrir PDF" onclick="abrirPreviewLeitura('${x.id}')">↗</button><button class="iconbtn del" title="Remover do lote" onclick="removerLeituraDoLote('${x.id}')">✕</button></div></td></tr>`).join('');
+  document.getElementById('lcLoteBody').innerHTML=lcLote.map(x=>`<tr title="${escapeHtml(x.mensagem||'')}"><td><input type="number" min="1" value="${x.numero}" oninput="atualizarCampoLoteLeitura('${x.id}','numero',this.value)"></td><td><div class="lc-file-name" title="${escapeHtml(x.nomeArquivo)}">${escapeHtml(x.nomeArquivo)}</div></td><td><input value="${escapeHtml(x.recebedor)}" oninput="atualizarCampoLoteLeitura('${x.id}','recebedor',this.value)"></td><td><input value="${escapeHtml(x.documento)}" oninput="atualizarCampoLoteLeitura('${x.id}','documento',this.value)"></td><td><input type="number" min="0" step="0.01" value="${x.valor||''}" oninput="atualizarCampoLoteLeitura('${x.id}','valor',this.value)"></td><td><input type="date" value="${x.data}" oninput="atualizarCampoLoteLeitura('${x.id}','data',this.value)"></td><td><select aria-label="Classificação" onchange="atualizarCampoLoteLeitura('${x.id}','categoria',this.value)">${lcOpcoesCategoria(x.categoria)}</select></td><td>${escapeHtml(x.modelo)}</td><td><span id="lcStatusLote${x.id}" class="lc-status ${x.status}">${x.status==='pronto'?'Pronto':x.status==='revisar'?'Revisar':x.status==='duplicado'?'Duplicado':'Erro'}</span></td><td><div class="rowactions"><button class="iconbtn" title="Abrir PDF" onclick="abrirPreviewLeitura('${x.id}')">↗</button><button class="iconbtn del" title="Remover do lote" onclick="removerLeituraDoLote('${x.id}')">✕</button></div></td></tr>`).join('');
 }
 
 function abrirPreviewLeitura(id){const x=lcLote.find(i=>i.id===id);if(x)mostrarPreviewLeituraComprovante(x.url,x.nomeArquivo,x.tipoArquivo);}
@@ -4252,7 +4264,7 @@ async function salvarTodasLeituras(){
     const tipo=x.tipoArquivo||x.arquivo.type||'application/octet-stream';
     const {error:erroUpload}=await sb.storage.from('comprovantes').upload(caminho,x.arquivo,{contentType:tipo,upsert:false});
     if(erroUpload){erros.push(x.nomeArquivo+': '+erroUpload.message);continue;}
-    const {error}=await sb.from('leituras_comprovantes').insert({loja:lojaAtual,numero:Number(x.numero)||null,recebedor:x.recebedor.trim(),documento:x.documento.trim()||null,valor:x.valor,data_pagamento:x.data,horario_pagamento:x.horario||null,modelo:x.modelo,codigo_transacao:x.codigo||null,arquivo_hash:x.hash,nome_arquivo:x.nomeArquivo,caminho_storage:caminho,tipo_arquivo:tipo,tamanho_bytes:x.arquivo.size});
+    const {error}=await sb.from('leituras_comprovantes').insert({loja:lojaAtual,numero:Number(x.numero)||null,recebedor:x.recebedor.trim(),documento:x.documento.trim()||null,valor:x.valor,data_pagamento:x.data,horario_pagamento:x.horario||null,modelo:x.modelo,categoria:x.categoria||null,codigo_transacao:x.codigo||null,arquivo_hash:x.hash,nome_arquivo:x.nomeArquivo,caminho_storage:caminho,tipo_arquivo:tipo,tamanho_bytes:x.arquivo.size});
     if(error){await sb.storage.from('comprovantes').remove([caminho]);erros.push(x.nomeArquivo+': '+error.message);continue;}
     salvos++;idsSalvos.add(x.id);
   }
@@ -4285,10 +4297,23 @@ async function carregarHistoricoLeituras(){
 
 async function renderHistoricoLeituras(){
   const busca=(document.getElementById('lcBuscaHistorico')?.value||'').trim().toLowerCase();
-  const lista=lcHistorico.filter(x=>!busca||[x.recebedor,x.documento,x.modelo,String(x.valor),x.data_pagamento].some(v=>String(v||'').toLowerCase().includes(busca)));
+  const lista=lcHistorico.filter(x=>!busca||[x.recebedor,x.documento,x.modelo,lcNomeCategoria(x.categoria),String(x.valor),x.data_pagamento].some(v=>String(v||'').toLowerCase().includes(busca)));
   document.getElementById('lcHistoricoEmpty').style.display=lista.length?'none':'block';
-  const linhas=lista.map(x=>{const indice=lcHistorico.findIndex(v=>Number(v.id)===Number(x.id));return `<tr><td><div class="rowactions" style="justify-content:flex-start;"><strong style="min-width:24px;text-align:center;">${x.numero_ordem??'—'}</strong><button type="button" class="iconbtn" title="Mover para cima" ${indice<=0?'disabled':''} onclick="moverLeituraComprovante(${Number(x.id)},-1)">▲</button><button type="button" class="iconbtn" title="Mover para baixo" ${indice<0||indice>=lcHistorico.length-1?'disabled':''} onclick="moverLeituraComprovante(${Number(x.id)},1)">▼</button></div></td><td>${fmtData(x.data_pagamento)}</td><td class="lc-recebedor-historico-cell"><div class="lc-recebedor-historico-wrap"><input id="lcRecebedorSalvo${Number(x.id)}" value="${escapeHtml(x.recebedor)}" title="${escapeHtml(x.recebedor)}" maxlength="300" aria-label="Recebedor ou descrição" onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur();}" onchange="salvarRecebedorLeitura(${Number(x.id)},this)"><span id="lcRecebedorStatus${Number(x.id)}" class="lc-recebedor-historico-status"></span></div></td><td>${escapeHtml(x.documento||'—')}</td><td>${escapeHtml(x.modelo||'—')}</td><td class="valor">${brl(x.valor)}</td><td><div class="rowactions"><button type="button" class="filter-btn" data-caminho="${escapeHtml(x.caminho_storage||'')}" data-nome="${escapeHtml(x.nome_arquivo||'Comprovante')}" data-tipo="${escapeHtml(x.tipo_arquivo||'')}" onclick="abrirComprovanteLeituraSalvo(this.dataset.caminho,this.dataset.nome,this.dataset.tipo)">👁 Ver</button><button type="button" class="iconbtn del" title="Excluir comprovante" onclick="abrirExclusaoLeiturasComprovantes(${Number(x.id)})">✕</button></div></td></tr>`;});
+  const total=lista.reduce((s,x)=>s+(Number(x.valor)||0),0),mercadorias=lista.filter(x=>x.categoria==='mercadoria').reduce((s,x)=>s+(Number(x.valor)||0),0),porCategoria=new Map();
+  lista.forEach(x=>{const nome=lcNomeCategoria(x.categoria);porCategoria.set(nome,(porCategoria.get(nome)||0)+(Number(x.valor)||0));});
+  document.getElementById('lcTotalPago').textContent=brl(total);document.getElementById('lcTotalMercadorias').textContent=brl(mercadorias);document.getElementById('lcTotalQuantidade').textContent=String(lista.length);
+  document.getElementById('lcResumoCategorias').innerHTML=[...porCategoria.entries()].sort((a,b)=>b[1]-a[1]).map(([nome,valor])=>`<span>${escapeHtml(nome)}: <b>${brl(valor)}</b></span>`).join('');
+  const linhas=lista.map(x=>{const indice=lcHistorico.findIndex(v=>Number(v.id)===Number(x.id));return `<tr><td><div class="rowactions" style="justify-content:flex-start;"><strong style="min-width:24px;text-align:center;">${x.numero_ordem??'—'}</strong><button type="button" class="iconbtn" title="Mover para cima" ${indice<=0?'disabled':''} onclick="moverLeituraComprovante(${Number(x.id)},-1)">▲</button><button type="button" class="iconbtn" title="Mover para baixo" ${indice<0||indice>=lcHistorico.length-1?'disabled':''} onclick="moverLeituraComprovante(${Number(x.id)},1)">▼</button></div></td><td>${fmtData(x.data_pagamento)}</td><td class="lc-recebedor-historico-cell"><div class="lc-recebedor-historico-wrap"><input id="lcRecebedorSalvo${Number(x.id)}" value="${escapeHtml(x.recebedor)}" title="${escapeHtml(x.recebedor)}" maxlength="300" aria-label="Recebedor ou descrição" onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur();}" onchange="salvarRecebedorLeitura(${Number(x.id)},this)"><span id="lcRecebedorStatus${Number(x.id)}" class="lc-recebedor-historico-status"></span></div></td><td><select aria-label="Classificação do comprovante" onchange="salvarCategoriaLeitura(${Number(x.id)},this)">${lcOpcoesCategoria(x.categoria)}</select></td><td>${escapeHtml(x.documento||'—')}</td><td>${escapeHtml(x.modelo||'—')}</td><td class="valor">${brl(x.valor)}</td><td><div class="rowactions"><button type="button" class="filter-btn" data-caminho="${escapeHtml(x.caminho_storage||'')}" data-nome="${escapeHtml(x.nome_arquivo||'Comprovante')}" data-tipo="${escapeHtml(x.tipo_arquivo||'')}" onclick="abrirComprovanteLeituraSalvo(this.dataset.caminho,this.dataset.nome,this.dataset.tipo)">👁 Ver</button><button type="button" class="iconbtn del" title="Excluir comprovante" onclick="abrirExclusaoLeiturasComprovantes(${Number(x.id)})">✕</button></div></td></tr>`;});
   document.getElementById('lcHistoricoBody').innerHTML=linhas.join('');
+}
+
+async function salvarCategoriaLeitura(id,select){
+  const item=lcHistorico.find(x=>Number(x.id)===Number(id));if(!item)return;
+  const anterior=item.categoria||'',categoria=select.value||'';select.disabled=true;
+  const {error}=await sb.from('leituras_comprovantes').update({categoria:categoria||null}).eq('id',id).eq('loja',lojaAtual);
+  select.disabled=false;
+  if(error){select.value=anterior;alert('Não foi possível salvar a classificação. Execute o SQL da versão 1.2.44 no Supabase e tente novamente.');return;}
+  item.categoria=categoria;renderHistoricoLeituras();
 }
 
 async function salvarRecebedorLeitura(id,input){
@@ -4336,7 +4361,7 @@ function fecharPreviewLeituraComprovante(){
 
 function leiturasComprovantesFiltradas(){
   const busca=(document.getElementById('lcBuscaHistorico')?.value||'').trim().toLowerCase();
-  return lcHistorico.filter(x=>!busca||[x.recebedor,x.documento,x.modelo,String(x.valor),x.data_pagamento].some(v=>String(v||'').toLowerCase().includes(busca)));
+  return lcHistorico.filter(x=>!busca||[x.recebedor,x.documento,x.modelo,lcNomeCategoria(x.categoria),String(x.valor),x.data_pagamento].some(v=>String(v||'').toLowerCase().includes(busca)));
 }
 
 function nomeArquivoLeituraZip(x,indice){
@@ -4362,13 +4387,14 @@ async function baixarLeiturasComprovantesZip(){
       const blob=await resposta.blob(),numero=String(x.numero_ordem??i+1).padStart(3,'0'),nomeOriginal=nomeArquivoLeituraZip(x,i),ponto=nomeOriginal.lastIndexOf('.'),nomeBase=nomeOriginal.slice(0,ponto),extensao=nomeOriginal.slice(ponto);
       let nome=nomeOriginal,contador=2;while(usados.has(nome)){nome=nomeBase+' ('+contador+')'+extensao;contador++;}usados.add(nome);
       zip.file(nome,blob,{compression:'STORE'});adicionados++;
-      manifesto.push(numero+' | '+fmtData(x.data_pagamento)+' | '+(x.recebedor||'—')+' | '+(x.documento||'—')+' | '+brl(x.valor));
+      manifesto.push(numero+' | '+fmtData(x.data_pagamento)+' | '+(x.recebedor||'—')+' | '+lcNomeCategoria(x.categoria)+' | '+(x.documento||'—')+' | '+brl(x.valor));
     }catch(e){falhas++;console.error('Erro ao preparar comprovante analisado:',x.id,e);}
     atualizarProgresso(((i+1)/lista.length)*85);
   }
   if(!adicionados){fecharProgresso();alert('Não foi possível baixar os comprovantes. Verifique sua conexão e tente novamente.');return;}
   const totalPago=lista.reduce((s,x)=>s+(Number(x.valor)||0),0);
-  zip.file('lista-de-comprovantes.txt','COMPROVANTES PAGOS - '+(NOMES_LOJA[lojaAtual]||lojaAtual)+'\nPeríodo: '+(document.getElementById('lcFiltroMes')?.value||'')+'\n\nNº | Data | Recebedor | CPF/CNPJ | Valor pago\n'+manifesto.join('\n')+'\n\nTOTAL PAGO: '+brl(totalPago));
+  const totalMercadorias=lista.filter(x=>x.categoria==='mercadoria').reduce((s,x)=>s+(Number(x.valor)||0),0);
+  zip.file('lista-de-comprovantes.txt','COMPROVANTES PAGOS - '+(NOMES_LOJA[lojaAtual]||lojaAtual)+'\nPeríodo: '+(document.getElementById('lcFiltroMes')?.value||'')+'\n\nNº | Data | Recebedor | Classificação | CPF/CNPJ | Valor pago\n'+manifesto.join('\n')+'\n\nTOTAL PAGO: '+brl(totalPago)+'\nTOTAL EM MERCADORIAS: '+brl(totalMercadorias));
   document.getElementById('progressoTitulo').textContent='Criando arquivo ZIP…';
   const conteudo=await zip.generateAsync({type:'blob',compression:'DEFLATE',compressionOptions:{level:6}},meta=>atualizarProgresso(85+meta.percent*.15));
   atualizarProgresso(100);const url=URL.createObjectURL(conteudo),link=document.createElement('a');link.href=url;link.download='comprovantes-analisados-'+(NOMES_LOJA[lojaAtual]||lojaAtual).toLowerCase().replace(/\s+/g,'-')+'-'+(document.getElementById('lcFiltroMes')?.value||todayStr())+'.zip';document.body.appendChild(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),1500);setTimeout(fecharProgresso,400);
@@ -6393,6 +6419,8 @@ let dinheiroTipoAtual = 'entrada';
 function setDinheiroTipo(t){
   dinheiroTipoAtual = t;
   document.querySelectorAll('#dinheiroTipoToggle .tipo-btn').forEach(b=>b.classList.toggle('active', b.dataset.tipo===t));
+  const label=document.getElementById('dinheiroCategoriaLabel');
+  if(label)label.textContent=t==='saida'?'Classificação financeira *':'Classificação financeira (opcional)';
 }
 
 function navegarTipoDinheiroPorTeclado(event, modoEdicao=false){
@@ -6550,7 +6578,10 @@ async function salvarLancamentoDinheiro(){
   const tipoId = document.getElementById('dinheiro_categoria').value || null;
   const err = document.getElementById('dinheiroErr');
 
-  if(!descricao || !data || isNaN(valorBruto) || valorBruto<=0){
+  if(!descricao || !data || isNaN(valorBruto) || valorBruto<=0 || (dinheiroTipoAtual==='saida'&&!tipoId)){
+    err.textContent=dinheiroTipoAtual==='saida'&&!tipoId
+      ? 'Selecione uma classificação financeira para registrar uma saída.'
+      : 'Preencha descrição, data e um valor maior que zero.';
     err.style.display = 'block';
     return;
   }
@@ -6594,6 +6625,8 @@ let edinheiroTipoAtual = 'entrada';
 function setEdinheiroTipo(t){
   edinheiroTipoAtual = t;
   document.querySelectorAll('#edinheiroTipoToggle .tipo-btn').forEach(b=>b.classList.toggle('active', b.dataset.tipo===t));
+  const label=document.getElementById('edinheiroCategoriaLabel');
+  if(label)label.textContent=t==='saida'?'Classificação financeira *':'Classificação financeira (opcional)';
 }
 
 function abrirEditarDinheiro(id){
@@ -6677,7 +6710,10 @@ async function salvarEdicaoDinheiro(){
   const tipoId = document.getElementById('edinheiro_categoria').value || null;
   const err = document.getElementById('edinheiroErr');
 
-  if(!descricao || !data || isNaN(valorBruto) || valorBruto<=0){
+  if(!descricao || !data || isNaN(valorBruto) || valorBruto<=0 || (edinheiroTipoAtual==='saida'&&!tipoId)){
+    err.textContent=edinheiroTipoAtual==='saida'&&!tipoId
+      ? 'Selecione uma classificação financeira para registrar uma saída.'
+      : 'Preencha descrição, data e um valor maior que zero.';
     err.style.display = 'block';
     return;
   }
@@ -7427,7 +7463,7 @@ function exportarExcelDinheiro(){
 
 function exportarPdfDinheiro(){
   if(fluxoDinheiroAtual.length===0){ alert('Não há lançamentos em dinheiro para exportar.'); return; }
-  const doc = iniciarPdf('Lançamentos em Dinheiro — ' + (NOMES_LOJA[lojaAtual]||''), 'Período: ' + textoPeriodoFluxo());
+  const doc = iniciarPdf('LANÇAMENTOS EM DINHEIRO — ' + (NOMES_LOJA[lojaAtual]||''), 'Período: ' + textoPeriodoFluxo());
   if(!doc) return;
   const corpo = fluxoDinheiroAtual.map(l=>[fmtData(l.data), l.descricao||'—', brl(l.valor)]);
   const totalEnt = fluxoDinheiroAtual.filter(l=>Number(l.valor)>0).reduce((s,l)=>s+Number(l.valor),0);

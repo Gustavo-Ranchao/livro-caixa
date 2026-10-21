@@ -56,6 +56,8 @@
   .lc-recebedor-historico-status{display:block;min-height:13px;font-size:10px;color:var(--muted);text-align:left;}
   .lc-summary{display:flex;gap:10px;flex-wrap:wrap;margin:14px 0;}
   .lc-summary span{background:#fff;border:1px solid var(--paper3);border-radius:7px;padding:7px 10px;font-size:11px;color:var(--muted);}
+  .lc-category-summary{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 14px;}
+  .lc-category-summary span{background:var(--paper2);border:1px solid var(--paper3);border-radius:999px;padding:6px 10px;font-size:11px;color:var(--muted);}
 
   /* ---------- Login ---------- */
   .loginshell{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;}
@@ -1645,12 +1647,18 @@
       <div class="panel" id="lcLotePanel" style="display:none;margin-bottom:18px;">
         <div class="panel-head" style="flex-wrap:wrap;"><h2>Conferência do lote</h2><div style="display:flex;gap:8px;"><button class="cancelbtn" onclick="limparLoteLeituras()">Cancelar lote</button><button class="addbtn" id="lcSalvarTodosBtn" style="width:auto;" onclick="salvarTodasLeituras()">Salvar todos os válidos</button></div></div>
         <div class="lc-summary" id="lcResumoLote"></div>
-        <div class="tablewrap"><table class="ledger lc-table"><thead><tr><th>Nº</th><th>Arquivo</th><th>Recebedor</th><th>CPF/CNPJ</th><th>Valor</th><th>Data</th><th>Modelo</th><th>Status</th><th></th></tr></thead><tbody id="lcLoteBody"></tbody></table></div>
+        <div class="tablewrap"><table class="ledger lc-table"><thead><tr><th>Nº</th><th>Arquivo</th><th>Recebedor</th><th>CPF/CNPJ</th><th>Valor</th><th>Data</th><th>Classificação</th><th>Modelo</th><th>Status</th><th></th></tr></thead><tbody id="lcLoteBody"></tbody></table></div>
       </div>
 
       <div class="panel">
         <div class="panel-head" style="flex-wrap:wrap;"><h2>Comprovantes salvos</h2><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;"><input id="lcBuscaHistorico" style="max-width:320px;" placeholder="Pesquisar recebedor, valor ou documento" oninput="renderHistoricoLeituras()"><button type="button" class="filter-btn foto-btn" onclick="baixarLeiturasComprovantesZip()" title="Baixar em ZIP os comprovantes exibidos no histórico">🗜️ Baixar exibidos (.zip)</button><button type="button" class="filter-btn" style="border-color:var(--rust);color:var(--rust);" onclick="abrirExclusaoLeiturasComprovantes()" title="Excluir todos os comprovantes exibidos no histórico">🗑 Excluir exibidos</button></div></div>
-        <div class="tablewrap"><table class="ledger"><thead><tr><th>Nº</th><th>Data</th><th>Recebedor / descrição editável</th><th>CPF/CNPJ</th><th>Modelo</th><th style="text-align:right;">Valor</th><th>Arquivo</th></tr></thead><tbody id="lcHistoricoBody"></tbody></table></div>
+        <div class="bh-resumo" style="margin:0 0 12px;">
+          <div class="metric"><div class="lbl">Total pago exibido</div><div class="val" id="lcTotalPago" style="color:var(--rust);">R$ 0,00</div></div>
+          <div class="metric"><div class="lbl">Total em mercadorias</div><div class="val" id="lcTotalMercadorias" style="color:var(--gold);">R$ 0,00</div></div>
+          <div class="metric"><div class="lbl">Comprovantes exibidos</div><div class="val" id="lcTotalQuantidade">0</div></div>
+        </div>
+        <div class="lc-category-summary" id="lcResumoCategorias"></div>
+        <div class="tablewrap"><table class="ledger"><thead><tr><th>Nº</th><th>Data</th><th>Recebedor / descrição editável</th><th>Classificação</th><th>CPF/CNPJ</th><th>Modelo</th><th style="text-align:right;">Valor</th><th>Arquivo</th></tr></thead><tbody id="lcHistoricoBody"></tbody></table></div>
         <div class="empty" id="lcHistoricoEmpty" style="display:none;">Nenhum comprovante analisado neste período.</div>
       </div>
     </div>
@@ -2097,7 +2105,7 @@
     <div id="viewFluxoCaixa" style="display:none;">
       <div class="app-tabs" style="margin-bottom:20px;flex-wrap:wrap;">
         <span id="fluxoContaTabsWrap" style="display:contents;"></span>
-        <button class="app-tab" id="fluxoSubTabDinheiro" onclick="mudarSubAbaFluxo('dinheiro')">💵 Lançamentos em Dinheiro</button>
+        <button class="app-tab" id="fluxoSubTabDinheiro" onclick="mudarSubAbaFluxo('dinheiro')">💵 LANÇAMENTOS EM DINHEIRO</button>
         <button class="app-tab" id="fluxoSubTabTotal" onclick="mudarSubAbaFluxo('total')">📈 Total de Entradas e Saídas</button>
         <button class="app-tab" id="fluxoSubTabProjecao" onclick="mudarSubAbaFluxo('projecao')">📉 Projeção</button>
       </div>
@@ -2231,7 +2239,7 @@
 
         <div class="panel" style="margin-bottom:20px;">
           <div class="panel-head">
-            <h2>Novo lançamento em dinheiro</h2>
+            <h2>NOVO LANÇAMENTO EM DINHEIRO</h2>
           </div>
           <div class="bh-form" style="grid-template-columns:0.8fr 1.3fr 1fr 1fr 1.3fr auto;">
             <div class="fld"><label>Tipo</label>
@@ -2243,7 +2251,7 @@
             <div class="fld"><label>Descrição</label><input id="dinheiro_descricao" placeholder="Ex: Venda balcão, Troco motoboy" onkeydown="if(event.key==='Enter'){event.preventDefault();document.getElementById('dinheiro_data').focus();}" onblur="aplicarSugestaoTipoPagamento('dinheiro_descricao','dinheiro_categoria_busca','dinheiro_categoria')"></div>
             <div class="fld"><label>Data</label><input id="dinheiro_data" type="date" onkeydown="if(event.key==='Enter'){event.preventDefault();document.getElementById('dinheiro_valor').focus();}"></div>
             <div class="fld"><label>Valor (R$)</label><input id="dinheiro_valor" type="number" step="0.01" min="0" placeholder="0,00" onkeydown="if(event.key==='Enter'){event.preventDefault();document.getElementById('dinheiro_categoria_busca').focus();document.getElementById('dinheiro_categoria_busca').select();}"></div>
-            <div class="fld"><label>Categoria (opcional)</label>
+            <div class="fld"><label id="dinheiroCategoriaLabel">Classificação financeira</label>
               <input id="dinheiro_categoria_busca" list="pagCaixaTiposDatalist" placeholder="Digite pra buscar..." autocomplete="off" oninput="matchTipoPagCaixa('dinheiro_categoria_busca','dinheiro_categoria')" onkeydown="if(event.key==='Enter'){event.preventDefault();matchTipoPagCaixa('dinheiro_categoria_busca','dinheiro_categoria');salvarLancamentoDinheiro();}">
               <input type="hidden" id="dinheiro_categoria">
             </div>
@@ -2254,7 +2262,7 @@
 
         <div class="panel">
           <div class="panel-head">
-            <h2>Lançamentos em dinheiro</h2>
+            <h2>LANÇAMENTOS EM DINHEIRO</h2>
             <div class="filters">
               <button class="filter-btn foto-btn" onclick="exportarExcelDinheiro()">📊 Excel</button>
               <button class="filter-btn foto-btn" onclick="exportarPdfDinheiro()">📄 PDF</button>
@@ -2950,7 +2958,7 @@
 <div id="editDinheiroModal" class="modal-overlay">
   <div class="modal-box" style="max-width:420px;">
     <button class="modal-close" onclick="fecharEditarDinheiro()">✕</button>
-    <h2>Editar lançamento em dinheiro</h2>
+    <h2>EDITAR LANÇAMENTO EM DINHEIRO</h2>
     <div class="fld"><label>Tipo</label>
       <div class="tipo-toggle" id="edinheiroTipoToggle">
         <button type="button" class="tipo-btn active" data-tipo="entrada" onclick="setEdinheiroTipo('entrada')">Entrada</button>
@@ -2960,7 +2968,7 @@
     <div class="fld"><label>Descrição</label><input id="edinheiro_descricao" placeholder="Ex: Venda balcão, Troco motoboy" onkeydown="if(event.key==='Enter'){event.preventDefault();document.getElementById('edinheiro_data').focus();}"></div>
     <div class="fld"><label>Data</label><input id="edinheiro_data" type="date" onkeydown="if(event.key==='Enter'){event.preventDefault();document.getElementById('edinheiro_valor').focus();}"></div>
     <div class="fld"><label>Valor (R$)</label><input id="edinheiro_valor" type="number" step="0.01" min="0" placeholder="0,00" onkeydown="if(event.key==='Enter'){event.preventDefault();document.getElementById('edinheiro_categoria_busca').focus();document.getElementById('edinheiro_categoria_busca').select();}"></div>
-    <div class="fld"><label>Categoria (opcional)</label>
+    <div class="fld"><label id="edinheiroCategoriaLabel">Classificação financeira</label>
       <input id="edinheiro_categoria_busca" list="pagCaixaTiposDatalist" placeholder="Digite pra buscar..." autocomplete="off" oninput="matchTipoPagCaixa('edinheiro_categoria_busca','edinheiro_categoria')" onkeydown="if(event.key==='Enter'){event.preventDefault();matchTipoPagCaixa('edinheiro_categoria_busca','edinheiro_categoria');salvarEdicaoDinheiro();}">
       <input type="hidden" id="edinheiro_categoria">
     </div>
