@@ -130,6 +130,9 @@ function trocarLoja(l){
   if(viewAtual === 'compras'){
     carregarCompras();
   }
+  if(viewAtual === 'ocorrenciasEntregas'){
+    abrirOcorrenciasEntregas();
+  }
   if(viewAtual === 'contasBancarias'){
     carregarContasBancarias();
   }
@@ -459,13 +462,14 @@ const BACKUP_TABELAS = [
   'fluxo_caixa_saldos','fluxo_caixa_lancamentos','caixa_diferencas','checklist_itens','checklist_execucoes','bh_registros',
   'bh_atestados','vendas_delivery','vendas_itens','metas_vendas_config','metas_vendas_dias','controle_estoque_mensal','estoque_inventarios','contagens_estoque',
   'contagens_estoque_itens','comb_pag_compras','comb_pag_pagamentos','pagamentos_caixa','pagamentos_caixa_memoria',
-  'recibos','contracheques','orcamentos','tabela_precos','tabela_precos_categorias','agenda_lembretes','duvidas','manutencoes','leituras_comprovantes','historico_alteracoes'
+  'recibos','contracheques','orcamentos','tabela_precos','tabela_precos_categorias','agenda_lembretes','duvidas','manutencoes','leituras_comprovantes','ocorrencias_entregas','ocorrencias_entregas_itens','historico_alteracoes'
 ];
 const BACKUP_ARQUIVOS = [
   {tabela:'comprovantes',campo:'caminho_storage',bucket:'comprovantes'},
   {tabela:'bh_atestados',campo:'caminho_storage',bucket:'comprovantes'},
   {tabela:'leituras_comprovantes',campo:'caminho_storage',bucket:'comprovantes'},
   {tabela:'manutencoes',campo:'caminho_storage',bucket:'manutencoes'},
+  {tabela:'ocorrencias_entregas',campo:'caminho_storage',bucket:'ocorrencias-entregas'},
   {tabela:'compras_produtos',campo:'foto_caminho',bucket:'compras-produtos'}
 ];
 let backupZipSelecionado=null;
@@ -600,7 +604,7 @@ const HISTORICO_TABELAS_NOMES={
   caixa_diferencas:'Diferença de caixa',checklist_itens:'Itens do checklist',checklist_execucoes:'Checklist',compras_empresas:'Empresas de compras',compras_marcas:'Marcas',fornecedores:'Fornecedores',
   compras_produtos:'Produtos de compras',controle_estoque_mensal:'Controle de estoque',estoque_inventarios:'Inventário de estoque',contagens_estoque:'Contagens de estoque',contagens_estoque_itens:'Itens da contagem',
   pagamentos:'Pagamentos',comb_pag_compras:'Compras combinadas',comb_pag_pagamentos:'Pagamentos combinados',pagamentos_caixa:'Pagamentos de caixa',pagamentos_caixa_memoria:'Memória de pagamentos',pagamentos_caixa_tipos:'Tipos de pagamento',
-  vendas_delivery:'Vendas Delivery',vendas_itens:'Vendas com custo',metas_vendas_config:'Configuração das metas',metas_vendas_dias:'Vendas diárias das metas',orcamentos:'Orçamentos',tabela_precos:'Tabela de preços',tabela_precos_categorias:'Categorias da tabela de preços',agenda_lembretes:'Agenda e lembretes',recibos:'Recibos',contracheques:'Contracheques',duvidas:'Dúvidas',manutencoes:'Manutenções',leituras_comprovantes:'Leitura de comprovantes',
+  vendas_delivery:'Vendas Delivery',vendas_itens:'Vendas com custo',metas_vendas_config:'Configuração das metas',metas_vendas_dias:'Vendas diárias das metas',orcamentos:'Orçamentos',tabela_precos:'Tabela de preços',tabela_precos_categorias:'Categorias da tabela de preços',agenda_lembretes:'Agenda e lembretes',recibos:'Recibos',contracheques:'Contracheques',duvidas:'Dúvidas',manutencoes:'Manutenções',leituras_comprovantes:'Leitura de comprovantes',ocorrencias_entregas:'Ocorrências de entregas',ocorrencias_entregas_itens:'Itens das ocorrências de entregas',
   despesas_fixas:'Despesas fixas',despesas_fixas_puladas:'Despesas fixas ignoradas'
 };
 let historicoCache=[];
@@ -3092,7 +3096,7 @@ function exportarImagemMetaEquipe(){
   ctx.textAlign='center';ctx.fillStyle='#53647b';ctx.font='500 18px Arial';ctx.fillText('Vamos juntos alcançar nossa meta!',largura/2,1310);const link=document.createElement('a');link.href=canvas.toDataURL('image/png');link.download='meta-equipe-'+lojaAtual+'-'+mes+'.png';link.click();
 }
 
-const VIEWS = ['checklist','duvidas','manutencao','agenda','contasPagar','despesasFixas','comprovantes','leituraComprovantes','diferencaCaixa','fluxoCaixa','pagamentos','pagamentoCaixa','contratos','vendasComCusto','metasVendas','vendasDelivery','orcamentos','tabelaPrecos','bancoHoras','compras','colaboradores','aniversarios','fornecedores','contasBancarias','inventario','controleEstoque','contagensEstoque','combinacaoPagamentos'];
+const VIEWS = ['checklist','duvidas','manutencao','agenda','contasPagar','despesasFixas','comprovantes','leituraComprovantes','diferencaCaixa','fluxoCaixa','pagamentos','pagamentoCaixa','contratos','vendasComCusto','metasVendas','vendasDelivery','orcamentos','tabelaPrecos','bancoHoras','compras','ocorrenciasEntregas','colaboradores','aniversarios','fornecedores','contasBancarias','inventario','controleEstoque','contagensEstoque','combinacaoPagamentos'];
 let colabCarregado = false;
 const PARAMETROS_JANELA = new URLSearchParams(location.search);
 const EH_JANELA_MODULO = PARAMETROS_JANELA.get('janelaModulo')==='1';
@@ -3103,7 +3107,7 @@ const TITULOS_JANELAS = {
   comprovantes:'Comprovantes',leituraComprovantes:'Leitura de Comprovantes',diferencaCaixa:'Diferença de Caixa',fluxoCaixa:'Fluxo de Caixa',
   pagamentos:'Pagamentos',pagamentoCaixa:'Pagamento no Caixa',combinacaoPagamentos:'Combinação de Pagamentos',contratos:'Contratos e Recibos',
   vendasComCusto:'Vendas com Custo',metasVendas:'Metas de Vendas',vendasDelivery:'Vendas Delivery',orcamentos:'Orçamentos',tabelaPrecos:'Tabela de Preços',compras:'Compras',
-  inventario:'Inventário',controleEstoque:'Controle de Estoque',contagensEstoque:'Contagens de Estoque',bancoHoras:'Banco de Horas',
+  inventario:'Inventário',controleEstoque:'Controle de Estoque',contagensEstoque:'Contagens de Estoque',ocorrenciasEntregas:'Ocorrências de Entregas',bancoHoras:'Banco de Horas',
   colaboradores:'Colaboradores',aniversarios:'Aniversários',fornecedores:'Fornecedores',contasBancarias:'Contas Bancárias'
 };
 
@@ -3137,12 +3141,12 @@ const CATEGORIA_POR_VIEW = {
   diferencaCaixa:'financeiro', fluxoCaixa:'financeiro', pagamentos:'financeiro',
   pagamentoCaixa:'financeiro', combinacaoPagamentos:'financeiro', contratos:'financeiro',
   vendasComCusto:'vendas', metasVendas:'vendas', vendasDelivery:'vendas', orcamentos:'vendas', tabelaPrecos:'vendas',
-  compras:'comprasEstoque', inventario:'comprasEstoque', controleEstoque:'comprasEstoque', contagensEstoque:'comprasEstoque',
+  compras:'comprasEstoque', inventario:'comprasEstoque', controleEstoque:'comprasEstoque', contagensEstoque:'comprasEstoque', ocorrenciasEntregas:'comprasEstoque',
   bancoHoras:'equipe', colaboradores:'equipe', aniversarios:'equipe',
   fornecedores:'cadastros', contasBancarias:'cadastros',
   checklist:'checklist', duvidas:'duvidas', manutencao:'manutencao', agenda:'agenda'
 };
-const VIEW_IDS = { checklist:'viewChecklist', duvidas:'viewDuvidas', manutencao:'viewManutencao', agenda:'viewAgenda', contasPagar:'viewContasPagar', despesasFixas:'viewDespesasFixas', comprovantes:'viewComprovantes', leituraComprovantes:'viewLeituraComprovantes', diferencaCaixa:'viewDiferencaCaixa', fluxoCaixa:'viewFluxoCaixa', pagamentos:'viewPagamentos', pagamentoCaixa:'viewPagamentoCaixa', contratos:'viewContratos', vendasComCusto:'viewVendasComCusto', metasVendas:'viewMetasVendas', vendasDelivery:'viewVendasDelivery', orcamentos:'viewOrcamentos', tabelaPrecos:'viewTabelaPrecos', bancoHoras:'viewBancoHoras', compras:'viewCompras', colaboradores:'viewColaboradores', aniversarios:'viewAniversarios', fornecedores:'viewFornecedores', contasBancarias:'viewContasBancarias', inventario:'viewInventario', controleEstoque:'viewControleEstoque', contagensEstoque:'viewContagensEstoque', combinacaoPagamentos:'viewCombinacaoPagamentos' };
+const VIEW_IDS = { checklist:'viewChecklist', duvidas:'viewDuvidas', manutencao:'viewManutencao', agenda:'viewAgenda', contasPagar:'viewContasPagar', despesasFixas:'viewDespesasFixas', comprovantes:'viewComprovantes', leituraComprovantes:'viewLeituraComprovantes', diferencaCaixa:'viewDiferencaCaixa', fluxoCaixa:'viewFluxoCaixa', pagamentos:'viewPagamentos', pagamentoCaixa:'viewPagamentoCaixa', contratos:'viewContratos', vendasComCusto:'viewVendasComCusto', metasVendas:'viewMetasVendas', vendasDelivery:'viewVendasDelivery', orcamentos:'viewOrcamentos', tabelaPrecos:'viewTabelaPrecos', bancoHoras:'viewBancoHoras', compras:'viewCompras', ocorrenciasEntregas:'viewOcorrenciasEntregas', colaboradores:'viewColaboradores', aniversarios:'viewAniversarios', fornecedores:'viewFornecedores', contasBancarias:'viewContasBancarias', inventario:'viewInventario', controleEstoque:'viewControleEstoque', contagensEstoque:'viewContagensEstoque', combinacaoPagamentos:'viewCombinacaoPagamentos' };
 
 let categoriaMenuAberta = null;
 
@@ -3245,6 +3249,8 @@ async function mudarViewPrincipal(view){
     if(!bhCarregado) await carregarFuncionarios();
   }else if(view==='compras'){
     await carregarCompras();
+  }else if(view==='ocorrenciasEntregas'){
+    await abrirOcorrenciasEntregas();
   }else if(view==='colaboradores'){
     await carregarColaboradores();
   }else if(view==='aniversarios'){
@@ -3542,6 +3548,8 @@ function abrirNovoColaborador(loja){
   document.getElementById('func_nome').value = '';
   document.getElementById('func_data_nascimento').value = '';
   document.getElementById('func_cargo').value = '';
+  document.getElementById('func_data_desligamento').value = '';
+  document.getElementById('func_data_desligamento').disabled = true;
   setEscala('normal');
   document.getElementById('funcErr').style.display = 'none';
   document.getElementById('funcModal').style.display = 'flex';
@@ -3549,7 +3557,7 @@ function abrirNovoColaborador(loja){
 
 function abrirEditarColaborador(id, loja){
   const lista = loja==='loja1' ? colaboradoresLoja1 : colaboradoresLoja2;
-  const f = lista.find(x=>x.id===id);
+  const f = lista.find(x=>String(x.id)===String(id));
   if(!f) return;
   colabEditandoId = f.id;
   colabLojaAtual = loja;
@@ -3557,6 +3565,8 @@ function abrirEditarColaborador(id, loja){
   document.getElementById('func_nome').value = f.nome;
   document.getElementById('func_data_nascimento').value = f.data_nascimento || '';
   document.getElementById('func_cargo').value = f.cargo ? f.cargo.toUpperCase() : '';
+  document.getElementById('func_data_desligamento').value = f.data_desligamento || '';
+  document.getElementById('func_data_desligamento').disabled = f.ativo!==false;
   escalaSelecionada = f.tipo_escala || 'normal';
   document.querySelectorAll('#escalaToggle .tipo-btn').forEach(b=>b.classList.toggle('active', b.dataset.escala===escalaSelecionada));
   document.getElementById('func_horas').value = Math.floor(f.carga_horaria_diaria_min/60);
@@ -3574,6 +3584,7 @@ async function salvarFuncionario(){
   const nome = document.getElementById('func_nome').value.trim();
   const dataNascimento = document.getElementById('func_data_nascimento').value || null;
   const cargo = document.getElementById('func_cargo').value.trim();
+  const dataDesligamento = document.getElementById('func_data_desligamento').value || null;
   const horas = parseInt(document.getElementById('func_horas').value, 10) || 0;
   const minutos = parseInt(document.getElementById('func_minutos').value, 10) || 0;
   const err = document.getElementById('funcErr');
@@ -3586,7 +3597,7 @@ async function salvarFuncionario(){
 
   if(colabEditandoId){
     const { data, error } = await sb.from('bh_funcionarios')
-      .update({ nome: nome, data_nascimento: dataNascimento, cargo: cargo || null, carga_horaria_diaria_min: cargaMin, tipo_escala: escalaSelecionada })
+      .update({ nome: nome, data_nascimento: dataNascimento, cargo: cargo || null, data_desligamento: dataDesligamento, carga_horaria_diaria_min: cargaMin, tipo_escala: escalaSelecionada })
       .eq('id', colabEditandoId).select().single();
     if(error){
       err.textContent = 'Erro ao salvar: ' + error.message;
@@ -3602,7 +3613,7 @@ async function salvarFuncionario(){
     }
   }else{
     const { data, error } = await sb.from('bh_funcionarios')
-      .insert({ loja: colabLojaAtual, nome: nome, data_nascimento: dataNascimento, cargo: cargo || null, carga_horaria_diaria_min: cargaMin, tipo_escala: escalaSelecionada })
+      .insert({ loja: colabLojaAtual, nome: nome, data_nascimento: dataNascimento, cargo: cargo || null, data_desligamento: null, ativo: true, carga_horaria_diaria_min: cargaMin, tipo_escala: escalaSelecionada })
       .select().single();
     if(error){
       err.textContent = 'Erro ao salvar: ' + error.message;
@@ -3617,7 +3628,7 @@ async function salvarFuncionario(){
 }
 
 async function carregarColaboradores(){
-  const { data, error } = await sb.from('bh_funcionarios').select('*').eq('ativo', true).order('nome');
+  const { data, error } = await sb.from('bh_funcionarios').select('*').order('nome');
   if(error){
     console.error('Erro ao carregar colaboradores:', error);
     return;
@@ -3629,8 +3640,10 @@ async function carregarColaboradores(){
 }
 
 function renderColabTables(){
-  renderColabTabela(1, colaboradoresLoja1);
-  renderColabTabela(2, colaboradoresLoja2);
+  const filtro=document.getElementById('colabFiltroSituacao')?.value||'ativos';
+  const aplicar=lista=>lista.filter(f=>filtro==='todos'||(filtro==='ativos'?f.ativo!==false:f.ativo===false));
+  renderColabTabela(1, aplicar(colaboradoresLoja1));
+  renderColabTabela(2, aplicar(colaboradoresLoja2));
 }
 
 function renderColabTabela(numero, lista){
@@ -3648,14 +3661,49 @@ function renderColabTabela(numero, lista){
       <td>${escapeHtml(f.nome)}</td>
       <td>${f.cargo ? escapeHtml(f.cargo.toUpperCase()) : '—'}</td>
       <td>${f.data_nascimento ? fmtData(f.data_nascimento) : '—'}</td>
+      <td><span style="font-weight:600;color:${f.ativo===false?'var(--muted)':'var(--green)'};">${f.ativo===false?'Inativo':'Ativo'}</span>${f.ativo===false&&f.data_desligamento?`<div style="font-size:10px;color:var(--muted);margin-top:2px;">desde ${fmtData(f.data_desligamento)}</div>`:''}</td>
       <td>${f.tipo_escala==='12x36' ? '12x36' : 'Normal'}</td>
       <td>${fmtMinutos(f.carga_horaria_diaria_min)}</td>
       <td><div class="rowactions">
         <button class="iconbtn edit" title="Editar" onclick="abrirEditarColaborador('${f.id}','${loja}')">✎</button>
+        <button class="iconbtn" title="${f.ativo===false?'Reativar colaborador':'Inativar colaborador'}" onclick="abrirAlteracaoSituacaoColaborador('${f.id}','${loja}',${f.ativo===false?'true':'false'})">${f.ativo===false?'↻':'⏸'}</button>
         <button class="iconbtn del" title="Excluir" onclick="abrirExcluirFuncionario('${f.id}','${loja}')">✕</button>
       </div></td>
     </tr>
   `).join('');
+}
+
+let alterarSituacaoColabId=null;
+let alterarSituacaoColabLoja=null;
+let alterarSituacaoColabAtivar=false;
+
+function abrirAlteracaoSituacaoColaborador(id,loja,ativar){
+  const lista=loja==='loja1'?colaboradoresLoja1:colaboradoresLoja2;
+  const f=lista.find(x=>String(x.id)===String(id));if(!f)return;
+  alterarSituacaoColabId=id;alterarSituacaoColabLoja=loja;alterarSituacaoColabAtivar=!!ativar;
+  document.getElementById('inativarFuncTitulo').textContent=ativar?'Reativar colaborador?':'Inativar colaborador?';
+  document.getElementById('inativarFuncTexto').textContent=ativar
+    ?f.nome+' voltará a aparecer nas listas, no Banco de Horas e nos aniversários.'
+    :f.nome+' deixará de aparecer nas listas, no Banco de Horas e nos aniversários. O cadastro e todo o histórico serão preservados.';
+  document.getElementById('inativarFuncDataWrap').style.display=ativar?'none':'block';
+  document.getElementById('inativarFuncData').value=f.data_desligamento||todayStr();
+  const btn=document.getElementById('inativarFuncConfirmBtn');btn.textContent=ativar?'Reativar colaborador':'Inativar colaborador';btn.style.background=ativar?'var(--green)':'var(--rust)';
+  document.getElementById('inativarFuncErr').style.display='none';document.getElementById('inativarFuncModal').style.display='flex';
+}
+
+function fecharInativarFuncionario(){document.getElementById('inativarFuncModal').style.display='none';alterarSituacaoColabId=null;}
+
+async function confirmarAlteracaoSituacaoColaborador(){
+  if(!alterarSituacaoColabId)return;
+  const dataDesligamento=alterarSituacaoColabAtivar?null:document.getElementById('inativarFuncData').value;
+  const err=document.getElementById('inativarFuncErr');
+  if(!alterarSituacaoColabAtivar&&!dataDesligamento){err.textContent='Informe a data de desligamento.';err.style.display='block';return;}
+  const btn=document.getElementById('inativarFuncConfirmBtn');btn.disabled=true;btn.textContent='Salvando…';
+  const {data,error}=await sb.from('bh_funcionarios').update({ativo:alterarSituacaoColabAtivar,data_desligamento:dataDesligamento}).eq('id',alterarSituacaoColabId).select().single();
+  btn.disabled=false;
+  if(error){err.textContent='Não foi possível alterar a situação. Execute o SQL da versão 1.2.46 no Supabase.';err.style.display='block';btn.textContent=alterarSituacaoColabAtivar?'Reativar colaborador':'Inativar colaborador';return;}
+  const lista=alterarSituacaoColabLoja==='loja1'?colaboradoresLoja1:colaboradoresLoja2,idx=lista.findIndex(x=>String(x.id)===String(data.id));if(idx>=0)lista[idx]=data;
+  bhCarregado=false;fecharInativarFuncionario();renderColabTables();
 }
 
 function dataAniversarioNoAno(dataNascimento, ano){
@@ -3726,7 +3774,7 @@ function renderAniversarios(){
   const listaEl = document.getElementById('anivLista');
   if(!listaEl) return;
   const filtro = document.getElementById('anivFiltroLoja')?.value || 'atual';
-  const todos = [...colaboradoresLoja1, ...colaboradoresLoja2];
+  const todos = [...colaboradoresLoja1, ...colaboradoresLoja2].filter(f=>f.ativo!==false);
   const lojaFiltro = filtro==='atual' ? lojaAtual : filtro;
   const filtrados = lojaFiltro==='todas' ? todos : todos.filter(f=>f.loja===lojaFiltro);
   const comData = filtrados.filter(f=>f.data_nascimento);
@@ -4434,6 +4482,97 @@ async function executarExclusaoLeiturasComprovantes(){
   lcLeiturasExcluir=[];btn.disabled=false;btn.textContent='Excluir';await carregarHistoricoLeituras();setTimeout(fecharProgresso,400);
   if(falhas)setTimeout(()=>alert(excluidos+' comprovante(s) excluído(s). '+falhas+' não puderam ser excluídos.'),600);
 }
+
+/* ================= OCORRÊNCIAS DE ENTREGAS ================= */
+
+let oeCache=[];
+let oeItens=[];
+let oeEditandoId=null;
+let oeTodoHistorico=false;
+
+const OE_TIPOS={produto_faltando:'Produto faltando',avariado:'Quebrado ou avariado',produto_errado:'Produto errado',quantidade_divergente:'Quantidade divergente',vencimento:'Vencido ou próximo do vencimento',preco_divergente:'Preço divergente',outro:'Outro'};
+const OE_STATUS={pendente:'Pendente',andamento:'Em andamento',resolvida:'Resolvida'};
+const OE_PROVIDENCIAS={troca:'Troca',reposicao:'Reposição',devolucao:'Devolução',credito:'Crédito',reembolso:'Reembolso',outra:'Outra'};
+
+function oeInicioMes(){const d=new Date(),a=d.getFullYear(),m=String(d.getMonth()+1).padStart(2,'0');return a+'-'+m+'-01';}
+function oeFimMes(){const d=new Date(),a=d.getFullYear(),m=d.getMonth()+1;return new Date(a,m,0,12).toISOString().slice(0,10);}
+function oeValorItens(x){return (x.ocorrencias_entregas_itens||[]).reduce((s,i)=>s+(Number(i.quantidade_afetada)||0)*(Number(i.custo_unitario)||0),0);}
+function oeProdutosTexto(x){return (x.ocorrencias_entregas_itens||[]).map(i=>i.produto).filter(Boolean).join(', ');}
+
+async function abrirOcorrenciasEntregas(){
+  const de=document.getElementById('oeFiltroDe'),ate=document.getElementById('oeFiltroAte');
+  if(!de.value)de.value=oeInicioMes();if(!ate.value)ate.value=oeFimMes();
+  await carregarFornecedores();
+  const dl=document.getElementById('oeFornecedoresLista');if(dl)dl.innerHTML=fornecedoresCache.map(f=>`<option value="${escapeHtml(f.nome)}"></option>`).join('');
+  await carregarOcorrenciasEntregas();
+}
+
+function novaOcorrenciaEntrega(){
+  oeEditandoId=null;oeItens=[];adicionarItemOcorrenciaEntrega();
+  document.getElementById('oeFormTitulo').textContent='Nova ocorrência';
+  ['oe_fornecedor','oe_pedido','oe_nota','oe_responsavel','oe_descricao','oe_prazo','oe_data_resolucao','oe_solucao','oe_arquivo'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('oe_data').value=todayStr();document.getElementById('oe_tipo').value='produto_faltando';document.getElementById('oe_providencia').value='';document.getElementById('oe_status').value='pendente';document.getElementById('oe_valor_recuperado').value='';document.getElementById('oeArquivoAtual').textContent='Nenhum arquivo anexado.';document.getElementById('oeErr').style.display='none';document.getElementById('oeFormPanel').style.display='block';oeAtualizarCamposResolucao();document.getElementById('oeFormPanel').scrollIntoView({behavior:'smooth',block:'start'});
+}
+
+function cancelarOcorrenciaEntrega(){document.getElementById('oeFormPanel').style.display='none';oeEditandoId=null;oeItens=[];}
+function oeAtualizarCamposResolucao(){const resolvida=document.getElementById('oe_status').value==='resolvida';if(resolvida&&!document.getElementById('oe_data_resolucao').value)document.getElementById('oe_data_resolucao').value=todayStr();}
+
+function adicionarItemOcorrenciaEntrega(item={}){oeItens.push({chave:'oei_'+Date.now()+'_'+Math.random().toString(36).slice(2,7),produto:item.produto||'',quantidade_pedida:Number(item.quantidade_pedida)||0,quantidade_recebida:Number(item.quantidade_recebida)||0,quantidade_afetada:Number(item.quantidade_afetada)||0,custo_unitario:Number(item.custo_unitario)||0});renderItensOcorrenciaEntrega();}
+function removerItemOcorrenciaEntrega(chave){if(oeItens.length===1)return;oeItens=oeItens.filter(x=>x.chave!==chave);renderItensOcorrenciaEntrega();}
+function atualizarItemOcorrenciaEntrega(chave,campo,valor){const x=oeItens.find(i=>i.chave===chave);if(!x)return;x[campo]=campo==='produto'?valor:Math.max(0,Number(valor)||0);const total=document.getElementById('oeItemTotal_'+chave);if(total)total.textContent=brl(x.quantidade_afetada*x.custo_unitario);}
+function renderItensOcorrenciaEntrega(){
+  document.getElementById('oeItensBody').innerHTML=oeItens.map(x=>`<tr><td><input value="${escapeHtml(x.produto)}" placeholder="Nome do produto" oninput="atualizarItemOcorrenciaEntrega('${x.chave}','produto',this.value)" style="width:100%;min-width:230px;"></td><td><input type="number" min="0" step="0.001" value="${x.quantidade_pedida||''}" oninput="atualizarItemOcorrenciaEntrega('${x.chave}','quantidade_pedida',this.value)" style="width:105px;"></td><td><input type="number" min="0" step="0.001" value="${x.quantidade_recebida||''}" oninput="atualizarItemOcorrenciaEntrega('${x.chave}','quantidade_recebida',this.value)" style="width:105px;"></td><td><input type="number" min="0" step="0.001" value="${x.quantidade_afetada||''}" oninput="atualizarItemOcorrenciaEntrega('${x.chave}','quantidade_afetada',this.value)" style="width:105px;"></td><td><input type="number" min="0" step="0.01" value="${x.custo_unitario||''}" oninput="atualizarItemOcorrenciaEntrega('${x.chave}','custo_unitario',this.value)" style="width:115px;"></td><td id="oeItemTotal_${x.chave}" class="valor">${brl(x.quantidade_afetada*x.custo_unitario)}</td><td><button type="button" class="iconbtn del" title="Remover produto" ${oeItens.length===1?'disabled':''} onclick="removerItemOcorrenciaEntrega('${x.chave}')">✕</button></td></tr>`).join('');
+}
+
+function oeValidarArquivo(arquivo){if(!arquivo)return {ok:true,tipo:null};const tipo=arquivo.type||'';if(!['application/pdf','image/jpeg','image/png','image/webp'].includes(tipo)&&!(/\.(pdf|jpe?g|png|webp)$/i.test(arquivo.name)))return {ok:false,mensagem:'Use somente PDF, JPG, PNG ou WebP.'};if(arquivo.size>15*1024*1024)return {ok:false,mensagem:'O arquivo deve ter no máximo 15 MB.'};return {ok:true,tipo:tipo||(/\.pdf$/i.test(arquivo.name)?'application/pdf':'image/jpeg')};}
+
+async function salvarOcorrenciaEntrega(){
+  const fornecedor=document.getElementById('oe_fornecedor').value.trim(),dataEntrega=document.getElementById('oe_data').value,descricao=document.getElementById('oe_descricao').value.trim(),itensValidos=oeItens.filter(x=>x.produto.trim()&&x.quantidade_afetada>0&&x.custo_unitario>0),err=document.getElementById('oeErr');
+  if(!fornecedor||!dataEntrega||!descricao||!itensValidos.length){err.textContent='Informe data, fornecedor, descrição e pelo menos um produto com quantidade afetada e custo maior que zero.';err.style.display='block';return;}
+  const arquivo=document.getElementById('oe_arquivo').files[0]||null,validacao=oeValidarArquivo(arquivo);if(!validacao.ok){err.textContent=validacao.mensagem;err.style.display='block';return;}
+  const atual=oeEditandoId?oeCache.find(x=>String(x.id)===String(oeEditandoId)):null,btn=document.getElementById('oeSalvarBtn');btn.disabled=true;btn.textContent='Salvando…';err.style.display='none';let novoCaminho=null;
+  if(arquivo){novoCaminho=lojaAtual+'/'+dataEntrega.slice(0,7)+'/'+Date.now()+'_'+Math.random().toString(36).slice(2,8)+'_'+nomeArquivoSeguro(arquivo.name);const {error}=await sb.storage.from('ocorrencias-entregas').upload(novoCaminho,arquivo,{contentType:validacao.tipo,upsert:false});if(error){btn.disabled=false;btn.textContent='Salvar ocorrência';err.textContent='Não foi possível enviar o anexo: '+error.message;err.style.display='block';return;}}
+  const payload={loja:lojaAtual,data_entrega:dataEntrega,fornecedor,pedido:document.getElementById('oe_pedido').value.trim()||null,nota_fiscal:document.getElementById('oe_nota').value.trim()||null,tipo:document.getElementById('oe_tipo').value,providencia:document.getElementById('oe_providencia').value||null,status:document.getElementById('oe_status').value,prazo_fornecedor:document.getElementById('oe_prazo').value||null,responsavel:document.getElementById('oe_responsavel').value.trim()||null,descricao,data_resolucao:document.getElementById('oe_data_resolucao').value||null,solucao:document.getElementById('oe_solucao').value.trim()||null,valor_recuperado:Math.max(0,Number(document.getElementById('oe_valor_recuperado').value)||0)};
+  if(arquivo){payload.arquivo_nome=arquivo.name;payload.arquivo_tipo=validacao.tipo;payload.caminho_storage=novoCaminho;}
+  let registro,error;
+  if(atual){({data:registro,error}=await sb.from('ocorrencias_entregas').update(payload).eq('id',atual.id).eq('loja',lojaAtual).select().single());}
+  else{({data:registro,error}=await sb.from('ocorrencias_entregas').insert(payload).select().single());}
+  if(error){if(novoCaminho)await sb.storage.from('ocorrencias-entregas').remove([novoCaminho]);btn.disabled=false;btn.textContent='Salvar ocorrência';err.textContent='Não foi possível salvar. Execute o SQL da versão 1.2.46 no Supabase.';err.style.display='block';return;}
+  if(atual){const apagou=await sb.from('ocorrencias_entregas_itens').delete().eq('ocorrencia_id',registro.id);if(apagou.error)error=apagou.error;}
+  if(!error){const linhas=itensValidos.map((x,i)=>({ocorrencia_id:registro.id,produto:x.produto.trim(),quantidade_pedida:x.quantidade_pedida,quantidade_recebida:x.quantidade_recebida,quantidade_afetada:x.quantidade_afetada,custo_unitario:x.custo_unitario,ordem:i+1}));const res=await sb.from('ocorrencias_entregas_itens').insert(linhas);error=res.error;}
+  if(error){btn.disabled=false;btn.textContent='Salvar ocorrência';err.textContent='A ocorrência foi criada, mas não foi possível salvar os produtos: '+error.message;err.style.display='block';return;}
+  if(atual&&arquivo&&atual.caminho_storage&&atual.caminho_storage!==novoCaminho)await sb.storage.from('ocorrencias-entregas').remove([atual.caminho_storage]);
+  btn.disabled=false;btn.textContent='Salvar ocorrência';cancelarOcorrenciaEntrega();await carregarOcorrenciasEntregas();
+}
+
+async function carregarOcorrenciasEntregas(){
+  let q=sb.from('ocorrencias_entregas').select('*,ocorrencias_entregas_itens(*)').eq('loja',lojaAtual).order('data_entrega',{ascending:false});
+  if(!oeTodoHistorico){const de=document.getElementById('oeFiltroDe').value,ate=document.getElementById('oeFiltroAte').value;if(de)q=q.gte('data_entrega',de);if(ate)q=q.lte('data_entrega',ate);}
+  const {data,error}=await q;if(error){oeCache=[];document.getElementById('oeErr').textContent='Não foi possível carregar. Execute o SQL da versão 1.2.46 no Supabase.';document.getElementById('oeErr').style.display='block';}else oeCache=data||[];renderOcorrenciasEntregas();
+}
+
+function oeMostrarTodoHistorico(){oeTodoHistorico=!oeTodoHistorico;const de=document.getElementById('oeFiltroDe'),ate=document.getElementById('oeFiltroAte');de.disabled=oeTodoHistorico;ate.disabled=oeTodoHistorico;carregarOcorrenciasEntregas();}
+function ocorrenciasEntregasFiltradas(){const status=document.getElementById('oeFiltroStatus').value,busca=document.getElementById('oeBusca').value.trim().toLowerCase();return oeCache.filter(x=>(status==='todos'||x.status===status)&&(!busca||[x.fornecedor,x.descricao,x.pedido,x.nota_fiscal,oeProdutosTexto(x),OE_TIPOS[x.tipo]].some(v=>String(v||'').toLowerCase().includes(busca))));}
+function renderOcorrenciasEntregas(){
+  const lista=ocorrenciasEntregasFiltradas(),hoje=new Date(todayStr()+'T12:00:00'),diasAberta=x=>Math.floor((hoje-new Date(x.data_entrega+'T12:00:00'))/86400000);
+  document.getElementById('oeTotalPendentes').textContent=String(lista.filter(x=>x.status!=='resolvida').length);document.getElementById('oeValorAfetado').textContent=brl(lista.reduce((s,x)=>s+oeValorItens(x),0));document.getElementById('oeValorRecuperado').textContent=brl(lista.reduce((s,x)=>s+(Number(x.valor_recuperado)||0),0));document.getElementById('oeAtrasadas').textContent=String(lista.filter(x=>x.status!=='resolvida'&&diasAberta(x)>7).length);document.getElementById('oeEmpty').style.display=lista.length?'none':'block';
+  document.getElementById('oeHistoricoBody').innerHTML=lista.map(x=>`<tr><td>${fmtData(x.data_entrega)}</td><td><strong>${escapeHtml(x.fornecedor)}</strong>${x.nota_fiscal?`<div style="font-size:10px;color:var(--muted);">NF ${escapeHtml(x.nota_fiscal)}</div>`:''}</td><td>${escapeHtml(OE_TIPOS[x.tipo]||x.tipo)}<div style="font-size:10px;color:var(--muted);white-space:normal;max-width:240px;">${escapeHtml(x.descricao)}</div></td><td style="white-space:normal;max-width:260px;">${escapeHtml(oeProdutosTexto(x)||'—')}</td><td><span class="lc-status ${x.status==='resolvida'?'pronto':x.status==='andamento'?'revisar':'erro'}">${escapeHtml(OE_STATUS[x.status]||x.status)}</span>${x.status!=='resolvida'&&diasAberta(x)>7?`<div style="font-size:10px;color:var(--rust);margin-top:3px;">há ${diasAberta(x)} dias</div>`:''}</td><td>${x.prazo_fornecedor?fmtData(x.prazo_fornecedor):'—'}</td><td class="valor">${brl(oeValorItens(x))}</td><td class="valor" style="color:var(--green);">${brl(x.valor_recuperado||0)}</td><td>${x.caminho_storage?`<button class="filter-btn" data-caminho="${escapeHtml(x.caminho_storage)}" data-nome="${escapeHtml(x.arquivo_nome||'Anexo')}" data-tipo="${escapeHtml(x.arquivo_tipo||'')}" onclick="abrirAnexoOcorrenciaEntrega(this.dataset.caminho,this.dataset.nome,this.dataset.tipo)">👁 Ver</button>`:'—'}</td><td><div class="rowactions"><button class="iconbtn edit" title="Editar" onclick="editarOcorrenciaEntrega('${x.id}')">✎</button><button class="iconbtn del" title="Excluir" onclick="abrirExcluirOcorrenciaEntrega('${x.id}')">✕</button></div></td></tr>`).join('');
+}
+
+function editarOcorrenciaEntrega(id){
+  const x=oeCache.find(v=>String(v.id)===String(id));if(!x)return;oeEditandoId=x.id;oeItens=(x.ocorrencias_entregas_itens||[]).sort((a,b)=>(a.ordem||0)-(b.ordem||0)).map(i=>({chave:'oei_'+i.id,produto:i.produto,quantidade_pedida:Number(i.quantidade_pedida)||0,quantidade_recebida:Number(i.quantidade_recebida)||0,quantidade_afetada:Number(i.quantidade_afetada)||0,custo_unitario:Number(i.custo_unitario)||0}));if(!oeItens.length)adicionarItemOcorrenciaEntrega();else renderItensOcorrenciaEntrega();
+  document.getElementById('oeFormTitulo').textContent='Editar ocorrência';document.getElementById('oe_data').value=x.data_entrega||'';document.getElementById('oe_fornecedor').value=x.fornecedor||'';document.getElementById('oe_pedido').value=x.pedido||'';document.getElementById('oe_nota').value=x.nota_fiscal||'';document.getElementById('oe_tipo').value=x.tipo||'outro';document.getElementById('oe_providencia').value=x.providencia||'';document.getElementById('oe_status').value=x.status||'pendente';document.getElementById('oe_prazo').value=x.prazo_fornecedor||'';document.getElementById('oe_responsavel').value=x.responsavel||'';document.getElementById('oe_descricao').value=x.descricao||'';document.getElementById('oe_data_resolucao').value=x.data_resolucao||'';document.getElementById('oe_valor_recuperado').value=Number(x.valor_recuperado)||'';document.getElementById('oe_solucao').value=x.solucao||'';document.getElementById('oe_arquivo').value='';document.getElementById('oeArquivoAtual').textContent=x.caminho_storage?'Arquivo atual: '+(x.arquivo_nome||'anexo'):'Nenhum arquivo anexado.';document.getElementById('oeErr').style.display='none';document.getElementById('oeFormPanel').style.display='block';document.getElementById('oeFormPanel').scrollIntoView({behavior:'smooth',block:'start'});
+}
+
+async function abrirAnexoOcorrenciaEntrega(caminho,nome,tipo){const {data,error}=await sb.storage.from('ocorrencias-entregas').createSignedUrl(caminho,3600);if(error||!data?.signedUrl){alert('Não foi possível abrir o anexo.');return;}mostrarPreviewLeituraComprovante(data.signedUrl,nome,tipo);}
+let oeExcluindoId=null;
+function abrirExcluirOcorrenciaEntrega(id){const x=oeCache.find(v=>String(v.id)===String(id));if(!x)return;oeExcluindoId=x.id;document.getElementById('excluirOcorrenciaEntregaTexto').textContent='A ocorrência de '+x.fornecedor+', registrada em '+fmtData(x.data_entrega)+', e seus produtos serão excluídos permanentemente.';document.getElementById('excluirOcorrenciaEntregaErr').style.display='none';document.getElementById('excluirOcorrenciaEntregaModal').style.display='flex';}
+function fecharExcluirOcorrenciaEntrega(){document.getElementById('excluirOcorrenciaEntregaModal').style.display='none';oeExcluindoId=null;}
+async function confirmarExcluirOcorrenciaEntrega(){const x=oeCache.find(v=>String(v.id)===String(oeExcluindoId));if(!x)return;const btn=document.getElementById('excluirOcorrenciaEntregaBtn'),err=document.getElementById('excluirOcorrenciaEntregaErr');btn.disabled=true;btn.textContent='Excluindo…';const {error}=await sb.from('ocorrencias_entregas').delete().eq('id',x.id).eq('loja',lojaAtual);btn.disabled=false;btn.textContent='Excluir ocorrência';if(error){err.textContent='Não foi possível excluir: '+error.message;err.style.display='block';return;}if(x.caminho_storage)await sb.storage.from('ocorrencias-entregas').remove([x.caminho_storage]);fecharExcluirOcorrenciaEntrega();await carregarOcorrenciasEntregas();}
+
+function linhasExportacaoOcorrencias(){const linhas=[];ocorrenciasEntregasFiltradas().forEach(x=>(x.ocorrencias_entregas_itens||[]).forEach(i=>linhas.push({'Data':fmtData(x.data_entrega),'Fornecedor':x.fornecedor,'Pedido':x.pedido||'','Nota fiscal':x.nota_fiscal||'','Tipo':OE_TIPOS[x.tipo]||x.tipo,'Produto':i.produto,'Qtd. pedida':Number(i.quantidade_pedida)||0,'Qtd. recebida':Number(i.quantidade_recebida)||0,'Qtd. afetada':Number(i.quantidade_afetada)||0,'Custo unitário':Number(i.custo_unitario)||0,'Valor afetado':(Number(i.quantidade_afetada)||0)*(Number(i.custo_unitario)||0),'Providência':OE_PROVIDENCIAS[x.providencia]||'','Status':OE_STATUS[x.status]||x.status,'Prazo':x.prazo_fornecedor?fmtData(x.prazo_fornecedor):'','Valor recuperado':Number(x.valor_recuperado)||0,'Descrição':x.descricao,'Solução':x.solucao||''})));return linhas;}
+function exportarExcelOcorrenciasEntregas(){const linhas=linhasExportacaoOcorrencias();if(!linhas.length){alert('Não há ocorrências para exportar.');return;}const ws=XLSX.utils.json_to_sheet(linhas);ws['!cols']=[{wch:12},{wch:28},{wch:14},{wch:14},{wch:25},{wch:32},{wch:13},{wch:14},{wch:14},{wch:15},{wch:16},{wch:18},{wch:14},{wch:12},{wch:17},{wch:40},{wch:40}];const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'Ocorrências');XLSX.writeFile(wb,'ocorrencias-entregas-'+lojaAtual+'-'+todayStr()+'.xlsx');}
+function exportarPdfOcorrenciasEntregas(){const lista=ocorrenciasEntregasFiltradas();if(!lista.length){alert('Não há ocorrências para exportar.');return;}const doc=iniciarPdf('Ocorrências de Entregas — '+(NOMES_LOJA[lojaAtual]||lojaAtual),'Relatório emitido em '+fmtData(todayStr()));doc.autoTable({startY:36,head:[['Data','Fornecedor','Tipo','Produtos','Status','Valor afetado','Recuperado']],body:lista.map(x=>[fmtData(x.data_entrega),x.fornecedor,OE_TIPOS[x.tipo]||x.tipo,oeProdutosTexto(x),OE_STATUS[x.status]||x.status,brl(oeValorItens(x)),brl(x.valor_recuperado||0)]),styles:{fontSize:7.5,cellPadding:2,overflow:'linebreak'},headStyles:{fillColor:[30,53,91]},columnStyles:{5:{halign:'right'},6:{halign:'right'}}});doc.save('ocorrencias-entregas-'+lojaAtual+'-'+todayStr()+'.pdf');}
 
 /* ================= MANUTENÇÃO ================= */
 

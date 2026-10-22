@@ -169,6 +169,8 @@
   .fld select{width:100%;font-family:var(--font-sans);font-size:13px;padding:9px 10px;border:1px solid var(--line);border-radius:5px;background:var(--paper);color:var(--ink);cursor:pointer;}
   .fld select:focus{outline:none;border-color:var(--gold);}
   .fld input:focus{outline:none;border-color:var(--gold);}
+  .fld textarea{width:100%;font-family:var(--font-sans);font-size:13px;padding:9px 10px;border:1px solid var(--line);border-radius:5px;background:var(--paper);color:var(--ink);resize:vertical;}
+  .fld textarea:focus{outline:none;border-color:var(--gold);}
   .fld-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
   .addbtn{width:100%;font-family:var(--font-sans);font-size:13px;font-weight:500;padding:11px;border:none;background:var(--ink);color:var(--paper);border-radius:6px;cursor:pointer;transition:opacity .15s;}
   .addbtn:hover{opacity:0.9;} .addbtn:disabled{opacity:0.5;}
@@ -218,6 +220,8 @@
   #colabTable1 th, #colabTable2 th, #contasBancariasTable th{text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:0.05em;color:var(--muted);font-weight:500;padding:8px 16px;background:var(--paper2);}
   #colabTable1 td, #colabTable2 td, #contasBancariasTable td{padding:10px 16px;border-top:1px solid var(--paper3);}
   @media (max-width:900px){ .colab-body{grid-template-columns:1fr;} }
+  @media (max-width:900px){.oe-form{grid-template-columns:1fr 1fr!important;}.oe-form .fld[style*="grid-column:span 3"],.oe-form .fld[style*="grid-column:span 4"]{grid-column:span 2!important;}}
+  @media (max-width:600px){.oe-form{grid-template-columns:1fr!important;}.oe-form .fld{grid-column:span 1!important;}}
   #fluxoFormaTable, #fluxoFornecedorTable{width:100%;border-collapse:collapse;font-size:12.5px;}
   .compras-nav{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;}
   .compras-chip{font-family:var(--font-sans);font-size:12.5px;padding:7px 14px;border:1px solid var(--line);border-radius:20px;background:#fff;color:var(--muted);cursor:pointer;transition:.15s;}
@@ -790,6 +794,7 @@
       <button class="top-module-btn" data-category="comprasEstoque" data-view="inventario" onclick="mudarViewPrincipal('inventario')"><span class="top-module-icon">📦</span>Inventário</button>
       <button class="top-module-btn" data-category="comprasEstoque" data-view="controleEstoque" onclick="mudarViewPrincipal('controleEstoque')"><span class="top-module-icon">📈</span>Controle de Estoque</button>
       <button class="top-module-btn" data-category="comprasEstoque" data-view="contagensEstoque" onclick="mudarViewPrincipal('contagensEstoque')"><span class="top-module-icon">🔢</span>Contagens de Estoque</button>
+      <button class="top-module-btn" data-category="comprasEstoque" data-view="ocorrenciasEntregas" onclick="mudarViewPrincipal('ocorrenciasEntregas')"><span class="top-module-icon">⚠️</span>Ocorrências de Entregas</button>
       <button class="top-module-btn" data-category="equipe" data-view="bancoHoras" onclick="mudarViewPrincipal('bancoHoras')"><span class="top-module-icon">🕐</span>Banco de Horas</button>
       <button class="top-module-btn" data-category="equipe" data-view="colaboradores" onclick="mudarViewPrincipal('colaboradores')"><span class="top-module-icon">👥</span>Colaboradores</button>
       <button class="top-module-btn" data-category="equipe" data-view="aniversarios" onclick="mudarViewPrincipal('aniversarios')"><span class="top-module-icon">🎂</span>Aniversários</button>
@@ -1255,7 +1260,62 @@
       </div>
     </div>
 
+    <div id="viewOcorrenciasEntregas" style="display:none;">
+      <div class="bh-module-head">
+        <div><h1>⚠️ Central de Ocorrências de Entregas</h1><p>Registre faltas, avarias e divergências nas mercadorias recebidas e acompanhe a solução com o fornecedor.</p></div>
+        <button type="button" class="addbtn" style="width:auto;" onclick="novaOcorrenciaEntrega()">+ Nova ocorrência</button>
+      </div>
+
+      <div class="bh-resumo" style="margin-bottom:18px;">
+        <div class="metric"><div class="lbl">Ocorrências pendentes</div><div class="val" id="oeTotalPendentes" style="color:var(--rust);">0</div></div>
+        <div class="metric"><div class="lbl">Valor afetado no filtro</div><div class="val" id="oeValorAfetado">R$ 0,00</div></div>
+        <div class="metric"><div class="lbl">Valor recuperado</div><div class="val" id="oeValorRecuperado" style="color:var(--green);">R$ 0,00</div></div>
+        <div class="metric"><div class="lbl">Aguardando há mais de 7 dias</div><div class="val" id="oeAtrasadas" style="color:var(--gold);">0</div></div>
+      </div>
+
+      <div class="panel" id="oeFormPanel" style="margin-bottom:18px;display:none;">
+        <div class="panel-head"><h2 id="oeFormTitulo">Nova ocorrência</h2><button type="button" class="modal-close" style="position:static;" onclick="cancelarOcorrenciaEntrega()">✕</button></div>
+        <div class="bh-form oe-form" style="grid-template-columns:repeat(4,minmax(150px,1fr));">
+          <div class="fld"><label>Data da entrega *</label><input id="oe_data" type="date"></div>
+          <div class="fld"><label>Fornecedor / empresa *</label><input id="oe_fornecedor" list="oeFornecedoresLista" placeholder="Nome da empresa"><datalist id="oeFornecedoresLista"></datalist></div>
+          <div class="fld"><label>Número do pedido</label><input id="oe_pedido" placeholder="Opcional"></div>
+          <div class="fld"><label>Nota fiscal</label><input id="oe_nota" placeholder="Opcional"></div>
+          <div class="fld"><label>Tipo de ocorrência *</label><select id="oe_tipo"><option value="produto_faltando">Produto faltando</option><option value="avariado">Produto quebrado ou avariado</option><option value="produto_errado">Produto errado</option><option value="quantidade_divergente">Quantidade divergente</option><option value="vencimento">Vencido ou próximo do vencimento</option><option value="preco_divergente">Preço divergente</option><option value="outro">Outro</option></select></div>
+          <div class="fld"><label>Providência solicitada</label><select id="oe_providencia"><option value="">Não informada</option><option value="troca">Troca</option><option value="reposicao">Reposição</option><option value="devolucao">Devolução</option><option value="credito">Crédito</option><option value="reembolso">Reembolso</option><option value="outra">Outra</option></select></div>
+          <div class="fld"><label>Status</label><select id="oe_status" onchange="oeAtualizarCamposResolucao()"><option value="pendente">Pendente</option><option value="andamento">Em andamento</option><option value="resolvida">Resolvida</option></select></div>
+          <div class="fld"><label>Prazo do fornecedor</label><input id="oe_prazo" type="date"></div>
+          <div class="fld"><label>Responsável pelo recebimento</label><input id="oe_responsavel" placeholder="Nome da pessoa"></div>
+          <div class="fld" style="grid-column:span 3;"><label>Descrição da ocorrência *</label><input id="oe_descricao" placeholder="Explique o que aconteceu"></div>
+          <div class="fld" style="grid-column:span 2;"><label>Foto ou PDF</label><input id="oe_arquivo" type="file" accept=".pdf,.jpg,.jpeg,.png,.webp,application/pdf,image/jpeg,image/png,image/webp"><div id="oeArquivoAtual" style="font-size:11px;color:var(--muted);margin-top:4px;">Nenhum arquivo anexado.</div></div>
+          <div class="fld"><label>Data da resolução</label><input id="oe_data_resolucao" type="date"></div>
+          <div class="fld"><label>Valor recuperado (R$)</label><input id="oe_valor_recuperado" type="number" min="0" step="0.01" placeholder="0,00"></div>
+          <div class="fld" style="grid-column:span 4;"><label>Solução apresentada pelo fornecedor</label><textarea id="oe_solucao" rows="2" placeholder="Preencha quando houver retorno ou resolução"></textarea></div>
+        </div>
+        <div class="panel-head" style="padding-top:4px;"><h2>Produtos envolvidos</h2><button type="button" class="filter-btn" onclick="adicionarItemOcorrenciaEntrega()">+ Adicionar produto</button></div>
+        <div class="tablewrap"><table class="ledger" style="min-width:980px;"><thead><tr><th>Produto *</th><th>Qtd. pedida</th><th>Qtd. recebida</th><th>Qtd. afetada *</th><th>Custo unitário *</th><th style="text-align:right;">Valor afetado</th><th></th></tr></thead><tbody id="oeItensBody"></tbody></table></div>
+        <div class="formerr" id="oeErr" style="margin:12px 20px 0;"></div>
+        <div class="modal-actions" style="padding:16px 20px 20px;"><button class="addbtn" id="oeSalvarBtn" style="width:auto;min-width:180px;" onclick="salvarOcorrenciaEntrega()">Salvar ocorrência</button><button class="cancelbtn" onclick="cancelarOcorrenciaEntrega()">Cancelar</button></div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-head" style="flex-wrap:wrap;"><h2>Histórico de ocorrências</h2><div style="display:flex;gap:8px;flex-wrap:wrap;"><button class="filter-btn foto-btn" onclick="exportarExcelOcorrenciasEntregas()">📊 Excel</button><button class="filter-btn foto-btn" onclick="exportarPdfOcorrenciasEntregas()">📄 PDF</button></div></div>
+        <div style="padding:0 20px 14px;display:flex;gap:10px;flex-wrap:wrap;align-items:end;">
+          <div class="fld" style="margin:0;"><label>De</label><input id="oeFiltroDe" type="date" onchange="carregarOcorrenciasEntregas()"></div>
+          <div class="fld" style="margin:0;"><label>Até</label><input id="oeFiltroAte" type="date" onchange="carregarOcorrenciasEntregas()"></div>
+          <div class="fld" style="margin:0;"><label>Status</label><select id="oeFiltroStatus" onchange="renderOcorrenciasEntregas()"><option value="todos">Todos</option><option value="pendente">Pendentes</option><option value="andamento">Em andamento</option><option value="resolvida">Resolvidas</option></select></div>
+          <div class="fld" style="margin:0;flex:1;min-width:240px;"><label>Pesquisar</label><input id="oeBusca" placeholder="Fornecedor, produto, nota ou descrição" oninput="renderOcorrenciasEntregas()"></div>
+          <button class="filter-btn" onclick="oeMostrarTodoHistorico()">🗂️ Todo o histórico</button>
+        </div>
+        <div class="tablewrap"><table class="ledger" style="min-width:1250px;"><thead><tr><th>Data</th><th>Fornecedor</th><th>Ocorrência</th><th>Produtos</th><th>Status</th><th>Prazo</th><th style="text-align:right;">Valor afetado</th><th style="text-align:right;">Recuperado</th><th>Anexo</th><th></th></tr></thead><tbody id="oeHistoricoBody"></tbody></table></div>
+        <div class="empty" id="oeEmpty" style="display:none;">Nenhuma ocorrência encontrada.</div>
+      </div>
+    </div>
+
     <div id="viewColaboradores" style="display:none;">
+      <div class="panel" style="margin-bottom:16px;padding:14px 18px;display:flex;align-items:end;gap:12px;flex-wrap:wrap;">
+        <div class="fld" style="margin:0;min-width:190px;"><label>Mostrar colaboradores</label><select id="colabFiltroSituacao" onchange="renderColabTables()"><option value="ativos">Ativos</option><option value="inativos">Inativos</option><option value="todos">Todos</option></select></div>
+        <span style="font-size:12px;color:var(--muted);padding-bottom:9px;">Colaboradores inativos permanecem no histórico, mas não aparecem no Banco de Horas nem nos aniversários.</span>
+      </div>
       <div class="colab-body">
         <div class="colab-col">
           <div class="colab-col-head">
@@ -1263,7 +1323,7 @@
             <button type="button" class="importbtn" style="width:auto;margin:0;" onclick="abrirNovoColaborador('loja1')">+ Novo colaborador</button>
           </div>
           <table id="colabTable1">
-            <thead><tr><th>Nome</th><th>Cargo</th><th>Nascimento</th><th>Escala</th><th>Jornada</th><th></th></tr></thead>
+            <thead><tr><th>Nome</th><th>Cargo</th><th>Nascimento</th><th>Situação</th><th>Escala</th><th>Jornada</th><th></th></tr></thead>
             <tbody id="colabBody1"></tbody>
           </table>
           <div class="empty" id="colabEmpty1" style="display:none;">Nenhum colaborador cadastrado na Loja 01.</div>
@@ -1274,7 +1334,7 @@
             <button type="button" class="importbtn" style="width:auto;margin:0;" onclick="abrirNovoColaborador('loja2')">+ Novo colaborador</button>
           </div>
           <table id="colabTable2">
-            <thead><tr><th>Nome</th><th>Cargo</th><th>Nascimento</th><th>Escala</th><th>Jornada</th><th></th></tr></thead>
+            <thead><tr><th>Nome</th><th>Cargo</th><th>Nascimento</th><th>Situação</th><th>Escala</th><th>Jornada</th><th></th></tr></thead>
             <tbody id="colabBody2"></tbody>
           </table>
           <div class="empty" id="colabEmpty2" style="display:none;">Nenhum colaborador cadastrado na Loja 02.</div>
@@ -2842,6 +2902,7 @@
         <option value="Operador (a) de Caixa">Operador (a) de Caixa</option>
       </select>
     </div>
+    <div class="fld"><label>Data de desligamento</label><input id="func_data_desligamento" type="date"><div style="font-size:11px;color:var(--muted);margin-top:4px;">Preenchida automaticamente ao inativar; pode ser corrigida posteriormente.</div></div>
     <div class="fld"><label>Escala de trabalho</label>
       <div class="tipo-toggle" id="escalaToggle">
         <button type="button" class="tipo-btn active" data-escala="normal" onclick="setEscala('normal')">Normal</button>
@@ -2857,6 +2918,30 @@
     </div>
     <button class="addbtn" onclick="salvarFuncionario()">Salvar</button>
     <div class="formerr" id="funcErr">Preencha o nome do funcionário.</div>
+  </div>
+</div>
+
+<div id="inativarFuncModal" class="modal-overlay">
+  <div class="modal-box" style="max-width:430px;">
+    <button class="modal-close" onclick="fecharInativarFuncionario()">✕</button>
+    <h2 id="inativarFuncTitulo">Inativar colaborador?</h2>
+    <p class="modal-sub" id="inativarFuncTexto">O cadastro e todo o histórico serão preservados.</p>
+    <div class="fld" id="inativarFuncDataWrap"><label>Data de desligamento</label><input id="inativarFuncData" type="date"></div>
+    <div class="modal-actions" style="margin-top:16px;">
+      <button class="addbtn" id="inativarFuncConfirmBtn" onclick="confirmarAlteracaoSituacaoColaborador()">Inativar colaborador</button>
+      <button class="cancelbtn" onclick="fecharInativarFuncionario()">Cancelar</button>
+    </div>
+    <div class="formerr" id="inativarFuncErr"></div>
+  </div>
+</div>
+
+<div id="excluirOcorrenciaEntregaModal" class="modal-overlay">
+  <div class="modal-box" style="max-width:430px;">
+    <button class="modal-close" onclick="fecharExcluirOcorrenciaEntrega()">✕</button>
+    <h2>Excluir ocorrência?</h2>
+    <p class="modal-sub" id="excluirOcorrenciaEntregaTexto">A ocorrência e os produtos vinculados serão excluídos permanentemente.</p>
+    <div class="modal-actions"><button class="addbtn" id="excluirOcorrenciaEntregaBtn" style="background:var(--rust);" onclick="confirmarExcluirOcorrenciaEntrega()">Excluir ocorrência</button><button class="cancelbtn" onclick="fecharExcluirOcorrenciaEntrega()">Cancelar</button></div>
+    <div class="formerr" id="excluirOcorrenciaEntregaErr"></div>
   </div>
 </div>
 
