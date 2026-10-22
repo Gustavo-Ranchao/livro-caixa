@@ -13,7 +13,7 @@ const MODULOS_PERMITIDOS = new Set([
   'checklist','duvidas','manutencao','agenda','contasPagar','despesasFixas','comprovantes','leituraComprovantes',
   'diferencaCaixa','fluxoCaixa','pagamentos','pagamentoCaixa','contratos','vendasComCusto','metasVendas','vendasDelivery',
   'orcamentos','tabelaPrecos','bancoHoras','compras','colaboradores','aniversarios','fornecedores','contasBancarias',
-  'inventario','controleEstoque','contagensEstoque','combinacaoPagamentos'
+  'inventario','controleEstoque','contagensEstoque','ocorrenciasEntregas','combinacaoPagamentos'
 ]);
 const TITULOS_MODULOS = {
   checklist:'Checklist',duvidas:'Dúvidas',manutencao:'Manutenção',agenda:'Agenda',contasPagar:'Contas a pagar',
@@ -21,7 +21,7 @@ const TITULOS_MODULOS = {
   diferencaCaixa:'Diferença de Caixa',fluxoCaixa:'Fluxo de Caixa',pagamentos:'Pagamentos',pagamentoCaixa:'Pagamento no Caixa',
   combinacaoPagamentos:'Combinação de Pagamentos',contratos:'Contratos e Recibos',vendasComCusto:'Vendas com Custo',metasVendas:'Metas de Vendas',
   vendasDelivery:'Vendas Delivery',orcamentos:'Orçamentos',tabelaPrecos:'Tabela de Preços',compras:'Compras',
-  inventario:'Inventário',controleEstoque:'Controle de Estoque',contagensEstoque:'Contagens de Estoque',
+  inventario:'Inventário',controleEstoque:'Controle de Estoque',contagensEstoque:'Contagens de Estoque',ocorrenciasEntregas:'Ocorrências de Entregas',
   bancoHoras:'Banco de Horas',colaboradores:'Colaboradores',aniversarios:'Aniversários',fornecedores:'Fornecedores',
   contasBancarias:'Contas Bancárias'
 };

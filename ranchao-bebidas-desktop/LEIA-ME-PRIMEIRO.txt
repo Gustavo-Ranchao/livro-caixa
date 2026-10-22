@@ -1,25 +1,28 @@
-RANCHÃO BEBIDAS — ATUALIZAÇÃO 1.2.45
+RANCHÃO BEBIDAS — ATUALIZAÇÃO 1.2.46
 
 ORDEM DA ATUALIZAÇÃO
 
 1. No SQL Editor do Supabase, execute todo o arquivo
+   ATUALIZACAO_COLABORADORES_OCORRENCIAS_1.2.46.sql. Ele cria a Central de
+   Ocorrências, o armazenamento privado dos anexos e a data de desligamento.
+2. No SQL Editor do Supabase, execute todo o arquivo
    ATUALIZACAO_LEITOR_CLASSIFICACAO_1.2.44.sql. Ele pode ser executado
    novamente com segurança e não apaga nenhum comprovante.
-2. Se ainda não executou, no SQL Editor do Supabase execute o arquivo
+3. Se ainda não executou, no SQL Editor do Supabase execute o arquivo
    ATUALIZACAO_COMPRAS_ULTIMO_PRECO.sql. Ele pode ser executado novamente
    com segurança caso o SQL do pacote anterior já tenha sido aplicado.
-3. Se ainda não executou o SQL das metas, execute todo o arquivo
+4. Se ainda não executou o SQL das metas, execute todo o arquivo
    modulo_metas_vendas_supabase.sql.
-4. Se ainda não executou o SQL das fotos, execute todo o arquivo
+5. Se ainda não executou o SQL das fotos, execute todo o arquivo
    ATUALIZACAO_FOTOS_PRODUTOS.sql. Ele cria o armazenamento privado e libera
    o envio das fotos dos produtos no módulo Compras.
-5. Se você ainda não executou o SQL da versão 1.2.30, execute o arquivo
+6. Se você ainda não executou o SQL da versão 1.2.30, execute o arquivo
    ATUALIZACAO_IMPORTAR_PAGAMENTOS_CAIXA.sql incluído neste pacote.
-6. Envie TODOS os arquivos e pastas deste pacote para a raiz do GitHub,
+7. Envie TODOS os arquivos e pastas deste pacote para a raiz do GitHub,
    preservando a estrutura e substituindo os arquivos existentes.
-7. Substitua também .github/workflows/main.yml. Não crie outro workflow.
-8. Abra Actions > Publicar atualização do aplicativo > Run workflow.
-9. Informe a versão 1.2.45 e confirme.
+8. Substitua também .github/workflows/main.yml. Não crie outro workflow.
+9. Abra Actions > Publicar atualização do aplicativo > Run workflow.
+10. Informe a versão 1.2.46 e confirme.
 
 IMPORTANTE
 
@@ -29,6 +32,23 @@ IMPORTANTE
 - Importar, editar ou excluir em Pagamento no Caixa não altera a aba Pagamentos.
 
 ALTERAÇÕES
+
+NOVIDADES DA VERSÃO 1.2.46
+- Colaboradores podem ser inativados sem apagar cadastro, ponto, atestados ou histórico.
+- Colaboradores inativos deixam de aparecer no Banco de Horas, aniversários,
+  popup de aniversário e listas destinadas a novos lançamentos.
+- A tela Colaboradores ganhou filtros Ativos, Inativos e Todos.
+- Colaboradores inativos continuam disponíveis para consulta e edição.
+- Incluídos data de desligamento, botão de reativação e situação na listagem.
+- Criada a Central de Ocorrências de Entregas em Compras e Estoque.
+- Permite registrar fornecedor, data, pedido, nota fiscal, tipo do problema,
+  responsável, providência, prazo, descrição, solução e valor recuperado.
+- Cada ocorrência aceita vários produtos, com quantidades pedida, recebida e
+  afetada, custo unitário e cálculo automático do valor afetado.
+- Aceita anexos privados em PDF, JPG, PNG ou WebP de até 15 MB.
+- Possui status Pendente, Em andamento e Resolvida, histórico completo,
+  pesquisa, filtros, aviso de pendências antigas e exportação em Excel/PDF.
+- Ocorrências e anexos foram incluídos no backup geral do sistema.
 
 NOVIDADES DA VERSÃO 1.2.45
 - Reorganizada a tabela do histórico no Leitor de Comprovantes.
