@@ -930,9 +930,10 @@
       <div class="metric pagar" style="flex:0 0 220px;"><div class="lbl">A pagar (pendente)</div><div class="val" id="totalPagar">R$ 0,00</div><div class="sub" id="subPagar">0 lançamentos</div></div>
       <div class="panel" style="flex:1;padding:16px 20px;">
         <h2 style="font-family:var(--font-voice);font-size:15px;font-weight:600;margin:0 0 12px;">Novo lançamento</h2>
-        <div class="bh-form" style="grid-template-columns:2fr 1fr 1fr auto;padding:0;">
-          <div class="fld"><label id="f_contato_label">Fornecedor</label><input id="f_contato" list="listaFornecedores" placeholder="Nome" onkeydown="if(event.key==='Enter'){event.preventDefault();document.getElementById('f_valor').focus();}"></div>
+        <div class="bh-form" style="grid-template-columns:2fr 1.5fr 1fr 1fr auto;padding:0;">
+          <div class="fld"><label id="f_contato_label">Fornecedor</label><input id="f_contato" list="listaFornecedores" placeholder="Nome" onblur="aplicarSugestaoTipoPagamento('f_contato','f_classificacao_busca','f_classificacao')" onkeydown="if(event.key==='Enter'){event.preventDefault();document.getElementById('f_classificacao_busca').focus();document.getElementById('f_classificacao_busca').select();}"></div>
           <datalist id="listaFornecedores"></datalist>
+          <div class="fld"><label>Classificação financeira *</label><input id="f_classificacao_busca" list="pagCaixaTiposDatalist" placeholder="Fornecedor avulso, Diversos..." autocomplete="off" oninput="matchTipoPagCaixa('f_classificacao_busca','f_classificacao')" onkeydown="if(event.key==='Enter'){event.preventDefault();matchTipoPagCaixa('f_classificacao_busca','f_classificacao');document.getElementById('f_valor').focus();}"><input type="hidden" id="f_classificacao"></div>
           <div class="fld"><label>Valor (R$)</label><input id="f_valor" type="number" step="0.01" min="0" placeholder="0,00" onkeydown="if(event.key==='Enter'){event.preventDefault();document.getElementById('f_venc').focus();}"></div>
           <div class="fld"><label>Vencimento</label><input id="f_venc" type="date" onkeydown="if(event.key==='Enter'){event.preventDefault();addLancamento();}"></div>
           <button class="addbtn" id="addbtn" onclick="addLancamento()" style="width:auto;">Adicionar</button>
@@ -965,7 +966,7 @@
         </div>
         <div class="tablewrap">
           <table class="ledger">
-            <thead><tr><th>Fornecedor</th><th>Vencimento</th><th style="text-align:right">Valor</th><th>Pagto</th><th>Status</th><th></th></tr></thead>
+            <thead><tr><th>Fornecedor</th><th>Classificação</th><th>Vencimento</th><th style="text-align:right">Valor</th><th>Pagto</th><th>Status</th><th></th></tr></thead>
             <tbody id="bodyPagar"></tbody>
           </table>
         </div>
@@ -3304,6 +3305,7 @@
     <button class="modal-close" onclick="fecharEditar()">✕</button>
     <h2>Editar lançamento</h2>
     <div class="fld"><label id="e_contato_label">Fornecedor</label><input id="e_contato"></div>
+    <div class="fld" id="e_classificacao_wrap"><label>Classificação financeira *</label><input id="e_classificacao_busca" list="pagCaixaTiposDatalist" placeholder="Digite para buscar" autocomplete="off" oninput="matchTipoPagCaixa('e_classificacao_busca','e_classificacao')"><input type="hidden" id="e_classificacao"></div>
     <div class="fld-row">
       <div class="fld"><label>Valor (R$)</label><input id="e_valor" type="number" step="0.01" min="0"></div>
       <div class="fld"><label>Vencimento</label><input id="e_venc" type="date"></div>

@@ -805,8 +805,11 @@ async function addLancamento(){
   const contato = document.getElementById('f_contato').value.trim();
   const valor = parseFloat(document.getElementById('f_valor').value);
   const venc = document.getElementById('f_venc').value;
+  matchTipoPagCaixa('f_classificacao_busca','f_classificacao');
+  const codigoTipoId = document.getElementById('f_classificacao').value || null;
   const err = document.getElementById('formerr');
-  if(!contato || !venc || isNaN(valor) || valor<=0){
+  if(!contato || !venc || isNaN(valor) || valor<=0 || (tipoAtual==='pagar'&&!codigoTipoId)){
+    err.textContent=tipoAtual==='pagar'&&!codigoTipoId?'Selecione a classificação financeira.':'Preencha descrição, valor e vencimento.';
     err.style.display = 'block';
     return;
   }
@@ -815,7 +818,7 @@ async function addLancamento(){
   btn.disabled = true;
   const { data, error } = await sb.from('lancamentos').insert({
     tipo: tipoAtual, descricao: contato, contato: contato, valor: valor,
-    vencimento: venc, status: 'pendente', loja: lojaAtual
+    vencimento: venc, status: 'pendente', loja: lojaAtual, codigo_tipo_id: codigoTipoId
   }).select().single();
   btn.disabled = false;
   if(error){
@@ -824,9 +827,12 @@ async function addLancamento(){
     return;
   }
   lancamentos.push(data);
+  if(codigoTipoId)await gravarMemoriaPagCaixa(contato,codigoTipoId);
   document.getElementById('f_contato').value = '';
   document.getElementById('f_valor').value = '';
   document.getElementById('f_venc').value = '';
+  document.getElementById('f_classificacao').value = '';
+  document.getElementById('f_classificacao_busca').value = '';
   document.getElementById('f_contato').focus();
   render();
 }
@@ -835,6 +841,7 @@ async function togglePago(id){
   const it = lancamentos.find(x=>x.id===id);
   if(!it) return;
   const novoStatus = it.status === 'pago' ? 'pendente' : 'pago';
+  if(novoStatus==='pago'&&it.forma_pagamento==='dinheiro'&&!it.codigo_tipo_id){alert('Selecione a classificação financeira desta conta antes de dar baixa em dinheiro.');abrirEditar(id);return;}
   const novaData = novoStatus === 'pago' ? todayStr() : null;
   const { error } = await sb.from('lancamentos').update({ status: novoStatus, data_pagamento: novaData }).eq('id', id);
   if(!error){
@@ -858,7 +865,8 @@ async function sincronizarPagamentoDinheiro(item){
     tipo: 'Dinheiro',
     descricao: item.contato || item.descricao,
     valor: -Math.abs(Number(item.valor)),
-    lancamento_origem_id: item.id
+    lancamento_origem_id: item.id,
+    codigo_tipo_id: item.codigo_tipo_id || null
   });
 }
 
@@ -882,7 +890,8 @@ async function sincronizarPagamentosDinheiroEmLote(itens){
       tipo: 'Dinheiro',
       descricao: it.contato || it.descricao,
       valor: -Math.abs(Number(it.valor)),
-      lancamento_origem_id: it.id
+      lancamento_origem_id: it.id,
+      codigo_tipo_id: it.codigo_tipo_id || null
     }));
 
   if(novos.length>0){
@@ -944,6 +953,10 @@ function abrirEditar(id){
   document.getElementById('e_contato').value = it.contato || it.descricao || '';
   document.getElementById('e_valor').value = it.valor;
   document.getElementById('e_venc').value = it.vencimento;
+  const tipoClassificacao=it.codigo_tipo_id?pagCaixaTiposCache.find(t=>String(t.id)===String(it.codigo_tipo_id)):null;
+  document.getElementById('e_classificacao_wrap').style.display=it.tipo==='pagar'?'block':'none';
+  document.getElementById('e_classificacao').value=it.codigo_tipo_id||'';
+  document.getElementById('e_classificacao_busca').value=tipoClassificacao?labelTipoPagCaixa(tipoClassificacao):'';
   document.getElementById('editErr').style.display = 'none';
   document.getElementById('editModal').style.display = 'flex';
 }
@@ -957,8 +970,12 @@ async function salvarEdicao(){
   const contato = document.getElementById('e_contato').value.trim();
   const valor = parseFloat(document.getElementById('e_valor').value);
   const venc = document.getElementById('e_venc').value;
+  matchTipoPagCaixa('e_classificacao_busca','e_classificacao');
+  const codigoTipoId=document.getElementById('e_classificacao').value||null;
+  const atual=lancamentos.find(x=>x.id===editandoId);
   const err = document.getElementById('editErr');
-  if(!contato || !venc || isNaN(valor) || valor<=0){
+  if(!contato || !venc || isNaN(valor) || valor<=0 || (atual?.tipo==='pagar'&&!codigoTipoId)){
+    err.textContent=atual?.tipo==='pagar'&&!codigoTipoId?'Selecione a classificação financeira.':'Preencha todos os campos corretamente.';
     err.style.display = 'block';
     return;
   }
@@ -968,7 +985,7 @@ async function salvarEdicao(){
   btn.textContent = 'Salvando…';
   try{
     const { data, error } = await sb.from('lancamentos').update({
-      contato: contato, descricao: contato, valor: valor, vencimento: venc
+      contato: contato, descricao: contato, valor: valor, vencimento: venc, codigo_tipo_id: codigoTipoId
     }).eq('id', editandoId).select().single();
     if(error){
       err.textContent = 'Erro ao salvar: ' + error.message;
@@ -977,6 +994,7 @@ async function salvarEdicao(){
     }
     const idx = lancamentos.findIndex(x=>x.id===editandoId);
     if(idx>-1) lancamentos[idx] = data;
+    if(codigoTipoId)await gravarMemoriaPagCaixa(contato,codigoTipoId);
     render();
     fecharEditar();
   }catch(e){
@@ -1063,12 +1081,14 @@ function renderTabela(tipo, filtros){
   body.innerHTML = itens.map(it=>{
     const st = statusEfetivo(it);
     const rowClass = st==='vencido' ? 'vencido' : '';
+    const tipoClassificacao = it.codigo_tipo_id ? pagCaixaTiposCache.find(t=>String(t.id)===String(it.codigo_tipo_id)) : null;
     const formaCell = tipo==='pagar' ? `<td><div class="forma-toggle">
         <button class="forma-btn ${it.forma_pagamento==='dinheiro'?'active-dinheiro':''}" onclick="setFormaPagamento('${it.id}','dinheiro')" title="Pagar em dinheiro">💵</button>
         <button class="forma-btn ${it.forma_pagamento==='cartao'?'active-cartao':''}" onclick="setFormaPagamento('${it.id}','cartao')" title="Pagar em cartão">💳</button>
       </div></td>` : '';
     return `<tr class="${rowClass}">
       <td class="contato">${escapeHtml(it.contato) || escapeHtml(it.descricao) || '—'}</td>
+      <td>${tipoClassificacao ? escapeHtml(labelTipoPagCaixa(tipoClassificacao)) : '<span class="muted">Não classificado</span>'}</td>
       <td class="data">${fmtData(it.vencimento)}</td>
       <td class="valor">${brl(it.valor)}</td>
       ${formaCell}
@@ -1119,6 +1139,13 @@ let formaPagamentoCaixaPendente = null;
 function confirmarPagamentoCaixa(forma){
   const dados = lancamentosDaLoja().filter(x=>x.tipo==='pagar' && x.status!=='pago' && x.forma_pagamento===forma);
   if(dados.length===0) return;
+  if(forma==='dinheiro'){
+    const semClassificacao=dados.filter(x=>!x.codigo_tipo_id);
+    if(semClassificacao.length){
+      alert(`${semClassificacao.length} ${semClassificacao.length===1?'conta precisa':'contas precisam'} de classificação financeira antes da baixa em dinheiro. Edite ${semClassificacao.length===1?'o lançamento':'os lançamentos'} e informe a classificação.`);
+      return;
+    }
+  }
   formaPagamentoCaixaPendente = forma;
   const total = dados.reduce((s,x)=>s+Number(x.valor),0);
   const rotulo = forma==='dinheiro' ? 'dinheiro' : 'cartão';
@@ -1138,6 +1165,11 @@ async function confirmarPagamentoCaixaOk(){
   const forma = formaPagamentoCaixaPendente;
   if(!forma) return;
   const dados = lancamentosDaLoja().filter(x=>x.tipo==='pagar' && x.status!=='pago' && x.forma_pagamento===forma);
+  if(forma==='dinheiro' && dados.some(x=>!x.codigo_tipo_id)){
+    alert('Existem contas sem classificação financeira. Corrija antes de confirmar o pagamento em dinheiro.');
+    fecharConfirmacaoPagamentoCaixa();
+    return;
+  }
   const ids = dados.map(x=>x.id);
   if(ids.length===0){ fecharConfirmacaoPagamentoCaixa(); return; }
 
@@ -3226,7 +3258,10 @@ async function mudarViewPrincipal(view){
   }else if(view==='contratos'){
     await abrirContratos();
   }else if(view==='contasPagar'){
-    carregarFornecedores();
+    await carregarTiposPagCaixaSeNecessario();
+    await carregarMemoriaGlobal();
+    await carregarFornecedores();
+    render();
   }else if(view==='checklist'){
     await abrirChecklist();
   }else if(view==='duvidas'){
@@ -4077,17 +4112,37 @@ async function lcExtrairPaginasPdf(arquivo){
   const tarefa=pdfjs.getDocument({data:bytes.slice(),isEvalSupported:false,enableXfa:false});
   const pdf=await tarefa.promise;if(!pdf.numPages||pdf.numPages>200){await pdf.destroy();throw new Error('O PDF deve possuir entre 1 e 200 páginas.');}
   let origem;try{origem=await PDFLib.PDFDocument.load(bytes);}catch(e){await pdf.destroy();throw new Error('PDF protegido, criptografado ou inválido. Salve uma cópia sem senha e tente novamente.');}
-  const paginas=[],base=arquivo.name.replace(/\.pdf$/i,'');
+  const paginas=[],base=arquivo.name.replace(/\.pdf$/i,''),textos=[];
   for(let n=1;n<=pdf.numPages;n++){
     const pagina=await pdf.getPage(n);
     const conteudo=await pagina.getTextContent();
     let texto='';
     conteudo.items.forEach(item=>{texto+=String(item.str||'')+(item.hasEOL?'\n':' ');});
-    const destino=await PDFLib.PDFDocument.create(),[paginaCopiada]=await destino.copyPages(origem,[n-1]);
-    paginaCopiada.node.delete(PDFLib.PDFName.of('AA'));paginaCopiada.node.delete(PDFLib.PDFName.of('Annots'));destino.addPage(paginaCopiada);
+    textos.push(texto);
+  }
+  const inicioPagBankBoleto=texto=>/PagBank|PagSeguro|Banco Seguro/i.test(texto)&&/boleto|linha digit[aá]vel|c[oó]digo de barras|benefici[aá]rio|pagamento/i.test(texto);
+  const paginaPagBankCompleta=texto=>{
+    if(!inicioPagBankBoleto(texto))return false;
+    const sinais=[/benefici[aá]rio|favorecido|recebedor/i.test(texto),/(?:valor|total)(?:\s+(?:pago|do pagamento|da transa[cç][aã]o))?/i.test(texto),/\b\d{2}[\/.-]\d{2}[\/.-]\d{2,4}\b/.test(texto)];
+    return sinais.filter(Boolean).length>=2;
+  };
+  const imparesSaoComprovantes=textos.filter((_,i)=>i%2===0).every(paginaPagBankCompleta);
+  const paresSaoContinuacoes=textos.filter((_,i)=>i%2===1).every(texto=>!paginaPagBankCompleta(texto));
+  const padraoPagBankDuasPaginas=pdf.numPages>=2&&pdf.numPages%2===0&&imparesSaoComprovantes&&paresSaoContinuacoes;
+  const grupos=[];
+  if(padraoPagBankDuasPaginas){
+    for(let i=0;i<pdf.numPages;i+=2)grupos.push([i,i+1]);
+  }else{
+    for(let i=0;i<pdf.numPages;i++)grupos.push([i]);
+  }
+  for(let g=0;g<grupos.length;g++){
+    const indices=grupos[g],destino=await PDFLib.PDFDocument.create(),copiadas=await destino.copyPages(origem,indices);
+    copiadas.forEach(paginaCopiada=>{paginaCopiada.node.delete(PDFLib.PDFName.of('AA'));paginaCopiada.node.delete(PDFLib.PDFName.of('Annots'));destino.addPage(paginaCopiada);});
     const paginaBytes=await destino.save({useObjectStreams:true,addDefaultPage:false});
-    const nomeArquivo=pdf.numPages>1?base+' - pagina '+String(n).padStart(3,'0')+'.pdf':arquivo.name,arquivoPagina=new File([paginaBytes],nomeArquivo,{type:'application/pdf'});
-    paginas.push({texto,arquivo:arquivoPagina,nomeArquivo,pagina:n,totalPaginas:pdf.numPages});
+    const nomeArquivo=grupos.length>1?base+' - comprovante '+String(g+1).padStart(3,'0')+'.pdf':arquivo.name;
+    const arquivoPagina=new File([paginaBytes],nomeArquivo,{type:'application/pdf'});
+    const texto=indices.map(i=>textos[i]).join('\n\n--- CONTINUAÇÃO DO COMPROVANTE ---\n\n');
+    paginas.push({texto,arquivo:arquivoPagina,nomeArquivo,pagina:indices[0]+1,totalPaginas:pdf.numPages,paginasOriginais:indices.map(i=>i+1)});
   }
   await pdf.destroy();
   return paginas;

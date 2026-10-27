@@ -1,28 +1,31 @@
-RANCHÃO BEBIDAS — ATUALIZAÇÃO 1.2.46
+RANCHÃO BEBIDAS — ATUALIZAÇÃO 1.2.47
 
 ORDEM DA ATUALIZAÇÃO
 
 1. No SQL Editor do Supabase, execute todo o arquivo
+   ATUALIZACAO_CLASSIFICACAO_CONTAS_1.2.47.sql. Ele adiciona a classificação
+   financeira às contas a pagar sem apagar nenhum lançamento existente.
+2. No SQL Editor do Supabase, execute todo o arquivo
    ATUALIZACAO_COLABORADORES_OCORRENCIAS_1.2.46.sql. Ele cria a Central de
    Ocorrências, o armazenamento privado dos anexos e a data de desligamento.
-2. No SQL Editor do Supabase, execute todo o arquivo
+3. No SQL Editor do Supabase, execute todo o arquivo
    ATUALIZACAO_LEITOR_CLASSIFICACAO_1.2.44.sql. Ele pode ser executado
    novamente com segurança e não apaga nenhum comprovante.
-3. Se ainda não executou, no SQL Editor do Supabase execute o arquivo
+4. Se ainda não executou, no SQL Editor do Supabase execute o arquivo
    ATUALIZACAO_COMPRAS_ULTIMO_PRECO.sql. Ele pode ser executado novamente
    com segurança caso o SQL do pacote anterior já tenha sido aplicado.
-4. Se ainda não executou o SQL das metas, execute todo o arquivo
+5. Se ainda não executou o SQL das metas, execute todo o arquivo
    modulo_metas_vendas_supabase.sql.
-5. Se ainda não executou o SQL das fotos, execute todo o arquivo
+6. Se ainda não executou o SQL das fotos, execute todo o arquivo
    ATUALIZACAO_FOTOS_PRODUTOS.sql. Ele cria o armazenamento privado e libera
    o envio das fotos dos produtos no módulo Compras.
-6. Se você ainda não executou o SQL da versão 1.2.30, execute o arquivo
+7. Se você ainda não executou o SQL da versão 1.2.30, execute o arquivo
    ATUALIZACAO_IMPORTAR_PAGAMENTOS_CAIXA.sql incluído neste pacote.
-7. Envie TODOS os arquivos e pastas deste pacote para a raiz do GitHub,
+8. Envie TODOS os arquivos e pastas deste pacote para a raiz do GitHub,
    preservando a estrutura e substituindo os arquivos existentes.
-8. Substitua também .github/workflows/main.yml. Não crie outro workflow.
-9. Abra Actions > Publicar atualização do aplicativo > Run workflow.
-10. Informe a versão 1.2.46 e confirme.
+9. Substitua também .github/workflows/main.yml. Não crie outro workflow.
+10. Abra Actions > Publicar atualização do aplicativo > Run workflow.
+11. Informe a versão 1.2.47 e confirme.
 
 IMPORTANTE
 
@@ -32,6 +35,15 @@ IMPORTANTE
 - Importar, editar ou excluir em Pagamento no Caixa não altera a aba Pagamentos.
 
 ALTERAÇÕES
+
+NOVIDADES DA VERSÃO 1.2.47
+- Contas a pagar ganhou a classificação financeira usada no sistema.
+- A classificação é obrigatória ao criar ou editar uma conta a pagar.
+- A baixa em dinheiro é bloqueada se existir alguma conta sem classificação.
+- Ao pagar em dinheiro, a classificação segue automaticamente para o Fluxo de Caixa.
+- O Leitor de Comprovantes reconhece arquivos PagBank da Loja 02 em duas páginas.
+- Cada par de páginas é mantido como um único comprovante, inclusive no histórico e no ZIP.
+- Arquivos com vários comprovantes PagBank são agrupados em pares: páginas 1–2, 3–4 e assim por diante.
 
 NOVIDADES DA VERSÃO 1.2.46
 - Colaboradores podem ser inativados sem apagar cadastro, ponto, atestados ou histórico.
