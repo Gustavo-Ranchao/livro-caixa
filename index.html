@@ -3305,7 +3305,7 @@
     <button class="modal-close" onclick="fecharEditar()">✕</button>
     <h2>Editar lançamento</h2>
     <div class="fld"><label id="e_contato_label">Fornecedor</label><input id="e_contato"></div>
-    <div class="fld" id="e_classificacao_wrap"><label>Classificação financeira *</label><input id="e_classificacao_busca" list="pagCaixaTiposDatalist" placeholder="Digite para buscar" autocomplete="off" oninput="matchTipoPagCaixa('e_classificacao_busca','e_classificacao')"><input type="hidden" id="e_classificacao"></div>
+    <div class="fld" id="e_classificacao_wrap"><label>Classificação financeira *</label><div style="display:flex;gap:8px;"><input id="e_classificacao_busca" placeholder="Nenhuma classificação selecionada" autocomplete="off" readonly style="flex:1;cursor:pointer;" onclick="abrirPesquisaClassificacaoConta()"><button type="button" class="filter-btn" style="white-space:nowrap;" onclick="abrirPesquisaClassificacaoConta()">🔍 Pesquisar</button></div><input type="hidden" id="e_classificacao"></div>
     <div class="fld-row">
       <div class="fld"><label>Valor (R$)</label><input id="e_valor" type="number" step="0.01" min="0"></div>
       <div class="fld"><label>Vencimento</label><input id="e_venc" type="date"></div>
@@ -3315,6 +3315,26 @@
       <button class="addbtn" id="editSalvarBtn" onclick="salvarEdicao()">Salvar</button>
       <button class="cancelbtn" onclick="fecharEditar()">Cancelar</button>
     </div>
+  </div>
+</div>
+
+<div id="pesquisaClassificacaoContaModal" class="modal-overlay">
+  <div class="modal-box" style="max-width:560px;">
+    <button class="modal-close" onclick="fecharPesquisaClassificacaoConta()">✕</button>
+    <h2>Selecionar classificação financeira</h2>
+    <p class="modal-sub">Digite o código ou parte da descrição. Todas as classificações disponíveis aparecem abaixo.</p>
+    <div class="fld"><label>Pesquisar</label><input id="pesquisaClassificacaoContaBusca" placeholder="Ex.: fornecedor, diversos, energia..." autocomplete="off" oninput="renderPesquisaClassificacaoConta()" onkeydown="navegarPesquisaClassificacaoConta(event)"></div>
+    <div id="pesquisaClassificacaoContaLista" style="max-height:330px;overflow:auto;border:1px solid var(--line);border-radius:8px;background:var(--paper);"></div>
+    <div class="modal-actions" style="margin-top:14px;"><button class="cancelbtn" onclick="fecharPesquisaClassificacaoConta()">Cancelar</button></div>
+  </div>
+</div>
+
+<div id="avisoContasPagarModal" class="modal-overlay">
+  <div class="modal-box" style="max-width:430px;">
+    <button class="modal-close" onclick="fecharAvisoContasPagar()">✕</button>
+    <h2 id="avisoContasPagarTitulo">Atenção</h2>
+    <p class="modal-sub" id="avisoContasPagarTexto"></p>
+    <div class="modal-actions"><button class="addbtn" onclick="fecharAvisoContasPagar()">Entendi</button></div>
   </div>
 </div>
 

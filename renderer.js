@@ -841,7 +841,7 @@ async function togglePago(id){
   const it = lancamentos.find(x=>x.id===id);
   if(!it) return;
   const novoStatus = it.status === 'pago' ? 'pendente' : 'pago';
-  if(novoStatus==='pago'&&it.forma_pagamento==='dinheiro'&&!it.codigo_tipo_id){alert('Selecione a classificação financeira desta conta antes de dar baixa em dinheiro.');abrirEditar(id);return;}
+  if(novoStatus==='pago'&&it.forma_pagamento==='dinheiro'&&!it.codigo_tipo_id){mostrarAvisoContasPagar('Classificação necessária','Selecione a classificação financeira desta conta antes de dar baixa em dinheiro. Use o botão de editar deste lançamento para informar a classificação.');return;}
   const novaData = novoStatus === 'pago' ? todayStr() : null;
   const { error } = await sb.from('lancamentos').update({ status: novoStatus, data_pagamento: novaData }).eq('id', id);
   if(!error){
@@ -944,6 +944,32 @@ async function confirmarExclusaoOk(){
 }
 
 let editandoId = null;
+let pesquisaClassificacaoContaIndice=0;
+
+async function abrirPesquisaClassificacaoConta(){
+  await carregarTiposPagCaixaSeNecessario();
+  pesquisaClassificacaoContaIndice=0;
+  const busca=document.getElementById('pesquisaClassificacaoContaBusca');
+  busca.value='';
+  document.getElementById('pesquisaClassificacaoContaModal').style.display='flex';
+  renderPesquisaClassificacaoConta();
+  setTimeout(()=>busca.focus(),40);
+}
+
+function fecharPesquisaClassificacaoConta(){document.getElementById('pesquisaClassificacaoContaModal').style.display='none';}
+function classificacoesContaFiltradas(){const termo=document.getElementById('pesquisaClassificacaoContaBusca').value.trim().toLowerCase();return pagCaixaTiposCache.filter(t=>!termo||labelTipoPagCaixa(t).toLowerCase().includes(termo));}
+function renderPesquisaClassificacaoConta(){
+  pesquisaClassificacaoContaIndice=0;
+  const lista=classificacoesContaFiltradas(),atual=String(document.getElementById('e_classificacao').value||'');
+  document.getElementById('pesquisaClassificacaoContaLista').innerHTML=lista.length?lista.map((t,i)=>`<button type="button" data-indice="${i}" onclick="selecionarClassificacaoConta('${escapeHtml(String(t.id))}')" style="width:100%;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:11px 13px;border:0;border-bottom:1px solid var(--line);background:${String(t.id)===atual?'var(--paper2)':'transparent'};color:var(--ink);text-align:left;cursor:pointer;font:inherit;"><span><strong>${escapeHtml(String(t.codigo))}</strong> — ${escapeHtml(t.descricao)}</span>${String(t.id)===atual?'<span style="color:var(--green);font-weight:700;">Selecionada</span>':''}</button>`).join(''):'<div style="padding:20px;text-align:center;color:var(--muted);">Nenhuma classificação encontrada.</div>';
+  destacarPesquisaClassificacaoConta();
+}
+function destacarPesquisaClassificacaoConta(){const botoes=[...document.querySelectorAll('#pesquisaClassificacaoContaLista button[data-indice]')];botoes.forEach((b,i)=>{b.style.outline=i===pesquisaClassificacaoContaIndice?'2px solid var(--blue)':'none';b.style.outlineOffset='-2px';});botoes[pesquisaClassificacaoContaIndice]?.scrollIntoView({block:'nearest'});}
+function navegarPesquisaClassificacaoConta(event){const lista=classificacoesContaFiltradas();if(event.key==='ArrowDown'){event.preventDefault();pesquisaClassificacaoContaIndice=Math.min(lista.length-1,pesquisaClassificacaoContaIndice+1);destacarPesquisaClassificacaoConta();}else if(event.key==='ArrowUp'){event.preventDefault();pesquisaClassificacaoContaIndice=Math.max(0,pesquisaClassificacaoContaIndice-1);destacarPesquisaClassificacaoConta();}else if(event.key==='Enter'&&lista.length){event.preventDefault();selecionarClassificacaoConta(lista[pesquisaClassificacaoContaIndice].id);}else if(event.key==='Escape'){fecharPesquisaClassificacaoConta();}}
+function selecionarClassificacaoConta(id){const tipo=pagCaixaTiposCache.find(t=>String(t.id)===String(id));if(!tipo)return;document.getElementById('e_classificacao').value=tipo.id;document.getElementById('e_classificacao_busca').value=labelTipoPagCaixa(tipo);fecharPesquisaClassificacaoConta();document.getElementById('e_valor').focus();}
+
+function mostrarAvisoContasPagar(titulo,texto){document.getElementById('avisoContasPagarTitulo').textContent=titulo||'Atenção';document.getElementById('avisoContasPagarTexto').textContent=texto||'';document.getElementById('avisoContasPagarModal').style.display='flex';}
+function fecharAvisoContasPagar(){document.getElementById('avisoContasPagarModal').style.display='none';}
 
 function abrirEditar(id){
   const it = lancamentos.find(x=>x.id===id);
@@ -1142,7 +1168,7 @@ function confirmarPagamentoCaixa(forma){
   if(forma==='dinheiro'){
     const semClassificacao=dados.filter(x=>!x.codigo_tipo_id);
     if(semClassificacao.length){
-      alert(`${semClassificacao.length} ${semClassificacao.length===1?'conta precisa':'contas precisam'} de classificação financeira antes da baixa em dinheiro. Edite ${semClassificacao.length===1?'o lançamento':'os lançamentos'} e informe a classificação.`);
+      mostrarAvisoContasPagar('Classificação necessária',`${semClassificacao.length} ${semClassificacao.length===1?'conta precisa':'contas precisam'} de classificação financeira antes da baixa em dinheiro. Edite ${semClassificacao.length===1?'o lançamento':'os lançamentos'} e informe a classificação.`);
       return;
     }
   }
@@ -1166,7 +1192,7 @@ async function confirmarPagamentoCaixaOk(){
   if(!forma) return;
   const dados = lancamentosDaLoja().filter(x=>x.tipo==='pagar' && x.status!=='pago' && x.forma_pagamento===forma);
   if(forma==='dinheiro' && dados.some(x=>!x.codigo_tipo_id)){
-    alert('Existem contas sem classificação financeira. Corrija antes de confirmar o pagamento em dinheiro.');
+    mostrarAvisoContasPagar('Classificação necessária','Existem contas sem classificação financeira. Corrija antes de confirmar o pagamento em dinheiro.');
     fecharConfirmacaoPagamentoCaixa();
     return;
   }
@@ -4611,7 +4637,7 @@ function ocorrenciasEntregasFiltradas(){const status=document.getElementById('oe
 function renderOcorrenciasEntregas(){
   const lista=ocorrenciasEntregasFiltradas(),hoje=new Date(todayStr()+'T12:00:00'),diasAberta=x=>Math.floor((hoje-new Date(x.data_entrega+'T12:00:00'))/86400000);
   document.getElementById('oeTotalPendentes').textContent=String(lista.filter(x=>x.status!=='resolvida').length);document.getElementById('oeValorAfetado').textContent=brl(lista.reduce((s,x)=>s+oeValorItens(x),0));document.getElementById('oeValorRecuperado').textContent=brl(lista.reduce((s,x)=>s+(Number(x.valor_recuperado)||0),0));document.getElementById('oeAtrasadas').textContent=String(lista.filter(x=>x.status!=='resolvida'&&diasAberta(x)>7).length);document.getElementById('oeEmpty').style.display=lista.length?'none':'block';
-  document.getElementById('oeHistoricoBody').innerHTML=lista.map(x=>`<tr><td>${fmtData(x.data_entrega)}</td><td><strong>${escapeHtml(x.fornecedor)}</strong>${x.nota_fiscal?`<div style="font-size:10px;color:var(--muted);">NF ${escapeHtml(x.nota_fiscal)}</div>`:''}</td><td>${escapeHtml(OE_TIPOS[x.tipo]||x.tipo)}<div style="font-size:10px;color:var(--muted);white-space:normal;max-width:240px;">${escapeHtml(x.descricao)}</div></td><td style="white-space:normal;max-width:260px;">${escapeHtml(oeProdutosTexto(x)||'—')}</td><td><span class="lc-status ${x.status==='resolvida'?'pronto':x.status==='andamento'?'revisar':'erro'}">${escapeHtml(OE_STATUS[x.status]||x.status)}</span>${x.status!=='resolvida'&&diasAberta(x)>7?`<div style="font-size:10px;color:var(--rust);margin-top:3px;">há ${diasAberta(x)} dias</div>`:''}</td><td>${x.prazo_fornecedor?fmtData(x.prazo_fornecedor):'—'}</td><td class="valor">${brl(oeValorItens(x))}</td><td class="valor" style="color:var(--green);">${brl(x.valor_recuperado||0)}</td><td>${x.caminho_storage?`<button class="filter-btn" data-caminho="${escapeHtml(x.caminho_storage)}" data-nome="${escapeHtml(x.arquivo_nome||'Anexo')}" data-tipo="${escapeHtml(x.arquivo_tipo||'')}" onclick="abrirAnexoOcorrenciaEntrega(this.dataset.caminho,this.dataset.nome,this.dataset.tipo)">👁 Ver</button>`:'—'}</td><td><div class="rowactions"><button class="iconbtn edit" title="Editar" onclick="editarOcorrenciaEntrega('${x.id}')">✎</button><button class="iconbtn del" title="Excluir" onclick="abrirExcluirOcorrenciaEntrega('${x.id}')">✕</button></div></td></tr>`).join('');
+  document.getElementById('oeHistoricoBody').innerHTML=lista.map(x=>`<tr><td>${fmtData(x.data_entrega)}</td><td><strong>${escapeHtml(x.fornecedor)}</strong>${x.nota_fiscal?`<div style="font-size:10px;color:var(--muted);">NF ${escapeHtml(x.nota_fiscal)}</div>`:''}</td><td>${escapeHtml(OE_TIPOS[x.tipo]||x.tipo)}<div style="font-size:10px;color:var(--muted);white-space:normal;max-width:240px;">${escapeHtml(x.descricao)}</div></td><td style="white-space:normal;max-width:260px;">${escapeHtml(oeProdutosTexto(x)||'—')}</td><td><span class="lc-status ${x.status==='resolvida'?'pronto':x.status==='andamento'?'revisar':'erro'}">${escapeHtml(OE_STATUS[x.status]||x.status)}</span>${x.status!=='resolvida'&&diasAberta(x)>7?`<div style="font-size:10px;color:var(--rust);margin-top:3px;">há ${diasAberta(x)} dias</div>`:''}</td><td>${x.prazo_fornecedor?fmtData(x.prazo_fornecedor):'—'}</td><td class="valor">${brl(oeValorItens(x))}</td><td class="valor" style="color:var(--green);">${brl(x.valor_recuperado||0)}</td><td>${x.caminho_storage?`<button class="filter-btn" data-caminho="${escapeHtml(x.caminho_storage)}" data-nome="${escapeHtml(x.arquivo_nome||'Anexo')}" data-tipo="${escapeHtml(x.arquivo_tipo||'')}" onclick="abrirAnexoOcorrenciaEntrega(this.dataset.caminho,this.dataset.nome,this.dataset.tipo)">👁 Ver</button>`:'—'}</td><td><div class="rowactions"><button class="iconbtn" title="Gerar PDF desta ocorrência" onclick="exportarPdfOcorrenciaEntrega('${x.id}')">📄</button><button class="iconbtn edit" title="Editar" onclick="editarOcorrenciaEntrega('${x.id}')">✎</button><button class="iconbtn del" title="Excluir" onclick="abrirExcluirOcorrenciaEntrega('${x.id}')">✕</button></div></td></tr>`).join('');
 }
 
 function editarOcorrenciaEntrega(id){
@@ -4620,6 +4646,25 @@ function editarOcorrenciaEntrega(id){
 }
 
 async function abrirAnexoOcorrenciaEntrega(caminho,nome,tipo){const {data,error}=await sb.storage.from('ocorrencias-entregas').createSignedUrl(caminho,3600);if(error||!data?.signedUrl){alert('Não foi possível abrir o anexo.');return;}mostrarPreviewLeituraComprovante(data.signedUrl,nome,tipo);}
+function oeNumeroPdf(v){return Number(v||0).toLocaleString('pt-BR',{minimumFractionDigits:0,maximumFractionDigits:3});}
+function oeBlocoTextoPdf(doc,titulo,texto,y){const linhas=doc.splitTextToSize(String(texto||'Não informado'),182);const altura=linhas.length*4.5+10;if(y+altura>282){doc.addPage();y=18;}doc.setFont('helvetica','bold');doc.setFontSize(9);doc.setTextColor(30,53,91);doc.text(titulo,14,y);doc.setFont('helvetica','normal');doc.setTextColor(45);doc.setFontSize(9);doc.text(linhas,14,y+6);return y+altura;}
+function exportarPdfOcorrenciaEntrega(id){
+  const x=oeCache.find(v=>String(v.id)===String(id));if(!x)return;
+  const doc=iniciarPdf('Relatório de Ocorrência de Entrega',NOMES_LOJA[lojaAtual]||lojaAtual);if(!doc)return;
+  doc.autoTable({startY:34,theme:'grid',head:[['Data da entrega','Fornecedor / empresa','Pedido','Nota fiscal','Status']],body:[[fmtData(x.data_entrega),x.fornecedor,x.pedido||'—',x.nota_fiscal||'—',OE_STATUS[x.status]||x.status]],styles:{fontSize:8.5,cellPadding:2.5},headStyles:{fillColor:[30,53,91]}});
+  let y=doc.lastAutoTable.finalY+8;
+  doc.autoTable({startY:y,theme:'grid',head:[['Tipo de ocorrência','Providência solicitada','Prazo','Responsável']],body:[[OE_TIPOS[x.tipo]||x.tipo,OE_PROVIDENCIAS[x.providencia]||'Não informada',x.prazo_fornecedor?fmtData(x.prazo_fornecedor):'—',x.responsavel||'—']],styles:{fontSize:8.5,cellPadding:2.5},headStyles:{fillColor:[74,98,133]}});
+  y=doc.lastAutoTable.finalY+8;
+  y=oeBlocoTextoPdf(doc,'DESCRIÇÃO DA OCORRÊNCIA',x.descricao,y);
+  const itens=(x.ocorrencias_entregas_itens||[]).slice().sort((a,b)=>(a.ordem||0)-(b.ordem||0));
+  doc.autoTable({startY:y+2,head:[['Produto','Qtd. pedida','Qtd. recebida','Qtd. afetada','Custo unitário','Valor afetado']],body:itens.map(i=>[i.produto,oeNumeroPdf(i.quantidade_pedida),oeNumeroPdf(i.quantidade_recebida),oeNumeroPdf(i.quantidade_afetada),brl(i.custo_unitario),brl((Number(i.quantidade_afetada)||0)*(Number(i.custo_unitario)||0))]),foot:[['TOTAL','','','','',brl(oeValorItens(x))]],styles:{fontSize:8,cellPadding:2,overflow:'linebreak'},headStyles:{fillColor:[30,53,91]},footStyles:{fillColor:[232,237,245],textColor:[20,35,60],fontStyle:'bold'},columnStyles:{1:{halign:'right'},2:{halign:'right'},3:{halign:'right'},4:{halign:'right'},5:{halign:'right'}}});
+  y=doc.lastAutoTable.finalY+8;
+  if(x.solucao)y=oeBlocoTextoPdf(doc,'SOLUÇÃO APRESENTADA PELO FORNECEDOR',x.solucao,y);
+  if(y+24>282){doc.addPage();y=18;}
+  doc.setFillColor(240,244,249);doc.roundedRect(14,y,182,20,2,2,'F');doc.setFont('helvetica','bold');doc.setFontSize(9);doc.setTextColor(30,53,91);doc.text('Data da resolução',19,y+7);doc.text('Valor recuperado',108,y+7);doc.setFont('helvetica','normal');doc.setTextColor(35);doc.text(x.data_resolucao?fmtData(x.data_resolucao):'Não resolvida',19,y+14);doc.text(brl(x.valor_recuperado||0),108,y+14);
+  const nome=String(x.fornecedor||'fornecedor').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/gi,'-').replace(/^-|-$/g,'').toLowerCase();
+  doc.save('ocorrencia-'+nome+'-'+x.data_entrega+'.pdf');
+}
 let oeExcluindoId=null;
 function abrirExcluirOcorrenciaEntrega(id){const x=oeCache.find(v=>String(v.id)===String(id));if(!x)return;oeExcluindoId=x.id;document.getElementById('excluirOcorrenciaEntregaTexto').textContent='A ocorrência de '+x.fornecedor+', registrada em '+fmtData(x.data_entrega)+', e seus produtos serão excluídos permanentemente.';document.getElementById('excluirOcorrenciaEntregaErr').style.display='none';document.getElementById('excluirOcorrenciaEntregaModal').style.display='flex';}
 function fecharExcluirOcorrenciaEntrega(){document.getElementById('excluirOcorrenciaEntregaModal').style.display='none';oeExcluindoId=null;}

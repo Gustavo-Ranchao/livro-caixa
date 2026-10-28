@@ -1,237 +1,29 @@
-RANCHÃO BEBIDAS — ATUALIZAÇÃO 1.2.47
+RANCHÃO BEBIDAS — ATUALIZAÇÃO INCREMENTAL 1.2.48
 
-ORDEM DA ATUALIZAÇÃO
+ESTE PACOTE CONTÉM SOMENTE OS ARQUIVOS ALTERADOS.
 
-1. No SQL Editor do Supabase, execute todo o arquivo
-   ATUALIZACAO_CLASSIFICACAO_CONTAS_1.2.47.sql. Ele adiciona a classificação
-   financeira às contas a pagar sem apagar nenhum lançamento existente.
-2. No SQL Editor do Supabase, execute todo o arquivo
-   ATUALIZACAO_COLABORADORES_OCORRENCIAS_1.2.46.sql. Ele cria a Central de
-   Ocorrências, o armazenamento privado dos anexos e a data de desligamento.
-3. No SQL Editor do Supabase, execute todo o arquivo
-   ATUALIZACAO_LEITOR_CLASSIFICACAO_1.2.44.sql. Ele pode ser executado
-   novamente com segurança e não apaga nenhum comprovante.
-4. Se ainda não executou, no SQL Editor do Supabase execute o arquivo
-   ATUALIZACAO_COMPRAS_ULTIMO_PRECO.sql. Ele pode ser executado novamente
-   com segurança caso o SQL do pacote anterior já tenha sido aplicado.
-5. Se ainda não executou o SQL das metas, execute todo o arquivo
-   modulo_metas_vendas_supabase.sql.
-6. Se ainda não executou o SQL das fotos, execute todo o arquivo
-   ATUALIZACAO_FOTOS_PRODUTOS.sql. Ele cria o armazenamento privado e libera
-   o envio das fotos dos produtos no módulo Compras.
-7. Se você ainda não executou o SQL da versão 1.2.30, execute o arquivo
-   ATUALIZACAO_IMPORTAR_PAGAMENTOS_CAIXA.sql incluído neste pacote.
-8. Envie TODOS os arquivos e pastas deste pacote para a raiz do GitHub,
-   preservando a estrutura e substituindo os arquivos existentes.
-9. Substitua também .github/workflows/main.yml. Não crie outro workflow.
-10. Abra Actions > Publicar atualização do aplicativo > Run workflow.
-11. Informe a versão 1.2.47 e confirme.
+Não existe SQL novo nesta atualização.
 
-IMPORTANTE
+COMO ATUALIZAR
 
-- A pasta assets/vendor/tesseract deve ser enviada tanto na raiz quanto dentro de
-  ranchao-bebidas-desktop. Ela contém o leitor local de imagens.
-- O primeiro SQL precisa ser executado antes de usar a importação de pagamentos.
-- Importar, editar ou excluir em Pagamento no Caixa não altera a aba Pagamentos.
+1. Envie todos os arquivos e a pasta ranchao-bebidas-desktop para a raiz do
+   repositório no GitHub.
+2. Confirme a substituição dos arquivos existentes, preservando a estrutura
+   das pastas.
+3. Não apague as demais pastas e arquivos que já estão no repositório.
+4. Abra Actions > Publicar atualização do aplicativo > Run workflow.
+5. Informe a versão 1.2.48 e confirme.
 
 ALTERAÇÕES
 
-NOVIDADES DA VERSÃO 1.2.47
-- Contas a pagar ganhou a classificação financeira usada no sistema.
-- A classificação é obrigatória ao criar ou editar uma conta a pagar.
-- A baixa em dinheiro é bloqueada se existir alguma conta sem classificação.
-- Ao pagar em dinheiro, a classificação segue automaticamente para o Fluxo de Caixa.
-- O Leitor de Comprovantes reconhece arquivos PagBank da Loja 02 em duas páginas.
-- Cada par de páginas é mantido como um único comprovante, inclusive no histórico e no ZIP.
-- Arquivos com vários comprovantes PagBank são agrupados em pares: páginas 1–2, 3–4 e assim por diante.
-
-NOVIDADES DA VERSÃO 1.2.46
-- Colaboradores podem ser inativados sem apagar cadastro, ponto, atestados ou histórico.
-- Colaboradores inativos deixam de aparecer no Banco de Horas, aniversários,
-  popup de aniversário e listas destinadas a novos lançamentos.
-- A tela Colaboradores ganhou filtros Ativos, Inativos e Todos.
-- Colaboradores inativos continuam disponíveis para consulta e edição.
-- Incluídos data de desligamento, botão de reativação e situação na listagem.
-- Criada a Central de Ocorrências de Entregas em Compras e Estoque.
-- Permite registrar fornecedor, data, pedido, nota fiscal, tipo do problema,
-  responsável, providência, prazo, descrição, solução e valor recuperado.
-- Cada ocorrência aceita vários produtos, com quantidades pedida, recebida e
-  afetada, custo unitário e cálculo automático do valor afetado.
-- Aceita anexos privados em PDF, JPG, PNG ou WebP de até 15 MB.
-- Possui status Pendente, Em andamento e Resolvida, histórico completo,
-  pesquisa, filtros, aviso de pendências antigas e exportação em Excel/PDF.
-- Ocorrências e anexos foram incluídos no backup geral do sistema.
-
-NOVIDADES DA VERSÃO 1.2.45
-- Reorganizada a tabela do histórico no Leitor de Comprovantes.
-- Recebedor, classificação e demais informações ficam alinhados lado a lado.
-- O campo Recebedor / descrição editável agora possui borda completa,
-  espaçamento interno e largura própria, sem ficar cortado pela classificação.
-- A tabela ganhou rolagem horizontal quando a tela não comportar todas as colunas.
-
-NOVIDADES DA VERSÃO 1.2.44
-- No Fluxo de Caixa, LANÇAMENTOS EM DINHEIRO aparece em letras maiúsculas.
-- Saídas em dinheiro exigem uma classificação financeira antes de salvar.
-- A mesma validação também foi aplicada ao editar uma saída em dinheiro.
-- O Leitor de Comprovantes mostra cards com total pago, total em mercadorias
-  e quantidade de comprovantes exibidos.
-- Cada comprovante pode ser classificado como Mercadoria, Despesa operacional,
-  Impostos e taxas, Pessoal, Investimento, Outros ou Não classificado.
-- A classificação pode ser escolhida durante a conferência do lote e alterada
-  posteriormente no histórico.
-- O resumo por classificação é atualizado imediatamente e respeita a pesquisa.
-- A lista incluída no ZIP também informa a classificação e o total em mercadorias.
-
-NOVIDADES DA VERSÃO 1.2.43
-- Metas de Vendas ganhou explicação completa sobre pesos e meta diária.
-- Incluídas as fórmulas da meta diária e da projeção mensal, com exemplos.
-- Explicado por que a soma dos pesos pode ser diferente da quantidade de dias.
-- Explicada a diferença entre meta original e meta reajustada.
-- Vendas com Custo ganhou uma área explicativa para vendas, lucro e margem.
-- Incluídas as fórmulas das três variações, com exemplo completo.
-- A comparação de período personalizado agora usa as mesmas datas do mês anterior.
-- O acesso a todo o histórico de Manutenção ficou em um botão destacado
-  ao lado do título Histórico, nas três categorias de manutenção.
-
-NOVIDADES DA VERSÃO 1.2.42
-- Pacote reconstruído sobre a versão 1.2.41, preservando suas alterações.
-- O backup continua em segundo plano depois que a janela de progresso é fechada.
-- Um aviso flutuante mostra o andamento e o resultado do backup.
-- Manutenção de computador, loja e veículos ganhou "Todo histórico".
-- Compras mostra o último preço, o preço atual e a variação percentual.
-- No movimento por conta, dinheiro passa a aparecer como "DINHEIRO".
-
-IMAGEM DA META PARA A EQUIPE
-- Novo botão "Imagem para a equipe" no módulo Metas de Vendas.
-- Gera uma imagem PNG vertical, pronta para enviar pelo WhatsApp.
-- Mostra a loja, o mês, a meta mensal, as datas especiais e a meta original de cada dia.
-- Não mostra vendas realizadas, diferenças ou metas reajustadas.
-- Mantida também a opção de relatório em PDF.
-
-METAS DE VENDAS — INDEPENDÊNCIA E RELATÓRIO DA EQUIPE
-- As vendas realizadas em Metas agora são totalmente independentes de Vendas com Custo.
-- Valores de outros módulos não são mais carregados automaticamente.
-- Cada dia preenchido possui um botão para apagar definitivamente o valor lançado.
-- Os valores apagados não voltam ao atualizar ou reabrir o módulo.
-- Novo PDF para a equipe com apenas a meta mensal e as metas originais de cada dia.
-- A meta reajustada continua disponível somente na tela administrativa do sistema.
-- Valores monetários e campos de digitação usam o padrão brasileiro: R$ 1.000,00.
-- Nova aba explicativa mostra o significado dos pesos 0,7, 1,0, 1,4, 1,5 e 1,8.
-
-CORREÇÕES DA VERSÃO 1.2.39
-- Metas de Vendas foi incluído na lista segura de módulos que podem abrir em janela própria.
-- Imagens JPEG pequenas passam por uma conversão segura para PNG antes do OCR.
-- Se a imagem preparada falhar, o leitor tenta automaticamente o JPEG original.
-- Mantido o reconhecimento do modelo de extrato em imagem enviado para teste.
-
-METAS DE VENDAS
-- Novo módulo dentro de Vendas, com configuração separada por loja e mês.
-- Distribui a meta mensal por pesos: segunda a quarta, quinta, sexta, sábado, domingo e feriado.
-- Feriados brasileiros fixos e móveis aparecem automaticamente no calendário.
-- Permite cadastrar feriados municipais, eventos e outras datas especiais com peso próprio.
-- Aproveita automaticamente os valores já importados em Vendas com Custo.
-- Também permite preencher ou corrigir manualmente o total vendido de cada dia.
-- Se um dia vende acima da meta, o excedente reduz proporcionalmente as metas dos dias pendentes.
-- Se vende abaixo, o valor que faltou é redistribuído entre os próximos dias.
-- Exibe meta original, meta reajustada, realizado, valor restante, percentual e projeção do fechamento.
-- Os dados do novo módulo foram incluídos no backup geral do sistema.
-
-LEITOR DE COMPROVANTES — LOJA 01
-- Corrigida a leitura de imagens JPEG muito baixas e largas, como capturas enviadas pelo WhatsApp.
-- A imagem é ampliada, convertida para tons de cinza e recebe reforço de contraste antes do OCR.
-- Adicionado reconhecimento do modelo de extrato em imagem com data, recebedor e valor de débito.
-- Compatível com o comprovante Sicoob de efetivação de débito Pix por chave.
-- Reconhece o valor mesmo quando o documento não mostra o prefixo "R$".
-- Reconhece datas no formato AAAA-MM-DD, inclusive com horário e milissegundos.
-- Mantém a identificação do destinatário, documento e código da transação.
-- Ao preencher recebedor, valor e data, o status muda imediatamente de "Revisar" para "Pronto".
-- Quando ainda falta algum dado obrigatório, a mensagem informa exatamente qual campo conferir.
-- O campo de recebedor/descrição no histórico ficou mais largo e o aviso de salvamento aparece abaixo dele.
-
-TABELA DE PREÇOS
-- Quando o fator de embalagem é diferente de 1, o sistema calcula o preço unitário.
-- O custo unitário aparece abaixo do preço de custo na tabela do sistema.
-- A venda unitária aparece abaixo do preço de venda na tabela do sistema.
-- Excel e PDF internos mostram custo unitário e venda unitária.
-- Excel e PDF para o cliente mostram somente a venda unitária, sem revelar o custo.
-- O cálculo utilizado é: preço de venda dividido pelo fator da embalagem.
-- O custo unitário é calculado por: preço de custo dividido pelo fator da embalagem.
-- Registros antigos como "fardo com 12" continuam sendo reconhecidos.
-
-COMPRAS — FOTOS DOS PRODUTOS
-- Incluído no pacote o SQL que configura o armazenamento privado das fotos.
-- Adicionada permissão de atualização, além de leitura, envio e exclusão.
-- Em caso de nova falha, a mensagem agora mostra o detalhe devolvido pelo Supabase.
-
-FLUXO DE CAIXA
-- Corrigido o saldo do extrato que permanecia igual ao do Sicoob ao trocar de banco.
-- Cada aba bancária consulta e mostra somente o saldo da própria conta.
-- Respostas atrasadas de uma conta não substituem mais o saldo da conta atualmente aberta.
-- Aumentado o espaço entre os valores e os textos explicativos nos cards do PDF completo.
-
-INVENTÁRIO
-- A tecla Enter avança por Data, Estoque inicial, Negativos, Sobras, Faltas e Vencidos.
-- Depois de Vencidos, o foco segue para o botão Adicionar.
-- Após salvar, o cursor retorna ao campo Estoque inicial para agilizar o próximo lançamento.
-
-ORÇAMENTOS
-- Nos itens do orçamento, Enter avança por Produto, Quantidade e Valor unitário.
-- Ao confirmar o valor unitário com Enter, uma nova linha é criada automaticamente.
-- O cursor fica pronto no campo Produto do item seguinte.
-
-PAGAMENTOS
-- O PDF agora mostra separadamente o total geral, o total pago no cartão e os demais pagamentos.
-- A tabela do PDF passou a exibir o tipo de pagamento e indicar quais registros são de cartão.
-- O Excel ganhou um resumo com fórmulas para total geral, cartão e outros pagamentos.
-- Datas e valores são exportados como células reais, com formatação de data e moeda.
-- Os valores podem ser somados, filtrados e usados em novas fórmulas normalmente no Excel.
-- A planilha também inclui origem, tipo de pagamento e a coluna "Pago no cartão".
-
-CONTROLE DE ESTOQUE
-- PDF redesenhado para acompanhar o visual do módulo.
-- Primeira página com os oito cards do período, cores e indicadores.
-- Fórmula completa do CMV com os valores utilizados no cálculo.
-- Segunda página com comparativo do mês anterior, variações e origem dos dados.
-
-INVENTÁRIO
-- Novo painel com inventários, negativos, sobras, faltas, vencidos e resultado líquido.
-- Destaques em verde para sobras e em vermelho para faltas e perdas.
-- PDF visual com os mesmos indicadores e detalhamento completo por data.
-- Resultado consolidado respeitando a fórmula já utilizada pelo módulo.
-
-FLUXO DE CAIXA
-- Nova tabela na tela Total de Entradas e Saídas, separada por conta.
-- Exibe entradas, saídas, resultado, saldo final importado e data do saldo.
-- PDF completo redesenhado com cards de totais e situação financeira do período.
-- Separação individual de Sicoob, Mercado Pago, PagSeguro, dinheiro e demais contas cadastradas.
-- Entradas detalhadas por meio de pagamento.
-- Principais saídas por fornecedor ou descrição.
-- Saldos finais bancários obtidos dos próprios extratos, sem estimar valores inexistentes.
-- Lançamentos detalhados com paginação e cores para entradas e saídas.
-
-JANELAS INDEPENDENTES DO WINDOWS
-- Um clique em qualquer módulo abre uma janela própria do Ranchão Bebidas.
-- As janelas aparecem separadamente ao passar o mouse sobre o ícone do aplicativo.
-- É possível minimizar, restaurar e organizar módulos lado a lado.
-- Clicar novamente no mesmo módulo traz a janela existente para frente, sem duplicá-la.
-- O login é compartilhado com segurança entre as janelas.
-- A atividade em qualquer janela mantém a sessão ativa nas demais.
-- Clicar no nome Ranchão Bebidas em uma janela de módulo retorna para a janela principal.
-
-RECIBOS
-- Novo botão "Salvar recibo", que grava sem gerar o PDF.
-- O botão "Salvar e gerar PDF" continua disponível.
-
-LEITOR DE COMPROVANTES
-- Aceita PDF, JPG, JPEG, PNG e WebP, até 200 comprovantes/páginas por lote.
-- A leitura das fotos é feita localmente no aplicativo.
-- Validação da assinatura real do arquivo antes da leitura.
-- Prévia de imagens dentro do sistema e inclusão correta no ZIP.
-
-PAGAMENTO NO CAIXA
-- Nova opção "Importar da aba Pagamentos".
-- Usa data, descrição, valor e o mesmo código/tipo já classificado.
-- Mostra prévia completa antes de confirmar.
-- Itens já importados ficam bloqueados.
-- Possíveis duplicidades por data, descrição e valor vêm desmarcadas.
-- Pagamentos sem código podem ser classificados diretamente na prévia.
+- Ao editar uma conta a pagar, a classificação financeira agora é escolhida
+  em uma janela própria de pesquisa.
+- A pesquisa aceita código ou qualquer parte da descrição e mostra todas as
+  classificações disponíveis.
+- Também é possível navegar pelas opções usando as setas e confirmar com Enter.
+- O aviso de contas sem classificação deixou de usar a caixa do Windows e
+  passou a usar uma janela no padrão visual do sistema.
+- Cada ocorrência de entrega ganhou um botão próprio para gerar PDF.
+- O PDF individual mostra dados da entrega, fornecedor, pedido, nota fiscal,
+  descrição, produtos, quantidades, custos, valor afetado, providência,
+  responsável, prazo, status, solução e valor recuperado.
