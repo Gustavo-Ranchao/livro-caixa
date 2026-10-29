@@ -2764,6 +2764,7 @@ let viewAtual = null;
 let usuarioEmailAtual = null;
 let bhCarregado = false;
 let bhFuncionarios = [];
+let bhFuncionariosHistorico = [];
 let bhFuncionarioAtualId = null;
 let bhRegistros = [];
 let escalaSelecionada = 'normal';
@@ -3333,12 +3334,13 @@ async function mudarViewPrincipal(view){
 }
 
 async function carregarFuncionarios(){
-  const { data, error } = await sb.from('bh_funcionarios').select('*').eq('loja', lojaAtual).eq('ativo', true).order('nome');
+  const { data, error } = await sb.from('bh_funcionarios').select('*').eq('loja', lojaAtual).order('nome');
   if(error){
     console.error('Erro ao carregar funcionários:', error);
     return;
   }
-  bhFuncionarios = data || [];
+  bhFuncionariosHistorico = data || [];
+  bhFuncionarios = bhFuncionariosHistorico.filter(f=>f.ativo!==false);
   bhCarregado = true;
   renderFuncionarioSelect();
   await calcularResumoSaldosBancoHoras();
@@ -3394,6 +3396,9 @@ let atestadoEditandoArquivo = null;
 let excluindoAtestadoId = null;
 
 async function carregarAtestados(){
+  const hoje=new Date(),inicioMes=hoje.getFullYear()+'-'+String(hoje.getMonth()+1).padStart(2,'0')+'-01',fimMes=new Date(hoje.getFullYear(),hoje.getMonth()+1,0,12).toISOString().slice(0,10);
+  ['bhAtestadosFiltroDe','bhRelAtestadosDe'].forEach(id=>{const el=document.getElementById(id);if(el&&!el.value)el.value=inicioMes;});
+  ['bhAtestadosFiltroAte','bhRelAtestadosAte'].forEach(id=>{const el=document.getElementById(id);if(el&&!el.value)el.value=fimMes;});
   const { data, error } = await sb.from('bh_atestados').select('*').eq('loja', lojaAtual).order('data_inicio', { ascending: false });
   if(error){ console.error('Erro ao carregar atestados:', error); bhAtestadosCache = []; }
   else bhAtestadosCache = data || [];
@@ -3401,9 +3406,11 @@ async function carregarAtestados(){
 }
 
 function nomeFuncionarioPorId(id){
-  const f = bhFuncionarios.find(x=>String(x.id)===String(id));
+  const f = bhFuncionariosHistorico.find(x=>String(x.id)===String(id));
   return f ? f.nome : '(colaborador removido)';
 }
+function funcionarioAtestadoPorId(id){return bhFuncionariosHistorico.find(x=>String(x.id)===String(id))||null;}
+function situacaoFuncionarioAtestado(id){const f=funcionarioAtestadoPorId(id);return !f?'Removido':(f.ativo===false?'Inativo':'Ativo');}
 
 function diasAtestado(dataInicio, dataFim){
   const de = new Date(dataInicio + 'T00:00:00');
@@ -3420,18 +3427,20 @@ function renderAtestados(){
     return;
   }
   const busca = (document.getElementById('bhAtestadosBusca')?.value || '').trim().toLowerCase();
-  const filtrados = bhAtestadosCache.filter(a => !busca || nomeFuncionarioPorId(a.funcionario_id).toLowerCase().includes(busca));
+  const de=document.getElementById('bhAtestadosFiltroDe')?.value||'',ate=document.getElementById('bhAtestadosFiltroAte')?.value||'';
+  const filtrados = bhAtestadosCache.filter(a => (!busca || nomeFuncionarioPorId(a.funcionario_id).toLowerCase().includes(busca))&&(!de||a.data_fim>=de)&&(!ate||a.data_inicio<=ate));
 
   el.innerHTML = filtrados.length===0
     ? '<div style="text-align:center;color:var(--muted);font-style:italic;padding:20px 16px;">Nenhum resultado pra essa busca.</div>'
     : filtrados.map(a=>`
-    <div class="contest-row" style="grid-template-columns:1.3fr 1fr 90px 1.4fr 90px;">
-      <div class="campo"><span class="lbl-mobile">Colaborador</span><span>${escapeHtml(nomeFuncionarioPorId(a.funcionario_id))}</span></div>
+    <div class="contest-row" style="grid-template-columns:1.3fr 1fr 90px 1.4fr 135px;">
+      <div class="campo"><span class="lbl-mobile">Colaborador</span><span>${escapeHtml(nomeFuncionarioPorId(a.funcionario_id))}<small style="display:block;margin-top:3px;color:${situacaoFuncionarioAtestado(a.funcionario_id)==='Inativo'?'var(--rust)':'var(--muted)'};font-weight:600;">${escapeHtml(situacaoFuncionarioAtestado(a.funcionario_id))}</small></span></div>
       <div class="campo"><span class="lbl-mobile">Período</span><span>${fmtData(a.data_inicio)} — ${fmtData(a.data_fim)}</span></div>
       <div class="campo" style="text-align:right;"><span class="lbl-mobile">Dias</span><span>${diasAtestado(a.data_inicio, a.data_fim)}</span></div>
       <div class="campo"><span class="lbl-mobile">Observação</span><span>${escapeHtml(a.observacao || '—')}</span></div>
       <div class="campo" style="justify-content:flex-end;gap:8px;">
         <button class="iconbtn" title="Ver atestado dentro do sistema" data-caminho="${escapeHtml(a.caminho_storage)}" data-nome="${escapeHtml(a.nome_arquivo||'Atestado')}" onclick="abrirArquivoAtestado(this.dataset.caminho,this.dataset.nome)">👁</button>
+        <button class="iconbtn" title="Baixar este atestado compactado" onclick="baixarAtestadoIndividualZip('${a.id}')">🗜️</button>
         <button class="iconbtn del" title="Excluir" onclick="confirmarExclusaoAtestado(${a.id})">✕</button>
       </div>
     </div>
@@ -3489,6 +3498,35 @@ async function baixarTodosAtestadosZip(){
   const conteudo=await zip.generateAsync({type:'blob',compression:'DEFLATE',compressionOptions:{level:9}},meta=>atualizarProgresso(85+meta.percent*0.15));
   atualizarProgresso(100);const url=URL.createObjectURL(conteudo),link=document.createElement('a');link.href=url;link.download='atestados-'+(NOMES_LOJA[lojaAtual]||lojaAtual).toLowerCase().replace(/\s+/g,'-')+'-'+todayStr()+'.zip';document.body.appendChild(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),1500);setTimeout(fecharProgresso,400);
   if(falhas)setTimeout(()=>alert('O ZIP foi criado, mas '+falhas+' arquivo(s) não puderam ser incluídos.'),600);
+}
+
+async function baixarAtestadoIndividualZip(id){
+  if(!window.JSZip){alert('Não foi possível carregar o recurso de compactação.');return;}
+  const a=bhAtestadosCache.find(x=>String(x.id)===String(id));if(!a)return;
+  abrirProgresso('Preparando atestado…');
+  try{
+    const {data:urlData,error}=await sb.storage.from('comprovantes').createSignedUrl(a.caminho_storage,3600);if(error||!urlData?.signedUrl)throw error||new Error('Arquivo indisponível');
+    const resposta=await fetch(urlData.signedUrl);if(!resposta.ok)throw new Error('Falha ao baixar o arquivo');
+    atualizarProgresso(45);
+    const original=await resposta.blob(),compactado=await compactarImagemAtestado(original),nomeOriginal=String(a.nome_arquivo||'atestado'),ponto=nomeOriginal.lastIndexOf('.'),extOriginal=ponto>=0?nomeOriginal.slice(ponto+1).toLowerCase():'bin',ext=compactado.ext||extOriginal;
+    const nome=nomeSeguroZipAtestado(nomeFuncionarioPorId(a.funcionario_id)),periodo=a.data_inicio+(a.data_fim!==a.data_inicio?'_a_'+a.data_fim:'');
+    const zip=new JSZip();zip.file(nomeSeguroZipAtestado(nome+'_'+periodo+'_atestado')+'.'+ext,compactado.blob,{compression:'DEFLATE',compressionOptions:{level:9}});
+    zip.file('informacoes-do-atestado.txt','ATESTADO\n\nColaborador: '+nomeFuncionarioPorId(a.funcionario_id)+'\nSituação: '+situacaoFuncionarioAtestado(a.funcionario_id)+'\nPeríodo: '+fmtData(a.data_inicio)+' a '+fmtData(a.data_fim)+'\nDias: '+diasAtestado(a.data_inicio,a.data_fim)+'\nObservação: '+(a.observacao||'Não informada')+'\n');
+    document.getElementById('progressoTitulo').textContent='Compactando atestado…';
+    const conteudo=await zip.generateAsync({type:'blob',compression:'DEFLATE',compressionOptions:{level:9}},meta=>atualizarProgresso(45+meta.percent*0.55));
+    const url=URL.createObjectURL(conteudo),link=document.createElement('a');link.href=url;link.download='atestado-'+nome+'-'+a.data_inicio+'.zip';document.body.appendChild(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),1500);atualizarProgresso(100);setTimeout(fecharProgresso,350);
+  }catch(e){console.error('Erro ao baixar atestado individual:',e);fecharProgresso();alert('Não foi possível baixar este atestado. Verifique a conexão e tente novamente.');}
+}
+
+function atestadosNoPeriodo(de,ate){return bhAtestadosCache.filter(a=>(!de||a.data_fim>=de)&&(!ate||a.data_inicio<=ate));}
+function exportarPdfAtestadosPeriodo(origem){
+  const prefixo=origem==='relatorios'?'bhRelAtestados':'bhAtestadosFiltro',de=document.getElementById(prefixo+'De')?.value||'',ate=document.getElementById(prefixo+'Ate')?.value||'';
+  if(de&&ate&&ate<de){alert('A data final não pode ser anterior à data inicial.');return;}
+  const lista=atestadosNoPeriodo(de,ate);if(!lista.length){alert('Não há atestados no período selecionado.');return;}
+  const periodo=(de?fmtData(de):'início')+' a '+(ate?fmtData(ate):'hoje'),doc=iniciarPdf('Relatório de Atestados — '+(NOMES_LOJA[lojaAtual]||lojaAtual),'Período: '+periodo);if(!doc)return;
+  doc.autoTable({startY:34,head:[['Colaborador','Situação','Período do atestado','Dias','Observação']],body:lista.map(a=>[nomeFuncionarioPorId(a.funcionario_id),situacaoFuncionarioAtestado(a.funcionario_id),fmtData(a.data_inicio)+' a '+fmtData(a.data_fim),String(diasAtestado(a.data_inicio,a.data_fim)),a.observacao||'—']),styles:{fontSize:8.3,cellPadding:2.5,overflow:'linebreak'},headStyles:{fillColor:[30,53,91]},columnStyles:{0:{cellWidth:45},1:{cellWidth:22},2:{cellWidth:39},3:{cellWidth:14,halign:'right'},4:{cellWidth:'auto'}}});
+  const y=doc.lastAutoTable.finalY+8;if(y<278){doc.setFont('helvetica','bold');doc.setFontSize(9);doc.setTextColor(30,53,91);doc.text('Total de atestados: '+lista.length+'   •   Total de dias informados: '+lista.reduce((s,a)=>s+diasAtestado(a.data_inicio,a.data_fim),0),14,y);}
+  doc.save('relatorio-atestados-'+lojaAtual+'-'+(de||'inicio')+'-a-'+(ate||todayStr())+'.pdf');
 }
 
 function abrirNovoAtestado(){
@@ -3607,6 +3645,7 @@ function abrirNovoColaborador(loja){
   colabLojaAtual = loja;
   document.getElementById('funcModalTitulo').textContent = 'Novo colaborador — ' + (NOMES_LOJA[loja]||'');
   document.getElementById('func_nome').value = '';
+  document.getElementById('func_data_admissao').value = '';
   document.getElementById('func_data_nascimento').value = '';
   document.getElementById('func_cargo').value = '';
   document.getElementById('func_data_desligamento').value = '';
@@ -3624,6 +3663,7 @@ function abrirEditarColaborador(id, loja){
   colabLojaAtual = loja;
   document.getElementById('funcModalTitulo').textContent = 'Editar colaborador';
   document.getElementById('func_nome').value = f.nome;
+  document.getElementById('func_data_admissao').value = f.data_admissao || '';
   document.getElementById('func_data_nascimento').value = f.data_nascimento || '';
   document.getElementById('func_cargo').value = f.cargo ? f.cargo.toUpperCase() : '';
   document.getElementById('func_data_desligamento').value = f.data_desligamento || '';
@@ -3643,6 +3683,7 @@ function fecharFuncModal(){
 
 async function salvarFuncionario(){
   const nome = document.getElementById('func_nome').value.trim();
+  const dataAdmissao = document.getElementById('func_data_admissao').value || null;
   const dataNascimento = document.getElementById('func_data_nascimento').value || null;
   const cargo = document.getElementById('func_cargo').value.trim();
   const dataDesligamento = document.getElementById('func_data_desligamento').value || null;
@@ -3658,7 +3699,7 @@ async function salvarFuncionario(){
 
   if(colabEditandoId){
     const { data, error } = await sb.from('bh_funcionarios')
-      .update({ nome: nome, data_nascimento: dataNascimento, cargo: cargo || null, data_desligamento: dataDesligamento, carga_horaria_diaria_min: cargaMin, tipo_escala: escalaSelecionada })
+      .update({ nome: nome, data_admissao: dataAdmissao, data_nascimento: dataNascimento, cargo: cargo || null, data_desligamento: dataDesligamento, carga_horaria_diaria_min: cargaMin, tipo_escala: escalaSelecionada })
       .eq('id', colabEditandoId).select().single();
     if(error){
       err.textContent = 'Erro ao salvar: ' + error.message;
@@ -3674,7 +3715,7 @@ async function salvarFuncionario(){
     }
   }else{
     const { data, error } = await sb.from('bh_funcionarios')
-      .insert({ loja: colabLojaAtual, nome: nome, data_nascimento: dataNascimento, cargo: cargo || null, data_desligamento: null, ativo: true, carga_horaria_diaria_min: cargaMin, tipo_escala: escalaSelecionada })
+      .insert({ loja: colabLojaAtual, nome: nome, data_admissao: dataAdmissao, data_nascimento: dataNascimento, cargo: cargo || null, data_desligamento: null, ativo: true, carga_horaria_diaria_min: cargaMin, tipo_escala: escalaSelecionada })
       .select().single();
     if(error){
       err.textContent = 'Erro ao salvar: ' + error.message;
@@ -3721,6 +3762,7 @@ function renderColabTabela(numero, lista){
     <tr>
       <td>${escapeHtml(f.nome)}</td>
       <td>${f.cargo ? escapeHtml(f.cargo.toUpperCase()) : '—'}</td>
+      <td>${f.data_admissao ? fmtData(f.data_admissao) : '—'}</td>
       <td>${f.data_nascimento ? fmtData(f.data_nascimento) : '—'}</td>
       <td><span style="font-weight:600;color:${f.ativo===false?'var(--muted)':'var(--green)'};">${f.ativo===false?'Inativo':'Ativo'}</span>${f.ativo===false&&f.data_desligamento?`<div style="font-size:10px;color:var(--muted);margin-top:2px;">desde ${fmtData(f.data_desligamento)}</div>`:''}</td>
       <td>${f.tipo_escala==='12x36' ? '12x36' : 'Normal'}</td>

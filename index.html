@@ -1056,8 +1056,13 @@
             <button type="button" class="importbtn" style="width:auto;margin:0;" onclick="abrirNovoAtestado()">+ Novo atestado</button>
           </div>
         </div>
-        <div style="padding:0 20px 14px;"><input class="comb-busca" id="bhAtestadosBusca" placeholder="🔍 Buscar por colaborador..." oninput="renderAtestados()"></div>
-        <div class="contest-row header" style="grid-template-columns:1.3fr 1fr 90px 1.4fr 90px;">
+        <div style="padding:0 20px 14px;display:flex;gap:10px;align-items:end;flex-wrap:wrap;">
+          <div class="fld" style="margin:0;"><label>De</label><input id="bhAtestadosFiltroDe" type="date" onchange="renderAtestados()"></div>
+          <div class="fld" style="margin:0;"><label>Até</label><input id="bhAtestadosFiltroAte" type="date" onchange="renderAtestados()"></div>
+          <div class="fld" style="margin:0;flex:1;min-width:220px;"><label>Pesquisar</label><input class="comb-busca" id="bhAtestadosBusca" placeholder="🔍 Buscar por colaborador..." oninput="renderAtestados()"></div>
+          <button type="button" class="filter-btn foto-btn" onclick="exportarPdfAtestadosPeriodo('atestados')">📄 PDF do período</button>
+        </div>
+        <div class="contest-row header" style="grid-template-columns:1.3fr 1fr 90px 1.4fr 135px;">
           <div>Colaborador</div>
           <div>Período</div>
           <div style="text-align:right">Dias</div>
@@ -1205,6 +1210,15 @@
                   <button type="button" class="filter-btn" onclick="abrirRelatorioNoturno()">🌙 Abrir relatório geral</button>
                 </div>
               </div>
+              <div class="bh-report-card">
+                <h3>Atestados do período</h3>
+                <p>Lista todos os atestados da loja no período, incluindo colaboradores inativos, para envio à contabilidade.</p>
+                <div class="fld-row" style="margin:8px 0 12px;">
+                  <div class="fld" style="margin:0;"><label>De</label><input id="bhRelAtestadosDe" type="date"></div>
+                  <div class="fld" style="margin:0;"><label>Até</label><input id="bhRelAtestadosAte" type="date"></div>
+                </div>
+                <div class="bh-report-actions"><button type="button" class="filter-btn foto-btn" onclick="exportarPdfAtestadosPeriodo('relatorios')">📄 Baixar PDF</button></div>
+              </div>
             </div>
           </div>
         </div>
@@ -1324,7 +1338,7 @@
             <button type="button" class="importbtn" style="width:auto;margin:0;" onclick="abrirNovoColaborador('loja1')">+ Novo colaborador</button>
           </div>
           <table id="colabTable1">
-            <thead><tr><th>Nome</th><th>Cargo</th><th>Nascimento</th><th>Situação</th><th>Escala</th><th>Jornada</th><th></th></tr></thead>
+            <thead><tr><th>Nome</th><th>Cargo</th><th>Admissão</th><th>Nascimento</th><th>Situação</th><th>Escala</th><th>Jornada</th><th></th></tr></thead>
             <tbody id="colabBody1"></tbody>
           </table>
           <div class="empty" id="colabEmpty1" style="display:none;">Nenhum colaborador cadastrado na Loja 01.</div>
@@ -1335,7 +1349,7 @@
             <button type="button" class="importbtn" style="width:auto;margin:0;" onclick="abrirNovoColaborador('loja2')">+ Novo colaborador</button>
           </div>
           <table id="colabTable2">
-            <thead><tr><th>Nome</th><th>Cargo</th><th>Nascimento</th><th>Situação</th><th>Escala</th><th>Jornada</th><th></th></tr></thead>
+            <thead><tr><th>Nome</th><th>Cargo</th><th>Admissão</th><th>Nascimento</th><th>Situação</th><th>Escala</th><th>Jornada</th><th></th></tr></thead>
             <tbody id="colabBody2"></tbody>
           </table>
           <div class="empty" id="colabEmpty2" style="display:none;">Nenhum colaborador cadastrado na Loja 02.</div>
@@ -2893,6 +2907,7 @@
     <button class="modal-close" onclick="fecharFuncModal()">✕</button>
     <h2 id="funcModalTitulo">Novo funcionário</h2>
     <div class="fld"><label>Nome</label><input id="func_nome" placeholder="Nome do funcionário"></div>
+    <div class="fld"><label>Data de admissão</label><input id="func_data_admissao" type="date"></div>
     <div class="fld"><label>Data de nascimento</label><input id="func_data_nascimento" type="date"></div>
     <div class="fld"><label>Cargo</label>
       <select id="func_cargo">
