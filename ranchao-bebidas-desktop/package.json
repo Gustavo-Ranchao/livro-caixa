@@ -1,6 +1,6 @@
 {
   "name": "ranchao-bebidas-desktop",
-  "version": "1.2.49",
+  "version": "1.2.50",
   "description": "Aplicativo desktop do ERP Ranchão Bebidas",
   "main": "main.js",
   "author": "Ranchão Bebidas",
@@ -11,7 +11,7 @@
     "build:windows": "electron-builder --win nsis --x64"
   },
   "devDependencies": {
-    "electron": "^44.4.3",
+    "electron": "44.9.1",
     "electron-builder": "^26.0.12"
   },
   "build": {
