@@ -1,29 +1,25 @@
-RANCHÃO BEBIDAS — ATUALIZAÇÃO INCREMENTAL 1.2.48
+RANCHÃO BEBIDAS — ATUALIZAÇÃO INCREMENTAL 1.2.49
 
 ESTE PACOTE CONTÉM SOMENTE OS ARQUIVOS ALTERADOS.
 
-Não existe SQL novo nesta atualização.
+ORDEM DA ATUALIZAÇÃO
 
-COMO ATUALIZAR
-
-1. Envie todos os arquivos e a pasta ranchao-bebidas-desktop para a raiz do
-   repositório no GitHub.
-2. Confirme a substituição dos arquivos existentes, preservando a estrutura
-   das pastas.
-3. Não apague as demais pastas e arquivos que já estão no repositório.
-4. Abra Actions > Publicar atualização do aplicativo > Run workflow.
-5. Informe a versão 1.2.48 e confirme.
+1. No SQL Editor do Supabase, execute o arquivo
+   ATUALIZACAO_EQUIPE_ATESTADOS_1.2.49.sql.
+2. Envie todos os demais arquivos e a pasta ranchao-bebidas-desktop para a
+   raiz do repositório no GitHub.
+3. Confirme a substituição dos arquivos existentes, preservando a estrutura.
+4. Não apague os outros arquivos que já estão no repositório.
+5. Abra Actions > Publicar atualização do aplicativo > Run workflow.
+6. Informe a versão 1.2.49 e confirme.
 
 ALTERAÇÕES
 
-- Ao editar uma conta a pagar, a classificação financeira agora é escolhida
-  em uma janela própria de pesquisa.
-- A pesquisa aceita código ou qualquer parte da descrição e mostra todas as
-  classificações disponíveis.
-- Também é possível navegar pelas opções usando as setas e confirmar com Enter.
-- O aviso de contas sem classificação deixou de usar a caixa do Windows e
-  passou a usar uma janela no padrão visual do sistema.
-- Cada ocorrência de entrega ganhou um botão próprio para gerar PDF.
-- O PDF individual mostra dados da entrega, fornecedor, pedido, nota fiscal,
-  descrição, produtos, quantidades, custos, valor afetado, providência,
-  responsável, prazo, status, solução e valor recuperado.
+- Adicionada data de admissão ao cadastro e à listagem de colaboradores.
+- A aba Atestados ganhou filtro por data inicial e final.
+- Novo PDF apresenta todos os atestados que atingem o período selecionado.
+- O relatório informa colaborador, situação, período, dias e observação.
+- Colaboradores inativos aparecem com o nome preservado e situação Inativo.
+- Cada atestado pode ser visualizado ou baixado individualmente em ZIP.
+- O ZIP individual contém o arquivo e um resumo em texto.
+- Mantido o download conjunto dos atestados da loja.
