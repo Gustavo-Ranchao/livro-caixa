@@ -1,0 +1,25 @@
+ATUALIZAÇÃO DE SEGURANÇA — BIBLIOTECAS LOCAIS E CSP
+Versão do aplicativo: 1.2.51
+
+O QUE FOI ALTERADO
+- Supabase JS, html2canvas, SheetJS, jsPDF, AutoTable e JSZip passaram a ser carregados localmente.
+- Removidas as permissões de scripts para cdn.jsdelivr.net, cdnjs.cloudflare.com e cdn.sheetjs.com.
+- A CSP agora aceita scripts somente do próprio aplicativo: script-src 'self'.
+- Electron permanece fixado na versão segura 44.9.1.
+
+COMO PUBLICAR
+1. Descompacte este arquivo preservando a estrutura das pastas.
+2. No repositório, substitua index.html, package.json e package-lock.json.
+3. Envie a pasta assets preservando o caminho assets/vendor/... e confirme a substituição/adição dos arquivos.
+4. Confirme o commit na branch principal.
+5. Abra Actions e execute "Publicar atualização do aplicativo".
+6. Informe a versão 1.2.51, caso o workflow solicite.
+7. Aguarde a Release 1.2.51 finalizar e teste a atualização automática.
+
+NÃO É NECESSÁRIO EXECUTAR SQL NO SUPABASE.
+
+VALIDAÇÕES REALIZADAS
+- Os seis arquivos locais foram comparados com as versões oficiais usadas anteriormente.
+- Dependências de produção: zero vulnerabilidades conhecidas.
+- Aplicativo Windows empacotado com sucesso usando Electron 44.9.1.
+- Presença dos seis arquivos confirmada dentro do app.asar.
