@@ -3172,7 +3172,7 @@ const TITULOS_JANELAS = {
   checklist:'Checklist',duvidas:'Dúvidas',manutencao:'Manutenção',agenda:'Agenda',contasPagar:'Contas a pagar',despesasFixas:'Despesas fixas',
   comprovantes:'Comprovantes',leituraComprovantes:'Leitura de Comprovantes',diferencaCaixa:'Diferença de Caixa',fluxoCaixa:'Fluxo de Caixa',
   pagamentos:'Pagamentos',pagamentoCaixa:'Pagamento no Caixa',combinacaoPagamentos:'Combinação de Pagamentos',contratos:'Contratos e Recibos',
-  vendasComCusto:'Vendas com Custo',metasVendas:'Metas de Vendas',vendasDelivery:'Vendas Delivery',orcamentos:'Orçamentos',tabelaPrecos:'Tabela de Preços',novaVenda:'Nova Venda',produtosEstoque:'Produtos e Estoque',compras:'Compras',
+  vendasComCusto:'Vendas com Custo',metasVendas:'Metas de Vendas',vendasDelivery:'Vendas Delivery',orcamentos:'Orçamentos',tabelaPrecos:'Tabela de Preços',novaVenda:'Cadastrar Venda',produtosEstoque:'Produtos e Estoque',compras:'Compras',
   inventario:'Inventário',controleEstoque:'Controle de Estoque',contagensEstoque:'Contagens de Estoque',ocorrenciasEntregas:'Ocorrências de Entregas',bancoHoras:'Banco de Horas',
   colaboradores:'Colaboradores',aniversarios:'Aniversários',fornecedores:'Fornecedores',contasBancarias:'Contas Bancárias'
 };

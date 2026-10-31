@@ -1,0 +1,17 @@
+CORRECAO 1.2.53 - ABERTURA DOS NOVOS MODULOS
+
+Substitua no GitHub os arquivos e pastas deste pacote, mantendo a mesma estrutura.
+
+CORRECOES
+- Produtos e Estoque agora pode abrir em uma janela do aplicativo.
+- Nova Venda agora pode abrir em uma janela do aplicativo.
+- O nome Nova Venda foi alterado para Cadastrar Venda.
+- Foi criada uma verificação automática antes de gerar o instalador.
+
+PREVENCAO
+O comando de geração executará scripts/validar-modulos.js antes do Electron Builder.
+Se um módulo existir no menu, mas não tiver sido liberado no Electron ou integrado
+ao renderer.js, a geração será interrompida mostrando o nome do módulo faltante.
+
+O SQL da versão 1.2.52 não mudou. Se ele já foi executado com sucesso no Supabase,
+não precisa executá-lo novamente.
