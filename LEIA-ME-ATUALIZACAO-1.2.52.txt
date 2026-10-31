@@ -1,0 +1,24 @@
+ATUALIZACAO 1.2.52 - PRODUTOS, ESTOQUE E NOVA VENDA
+
+1. No Supabase, abra SQL Editor > New query.
+2. Copie e execute todo o arquivo ATUALIZACAO_PRODUTOS_VENDAS_1.2.52.sql.
+3. No GitHub, substitua index.html, renderer.js, package.json e package-lock.json.
+4. Envie também a pasta assets/modulos com o arquivo produtos-vendas.js.
+5. Aguarde o workflow terminar e publique a versão 1.2.52 da forma habitual.
+
+COMO USAR
+- Compras e Estoque > Produtos e Estoque: importe a planilha.
+- Confira a prévia antes de confirmar.
+- A planilha substitui saldo, custo e preço Padrão da loja atual.
+- Os preços Atacado, Revenda e Especial já configurados são preservados.
+- Produtos ausentes na planilha permanecem guardados e aparecem como ausentes.
+- Use Aplicar margem para calcular uma tabela sobre o custo.
+- Vendas > Nova Venda: selecione um cliente opcional, adicione os itens e salve.
+- A venda não altera o estoque.
+- PDF e Excel da venda não mostram o preço de custo.
+
+PADRAO ESPERADO DA PLANILHA
+Código | Descrição | Unidade Comercial | Saldo | F.E. | Embalagens |
+Custo Unitário | Valor | Valor Venda | Total Valor Venda
+
+O sistema recalcula os totais e normaliza pequenos resíduos próximos de zero.

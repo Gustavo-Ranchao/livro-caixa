@@ -111,6 +111,13 @@ function trocarLoja(l){
   if(viewAtual === 'tabelaPrecos'){
     abrirTabelaPrecos();
   }
+  if(viewAtual === 'produtosEstoque'){
+    abrirProdutosEstoque();
+  }
+  if(viewAtual === 'novaVenda'){
+    vpLimparVenda();
+    abrirNovaVenda();
+  }
   if(viewAtual === 'fluxoCaixa'){
     sb.from('fluxo_caixa_contas').select('*').eq('loja', lojaAtual).order('ordem').order('nome').then(async ({data, error})=>{
       fluxoContasCache = error ? [] : (data || []);
@@ -462,7 +469,7 @@ const BACKUP_TABELAS = [
   'fluxo_caixa_saldos','fluxo_caixa_lancamentos','caixa_diferencas','checklist_itens','checklist_execucoes','bh_registros',
   'bh_atestados','vendas_delivery','vendas_itens','metas_vendas_config','metas_vendas_dias','controle_estoque_mensal','estoque_inventarios','contagens_estoque',
   'contagens_estoque_itens','comb_pag_compras','comb_pag_pagamentos','pagamentos_caixa','pagamentos_caixa_memoria',
-  'recibos','contracheques','orcamentos','tabela_precos','tabela_precos_categorias','agenda_lembretes','duvidas','manutencoes','leituras_comprovantes','ocorrencias_entregas','ocorrencias_entregas_itens','historico_alteracoes'
+  'recibos','contracheques','orcamentos','tabela_precos','tabela_precos_categorias','produtos_estoque','produtos_importacoes','clientes_vendas','vendas_produtos','vendas_produtos_itens','vendas_produtos_sequencias','agenda_lembretes','duvidas','manutencoes','leituras_comprovantes','ocorrencias_entregas','ocorrencias_entregas_itens','historico_alteracoes'
 ];
 const BACKUP_ARQUIVOS = [
   {tabela:'comprovantes',campo:'caminho_storage',bucket:'comprovantes'},
@@ -604,7 +611,7 @@ const HISTORICO_TABELAS_NOMES={
   caixa_diferencas:'Diferença de caixa',checklist_itens:'Itens do checklist',checklist_execucoes:'Checklist',compras_empresas:'Empresas de compras',compras_marcas:'Marcas',fornecedores:'Fornecedores',
   compras_produtos:'Produtos de compras',controle_estoque_mensal:'Controle de estoque',estoque_inventarios:'Inventário de estoque',contagens_estoque:'Contagens de estoque',contagens_estoque_itens:'Itens da contagem',
   pagamentos:'Pagamentos',comb_pag_compras:'Compras combinadas',comb_pag_pagamentos:'Pagamentos combinados',pagamentos_caixa:'Pagamentos de caixa',pagamentos_caixa_memoria:'Memória de pagamentos',pagamentos_caixa_tipos:'Tipos de pagamento',
-  vendas_delivery:'Vendas Delivery',vendas_itens:'Vendas com custo',metas_vendas_config:'Configuração das metas',metas_vendas_dias:'Vendas diárias das metas',orcamentos:'Orçamentos',tabela_precos:'Tabela de preços',tabela_precos_categorias:'Categorias da tabela de preços',agenda_lembretes:'Agenda e lembretes',recibos:'Recibos',contracheques:'Contracheques',duvidas:'Dúvidas',manutencoes:'Manutenções',leituras_comprovantes:'Leitura de comprovantes',ocorrencias_entregas:'Ocorrências de entregas',ocorrencias_entregas_itens:'Itens das ocorrências de entregas',
+  vendas_delivery:'Vendas Delivery',vendas_itens:'Vendas com custo',metas_vendas_config:'Configuração das metas',metas_vendas_dias:'Vendas diárias das metas',orcamentos:'Orçamentos',tabela_precos:'Tabela de preços',tabela_precos_categorias:'Categorias da tabela de preços',produtos_estoque:'Produtos e estoque',produtos_importacoes:'Histórico de importações de produtos',clientes_vendas:'Clientes de vendas',vendas_produtos:'Vendas de produtos',vendas_produtos_itens:'Itens das vendas de produtos',vendas_produtos_sequencias:'Numeração das vendas',agenda_lembretes:'Agenda e lembretes',recibos:'Recibos',contracheques:'Contracheques',duvidas:'Dúvidas',manutencoes:'Manutenções',leituras_comprovantes:'Leitura de comprovantes',ocorrencias_entregas:'Ocorrências de entregas',ocorrencias_entregas_itens:'Itens das ocorrências de entregas',
   despesas_fixas:'Despesas fixas',despesas_fixas_puladas:'Despesas fixas ignoradas'
 };
 let historicoCache=[];
@@ -3155,7 +3162,7 @@ function exportarImagemMetaEquipe(){
   ctx.textAlign='center';ctx.fillStyle='#53647b';ctx.font='500 18px Arial';ctx.fillText('Vamos juntos alcançar nossa meta!',largura/2,1310);const link=document.createElement('a');link.href=canvas.toDataURL('image/png');link.download='meta-equipe-'+lojaAtual+'-'+mes+'.png';link.click();
 }
 
-const VIEWS = ['checklist','duvidas','manutencao','agenda','contasPagar','despesasFixas','comprovantes','leituraComprovantes','diferencaCaixa','fluxoCaixa','pagamentos','pagamentoCaixa','contratos','vendasComCusto','metasVendas','vendasDelivery','orcamentos','tabelaPrecos','bancoHoras','compras','ocorrenciasEntregas','colaboradores','aniversarios','fornecedores','contasBancarias','inventario','controleEstoque','contagensEstoque','combinacaoPagamentos'];
+const VIEWS = ['checklist','duvidas','manutencao','agenda','contasPagar','despesasFixas','comprovantes','leituraComprovantes','diferencaCaixa','fluxoCaixa','pagamentos','pagamentoCaixa','contratos','vendasComCusto','metasVendas','vendasDelivery','orcamentos','tabelaPrecos','novaVenda','produtosEstoque','bancoHoras','compras','ocorrenciasEntregas','colaboradores','aniversarios','fornecedores','contasBancarias','inventario','controleEstoque','contagensEstoque','combinacaoPagamentos'];
 let colabCarregado = false;
 const PARAMETROS_JANELA = new URLSearchParams(location.search);
 const EH_JANELA_MODULO = PARAMETROS_JANELA.get('janelaModulo')==='1';
@@ -3165,7 +3172,7 @@ const TITULOS_JANELAS = {
   checklist:'Checklist',duvidas:'Dúvidas',manutencao:'Manutenção',agenda:'Agenda',contasPagar:'Contas a pagar',despesasFixas:'Despesas fixas',
   comprovantes:'Comprovantes',leituraComprovantes:'Leitura de Comprovantes',diferencaCaixa:'Diferença de Caixa',fluxoCaixa:'Fluxo de Caixa',
   pagamentos:'Pagamentos',pagamentoCaixa:'Pagamento no Caixa',combinacaoPagamentos:'Combinação de Pagamentos',contratos:'Contratos e Recibos',
-  vendasComCusto:'Vendas com Custo',metasVendas:'Metas de Vendas',vendasDelivery:'Vendas Delivery',orcamentos:'Orçamentos',tabelaPrecos:'Tabela de Preços',compras:'Compras',
+  vendasComCusto:'Vendas com Custo',metasVendas:'Metas de Vendas',vendasDelivery:'Vendas Delivery',orcamentos:'Orçamentos',tabelaPrecos:'Tabela de Preços',novaVenda:'Nova Venda',produtosEstoque:'Produtos e Estoque',compras:'Compras',
   inventario:'Inventário',controleEstoque:'Controle de Estoque',contagensEstoque:'Contagens de Estoque',ocorrenciasEntregas:'Ocorrências de Entregas',bancoHoras:'Banco de Horas',
   colaboradores:'Colaboradores',aniversarios:'Aniversários',fornecedores:'Fornecedores',contasBancarias:'Contas Bancárias'
 };
@@ -3199,13 +3206,13 @@ const CATEGORIA_POR_VIEW = {
   contasPagar:'financeiro', despesasFixas:'financeiro', comprovantes:'financeiro', leituraComprovantes:'financeiro',
   diferencaCaixa:'financeiro', fluxoCaixa:'financeiro', pagamentos:'financeiro',
   pagamentoCaixa:'financeiro', combinacaoPagamentos:'financeiro', contratos:'financeiro',
-  vendasComCusto:'vendas', metasVendas:'vendas', vendasDelivery:'vendas', orcamentos:'vendas', tabelaPrecos:'vendas',
-  compras:'comprasEstoque', inventario:'comprasEstoque', controleEstoque:'comprasEstoque', contagensEstoque:'comprasEstoque', ocorrenciasEntregas:'comprasEstoque',
+  vendasComCusto:'vendas', metasVendas:'vendas', vendasDelivery:'vendas', orcamentos:'vendas', tabelaPrecos:'vendas', novaVenda:'vendas',
+  compras:'comprasEstoque', produtosEstoque:'comprasEstoque', inventario:'comprasEstoque', controleEstoque:'comprasEstoque', contagensEstoque:'comprasEstoque', ocorrenciasEntregas:'comprasEstoque',
   bancoHoras:'equipe', colaboradores:'equipe', aniversarios:'equipe',
   fornecedores:'cadastros', contasBancarias:'cadastros',
   checklist:'checklist', duvidas:'duvidas', manutencao:'manutencao', agenda:'agenda'
 };
-const VIEW_IDS = { checklist:'viewChecklist', duvidas:'viewDuvidas', manutencao:'viewManutencao', agenda:'viewAgenda', contasPagar:'viewContasPagar', despesasFixas:'viewDespesasFixas', comprovantes:'viewComprovantes', leituraComprovantes:'viewLeituraComprovantes', diferencaCaixa:'viewDiferencaCaixa', fluxoCaixa:'viewFluxoCaixa', pagamentos:'viewPagamentos', pagamentoCaixa:'viewPagamentoCaixa', contratos:'viewContratos', vendasComCusto:'viewVendasComCusto', metasVendas:'viewMetasVendas', vendasDelivery:'viewVendasDelivery', orcamentos:'viewOrcamentos', tabelaPrecos:'viewTabelaPrecos', bancoHoras:'viewBancoHoras', compras:'viewCompras', ocorrenciasEntregas:'viewOcorrenciasEntregas', colaboradores:'viewColaboradores', aniversarios:'viewAniversarios', fornecedores:'viewFornecedores', contasBancarias:'viewContasBancarias', inventario:'viewInventario', controleEstoque:'viewControleEstoque', contagensEstoque:'viewContagensEstoque', combinacaoPagamentos:'viewCombinacaoPagamentos' };
+const VIEW_IDS = { checklist:'viewChecklist', duvidas:'viewDuvidas', manutencao:'viewManutencao', agenda:'viewAgenda', contasPagar:'viewContasPagar', despesasFixas:'viewDespesasFixas', comprovantes:'viewComprovantes', leituraComprovantes:'viewLeituraComprovantes', diferencaCaixa:'viewDiferencaCaixa', fluxoCaixa:'viewFluxoCaixa', pagamentos:'viewPagamentos', pagamentoCaixa:'viewPagamentoCaixa', contratos:'viewContratos', vendasComCusto:'viewVendasComCusto', metasVendas:'viewMetasVendas', vendasDelivery:'viewVendasDelivery', orcamentos:'viewOrcamentos', tabelaPrecos:'viewTabelaPrecos', novaVenda:'viewNovaVenda', produtosEstoque:'viewProdutosEstoque', bancoHoras:'viewBancoHoras', compras:'viewCompras', ocorrenciasEntregas:'viewOcorrenciasEntregas', colaboradores:'viewColaboradores', aniversarios:'viewAniversarios', fornecedores:'viewFornecedores', contasBancarias:'viewContasBancarias', inventario:'viewInventario', controleEstoque:'viewControleEstoque', contagensEstoque:'viewContagensEstoque', combinacaoPagamentos:'viewCombinacaoPagamentos' };
 
 let categoriaMenuAberta = null;
 
@@ -3305,6 +3312,10 @@ async function mudarViewPrincipal(view){
     await abrirOrcamentos();
   }else if(view==='tabelaPrecos'){
     await abrirTabelaPrecos();
+  }else if(view==='produtosEstoque'){
+    await abrirProdutosEstoque();
+  }else if(view==='novaVenda'){
+    await abrirNovaVenda();
   }else if(view==='agenda'){
     await abrirAgenda();
   }else if(view==='bancoHoras'){
