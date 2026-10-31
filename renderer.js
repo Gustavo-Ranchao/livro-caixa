@@ -475,6 +475,7 @@ const BACKUP_ARQUIVOS = [
   {tabela:'comprovantes',campo:'caminho_storage',bucket:'comprovantes'},
   {tabela:'bh_atestados',campo:'caminho_storage',bucket:'comprovantes'},
   {tabela:'leituras_comprovantes',campo:'caminho_storage',bucket:'comprovantes'},
+  {tabela:'leituras_comprovantes',campo:'caminho_nota',bucket:'comprovantes'},
   {tabela:'manutencoes',campo:'caminho_storage',bucket:'manutencoes'},
   {tabela:'ocorrencias_entregas',campo:'caminho_storage',bucket:'ocorrencias-entregas'},
   {tabela:'compras_produtos',campo:'foto_caminho',bucket:'compras-produtos'}
@@ -4110,6 +4111,8 @@ async function baixarTodosComprovantes(){
 
 let lcLote=[];
 let lcHistorico=[];
+let lcNotasSelecionadas=new Set();
+let lcNotaFiscalEditandoId=null;
 
 function lcDataBrParaIso(valor){
   const m=String(valor||'').match(/(\d{2})\/(\d{2})\/(\d{4})/);
@@ -4335,6 +4338,9 @@ const LC_CATEGORIAS=[
 ];
 function lcNomeCategoria(valor){return LC_CATEGORIAS.find(x=>x[0]===String(valor||''))?.[1]||'Não classificado';}
 function lcOpcoesCategoria(valor){return LC_CATEGORIAS.map(([id,nome])=>`<option value="${id}" ${String(valor||'')===id?'selected':''}>${nome}</option>`).join('');}
+const LC_NOTAS={aguardando:'Aguardando conferência',nfe:'NF-e de mercadoria',nfse:'NFS-e de serviço',sem_nota:'Sem nota fiscal',nao_aplica:'Não se aplica'};
+function lcStatusNota(x){return String(x?.situacao_nota||'aguardando');}
+function lcNomeNota(x){return LC_NOTAS[lcStatusNota(x)]||LC_NOTAS.aguardando;}
 
 async function abrirLeituraComprovantes(){
   const mes=mesAtualPadrao();
@@ -4446,7 +4452,7 @@ async function salvarTodasLeituras(){
     const tipo=x.tipoArquivo||x.arquivo.type||'application/octet-stream';
     const {error:erroUpload}=await sb.storage.from('comprovantes').upload(caminho,x.arquivo,{contentType:tipo,upsert:false});
     if(erroUpload){erros.push(x.nomeArquivo+': '+erroUpload.message);continue;}
-    const {error}=await sb.from('leituras_comprovantes').insert({loja:lojaAtual,numero:Number(x.numero)||null,recebedor:x.recebedor.trim(),documento:x.documento.trim()||null,valor:x.valor,data_pagamento:x.data,horario_pagamento:x.horario||null,modelo:x.modelo,categoria:x.categoria||null,codigo_transacao:x.codigo||null,arquivo_hash:x.hash,nome_arquivo:x.nomeArquivo,caminho_storage:caminho,tipo_arquivo:tipo,tamanho_bytes:x.arquivo.size});
+    const {error}=await sb.from('leituras_comprovantes').insert({loja:lojaAtual,numero:Number(x.numero)||null,recebedor:x.recebedor.trim(),documento:x.documento.trim()||null,valor:x.valor,data_pagamento:x.data,horario_pagamento:x.horario||null,modelo:x.modelo,categoria:x.categoria||null,situacao_nota:'aguardando',codigo_transacao:x.codigo||null,arquivo_hash:x.hash,nome_arquivo:x.nomeArquivo,caminho_storage:caminho,tipo_arquivo:tipo,tamanho_bytes:x.arquivo.size});
     if(error){await sb.storage.from('comprovantes').remove([caminho]);erros.push(x.nomeArquivo+': '+error.message);continue;}
     salvos++;idsSalvos.add(x.id);
   }
@@ -4479,14 +4485,16 @@ async function carregarHistoricoLeituras(){
 
 async function renderHistoricoLeituras(){
   const busca=(document.getElementById('lcBuscaHistorico')?.value||'').trim().toLowerCase();
-  const lista=lcHistorico.filter(x=>!busca||[x.recebedor,x.documento,x.modelo,lcNomeCategoria(x.categoria),String(x.valor),x.data_pagamento].some(v=>String(v||'').toLowerCase().includes(busca)));
+  const filtroNota=document.getElementById('lcFiltroNota')?.value||'todos';
+  const lista=lcHistorico.filter(x=>(filtroNota==='todos'||lcStatusNota(x)===filtroNota)&&(!busca||[x.recebedor,x.documento,x.modelo,lcNomeCategoria(x.categoria),lcNomeNota(x),x.numero_nota,x.chave_nota,String(x.valor),x.data_pagamento].some(v=>String(v||'').toLowerCase().includes(busca))));
   document.getElementById('lcHistoricoEmpty').style.display=lista.length?'none':'block';
   const total=lista.reduce((s,x)=>s+(Number(x.valor)||0),0),mercadorias=lista.filter(x=>x.categoria==='mercadoria').reduce((s,x)=>s+(Number(x.valor)||0),0),porCategoria=new Map();
   lista.forEach(x=>{const nome=lcNomeCategoria(x.categoria);porCategoria.set(nome,(porCategoria.get(nome)||0)+(Number(x.valor)||0));});
-  document.getElementById('lcTotalPago').textContent=brl(total);document.getElementById('lcTotalMercadorias').textContent=brl(mercadorias);document.getElementById('lcTotalQuantidade').textContent=String(lista.length);
+  document.getElementById('lcTotalPago').textContent=brl(total);document.getElementById('lcTotalMercadorias').textContent=brl(mercadorias);document.getElementById('lcTotalQuantidade').textContent=String(lista.length);document.getElementById('lcTotalNotaAguardando').textContent=String(lista.filter(x=>lcStatusNota(x)==='aguardando').length);document.getElementById('lcTotalSemNota').textContent=String(lista.filter(x=>lcStatusNota(x)==='sem_nota').length);
   document.getElementById('lcResumoCategorias').innerHTML=[...porCategoria.entries()].sort((a,b)=>b[1]-a[1]).map(([nome,valor])=>`<span>${escapeHtml(nome)}: <b>${brl(valor)}</b></span>`).join('');
-  const linhas=lista.map(x=>{const indice=lcHistorico.findIndex(v=>Number(v.id)===Number(x.id));return `<tr><td><div class="rowactions" style="justify-content:flex-start;"><strong style="min-width:24px;text-align:center;">${x.numero_ordem??'—'}</strong><button type="button" class="iconbtn" title="Mover para cima" ${indice<=0?'disabled':''} onclick="moverLeituraComprovante(${Number(x.id)},-1)">▲</button><button type="button" class="iconbtn" title="Mover para baixo" ${indice<0||indice>=lcHistorico.length-1?'disabled':''} onclick="moverLeituraComprovante(${Number(x.id)},1)">▼</button></div></td><td>${fmtData(x.data_pagamento)}</td><td class="lc-recebedor-historico-cell"><div class="lc-recebedor-historico-wrap"><input id="lcRecebedorSalvo${Number(x.id)}" value="${escapeHtml(x.recebedor)}" title="${escapeHtml(x.recebedor)}" maxlength="300" aria-label="Recebedor ou descrição" onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur();}" onchange="salvarRecebedorLeitura(${Number(x.id)},this)"><span id="lcRecebedorStatus${Number(x.id)}" class="lc-recebedor-historico-status"></span></div></td><td><select class="lc-history-category" aria-label="Classificação do comprovante" onchange="salvarCategoriaLeitura(${Number(x.id)},this)">${lcOpcoesCategoria(x.categoria)}</select></td><td>${escapeHtml(x.documento||'—')}</td><td>${escapeHtml(x.modelo||'—')}</td><td class="valor">${brl(x.valor)}</td><td><div class="rowactions"><button type="button" class="filter-btn" data-caminho="${escapeHtml(x.caminho_storage||'')}" data-nome="${escapeHtml(x.nome_arquivo||'Comprovante')}" data-tipo="${escapeHtml(x.tipo_arquivo||'')}" onclick="abrirComprovanteLeituraSalvo(this.dataset.caminho,this.dataset.nome,this.dataset.tipo)">👁 Ver</button><button type="button" class="iconbtn del" title="Excluir comprovante" onclick="abrirExclusaoLeiturasComprovantes(${Number(x.id)})">✕</button></div></td></tr>`;});
+  const linhas=lista.map(x=>{const id=Number(x.id),indice=lcHistorico.findIndex(v=>Number(v.id)===id),status=lcStatusNota(x),cor=status==='sem_nota'?'#b4233a':status==='aguardando'?'#9a6700':status==='nfe'||status==='nfse'?'#17733b':'#64748b';return `<tr><td><input type="checkbox" ${lcNotasSelecionadas.has(id)?'checked':''} onchange="marcarNotaLeitura(${id},this.checked)"></td><td><div class="rowactions" style="justify-content:flex-start;"><strong style="min-width:24px;text-align:center;">${x.numero_ordem??'—'}</strong><button type="button" class="iconbtn" title="Mover para cima" ${indice<=0?'disabled':''} onclick="moverLeituraComprovante(${id},-1)">▲</button><button type="button" class="iconbtn" title="Mover para baixo" ${indice<0||indice>=lcHistorico.length-1?'disabled':''} onclick="moverLeituraComprovante(${id},1)">▼</button></div></td><td>${fmtData(x.data_pagamento)}</td><td class="lc-recebedor-historico-cell"><div class="lc-recebedor-historico-wrap"><input id="lcRecebedorSalvo${id}" value="${escapeHtml(x.recebedor)}" title="${escapeHtml(x.recebedor)}" maxlength="300" aria-label="Recebedor ou descrição" onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur();}" onchange="salvarRecebedorLeitura(${id},this)"><span id="lcRecebedorStatus${id}" class="lc-recebedor-historico-status"></span></div></td><td><select class="lc-history-category" aria-label="Classificação do comprovante" onchange="salvarCategoriaLeitura(${id},this)">${lcOpcoesCategoria(x.categoria)}</select></td><td><button type="button" class="filter-btn" style="color:${cor};white-space:normal;max-width:180px;" onclick="abrirNotaFiscalLeitura(${id})">${x.caminho_nota?'📎 ':''}${escapeHtml(lcNomeNota(x))}</button>${x.numero_nota?`<small style="display:block;margin-top:4px;">Nº ${escapeHtml(x.numero_nota)}</small>`:''}</td><td>${escapeHtml(x.documento||'—')}</td><td>${escapeHtml(x.modelo||'—')}</td><td class="valor">${brl(x.valor)}</td><td><div class="rowactions"><button type="button" class="filter-btn" data-caminho="${escapeHtml(x.caminho_storage||'')}" data-nome="${escapeHtml(x.nome_arquivo||'Comprovante')}" data-tipo="${escapeHtml(x.tipo_arquivo||'')}" onclick="abrirComprovanteLeituraSalvo(this.dataset.caminho,this.dataset.nome,this.dataset.tipo)">👁 Ver</button><button type="button" class="iconbtn del" title="Excluir comprovante" onclick="abrirExclusaoLeiturasComprovantes(${id})">✕</button></div></td></tr>`;});
   document.getElementById('lcHistoricoBody').innerHTML=linhas.join('');
+  document.getElementById('lcNotaSelecionadosInfo').textContent=lcNotasSelecionadas.size+' selecionado(s)';
 }
 
 async function salvarCategoriaLeitura(id,select){
@@ -4497,6 +4505,35 @@ async function salvarCategoriaLeitura(id,select){
   if(error){select.value=anterior;alert('Não foi possível salvar a classificação. Execute o SQL da versão 1.2.44 no Supabase e tente novamente.');return;}
   item.categoria=categoria;renderHistoricoLeituras();
 }
+
+function marcarNotaLeitura(id,marcado){marcado?lcNotasSelecionadas.add(Number(id)):lcNotasSelecionadas.delete(Number(id));document.getElementById('lcNotaSelecionadosInfo').textContent=lcNotasSelecionadas.size+' selecionado(s)';}
+function selecionarTodasNotasLeituras(marcado){leiturasComprovantesFiltradas().forEach(x=>marcado?lcNotasSelecionadas.add(Number(x.id)):lcNotasSelecionadas.delete(Number(x.id)));renderHistoricoLeituras();}
+async function salvarNotaFiscalEmLote(){
+  if(!lcNotasSelecionadas.size){alert('Selecione ao menos um comprovante.');return;}
+  const situacao=document.getElementById('lcNotaLoteStatus').value,ids=[...lcNotasSelecionadas];
+  const {error}=await sb.from('leituras_comprovantes').update({situacao_nota:situacao,nota_atualizada_em:new Date().toISOString()}).eq('loja',lojaAtual).in('id',ids);
+  if(error){alert('Não foi possível atualizar as notas. Execute o SQL da versão 1.2.54 no Supabase.');return;}
+  lcHistorico.forEach(x=>{if(lcNotasSelecionadas.has(Number(x.id)))x.situacao_nota=situacao;});lcNotasSelecionadas.clear();renderHistoricoLeituras();
+}
+function abrirNotaFiscalLeitura(id){
+  const x=lcHistorico.find(v=>Number(v.id)===Number(id));if(!x)return;lcNotaFiscalEditandoId=Number(id);
+  document.getElementById('lcNotaFiscalRecebedor').textContent=(x.recebedor||'Comprovante')+' — '+brl(x.valor);
+  document.getElementById('lcNotaFiscalStatus').value=lcStatusNota(x);document.getElementById('lcNotaFiscalNumero').value=x.numero_nota||'';document.getElementById('lcNotaFiscalChave').value=x.chave_nota||'';document.getElementById('lcNotaFiscalArquivo').value='';document.getElementById('lcNotaFiscalErro').style.display='none';
+  const atual=document.getElementById('lcNotaFiscalAtual');atual.style.display=x.caminho_nota?'flex':'none';atual.style.justifyContent='space-between';atual.style.alignItems='center';atual.innerHTML=x.caminho_nota?`<span>📎 ${escapeHtml(x.nome_nota||'Nota fiscal anexada')}</span><div class="rowactions"><button type="button" class="filter-btn" onclick="abrirNotaFiscalAnexada(${Number(id)})">Ver nota</button><button type="button" class="iconbtn del" onclick="removerNotaFiscalAnexada(${Number(id)})">✕</button></div>`:'';
+  document.getElementById('lcNotaFiscalModal').style.display='flex';
+}
+function fecharNotaFiscalLeitura(){document.getElementById('lcNotaFiscalModal').style.display='none';lcNotaFiscalEditandoId=null;}
+async function salvarNotaFiscalLeitura(){
+  const x=lcHistorico.find(v=>Number(v.id)===Number(lcNotaFiscalEditandoId));if(!x)return;const btn=document.getElementById('lcNotaFiscalSalvarBtn'),erro=document.getElementById('lcNotaFiscalErro'),arquivo=document.getElementById('lcNotaFiscalArquivo').files?.[0];btn.disabled=true;btn.textContent='Salvando…';erro.style.display='none';let novoCaminho=null;
+  try{
+    if(arquivo){if(arquivo.size>15*1024*1024)throw new Error('O anexo deve ter no máximo 15 MB.');const permitido=arquivo.type==='application/pdf'||arquivo.type.startsWith('image/');if(!permitido)throw new Error('Selecione um PDF ou uma imagem.');novoCaminho='notas-fiscais/'+lojaAtual+'/'+String(x.data_pagamento||todayStr()).slice(0,7)+'/'+Date.now()+'_'+nomeArquivoSeguro(arquivo.name);const up=await sb.storage.from('comprovantes').upload(novoCaminho,arquivo,{contentType:arquivo.type,upsert:false});if(up.error)throw up.error;}
+    const payload={situacao_nota:document.getElementById('lcNotaFiscalStatus').value,numero_nota:document.getElementById('lcNotaFiscalNumero').value.trim()||null,chave_nota:document.getElementById('lcNotaFiscalChave').value.replace(/\s+/g,'').trim()||null,nota_atualizada_em:new Date().toISOString()};if(arquivo)Object.assign(payload,{caminho_nota:novoCaminho,nome_nota:arquivo.name,tipo_nota:arquivo.type});
+    const {error}=await sb.from('leituras_comprovantes').update(payload).eq('id',x.id).eq('loja',lojaAtual);if(error){if(novoCaminho)await sb.storage.from('comprovantes').remove([novoCaminho]);throw error;}if(arquivo&&x.caminho_nota)await sb.storage.from('comprovantes').remove([x.caminho_nota]);Object.assign(x,payload);fecharNotaFiscalLeitura();renderHistoricoLeituras();
+  }catch(e){erro.textContent='Não foi possível salvar: '+(e.message||e);erro.style.display='block';}
+  btn.disabled=false;btn.textContent='Salvar informações';
+}
+async function abrirNotaFiscalAnexada(id){const x=lcHistorico.find(v=>Number(v.id)===Number(id));if(!x?.caminho_nota)return;const {data,error}=await sb.storage.from('comprovantes').createSignedUrl(x.caminho_nota,3600);if(error||!data?.signedUrl){alert('Não foi possível abrir a nota fiscal.');return;}mostrarPreviewLeituraComprovante(data.signedUrl,x.nome_nota||'Nota fiscal',x.tipo_nota||'');}
+async function removerNotaFiscalAnexada(id){const x=lcHistorico.find(v=>Number(v.id)===Number(id));if(!x?.caminho_nota)return;const caminho=x.caminho_nota,{error}=await sb.from('leituras_comprovantes').update({caminho_nota:null,nome_nota:null,tipo_nota:null,nota_atualizada_em:new Date().toISOString()}).eq('id',id).eq('loja',lojaAtual);if(error){alert('Não foi possível remover o anexo.');return;}await sb.storage.from('comprovantes').remove([caminho]);x.caminho_nota=null;x.nome_nota=null;x.tipo_nota=null;abrirNotaFiscalLeitura(id);renderHistoricoLeituras();}
 
 async function salvarRecebedorLeitura(id,input){
   const item=lcHistorico.find(x=>Number(x.id)===Number(id)),status=document.getElementById('lcRecebedorStatus'+id);if(!item)return;
@@ -4543,7 +4580,8 @@ function fecharPreviewLeituraComprovante(){
 
 function leiturasComprovantesFiltradas(){
   const busca=(document.getElementById('lcBuscaHistorico')?.value||'').trim().toLowerCase();
-  return lcHistorico.filter(x=>!busca||[x.recebedor,x.documento,x.modelo,lcNomeCategoria(x.categoria),String(x.valor),x.data_pagamento].some(v=>String(v||'').toLowerCase().includes(busca)));
+  const filtroNota=document.getElementById('lcFiltroNota')?.value||'todos';
+  return lcHistorico.filter(x=>(filtroNota==='todos'||lcStatusNota(x)===filtroNota)&&(!busca||[x.recebedor,x.documento,x.modelo,lcNomeCategoria(x.categoria),lcNomeNota(x),x.numero_nota,x.chave_nota,String(x.valor),x.data_pagamento].some(v=>String(v||'').toLowerCase().includes(busca))));
 }
 
 function nomeArquivoLeituraZip(x,indice){
@@ -4569,14 +4607,14 @@ async function baixarLeiturasComprovantesZip(){
       const blob=await resposta.blob(),numero=String(x.numero_ordem??i+1).padStart(3,'0'),nomeOriginal=nomeArquivoLeituraZip(x,i),ponto=nomeOriginal.lastIndexOf('.'),nomeBase=nomeOriginal.slice(0,ponto),extensao=nomeOriginal.slice(ponto);
       let nome=nomeOriginal,contador=2;while(usados.has(nome)){nome=nomeBase+' ('+contador+')'+extensao;contador++;}usados.add(nome);
       zip.file(nome,blob,{compression:'STORE'});adicionados++;
-      manifesto.push(numero+' | '+fmtData(x.data_pagamento)+' | '+(x.recebedor||'—')+' | '+lcNomeCategoria(x.categoria)+' | '+(x.documento||'—')+' | '+brl(x.valor));
+      manifesto.push(numero+' | '+fmtData(x.data_pagamento)+' | '+(x.recebedor||'—')+' | '+lcNomeCategoria(x.categoria)+' | '+lcNomeNota(x)+(x.numero_nota?' Nº '+x.numero_nota:'')+' | '+(x.documento||'—')+' | '+brl(x.valor));
     }catch(e){falhas++;console.error('Erro ao preparar comprovante analisado:',x.id,e);}
     atualizarProgresso(((i+1)/lista.length)*85);
   }
   if(!adicionados){fecharProgresso();alert('Não foi possível baixar os comprovantes. Verifique sua conexão e tente novamente.');return;}
   const totalPago=lista.reduce((s,x)=>s+(Number(x.valor)||0),0);
   const totalMercadorias=lista.filter(x=>x.categoria==='mercadoria').reduce((s,x)=>s+(Number(x.valor)||0),0);
-  zip.file('lista-de-comprovantes.txt','COMPROVANTES PAGOS - '+(NOMES_LOJA[lojaAtual]||lojaAtual)+'\nPeríodo: '+(document.getElementById('lcFiltroMes')?.value||'')+'\n\nNº | Data | Recebedor | Classificação | CPF/CNPJ | Valor pago\n'+manifesto.join('\n')+'\n\nTOTAL PAGO: '+brl(totalPago)+'\nTOTAL EM MERCADORIAS: '+brl(totalMercadorias));
+  zip.file('lista-de-comprovantes.txt','COMPROVANTES PAGOS - '+(NOMES_LOJA[lojaAtual]||lojaAtual)+'\nPeríodo: '+(document.getElementById('lcFiltroMes')?.value||'')+'\n\nNº | Data | Recebedor | Classificação | Nota fiscal | CPF/CNPJ | Valor pago\n'+manifesto.join('\n')+'\n\nTOTAL PAGO: '+brl(totalPago)+'\nTOTAL EM MERCADORIAS: '+brl(totalMercadorias));
   document.getElementById('progressoTitulo').textContent='Criando arquivo ZIP…';
   const conteudo=await zip.generateAsync({type:'blob',compression:'DEFLATE',compressionOptions:{level:6}},meta=>atualizarProgresso(85+meta.percent*.15));
   atualizarProgresso(100);const url=URL.createObjectURL(conteudo),link=document.createElement('a');link.href=url;link.download='comprovantes-analisados-'+(NOMES_LOJA[lojaAtual]||lojaAtual).toLowerCase().replace(/\s+/g,'-')+'-'+(document.getElementById('lcFiltroMes')?.value||todayStr())+'.zip';document.body.appendChild(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),1500);setTimeout(fecharProgresso,400);
@@ -4609,7 +4647,7 @@ async function executarExclusaoLeiturasComprovantes(){
     const x=alvos[i];
     try{
       const {error}=await sb.from('leituras_comprovantes').delete().eq('id',x.id).eq('loja',lojaAtual);if(error)throw error;
-      excluidos++;if(x.caminho_storage){const {error:erroArquivo}=await sb.storage.from('comprovantes').remove([x.caminho_storage]);if(erroArquivo)console.warn('Registro excluído, mas o arquivo não pôde ser removido:',erroArquivo);}
+      excluidos++;const caminhos=[x.caminho_storage,x.caminho_nota].filter(Boolean);if(caminhos.length){const {error:erroArquivo}=await sb.storage.from('comprovantes').remove(caminhos);if(erroArquivo)console.warn('Registro excluído, mas algum arquivo não pôde ser removido:',erroArquivo);}
     }catch(e){falhas++;console.error('Erro ao excluir comprovante analisado:',x.id,e);}
     atualizarProgresso(((i+1)/alvos.length)*100);
   }

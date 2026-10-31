@@ -1,0 +1,31 @@
+ATUALIZACAO 1.2.54
+
+1. Execute no Supabase o arquivo ATUALIZACAO_NOTAS_E_PRECOS_1.2.54.sql.
+2. Substitua no GitHub os demais arquivos e pastas deste pacote.
+3. Aguarde o workflow e publique a release 1.2.54.
+
+ALTERACOES
+
+LEITOR DE COMPROVANTES
+- Situações: aguardando conferência, NF-e de mercadoria, NFS-e de serviço,
+  sem nota fiscal e não se aplica.
+- Filtro por situação da nota.
+- Indicadores de aguardando e sem nota.
+- Marcação individual ou em lote.
+- Número da nota, chave de acesso e anexo em PDF ou imagem.
+- Visualização da nota anexada dentro do aplicativo.
+- Anexos das notas incluídos no backup e removidos junto com o comprovante.
+
+PRODUTOS E ESTOQUE
+- Descrição completa, com quebra de linha e texto integral ao passar o mouse.
+- Preço padrão editável diretamente na linha.
+- A alteração do preço padrão é temporária e será substituída pela próxima
+  importação da planilha.
+
+CADASTRAR VENDA
+- Mostra preço padrão, preço aplicado e economia por item.
+- Mostra o total economizado.
+- PDF e Excel também apresentam o preço padrão e a economia.
+- O preço de custo continua oculto nos documentos do cliente.
+
+O AJUSTE DE COMPETENCIA DO SICOOB NAO FOI INCLUIDO NESTA VERSAO.
