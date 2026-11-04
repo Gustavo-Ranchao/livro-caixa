@@ -1827,7 +1827,7 @@ function atualizarPreviaRecibo(){
 async function carregarColaboradoresRecibo(){
   const lista=document.getElementById('recColaboradoresLista');
   if(!lista) return;
-  const {data,error}=await sb.from('bh_funcionarios').select('id,nome').eq('loja',lojaAtual).eq('ativo',true).order('nome');
+  const {data,error}=await sb.from('bh_funcionarios').select('id,nome,cpf').eq('loja',lojaAtual).eq('ativo',true).order('nome');
   if(error){
     console.error('Erro ao carregar colaboradores para o recibo:',error);
     reciboColaboradoresCache=[];
@@ -1844,7 +1844,8 @@ function preencherRecebedorComColaborador(colaborador){
   if(!colaborador) return;
   document.getElementById('rec_recebedor_nome').value=colaborador.nome||'';
   const campoCpf=document.getElementById('rec_recebedor_documento');
-  if(!campoCpf.value.trim()){
+  if(colaborador.cpf){campoCpf.value=colaborador.cpf;}
+  else if(!campoCpf.value.trim()){
     const historico=contrachequesCache.find(x=>String(x.funcionario_nome||'').trim().toLowerCase()===String(colaborador.nome||'').trim().toLowerCase()&&x.funcionario_cpf);
     if(historico) campoCpf.value=historico.funcionario_cpf;
   }
@@ -3652,11 +3653,14 @@ let colabLojaAtual = 'loja1';
 let colaboradoresLoja1 = [];
 let colaboradoresLoja2 = [];
 
+function cpfCadastroValido(valor){const d=String(valor||'').replace(/\D/g,'');if(!d)return true;if(d.length!==11||/^(\d)\1{10}$/.test(d))return false;const calc=t=>{let s=0;for(let i=0;i<t;i++)s+=Number(d[i])*(t+1-i);const r=(s*10)%11;return r===10?0:r;};return calc(9)===Number(d[9])&&calc(10)===Number(d[10]);}
+
 function abrirNovoColaborador(loja){
   colabEditandoId = null;
   colabLojaAtual = loja;
   document.getElementById('funcModalTitulo').textContent = 'Novo colaborador — ' + (NOMES_LOJA[loja]||'');
   document.getElementById('func_nome').value = '';
+  document.getElementById('func_cpf').value = '';
   document.getElementById('func_data_admissao').value = '';
   document.getElementById('func_data_nascimento').value = '';
   document.getElementById('func_cargo').value = '';
@@ -3675,6 +3679,7 @@ function abrirEditarColaborador(id, loja){
   colabLojaAtual = loja;
   document.getElementById('funcModalTitulo').textContent = 'Editar colaborador';
   document.getElementById('func_nome').value = f.nome;
+  document.getElementById('func_cpf').value = f.cpf || '';
   document.getElementById('func_data_admissao').value = f.data_admissao || '';
   document.getElementById('func_data_nascimento').value = f.data_nascimento || '';
   document.getElementById('func_cargo').value = f.cargo ? f.cargo.toUpperCase() : '';
@@ -3695,6 +3700,7 @@ function fecharFuncModal(){
 
 async function salvarFuncionario(){
   const nome = document.getElementById('func_nome').value.trim();
+  const cpf = document.getElementById('func_cpf').value.trim() || null;
   const dataAdmissao = document.getElementById('func_data_admissao').value || null;
   const dataNascimento = document.getElementById('func_data_nascimento').value || null;
   const cargo = document.getElementById('func_cargo').value.trim();
@@ -3703,15 +3709,17 @@ async function salvarFuncionario(){
   const minutos = parseInt(document.getElementById('func_minutos').value, 10) || 0;
   const err = document.getElementById('funcErr');
   if(!nome){
+    err.textContent = 'Informe o nome do colaborador.';
     err.style.display = 'block';
     return;
   }
+  if(!cpfCadastroValido(cpf)){err.textContent='Informe um CPF válido ou deixe o campo vazio.';err.style.display='block';return;}
   err.style.display = 'none';
   const cargaMin = (horas*60) + minutos;
 
   if(colabEditandoId){
     const { data, error } = await sb.from('bh_funcionarios')
-      .update({ nome: nome, data_admissao: dataAdmissao, data_nascimento: dataNascimento, cargo: cargo || null, data_desligamento: dataDesligamento, carga_horaria_diaria_min: cargaMin, tipo_escala: escalaSelecionada })
+      .update({ nome: nome, cpf: cpf, data_admissao: dataAdmissao, data_nascimento: dataNascimento, cargo: cargo || null, data_desligamento: dataDesligamento, carga_horaria_diaria_min: cargaMin, tipo_escala: escalaSelecionada })
       .eq('id', colabEditandoId).select().single();
     if(error){
       err.textContent = 'Erro ao salvar: ' + error.message;
@@ -3727,7 +3735,7 @@ async function salvarFuncionario(){
     }
   }else{
     const { data, error } = await sb.from('bh_funcionarios')
-      .insert({ loja: colabLojaAtual, nome: nome, data_admissao: dataAdmissao, data_nascimento: dataNascimento, cargo: cargo || null, data_desligamento: null, ativo: true, carga_horaria_diaria_min: cargaMin, tipo_escala: escalaSelecionada })
+      .insert({ loja: colabLojaAtual, nome: nome, cpf: cpf, data_admissao: dataAdmissao, data_nascimento: dataNascimento, cargo: cargo || null, data_desligamento: null, ativo: true, carga_horaria_diaria_min: cargaMin, tipo_escala: escalaSelecionada })
       .select().single();
     if(error){
       err.textContent = 'Erro ao salvar: ' + error.message;
@@ -3773,6 +3781,7 @@ function renderColabTabela(numero, lista){
   body.innerHTML = lista.map(f=>`
     <tr>
       <td>${escapeHtml(f.nome)}</td>
+      <td>${escapeHtml(f.cpf||'—')}</td>
       <td>${f.cargo ? escapeHtml(f.cargo.toUpperCase()) : '—'}</td>
       <td>${f.data_admissao ? fmtData(f.data_admissao) : '—'}</td>
       <td>${f.data_nascimento ? fmtData(f.data_nascimento) : '—'}</td>
@@ -4597,7 +4606,7 @@ async function baixarLeiturasComprovantesZip(){
   const lista=leiturasComprovantesFiltradas();
   if(!lista.length){alert('Não há comprovantes exibidos para baixar.');return;}
   abrirProgresso('Preparando comprovantes analisados…');
-  const zip=new JSZip(),usados=new Set(),manifesto=[];let adicionados=0,falhas=0;
+  const zip=new JSZip(),usados=new Set(),manifesto=[],registrosIncluidos=[];let adicionados=0,falhas=0;
   for(let i=0;i<lista.length;i++){
     const x=lista[i];
     try{
@@ -4606,15 +4615,23 @@ async function baixarLeiturasComprovantesZip(){
       const resposta=await fetch(urlData.signedUrl);if(!resposta.ok)throw new Error('Falha ao baixar o arquivo');
       const blob=await resposta.blob(),numero=String(x.numero_ordem??i+1).padStart(3,'0'),nomeOriginal=nomeArquivoLeituraZip(x,i),ponto=nomeOriginal.lastIndexOf('.'),nomeBase=nomeOriginal.slice(0,ponto),extensao=nomeOriginal.slice(ponto);
       let nome=nomeOriginal,contador=2;while(usados.has(nome)){nome=nomeBase+' ('+contador+')'+extensao;contador++;}usados.add(nome);
-      zip.file(nome,blob,{compression:'STORE'});adicionados++;
+      zip.file(nome,blob,{compression:'STORE'});adicionados++;registrosIncluidos.push(x);
       manifesto.push(numero+' | '+fmtData(x.data_pagamento)+' | '+(x.recebedor||'—')+' | '+lcNomeCategoria(x.categoria)+' | '+lcNomeNota(x)+(x.numero_nota?' Nº '+x.numero_nota:'')+' | '+(x.documento||'—')+' | '+brl(x.valor));
     }catch(e){falhas++;console.error('Erro ao preparar comprovante analisado:',x.id,e);}
     atualizarProgresso(((i+1)/lista.length)*85);
   }
   if(!adicionados){fecharProgresso();alert('Não foi possível baixar os comprovantes. Verifique sua conexão e tente novamente.');return;}
-  const totalPago=lista.reduce((s,x)=>s+(Number(x.valor)||0),0);
-  const totalMercadorias=lista.filter(x=>x.categoria==='mercadoria').reduce((s,x)=>s+(Number(x.valor)||0),0);
+  const totalPago=registrosIncluidos.reduce((s,x)=>s+(Number(x.valor)||0),0);
+  const totalMercadorias=registrosIncluidos.filter(x=>x.categoria==='mercadoria').reduce((s,x)=>s+(Number(x.valor)||0),0);
   zip.file('lista-de-comprovantes.txt','COMPROVANTES PAGOS - '+(NOMES_LOJA[lojaAtual]||lojaAtual)+'\nPeríodo: '+(document.getElementById('lcFiltroMes')?.value||'')+'\n\nNº | Data | Recebedor | Classificação | Nota fiscal | CPF/CNPJ | Valor pago\n'+manifesto.join('\n')+'\n\nTOTAL PAGO: '+brl(totalPago)+'\nTOTAL EM MERCADORIAS: '+brl(totalMercadorias));
+  if(window.XLSX){
+    const cabecalho=['Nº','Data','Recebedor / descrição','CPF/CNPJ','Valor pago','Classificação','Situação da nota','Número da nota','Chave da nota','Modelo','Arquivo'];
+    const linhasExcel=registrosIncluidos.map((x,i)=>[Number(x.numero_ordem??i+1),fmtData(x.data_pagamento),x.recebedor||'',x.documento||'',Number(x.valor)||0,lcNomeCategoria(x.categoria),lcNomeNota(x),x.numero_nota||'',x.chave_nota||'',x.modelo||'',x.nome_arquivo||'']);
+    const linhaTotal=linhasExcel.length+2,planilha=XLSX.utils.aoa_to_sheet([cabecalho,...linhasExcel,[],['','','','TOTAL PAGO',{f:`SUM(E2:E${linhasExcel.length+1})`},'','','','','',''],['','','','TOTAL EM MERCADORIAS',totalMercadorias,'','','','','','']]);
+    planilha['!cols']=[{wch:8},{wch:12},{wch:38},{wch:20},{wch:16},{wch:23},{wch:25},{wch:18},{wch:48},{wch:20},{wch:42}];planilha['!autofilter']={ref:`A1:K${linhasExcel.length+1}`};
+    for(let r=2;r<=linhasExcel.length+1;r++)if(planilha['E'+r])planilha['E'+r].z='R$ #,##0.00';if(planilha['E'+(linhaTotal+1)])planilha['E'+(linhaTotal+1)].z='R$ #,##0.00';if(planilha['E'+(linhaTotal+2)])planilha['E'+(linhaTotal+2)].z='R$ #,##0.00';
+    const pasta=XLSX.utils.book_new();XLSX.utils.book_append_sheet(pasta,planilha,'Comprovantes');const bytes=XLSX.write(pasta,{bookType:'xlsx',type:'array'});zip.file('lista-de-comprovantes.xlsx',bytes);
+  }
   document.getElementById('progressoTitulo').textContent='Criando arquivo ZIP…';
   const conteudo=await zip.generateAsync({type:'blob',compression:'DEFLATE',compressionOptions:{level:6}},meta=>atualizarProgresso(85+meta.percent*.15));
   atualizarProgresso(100);const url=URL.createObjectURL(conteudo),link=document.createElement('a');link.href=url;link.download='comprovantes-analisados-'+(NOMES_LOJA[lojaAtual]||lojaAtual).toLowerCase().replace(/\s+/g,'-')+'-'+(document.getElementById('lcFiltroMes')?.value||todayStr())+'.zip';document.body.appendChild(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),1500);setTimeout(fecharProgresso,400);
@@ -10635,6 +10652,20 @@ function pontuarSimilaridadeComb(nome1, nome2, descricaoPagamento){
   return pontos;
 }
 
+function normalizarNumeroNfComb(valor){
+  const texto=String(valor??'').trim();if(!texto)return '';
+  const digitos=texto.replace(/\D/g,'').replace(/^0+/,'');return digitos||'';
+}
+
+function extrairNumerosNfPagamentoComb(descricao){
+  const texto=String(descricao||'').toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+  const encontrados=new Set(),regex=/(?:\bNF\s*-?\s*E\b|\bNFE\b|\bNF\b|\bNOTA\s+FISCAL\b|\bNOTA\b)\s*(?:N[Oº°]?\.?\s*)?[:#.-]*\s*(\d{3,})/g;
+  let m;while((m=regex.exec(texto))!==null){const numero=normalizarNumeroNfComb(m[1]);if(numero)encontrados.add(numero);}
+  return encontrados;
+}
+
+function pagamentoContemNfCompraComb(compra,pagamento){const nf=normalizarNumeroNfComb(compra?.numNF);return !!nf&&extrairNumerosNfPagamentoComb(pagamento?.descricao).has(nf);}
+
 function gerarIdGrupoComb(){
   if(window.crypto && crypto.randomUUID) return crypto.randomUUID();
   return 'g_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2,10);
@@ -10725,11 +10756,12 @@ async function executarCombinacaoPagamentos(){
     pagamentos.forEach(p=>{
       const diff = Math.abs(c.valor - p.valor);
       if(diff <= TOLERANCIA){
-        const score = pontuarSimilaridadeComb(c.razaoSocial, c.nomeFantasia, p.descricao);
+        const nfExata=pagamentoContemNfCompraComb(c,p),scoreNome=pontuarSimilaridadeComb(c.razaoSocial, c.nomeFantasia, p.descricao),score=(nfExata?100:0)+scoreNome;
         // sempre exige que ao menos uma palavra do nome do fornecedor bata com a descrição do pagamento —
         // valor idêntico sozinho não é garantia de ser a mesma transação (dois fornecedores podem coincidir de valor)
-        if(score >= 1){
-          candidatos.push({ compraIdx: c.idx, pagamentoIdx: p.idx, score, diff });
+        // Uma NF explicitamente escrita na descrição também é uma identificação forte e pode substituir o nome.
+        if(nfExata||scoreNome>=1){
+          candidatos.push({ compraIdx: c.idx, pagamentoIdx: p.idx, score, diff, nfExata });
         }
       }
     });

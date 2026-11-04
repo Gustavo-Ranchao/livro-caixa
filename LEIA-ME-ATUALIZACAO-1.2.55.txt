@@ -1,0 +1,14 @@
+RANCHAO BEBIDAS - ATUALIZACAO 1.2.55
+
+O QUE MUDOU
+1. O ZIP do leitor de comprovantes agora inclui lista-de-comprovantes.xlsx, alem do resumo em TXT e dos comprovantes.
+2. O cadastro de colaboradores agora possui CPF. Ao selecionar um colaborador no recibo, nome e CPF sao preenchidos automaticamente.
+3. A combinacao de pagamentos reconhece o numero da nota fiscal dentro da descricao do pagamento. Exemplo: a compra NF 76717, no valor de R$ 600,00, combina com "IMPERIO NF 76717", no mesmo valor, mesmo que o nome do fornecedor seja diferente.
+
+COMO ATUALIZAR
+1. Execute no Supabase o arquivo ATUALIZACAO_COMPROVANTES_CPF_COMBINACAO_1.2.55.sql.
+2. Substitua o projeto anterior por este projeto completo.
+3. Gere/publice a versao 1.2.55 normalmente.
+
+IMPORTANTE SOBRE COMBINACOES JA PROCESSADAS
+O novo criterio e aplicado ao executar novamente a combinacao. Se o periodo ja foi salvo, remova/refaca a combinacao desse periodo e importe novamente as planilhas para que a NF seja reconhecida.
