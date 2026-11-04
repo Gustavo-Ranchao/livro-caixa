@@ -1341,7 +1341,7 @@
             <button type="button" class="importbtn" style="width:auto;margin:0;" onclick="abrirNovoColaborador('loja1')">+ Novo colaborador</button>
           </div>
           <table id="colabTable1">
-            <thead><tr><th>Nome</th><th>Cargo</th><th>Admissão</th><th>Nascimento</th><th>Situação</th><th>Escala</th><th>Jornada</th><th></th></tr></thead>
+            <thead><tr><th>Nome</th><th>CPF</th><th>Cargo</th><th>Admissão</th><th>Nascimento</th><th>Situação</th><th>Escala</th><th>Jornada</th><th></th></tr></thead>
             <tbody id="colabBody1"></tbody>
           </table>
           <div class="empty" id="colabEmpty1" style="display:none;">Nenhum colaborador cadastrado na Loja 01.</div>
@@ -1352,7 +1352,7 @@
             <button type="button" class="importbtn" style="width:auto;margin:0;" onclick="abrirNovoColaborador('loja2')">+ Novo colaborador</button>
           </div>
           <table id="colabTable2">
-            <thead><tr><th>Nome</th><th>Cargo</th><th>Admissão</th><th>Nascimento</th><th>Situação</th><th>Escala</th><th>Jornada</th><th></th></tr></thead>
+            <thead><tr><th>Nome</th><th>CPF</th><th>Cargo</th><th>Admissão</th><th>Nascimento</th><th>Situação</th><th>Escala</th><th>Jornada</th><th></th></tr></thead>
             <tbody id="colabBody2"></tbody>
           </table>
           <div class="empty" id="colabEmpty2" style="display:none;">Nenhum colaborador cadastrado na Loja 02.</div>
@@ -2928,6 +2928,7 @@
     <button class="modal-close" onclick="fecharFuncModal()">✕</button>
     <h2 id="funcModalTitulo">Novo funcionário</h2>
     <div class="fld"><label>Nome</label><input id="func_nome" placeholder="Nome do funcionário"></div>
+    <div class="fld"><label>CPF</label><input id="func_cpf" inputmode="numeric" maxlength="14" data-mask="cpf" placeholder="000.000.000-00"></div>
     <div class="fld"><label>Data de admissão</label><input id="func_data_admissao" type="date"></div>
     <div class="fld"><label>Data de nascimento</label><input id="func_data_nascimento" type="date"></div>
     <div class="fld"><label>Cargo</label>
