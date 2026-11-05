@@ -1,0 +1,13 @@
+RANCHAO BEBIDAS - ATUALIZACAO 1.2.56
+
+O QUE MUDOU
+1. Combinacao de pagamentos: novos cards com total de compras de mercadorias, pagamentos, bonificacoes em mercadorias, bonificacoes em pagamentos e taxas/acrescimos.
+2. Colaboradores: a coluna de acoes fica sempre visivel, inclusive depois da inclusao do CPF.
+3. Produtos e estoque: o campo de preco padrao foi ampliado e agora mostra o valor completo.
+4. Navegacao: cada modulo abre maximizado, sem o painel principal no topo, aproveitando toda a tela. Ao fechar a janela, o menu principal continua disponivel.
+
+COMO ATUALIZAR
+Substitua o projeto anterior por este projeto completo e gere/publique a versao 1.2.56 normalmente.
+
+BANCO DE DADOS
+Esta atualizacao nao exige novo SQL.

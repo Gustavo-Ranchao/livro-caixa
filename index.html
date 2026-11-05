@@ -92,6 +92,9 @@
   /* ---------- App shell ---------- */
   .shell{display:none;min-height:100vh;}
   .shell.on{display:block;}
+  body.module-window .top-navigation{display:none!important;}
+  body.module-window .main{width:100%;max-width:none;margin:0;padding:16px clamp(14px,2vw,30px) 30px;}
+  body.module-window .module-context-bar{position:sticky;top:0;z-index:35;box-shadow:0 4px 14px rgba(38,51,43,.08);}
   .top-navigation{position:sticky;top:0;z-index:40;background:var(--paper2);border-bottom:1px solid var(--paper3);box-shadow:0 3px 14px rgba(38,51,43,.07);}
   .top-navigation-head{display:flex;align-items:center;gap:22px;padding:12px clamp(18px,3vw,42px);border-bottom:1px solid var(--paper3);}
   .brand{display:flex;align-items:baseline;justify-content:space-between;flex-shrink:0;}
@@ -215,11 +218,16 @@
   #fixasTable{width:100%;border-collapse:collapse;font-size:12.5px;}
 
   .colab-body{display:grid;grid-template-columns:1fr 1fr;gap:24px;}
-  .colab-col{background:#fff;border:1px solid var(--paper3);border-radius:10px;overflow:hidden;}
+  .colab-col{min-width:0;background:#fff;border:1px solid var(--paper3);border-radius:10px;overflow:hidden;}
   .colab-col-head{padding:16px 20px;font-family:var(--font-voice);font-size:16px;font-weight:600;border-bottom:1px solid var(--paper3);background:var(--paper2);display:flex;justify-content:space-between;align-items:center;}
-  #colabTable1, #colabTable2, #contasBancariasTable{width:100%;border-collapse:collapse;font-size:12.5px;}
+  .colab-tablewrap{width:100%;overflow-x:auto;position:relative;scrollbar-width:thin;}
+  #colabTable1, #colabTable2{width:100%;min-width:980px;border-collapse:separate;border-spacing:0;font-size:12.5px;}
+  #contasBancariasTable{width:100%;border-collapse:collapse;font-size:12.5px;}
   #colabTable1 th, #colabTable2 th, #contasBancariasTable th{text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:0.05em;color:var(--muted);font-weight:500;padding:8px 16px;background:var(--paper2);}
   #colabTable1 td, #colabTable2 td, #contasBancariasTable td{padding:10px 16px;border-top:1px solid var(--paper3);}
+  #colabTable1 th:last-child,#colabTable2 th:last-child,#colabTable1 td:last-child,#colabTable2 td:last-child{position:sticky;right:0;z-index:2;min-width:124px;background:#fff;box-shadow:-7px 0 10px rgba(38,51,43,.06);}
+  #colabTable1 th:last-child,#colabTable2 th:last-child{z-index:3;background:var(--paper2);}
+  #colabTable1 .rowactions,#colabTable2 .rowactions{display:flex;justify-content:flex-end;gap:5px;white-space:nowrap;}
   @media (max-width:900px){ .colab-body{grid-template-columns:1fr;} }
   @media (max-width:900px){.oe-form{grid-template-columns:1fr 1fr!important;}.oe-form .fld[style*="grid-column:span 3"],.oe-form .fld[style*="grid-column:span 4"]{grid-column:span 2!important;}}
   @media (max-width:600px){.oe-form{grid-template-columns:1fr!important;}.oe-form .fld{grid-column:span 1!important;}}
@@ -1340,10 +1348,10 @@
             <span>Loja 01</span>
             <button type="button" class="importbtn" style="width:auto;margin:0;" onclick="abrirNovoColaborador('loja1')">+ Novo colaborador</button>
           </div>
-          <table id="colabTable1">
+          <div class="colab-tablewrap"><table id="colabTable1">
             <thead><tr><th>Nome</th><th>CPF</th><th>Cargo</th><th>Admissão</th><th>Nascimento</th><th>Situação</th><th>Escala</th><th>Jornada</th><th></th></tr></thead>
             <tbody id="colabBody1"></tbody>
-          </table>
+          </table></div>
           <div class="empty" id="colabEmpty1" style="display:none;">Nenhum colaborador cadastrado na Loja 01.</div>
         </div>
         <div class="colab-col">
@@ -1351,10 +1359,10 @@
             <span>Loja 02</span>
             <button type="button" class="importbtn" style="width:auto;margin:0;" onclick="abrirNovoColaborador('loja2')">+ Novo colaborador</button>
           </div>
-          <table id="colabTable2">
+          <div class="colab-tablewrap"><table id="colabTable2">
             <thead><tr><th>Nome</th><th>CPF</th><th>Cargo</th><th>Admissão</th><th>Nascimento</th><th>Situação</th><th>Escala</th><th>Jornada</th><th></th></tr></thead>
             <tbody id="colabBody2"></tbody>
-          </table>
+          </table></div>
           <div class="empty" id="colabEmpty2" style="display:none;">Nenhum colaborador cadastrado na Loja 02.</div>
         </div>
       </div>
@@ -1582,6 +1590,13 @@
       </div>
 
       <div id="combPagResultadoWrap" style="display:none;">
+        <div class="bh-resumo" id="combPagResumoValores" style="margin-bottom:14px;">
+          <div class="metric"><div class="lbl">Compras de mercadorias</div><div class="val" id="combPagValorCompras">R$ 0,00</div></div>
+          <div class="metric"><div class="lbl">Pagamentos</div><div class="val" id="combPagValorPagamentos">R$ 0,00</div></div>
+          <div class="metric"><div class="lbl">Bonificação em mercadorias</div><div class="val" id="combPagValorBonifMercadorias" style="color:var(--gold);">R$ 0,00</div></div>
+          <div class="metric"><div class="lbl">Bonificação em pagamentos</div><div class="val" id="combPagValorBonifPagamentos" style="color:var(--green);">R$ 0,00</div><div class="sub">Descontos recebidos</div></div>
+          <div class="metric"><div class="lbl">Taxas e acréscimos</div><div class="val" id="combPagValorTaxas" style="color:var(--rust);">R$ 0,00</div></div>
+        </div>
         <div class="bh-resumo">
           <div class="metric"><div class="lbl">Combinados</div><div class="val" id="combPagQtdCombinados" style="color:var(--green);">0</div></div>
           <div class="metric"><div class="lbl">Combinados por soma</div><div class="val" id="combPagQtdGrupos" style="color:var(--green);">0</div></div>
@@ -2044,7 +2059,7 @@
       <div class="rec-toolbar"><div><h2 style="margin:0 0 4px;">Produtos e estoque</h2><div class="rec-config-status">Importe a planilha atualizada. A importação substitui saldo, custo e preço padrão sem apagar as outras tabelas de preço.</div></div><label class="vendas-file-label">📁 Importar planilha<input id="peArquivo" type="file" accept=".xlsx,.xls" style="display:none" onchange="peSelecionarArquivo(this.files)"></label></div>
       <div class="bh-resumo" style="margin:0 0 18px;"><div class="metric"><div class="lbl">Produtos</div><div class="val" id="peQtd">0</div></div><div class="metric"><div class="lbl">Custo do estoque</div><div class="val" id="peCustoTotal">R$ 0,00</div></div><div class="metric"><div class="lbl">Venda estimada</div><div class="val" id="peVendaTotal">R$ 0,00</div></div><div class="metric"><div class="lbl">Última importação</div><div class="val" id="peUltima" style="font-size:14px;">—</div></div></div>
       <div class="panel" style="margin-bottom:18px;"><div class="panel-head"><h2>Aplicar margem sobre o custo</h2></div><div class="rec-form-grid"><div class="fld"><label>Tabela</label><select id="peTabela"><option value="padrao">Padrão</option><option value="atacado">Atacado</option><option value="revenda">Revenda</option><option value="especial">Especial</option></select></div><div class="fld"><label>Margem (%)</label><input id="peMargem" type="number" min="0" step="0.01" value="15"></div><div class="fld"><label>Aplicar em</label><select id="peEscopo"><option value="todos">Todos os produtos</option><option value="filtrados">Produtos filtrados</option><option value="selecionados">Produtos selecionados</option></select></div><div class="fld" style="justify-content:flex-end;"><button class="addbtn" style="width:auto;" onclick="peAbrirMargem()">Aplicar margem</button></div></div></div>
-      <div class="panel"><div class="panel-head" style="gap:10px;flex-wrap:wrap;"><h2>Catálogo da loja</h2><div class="filters"><input id="peBusca" class="sem-maiuscula" placeholder="Código ou descrição" oninput="peRender()"><select id="peSaldo" onchange="peRender()"><option value="todos">Todos os saldos</option><option value="positivo">Saldo positivo</option><option value="zero">Saldo zerado</option><option value="negativo">Saldo negativo</option><option value="ausente">Ausentes na última importação</option></select></div></div><div class="tablewrap"><table class="ledger"><thead><tr><th><input type="checkbox" onchange="peSelecionarTodos(this.checked)"></th><th>Código</th><th>Descrição</th><th>Un.</th><th style="text-align:right">Saldo</th><th style="text-align:right">F.E.</th><th style="text-align:right">Embalagens</th><th style="text-align:right">Custo un.</th><th style="text-align:right">Custo total</th><th style="text-align:right">Padrão</th><th style="text-align:right">Atacado</th><th style="text-align:right">Revenda</th><th style="text-align:right">Especial</th></tr></thead><tbody id="peBody"></tbody></table></div><div id="peEmpty" class="empty" style="display:none">Nenhum produto encontrado.</div></div>
+      <div class="panel"><div class="panel-head" style="gap:10px;flex-wrap:wrap;"><h2>Catálogo da loja</h2><div class="filters"><input id="peBusca" class="sem-maiuscula" placeholder="Código ou descrição" oninput="peRender()"><select id="peSaldo" onchange="peRender()"><option value="todos">Todos os saldos</option><option value="positivo">Saldo positivo</option><option value="zero">Saldo zerado</option><option value="negativo">Saldo negativo</option><option value="ausente">Ausentes na última importação</option></select></div></div><div class="tablewrap"><table class="ledger"><thead><tr><th><input type="checkbox" onchange="peSelecionarTodos(this.checked)"></th><th>Código</th><th>Descrição</th><th>Un.</th><th style="text-align:right">Saldo</th><th style="text-align:right">F.E.</th><th style="text-align:right">Embalagens</th><th style="text-align:right">Custo un.</th><th style="text-align:right">Custo total</th><th style="text-align:right;min-width:175px">Preço padrão</th><th style="text-align:right">Atacado</th><th style="text-align:right">Revenda</th><th style="text-align:right">Especial</th></tr></thead><tbody id="peBody"></tbody></table></div><div id="peEmpty" class="empty" style="display:none">Nenhum produto encontrado.</div></div>
     </div>
 
     <div id="viewNovaVenda" style="display:none;">
