@@ -3169,6 +3169,7 @@ let colabCarregado = false;
 const PARAMETROS_JANELA = new URLSearchParams(location.search);
 const EH_JANELA_MODULO = PARAMETROS_JANELA.get('janelaModulo')==='1';
 let moduloInicialDaJanelaAberto = false;
+if(EH_JANELA_MODULO) document.body.classList.add('module-window');
 
 const TITULOS_JANELAS = {
   checklist:'Checklist',duvidas:'Dúvidas',manutencao:'Manutenção',agenda:'Agenda',contasPagar:'Contas a pagar',despesasFixas:'Despesas fixas',
@@ -10892,6 +10893,33 @@ function renderResultadoCombinacaoPagamentos(){
   const { pares, grupos, comprasSemPar, pagamentosSemPar, bonificacoes } = combPagResultado;
   const gruposAuto = (grupos||[]).filter(g=>!g.manual);
   const gruposManuais = (grupos||[]).filter(g=>g.manual);
+
+  const totalComprasMercadorias =
+    (pares||[]).reduce((s,x)=>s+Number(x.compra?.valor||0),0) +
+    (grupos||[]).reduce((s,g)=>s+(g.compras||[]).reduce((t,x)=>t+Number(x.valor||0),0),0) +
+    (comprasSemPar||[]).reduce((s,x)=>s+Number(x.valor||0),0);
+  const totalPagamentos =
+    (pares||[]).reduce((s,x)=>s+Number(x.pagamento?.valor||0),0) +
+    (grupos||[]).reduce((s,g)=>s+(g.pagamentos||[]).reduce((t,x)=>t+Number(x.valor||0),0),0) +
+    (pagamentosSemPar||[]).reduce((s,x)=>s+Number(x.valor||0),0);
+  const totalBonifMercadorias = (bonificacoes||[]).reduce((s,x)=>s+Number(x.valor||0),0);
+  let totalBonifPagamentos = 0;
+  let totalTaxas = 0;
+  (pares||[]).forEach(x=>{
+    const diferenca=Number(x.compra?.valor||0)-Number(x.pagamento?.valor||0);
+    if(diferenca>0) totalBonifPagamentos+=diferenca; else if(diferenca<0) totalTaxas+=Math.abs(diferenca);
+  });
+  (grupos||[]).forEach(g=>{
+    const compras=(g.compras||[]).reduce((s,x)=>s+Number(x.valor||0),0);
+    const pagamentos=(g.pagamentos||[]).reduce((s,x)=>s+Number(x.valor||0),0);
+    const diferenca=compras-pagamentos;
+    if(diferenca>0) totalBonifPagamentos+=diferenca; else if(diferenca<0) totalTaxas+=Math.abs(diferenca);
+  });
+  document.getElementById('combPagValorCompras').textContent=brl(totalComprasMercadorias);
+  document.getElementById('combPagValorPagamentos').textContent=brl(totalPagamentos);
+  document.getElementById('combPagValorBonifMercadorias').textContent=brl(totalBonifMercadorias);
+  document.getElementById('combPagValorBonifPagamentos').textContent=brl(totalBonifPagamentos);
+  document.getElementById('combPagValorTaxas').textContent=brl(totalTaxas);
 
   document.getElementById('combPagResultadoWrap').style.display = 'block';
   document.getElementById('combPagQtdCombinados').textContent = pares.length;
