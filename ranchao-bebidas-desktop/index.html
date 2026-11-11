@@ -1665,7 +1665,7 @@
         </div>
 
         <div class="panel" style="margin-bottom:20px;">
-          <div class="panel-head"><h2>⚠ Compras sem pagamento encontrado</h2></div>
+          <div class="panel-head"><h2>⚠ Compras sem pagamento encontrado</h2><button class="addbtn" style="width:auto;" onclick="abrirFormularioManualComb('compra')">+ Adicionar compra</button></div>
           <div style="padding:0 20px 14px;"><input class="comb-busca" placeholder="🔍 Buscar por nome ou valor..." oninput="combPagBusca.comprasSemPar=this.value;renderResultadoCombinacaoPagamentos();"></div>
           <div class="tablewrap">
             <table class="ledger">
@@ -1676,7 +1676,7 @@
         </div>
 
         <div class="panel">
-          <div class="panel-head"><h2>⚠ Pagamentos sem compra encontrada</h2></div>
+          <div class="panel-head"><h2>⚠ Pagamentos sem compra encontrada</h2><button class="addbtn" style="width:auto;" onclick="abrirFormularioManualComb('pagamento')">+ Adicionar pagamento</button></div>
           <div style="padding:0 20px 14px;"><input class="comb-busca" placeholder="🔍 Buscar por nome ou valor..." oninput="combPagBusca.pagamentosSemPar=this.value;renderResultadoCombinacaoPagamentos();"></div>
           <div class="tablewrap">
             <table class="ledger">
@@ -1762,6 +1762,11 @@
           <div class="metric"><div class="lbl">Comprovantes exibidos</div><div class="val" id="lcTotalQuantidade">0</div></div>
           <div class="metric"><div class="lbl">Aguardando nota</div><div class="val" id="lcTotalNotaAguardando" style="color:#9a6700;">0</div></div>
           <div class="metric"><div class="lbl">Sem nota fiscal</div><div class="val" id="lcTotalSemNota" style="color:var(--rust);">0</div></div>
+        </div>
+        <div style="border:1px solid var(--paper3);border-radius:10px;margin:0 0 14px;overflow:hidden;">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 14px;background:#f7f9fc;flex-wrap:wrap;"><div><strong>Ranking de pagamentos do mês</strong><div style="font-size:11px;color:var(--muted);margin-top:2px;">Agrupado primeiro pelo CPF/CNPJ e, quando não houver documento, pelo nome do recebedor.</div></div><select id="lcRankingCategoria" onchange="renderRankingLeituras()"><option value="todas">Todas as classificações</option></select></div>
+          <div class="tablewrap"><table class="ledger"><thead><tr><th>Posição</th><th>Recebedor</th><th>CPF/CNPJ</th><th style="text-align:right;">Pagamentos</th><th style="text-align:right;">Total</th><th style="text-align:right;">Média</th><th style="text-align:right;">% do mês</th></tr></thead><tbody id="lcRankingBody"></tbody></table></div>
+          <div class="empty" id="lcRankingEmpty" style="display:none;">Nenhum pagamento para montar o ranking.</div>
         </div>
         <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:0 0 12px;"><strong style="font-size:12px;">Selecionados:</strong><select id="lcNotaLoteStatus"><option value="aguardando">Aguardando conferência</option><option value="nfe">NF-e de mercadoria</option><option value="nfse">NFS-e de serviço</option><option value="sem_nota">Sem nota fiscal</option><option value="nao_aplica">Não se aplica</option></select><button type="button" class="filter-btn" onclick="salvarNotaFiscalEmLote()">Aplicar situação da nota</button><span id="lcNotaSelecionadosInfo" style="font-size:12px;color:var(--muted);">0 selecionado(s)</span></div>
         <div class="lc-category-summary" id="lcResumoCategorias"></div>
@@ -3688,6 +3693,7 @@
 </div>
 
 <div id="peConfirmModal" class="modal-overlay"><div class="modal-box" style="max-width:620px;"><button class="modal-close" onclick="peFecharConfirmacao()">✕</button><h2 id="peConfirmTitulo">Confirmar</h2><div id="peConfirmTexto" class="modal-sub"></div><div class="modal-actions"><button class="cancelbtn" onclick="peFecharConfirmacao()">Cancelar</button><button id="peConfirmBtn" class="addbtn" style="width:auto" onclick="peConfirmarAcao()">Confirmar</button></div></div></div>
+<div id="combManualModal" class="modal-overlay" style="z-index:1030;"><div class="modal-box" style="max-width:680px;"><button class="modal-close" onclick="fecharFormularioManualComb()">✕</button><h2 id="combManualTitulo">Adicionar registro</h2><p class="modal-sub">O registro ficará disponível para vinculação manual na combinação.</p><input id="combManualId" type="hidden"><div class="rec-form-grid"><div id="combManualCompraCampos" style="display:contents;"><div class="fld rec-span-2"><label>Fornecedor *</label><input id="combManualFornecedor" maxlength="180"></div><div class="fld"><label>Nº da compra</label><input id="combManualNumCompra" maxlength="60"></div><div class="fld"><label>Nº NF</label><input id="combManualNumNf" maxlength="60"></div><div class="fld"><label>Emissão</label><input id="combManualEmissao" type="date"></div></div><div id="combManualPagamentoCampos" style="display:contents;"><div class="fld rec-span-2"><label>Descrição *</label><input id="combManualDescricao" maxlength="220"></div><div class="fld"><label>Data *</label><input id="combManualData" type="date"></div></div><div class="fld"><label>Valor (R$) *</label><input id="combManualValor" inputmode="decimal" placeholder="0,00"></div></div><div class="formerr" id="combManualErro"></div><div class="modal-actions"><button class="cancelbtn" onclick="fecharFormularioManualComb()">Cancelar</button><button class="addbtn" id="combManualSalvarBtn" style="width:auto" onclick="salvarFormularioManualComb()">Salvar</button></div></div></div>
 <div id="vpClientesModal" class="modal-overlay"><div class="modal-box" style="max-width:760px;"><button class="modal-close" onclick="vpFecharClientes()">✕</button><h2>Clientes e tabelas de preço</h2><div class="rec-form-grid"><div class="fld rec-span-2"><label>Nome *</label><input id="vpcNome"></div><div class="fld"><label>Documento</label><input id="vpcDocumento"></div><div class="fld"><label>Telefone</label><input id="vpcTelefone"></div><div class="fld"><label>Tabela</label><select id="vpcTabela"><option value="padrao">Padrão</option><option value="atacado">Atacado</option><option value="revenda">Revenda</option><option value="especial">Especial</option></select></div></div><div class="modal-actions"><button class="addbtn" style="width:auto" onclick="vpSalvarCliente()">Salvar cliente</button></div><div class="tablewrap" style="max-height:300px"><table class="ledger"><thead><tr><th>Nome</th><th>Documento</th><th>Telefone</th><th>Tabela</th><th></th></tr></thead><tbody id="vpcBody"></tbody></table></div></div></div>
 
 <script src="assets/vendor/tesseract/tesseract.min.js"></script>
