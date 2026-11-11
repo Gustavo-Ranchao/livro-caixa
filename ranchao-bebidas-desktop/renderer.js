@@ -7190,9 +7190,24 @@ function processarExtratoFormatoAntigo(linhas, idxCabecalho, cabecalhoTextos){
 // (Data, Documento, Histórico, Valor) seguida de um número variável de linhas de
 // detalhe (nome de quem pagou/recebeu, observação, etc.) até a próxima linha que
 // já tenha uma nova Data preenchida.
+function extrairDescricaoSaidaSicoob(informacoes, detalhes=[]){
+  const linhas=[String(informacoes||''),...(detalhes||[])].flatMap(x=>String(x||'').split(/\r?\n/)).map(x=>x.trim()).filter(Boolean);
+  if(!linhas.length)return '';
+  const ehGenerica=x=>/^(PAGAMENTO|RECEBIMENTO|TRANSFER[EÊ]NCIA)\s+PIX$/i.test(x);
+  const ehDocumento=x=>/^\*{3}\.\d{3}\.\d{3}-\*{2}$/.test(x)||/^(?:\*{3}\.)?\d{2,3}[.\s]\d{3}[.\s]\d{3}(?:[\/\s]\d{4})?[-\s]\d{2}$/.test(x)||/^\d{2}[.\s]\d{3}[.\s]\d{3}[\/\s]\d{4}[-\s]\d{2}$/.test(x);
+  const observacoes=linhas.filter(x=>!ehGenerica(x)&&!ehDocumento(x)&&!/^REM\.:/i.test(x)&&!/^FAV\.:/i.test(x));
+  if(observacoes.length)return observacoes[observacoes.length-1].toUpperCase();
+  const documento=linhas.find(ehDocumento);
+  if(documento)return ('REVISAR — '+documento).toUpperCase();
+  const favorecido=linhas.find(x=>/^FAV\.:/i.test(x)||/^REM\.:/i.test(x));
+  if(favorecido)return favorecido.replace(/^(?:FAV|REM)\.:\s*/i,'').toUpperCase();
+  return linhas.filter(x=>!ehGenerica(x)).join(' · ').toUpperCase();
+}
+
 function processarExtratoFormatoQuebrado(linhas, idxCabecalho, cabecalhoTextos){
   const idxData = cabecalhoTextos.indexOf('DATA');
   const idxHistorico = cabecalhoTextos.findIndex(h=>(h||'').includes('HIST'));
+  const idxComplementares = cabecalhoTextos.findIndex(h=>(h||'').includes('INFORMA') && (h||'').includes('COMPLEMENT'));
   const idxValor = cabecalhoTextos.indexOf('VALOR');
 
   const transacoes = [];
@@ -7231,7 +7246,8 @@ function processarExtratoFormatoQuebrado(linhas, idxCabecalho, cabecalhoTextos){
       }else if(marcador === '*'){
         // marcador especial de linha informativa, ignora
       }else if(valorNum!==null && valorNum!==0){
-        const descricao = valorNum > 0 ? '' : detalhes.join(' · ').toUpperCase();
+        const informacoes=idxComplementares>-1?linha[idxComplementares]:'';
+        const descricao = valorNum > 0 ? '' : extrairDescricaoSaidaSicoob(informacoes,detalhes);
         transacoes.push({ data, tipo: tipo.toUpperCase(), descricao, valor: valorNum });
       }
     }

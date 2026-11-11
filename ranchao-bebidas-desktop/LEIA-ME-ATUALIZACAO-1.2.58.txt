@@ -1,0 +1,18 @@
+RANCHÃO BEBIDAS — VERSÃO 1.2.58
+
+ALTERAÇÃO DESTA VERSÃO:
+- O fluxo de caixa do Sicoob agora utiliza a coluna Informações Complementares para identificar as saídas.
+- Observações como salário, aluguel, manutenção, fornecedor e número da nota passam para a descrição do lançamento.
+- Entradas continuam sem guardar o nome de quem pagou.
+- Quando o PIX possui somente CPF/CNPJ, a descrição recebe REVISAR para facilitar a conferência.
+- Lançamentos sem informação complementar continuam com a descrição vazia e podem ser editados pelo lápis.
+
+IMPORTANTE:
+- Esta versão não altera os cálculos, os sinais dos valores nem os saldos do Sicoob.
+- Não é necessário executar um novo SQL no Supabase.
+- A melhoria vale para novas importações. Dias já importados precisam ser apagados e importados novamente para receber as descrições.
+
+PROJETO COMPLETO:
+- index.html é a tela completa do sistema.
+- renderer.js contém as regras principais.
+- Para gerar o instalador, execute GERAR-INSTALADOR.bat.
