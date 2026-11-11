@@ -4505,6 +4505,18 @@ async function renderHistoricoLeituras(){
   const linhas=lista.map(x=>{const id=Number(x.id),indice=lcHistorico.findIndex(v=>Number(v.id)===id),status=lcStatusNota(x),cor=status==='sem_nota'?'#b4233a':status==='aguardando'?'#9a6700':status==='nfe'||status==='nfse'?'#17733b':'#64748b';return `<tr><td><input type="checkbox" ${lcNotasSelecionadas.has(id)?'checked':''} onchange="marcarNotaLeitura(${id},this.checked)"></td><td><div class="rowactions" style="justify-content:flex-start;"><strong style="min-width:24px;text-align:center;">${x.numero_ordem??'—'}</strong><button type="button" class="iconbtn" title="Mover para cima" ${indice<=0?'disabled':''} onclick="moverLeituraComprovante(${id},-1)">▲</button><button type="button" class="iconbtn" title="Mover para baixo" ${indice<0||indice>=lcHistorico.length-1?'disabled':''} onclick="moverLeituraComprovante(${id},1)">▼</button></div></td><td>${fmtData(x.data_pagamento)}</td><td class="lc-recebedor-historico-cell"><div class="lc-recebedor-historico-wrap"><input id="lcRecebedorSalvo${id}" value="${escapeHtml(x.recebedor)}" title="${escapeHtml(x.recebedor)}" maxlength="300" aria-label="Recebedor ou descrição" onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur();}" onchange="salvarRecebedorLeitura(${id},this)"><span id="lcRecebedorStatus${id}" class="lc-recebedor-historico-status"></span></div></td><td><select class="lc-history-category" aria-label="Classificação do comprovante" onchange="salvarCategoriaLeitura(${id},this)">${lcOpcoesCategoria(x.categoria)}</select></td><td><button type="button" class="filter-btn" style="color:${cor};white-space:normal;max-width:180px;" onclick="abrirNotaFiscalLeitura(${id})">${x.caminho_nota?'📎 ':''}${escapeHtml(lcNomeNota(x))}</button>${x.numero_nota?`<small style="display:block;margin-top:4px;">Nº ${escapeHtml(x.numero_nota)}</small>`:''}</td><td>${escapeHtml(x.documento||'—')}</td><td>${escapeHtml(x.modelo||'—')}</td><td class="valor">${brl(x.valor)}</td><td><div class="rowactions"><button type="button" class="filter-btn" data-caminho="${escapeHtml(x.caminho_storage||'')}" data-nome="${escapeHtml(x.nome_arquivo||'Comprovante')}" data-tipo="${escapeHtml(x.tipo_arquivo||'')}" onclick="abrirComprovanteLeituraSalvo(this.dataset.caminho,this.dataset.nome,this.dataset.tipo)">👁 Ver</button><button type="button" class="iconbtn del" title="Excluir comprovante" onclick="abrirExclusaoLeiturasComprovantes(${id})">✕</button></div></td></tr>`;});
   document.getElementById('lcHistoricoBody').innerHTML=linhas.join('');
   document.getElementById('lcNotaSelecionadosInfo').textContent=lcNotasSelecionadas.size+' selecionado(s)';
+  renderRankingLeituras();
+}
+
+function renderRankingLeituras(){
+  const body=document.getElementById('lcRankingBody'),empty=document.getElementById('lcRankingEmpty'),filtro=document.getElementById('lcRankingCategoria');if(!body||!empty||!filtro)return;
+  if(filtro.options.length===1)LC_CATEGORIAS.filter(x=>x[0]).forEach(([id,nome])=>filtro.add(new Option(nome,id)));
+  const categoria=filtro.value||'todas',base=lcHistorico.filter(x=>categoria==='todas'||String(x.categoria||'')===categoria),grupos=new Map();
+  const nomeNormalizado=v=>String(v||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase().replace(/[^A-Z0-9]+/g,' ').trim();
+  base.forEach(x=>{const doc=String(x.documento||'').replace(/\D/g,''),nome=String(x.recebedor||'Não identificado').trim()||'Não identificado',chave=doc?('doc:'+doc):('nome:'+nomeNormalizado(nome));if(!grupos.has(chave))grupos.set(chave,{nome,documento:doc,total:0,quantidade:0});const g=grupos.get(chave);g.total+=Number(x.valor)||0;g.quantidade++;if(nome.length>g.nome.length)g.nome=nome;});
+  const ranking=[...grupos.values()].sort((a,b)=>b.total-a.total||a.nome.localeCompare(b.nome,'pt-BR')),totalMes=ranking.reduce((s,x)=>s+x.total,0);
+  body.innerHTML=ranking.map((x,i)=>`<tr><td><strong>${i+1}º</strong></td><td>${escapeHtml(x.nome)}</td><td>${escapeHtml(x.documento||'—')}</td><td style="text-align:right">${x.quantidade}</td><td class="valor">${brl(x.total)}</td><td class="valor">${brl(x.total/x.quantidade)}</td><td style="text-align:right">${totalMes?((x.total/totalMes)*100).toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1}):'0,0'}%</td></tr>`).join('');
+  empty.style.display=ranking.length?'none':'block';
 }
 
 async function salvarCategoriaLeitura(id,select){
@@ -9348,14 +9360,16 @@ function fecharImportacaoPagamentosParaCaixa(){document.getElementById('importar
 async function confirmarImportacaoPagamentosParaCaixa(){
   const lista=importarPagCaixaCache.filter(x=>!x.jaImportado&&x.selecionado&&x.tipoId&&Number(x.valor)!==0);
   if(!lista.length){alert('Selecione pelo menos um pagamento com código de tipo.');return;}
-  const btn=document.getElementById('importarPagCaixaBtn');btn.disabled=true;btn.textContent='Importando…';
-  const registros=lista.map(x=>({loja:lojaAtual,pagamento_origem_id:x.id,codigo_tipo_id:x.tipoId,descricao_pagamento:String(x.descricao||'Pagamento').trim(),valor_pagamento:Math.abs(Number(x.valor)),data:x.data}));
-  const {data,error}=await sb.from('pagamentos_caixa').insert(registros).select('*, pagamentos_caixa_tipos(codigo,descricao)');
-  btn.disabled=false;btn.textContent='Importar selecionados';
-  if(error){alert(error.code==='23505'?'Um destes pagamentos já havia sido importado. Atualize a prévia e tente novamente.':'Não foi possível importar: '+error.message);return;}
-  for(const x of lista)await gravarMemoriaPagCaixa(x.descricao,x.tipoId);
-  pagCaixaCache.push(...(data||[]));pagCaixaCache.sort((a,b)=>String(a.data).localeCompare(String(b.data)));renderPagamentoCaixa();
-  await popularFiltroMesPagCaixa();fecharImportacaoPagamentosParaCaixa();alert(lista.length+' pagamento(s) importado(s) com sucesso.');
+  const btn=document.getElementById('importarPagCaixaBtn');btn.disabled=true;btn.textContent='Importando…';abrirProgresso('Importando pagamentos para o caixa…');atualizarProgresso(8);
+  try{
+    const registros=lista.map(x=>({loja:lojaAtual,pagamento_origem_id:x.id,codigo_tipo_id:x.tipoId,descricao_pagamento:String(x.descricao||'Pagamento').trim(),valor_pagamento:Math.abs(Number(x.valor)),data:x.data}));
+    const {data,error}=await sb.from('pagamentos_caixa').insert(registros).select('*, pagamentos_caixa_tipos(codigo,descricao)');
+    if(error)throw error;atualizarProgresso(45);
+    for(let i=0;i<lista.length;i++){await gravarMemoriaPagCaixa(lista[i].descricao,lista[i].tipoId);atualizarProgresso(45+Math.round(((i+1)/lista.length)*40));}
+    pagCaixaCache.push(...(data||[]));pagCaixaCache.sort((a,b)=>String(a.data).localeCompare(String(b.data)));renderPagamentoCaixa();atualizarProgresso(92);
+    await popularFiltroMesPagCaixa();atualizarProgresso(100);fecharImportacaoPagamentosParaCaixa();setTimeout(fecharProgresso,250);alert(lista.length+' pagamento(s) importado(s) com sucesso.');
+  }catch(error){fecharProgresso();alert(error.code==='23505'?'Um destes pagamentos já havia sido importado. Atualize a prévia e tente novamente.':'Não foi possível importar: '+(error.message||error));}
+  finally{btn.disabled=false;btn.textContent='Importar selecionados';}
 }
 
 async function gravarMemoriaPagCaixa(descricao, tipoId){
@@ -10466,13 +10480,13 @@ async function carregarOuPrepararCombinacaoPagamentos(){
     }));
 
     const comprasSemPar = comprasSalvas.filter(c=>!c.pagamento_id && !c.grupo_id && !c.bonificacao).map(c=>({
-      id: c.id, numCompra: c.num_compra, numNF: c.num_nf, emissao: c.emissao, entrada: c.entrada, razaoSocial: c.razao_social, nomeFantasia: c.nome_fantasia, valor: Number(c.valor)
+      id: c.id, numCompra: c.num_compra, numNF: c.num_nf, emissao: c.emissao, entrada: c.entrada, razaoSocial: c.razao_social, nomeFantasia: c.nome_fantasia, valor: Number(c.valor), origemManual: !!c.origem_manual
     }));
     const bonificacoes = comprasSalvas.filter(c=>c.bonificacao).map(c=>({
       id: c.id, numCompra: c.num_compra, numNF: c.num_nf, emissao: c.emissao, entrada: c.entrada, razaoSocial: c.razao_social, nomeFantasia: c.nome_fantasia, valor: Number(c.valor)
     }));
     const pagamentosSemPar = (pagamentosOrfaos||[]).filter(p=>!idsPagamentosUsados.has(p.id) && !p.grupo_id).map(p=>({
-      id: p.id, data: p.data, descricao: p.descricao, valor: Number(p.valor)
+      id: p.id, data: p.data, descricao: p.descricao, valor: Number(p.valor), origemManual: !!p.origem_manual
     }));
 
     combPagResultado = { pares, grupos, comprasSemPar, pagamentosSemPar, bonificacoes };
@@ -10975,7 +10989,7 @@ function renderResultadoCombinacaoPagamentos(){
     ? '<tr><td colspan="5" style="text-align:center;color:var(--muted);font-style:italic;padding:16px;">Nenhum resultado pra essa busca.</td></tr>'
     : bonificacoesFiltradas.map(c=>`
         <tr>
-          <td>${escapeHtml(c.nomeFantasia || c.razaoSocial)}</td>
+          <td>${escapeHtml(c.nomeFantasia || c.razaoSocial)}${c.origemManual?' <span class="lc-status pronto">Manual</span>':''}</td>
           <td>${escapeHtml(String(c.numNF||''))}</td>
           <td class="data">${c.emissao ? fmtData(c.emissao) : '—'}</td>
           <td class="valor">${brl(c.valor)}</td>
@@ -10999,7 +11013,7 @@ function renderResultadoCombinacaoPagamentos(){
           <td>${escapeHtml(String(c.numNF||''))}</td>
           <td class="data">${c.emissao ? fmtData(c.emissao) : '—'}</td>
           <td class="valor" style="color:var(--rust);">${brl(c.valor)}</td>
-          <td><button class="filter-btn" style="padding:4px 10px;font-size:12px;color:var(--rust);" data-tipo="compra" data-id="${escapeHtml(String(c.id))}" data-rotulo="${escapeHtml((c.nomeFantasia||c.razaoSocial)+' — '+brl(c.valor))}" onclick="abrirConfirmacaoExcluirItemComb(this)">🗑</button></td>
+          <td style="white-space:nowrap;"><button class="filter-btn" style="padding:4px 10px;font-size:12px;" data-id="${escapeHtml(String(c.id))}" onclick="abrirFormularioManualComb('compra',this.dataset.id)">✎</button> <button class="filter-btn" style="padding:4px 10px;font-size:12px;color:var(--rust);" data-tipo="compra" data-id="${escapeHtml(String(c.id))}" data-rotulo="${escapeHtml((c.nomeFantasia||c.razaoSocial)+' — '+brl(c.valor))}" onclick="abrirConfirmacaoExcluirItemComb(this)">🗑</button></td>
         </tr>
       `).join('');
 
@@ -11013,9 +11027,9 @@ function renderResultadoCombinacaoPagamentos(){
         <tr>
           <td style="width:34px;"><input type="checkbox" data-id="${escapeHtml(String(p.id))}" ${combPagSelecaoPagamentos.has(String(p.id))?'checked':''} onchange="toggleSelecaoPagamentoComb(this)"></td>
           <td class="data">${fmtData(p.data)}</td>
-          <td class="contato">${escapeHtml(p.descricao)}</td>
+          <td class="contato">${escapeHtml(p.descricao)}${p.origemManual?' <span class="lc-status pronto">Manual</span>':''}</td>
           <td class="valor" style="color:var(--rust);">${brl(p.valor)}</td>
-          <td><button class="filter-btn" style="padding:4px 10px;font-size:12px;color:var(--rust);" data-tipo="pagamento" data-id="${escapeHtml(String(p.id))}" data-rotulo="${escapeHtml(p.descricao+' — '+brl(p.valor))}" onclick="abrirConfirmacaoExcluirItemComb(this)">🗑</button></td>
+          <td style="white-space:nowrap;"><button class="filter-btn" style="padding:4px 10px;font-size:12px;" data-id="${escapeHtml(String(p.id))}" onclick="abrirFormularioManualComb('pagamento',this.dataset.id)">✎</button> <button class="filter-btn" style="padding:4px 10px;font-size:12px;color:var(--rust);" data-tipo="pagamento" data-id="${escapeHtml(String(p.id))}" data-rotulo="${escapeHtml(p.descricao+' — '+brl(p.valor))}" onclick="abrirConfirmacaoExcluirItemComb(this)">🗑</button></td>
         </tr>
       `).join('');
 
@@ -11026,6 +11040,21 @@ function toggleSelecaoCompraComb(input){
   const id = input.dataset.id;
   if(input.checked) combPagSelecaoCompras.add(id); else combPagSelecaoCompras.delete(id);
   atualizarBarraSelecaoComb();
+}
+
+let combManualTipo='compra';
+function abrirFormularioManualComb(tipo,id=null){
+  combManualTipo=tipo==='pagamento'?'pagamento':'compra';const lista=combManualTipo==='compra'?combPagResultado.comprasSemPar:combPagResultado.pagamentosSemPar,item=id?lista.find(x=>String(x.id)===String(id)):null,mes=combPagMesAtual||mesAtualPadrao(),hoje=todayStr(),dataPadrao=hoje.startsWith(mes)?hoje:mes+'-01';
+  document.getElementById('combManualTitulo').textContent=(item?'Editar ':'Adicionar ')+(combManualTipo==='compra'?'compra':'pagamento');document.getElementById('combManualId').value=item?.id||'';document.getElementById('combManualCompraCampos').style.display=combManualTipo==='compra'?'contents':'none';document.getElementById('combManualPagamentoCampos').style.display=combManualTipo==='pagamento'?'contents':'none';
+  document.getElementById('combManualFornecedor').value=item?(item.nomeFantasia||item.razaoSocial||''):'';document.getElementById('combManualNumCompra').value=item?.numCompra||'';document.getElementById('combManualNumNf').value=item?.numNF||'';document.getElementById('combManualEmissao').value=item?.emissao||dataPadrao;document.getElementById('combManualDescricao').value=item?.descricao||'';document.getElementById('combManualData').value=item?.data||dataPadrao;document.getElementById('combManualValor').value=item?Number(item.valor||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}):'';document.getElementById('combManualErro').style.display='none';document.getElementById('combManualModal').style.display='flex';setTimeout(()=>document.getElementById(combManualTipo==='compra'?'combManualFornecedor':'combManualDescricao').focus(),50);
+}
+function fecharFormularioManualComb(){document.getElementById('combManualModal').style.display='none';}
+async function salvarFormularioManualComb(){
+  const id=document.getElementById('combManualId').value,valor=parseValorBR(document.getElementById('combManualValor').value),erro=document.getElementById('combManualErro'),btn=document.getElementById('combManualSalvarBtn');let tabela,payload;
+  if(!valor||valor<=0){erro.textContent='Informe um valor maior que zero.';erro.style.display='block';return;}
+  if(combManualTipo==='compra'){const fornecedor=document.getElementById('combManualFornecedor').value.trim();if(!fornecedor){erro.textContent='Informe o fornecedor.';erro.style.display='block';return;}tabela='comb_pag_compras';payload={num_compra:document.getElementById('combManualNumCompra').value.trim()||null,num_nf:document.getElementById('combManualNumNf').value.trim()||null,emissao:document.getElementById('combManualEmissao').value||null,razao_social:fornecedor,nome_fantasia:fornecedor,valor};if(!id)Object.assign(payload,{loja:lojaAtual,mes:combPagMesAtual,entrada:null,pagamento_id:null,diferenca:0,grupo_id:null,grupo_manual:false,bonificacao:false,origem_manual:true});}
+  else{const descricao=document.getElementById('combManualDescricao').value.trim(),data=document.getElementById('combManualData').value;if(!descricao||!data){erro.textContent='Informe a descrição e a data.';erro.style.display='block';return;}tabela='comb_pag_pagamentos';payload={data,descricao,valor};if(!id)Object.assign(payload,{loja:lojaAtual,mes:combPagMesAtual,grupo_id:null,grupo_manual:false,origem_manual:true});}
+  btn.disabled=true;btn.textContent='Salvando…';erro.style.display='none';const consulta=id?sb.from(tabela).update(payload).eq('id',id).eq('loja',lojaAtual):sb.from(tabela).insert(payload),{error}=await consulta;btn.disabled=false;btn.textContent='Salvar';if(error){erro.textContent=error.message.includes('origem_manual')?'Execute primeiro o SQL da versão 1.2.57 no Supabase.':'Não foi possível salvar: '+error.message;erro.style.display='block';return;}fecharFormularioManualComb();await carregarOuPrepararCombinacaoPagamentos();
 }
 function toggleSelecaoPagamentoComb(input){
   const id = input.dataset.id;

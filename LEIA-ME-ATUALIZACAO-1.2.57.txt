@@ -1,0 +1,20 @@
+RANCHÃO BEBIDAS — VERSÃO 1.2.57
+
+ANTES DE USAR A INCLUSÃO MANUAL NA COMBINAÇÃO:
+1. Abra o Supabase do projeto.
+2. Entre em SQL Editor.
+3. Execute o arquivo ATUALIZACAO_COMBINACAO_MANUAL_1.2.57.sql.
+
+ALTERAÇÕES:
+- Tela de carregamento na importação de Pagamentos para Pagamento no Caixa.
+- Ranking mensal no Leitor de Comprovantes, agrupado por CPF/CNPJ ou recebedor.
+- Inclusão e edição manual de compras e pagamentos sem combinação.
+- Leitura corrigida da planilha real de estoque, mesmo com cabeçalho após linhas iniciais.
+- Preço padrão existente preservado quando a planilha não possui preço de venda.
+- Seleção e inclusão de produtos corrigidas em Cadastrar Venda.
+
+PROJETO COMPLETO:
+- index.html é a tela completa do sistema.
+- renderer.js contém as regras principais.
+- assets/modulos/produtos-vendas.js contém Produtos e Estoque e Cadastrar Venda.
+- Para gerar o instalador, execute GERAR-INSTALADOR.bat.
