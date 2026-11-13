@@ -1,0 +1,16 @@
+RANCHÃO BEBIDAS — VERSÃO 1.2.60
+
+ALTERAÇÕES
+- Preço padrão, Atacado, Revenda e Especial agora aparecem logo após a descrição.
+- Estoque e custos continuam disponíveis ao rolar a tabela horizontalmente.
+- Exportação em Excel e PDF permite incluir todos os produtos ou somente produtos com estoque de 1 unidade ou mais.
+- A quantidade em estoque é usada apenas como filtro e não é exibida no arquivo destinado ao cliente.
+
+INSTALAÇÃO
+1. Extraia todo o conteúdo deste arquivo.
+2. Abra a pasta ranchao-bebidas-desktop-1.2.60.
+3. Execute GERAR-INSTALADOR.bat.
+4. Ao terminar, instale o arquivo criado na pasta dist.
+
+SQL
+Não é necessário executar SQL nesta atualização.
