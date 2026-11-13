@@ -1,0 +1,16 @@
+RANCHÃO BEBIDAS — VERSÃO 1.2.59
+
+ALTERAÇÕES:
+- Corrigida a importação de produtos novos quando o banco exige preenchimento do ID.
+- Produtos existentes mantêm o mesmo ID e não são duplicados.
+- Campo Preço padrão agora possui borda completa, largura fixa e mostra o valor completo em real brasileiro.
+- A tabela possui rolagem horizontal para não cortar campos em telas menores.
+- Nova exportação de Produtos e estoque em Excel e PDF.
+- É possível exportar todos os produtos ou selecionar uma ou várias letras iniciais.
+- É possível escolher Atacado, Revenda ou Especial para comparação.
+- Os relatórios externos mostram preço padrão, preço escolhido, diferença e economia percentual.
+- Preços de custo não aparecem nessas exportações.
+
+IMPORTANTE:
+- Não é necessário executar novo SQL no Supabase.
+- Para gerar o instalador, execute GERAR-INSTALADOR.bat.
