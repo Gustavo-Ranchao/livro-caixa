@@ -1,0 +1,17 @@
+RANCHÃO BEBIDAS — VERSÃO 1.2.61
+
+ALTERAÇÕES
+- Produtos e Estoque voltou a apresentar estoque e custos antes dos preços de venda.
+- Os preços Padrão, Atacado, Revenda e Especial aparecem em uma segunda linha organizada abaixo de cada produto.
+- A tabela passou a aproveitar a largura disponível sem exigir rolagem horizontal.
+- O PDF de produtos não mostra mais o fator de embalagem.
+- Cabeçalhos e valores do PDF foram realinhados e a tabela recebeu melhor espaçamento visual.
+
+INSTALAÇÃO
+1. Extraia todo o conteúdo deste arquivo.
+2. Abra a pasta ranchao-bebidas-desktop-1.2.61.
+3. Execute GERAR-INSTALADOR.bat.
+4. Ao terminar, instale o arquivo criado na pasta dist.
+
+SQL
+Não é necessário executar SQL nesta atualização.
