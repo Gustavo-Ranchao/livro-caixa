@@ -638,6 +638,13 @@
   .aniv-popup-nome{font-size:22px;font-weight:800;color:var(--ink);margin-bottom:7px;}
   .aniv-popup-detalhes{font-size:13px;color:var(--muted);line-height:1.65;}
   .aniv-popup-contagem{display:inline-flex;margin-top:15px;padding:7px 12px;border-radius:999px;background:#eaf2ff;color:#1e4f91;font-size:12px;font-weight:800;}
+  .notificacao-btn{position:relative;width:40px;height:40px;border:1px solid #d7e1ee;border-radius:10px;background:#fff;color:#1e3a66;font-size:19px;cursor:pointer;margin-right:8px;}
+  .notificacao-contador{position:absolute;right:-5px;top:-6px;min-width:19px;height:19px;padding:0 4px;border-radius:999px;background:#c4374b;color:#fff;font:700 10px/19px var(--font-sans);display:none;}
+  .notificacao-overlay{position:fixed;inset:0;background:rgba(15,23,42,.18);z-index:1498;display:none;}
+  .notificacao-painel{position:fixed;right:0;top:0;bottom:0;width:min(430px,92vw);background:#f8fafc;z-index:1499;box-shadow:-18px 0 50px rgba(15,23,42,.2);transform:translateX(105%);transition:transform .25s ease;display:flex;flex-direction:column;}
+  .notificacao-painel.aberto{transform:translateX(0);}.notificacao-overlay.aberto{display:block;}
+  .notificacao-cabecalho{display:flex;align-items:center;gap:12px;padding:20px;border-bottom:1px solid #d7e1ee;background:#1e3a66;color:#fff;}.notificacao-cabecalho h2{margin:0;flex:1;color:#fff;font-size:18px;}.notificacao-fechar{border:1px solid rgba(255,255,255,.35);background:transparent;color:#fff;border-radius:50%;width:34px;height:34px;font-size:19px;cursor:pointer;}
+  .notificacao-lista{padding:16px;overflow:auto;display:flex;flex-direction:column;gap:10px;}.notificacao-item{border:1px solid #d7e1ee;border-left:4px solid #2b6cb0;border-radius:10px;background:#fff;padding:13px 14px;cursor:pointer;text-align:left;color:var(--ink);}.notificacao-item.atrasado{border-left-color:var(--rust);}.notificacao-item strong{display:block;margin-bottom:5px;}.notificacao-item span{font-size:12px;color:var(--muted);line-height:1.5;}.notificacao-vazio{text-align:center;color:var(--muted);padding:42px 20px;}
 
   /* ---------- Aproveitamento de tela em computadores ---------- */
   @media (min-width:1100px){
@@ -753,6 +760,7 @@
       <input id="empresaNome" type="hidden" value="">
 
       <div class="perfil" id="perfilWrap">
+        <button type="button" class="notificacao-btn" onclick="abrirCentralNotificacoes()" title="Notificações" aria-label="Abrir notificações">🔔<span id="notificacaoContador" class="notificacao-contador">0</span></button>
         <div class="perfil-menu" id="perfilMenu">
           <div class="perfil-nome" id="perfilNome">—</div>
           <div class="perfil-email" id="perfilEmail">—</div>
@@ -1891,7 +1899,7 @@
           <div class="fld"><label>Valor (R$)</label><input id="man_valor" type="number" min="0" step="0.01" placeholder="0,00"></div>
           <div class="fld"><label>Próxima manutenção (opcional)</label><input id="man_proxima_data" type="date"></div>
           <div class="fld rec-span-3"><label>Observações</label><input id="man_observacoes" placeholder="Informações adicionais"></div>
-          <div class="fld rec-span-3"><label>Comprovante da manutenção (opcional)</label><input id="man_arquivo" type="file" accept="image/*,.pdf,application/pdf"><div class="man-arquivo-ajuda">Envie uma foto ou arquivo PDF de até 15 MB.</div></div>
+          <div class="fld rec-span-3"><label>Comprovantes da manutenção (opcional)</label><input id="man_arquivo" type="file" accept="image/*,.pdf,application/pdf" multiple><div class="man-arquivo-ajuda">Envie uma ou mais fotos/PDFs, com até 15 MB por arquivo.</div></div>
         </div>
         <div class="formerr" id="manErr" style="margin:0 20px 12px;"></div>
         <div class="rec-actions"><button class="addbtn" id="manSalvarBtn" style="width:auto;" onclick="salvarManutencao()">Adicionar manutenção</button><button class="cancelbtn" onclick="limparFormularioManutencao()">Limpar</button></div>
@@ -2278,7 +2286,7 @@
       </div>
 
       <div id="fluxoSubExtrato">
-        <h2 id="fluxoContaAtivaTitulo" style="font-family:var(--font-voice);font-size:17px;font-weight:600;margin:0 0 14px;"></h2>
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:14px;"><h2 id="fluxoContaAtivaTitulo" style="font-family:var(--font-voice);font-size:17px;font-weight:600;margin:0;"></h2><label style="display:flex;align-items:center;gap:8px;font-size:12px;color:var(--muted);">Movimentos <select id="fluxoFiltroTipoConta" onchange="alterarFiltroTipoFluxo(this.value)" style="height:38px;border:1px solid var(--line);border-radius:7px;padding:7px 10px;background:#fff;"><option value="todos">Todos</option><option value="entrada">Somente entradas</option><option value="saida">Somente saídas</option></select></label></div>
         <div class="vendas-toolbar">
           <label class="vendas-file-label">
             📁 Selecionar extrato(s) .xlsx
@@ -3235,7 +3243,7 @@
   <div class="modal-box" style="max-width:760px;">
     <button class="modal-close" onclick="fecharEdicaoManutencao()">✕</button>
     <h2>Editar manutenção</h2>
-    <p class="modal-sub">Altere os dados e, se necessário, substitua ou remova o arquivo anexado.</p>
+    <p class="modal-sub">Altere os dados e adicione novos comprovantes, se necessário.</p>
     <div class="rec-form-grid">
       <div class="fld"><label>Data da manutenção</label><input id="eman_data" type="date"></div>
       <div class="fld"><label>Equipamento / item</label><input id="eman_item"></div>
@@ -3246,10 +3254,9 @@
       <div class="fld"><label>Próxima manutenção (opcional)</label><input id="eman_proxima_data" type="date"></div>
       <div class="fld rec-span-3"><label>Observações</label><input id="eman_observacoes"></div>
       <div class="fld rec-span-3">
-        <label>Novo comprovante (opcional)</label>
-        <input id="eman_arquivo" type="file" accept="image/*,.pdf,application/pdf">
+        <label>Adicionar comprovantes (opcional)</label>
+        <input id="eman_arquivo" type="file" accept="image/*,.pdf,application/pdf" multiple>
         <div class="man-arquivo-ajuda" id="emanArquivoAtual">Nenhum arquivo anexado.</div>
-        <label style="margin-top:9px;display:flex;align-items:center;gap:8px;text-transform:none;letter-spacing:0;font-size:13px;"><input id="eman_remover_arquivo" type="checkbox" style="width:auto;"> Remover o arquivo atual</label>
       </div>
     </div>
     <div class="formerr" id="emanErr" style="margin-top:12px;"></div>
@@ -3259,6 +3266,10 @@
     </div>
   </div>
 </div>
+
+<div id="manArquivosModal" class="modal-overlay"><div class="modal-box" style="max-width:650px;"><button class="modal-close" onclick="fecharArquivosManutencao()">✕</button><h2>Comprovantes da manutenção</h2><p class="modal-sub">Visualize, substitua ou exclua cada arquivo individualmente.</p><div id="manArquivosLista" style="display:flex;flex-direction:column;gap:9px;margin-top:16px;"></div><input id="manArquivoSubstituirInput" type="file" accept="image/*,.pdf,application/pdf" style="display:none" onchange="substituirArquivoManutencao(this.files[0])"><div class="modal-actions"><button class="cancelbtn" onclick="fecharArquivosManutencao()">Fechar</button></div></div></div>
+
+<div id="centralNotificacoesOverlay" class="notificacao-overlay" onclick="fecharCentralNotificacoes()"></div><aside id="centralNotificacoes" class="notificacao-painel" aria-label="Central de notificações"><div class="notificacao-cabecalho"><span style="font-size:24px;">🔔</span><h2>Notificações</h2><button class="notificacao-fechar" onclick="fecharCentralNotificacoes()">×</button></div><div id="notificacaoLista" class="notificacao-lista"><div class="notificacao-vazio">Carregando…</div></div></aside>
 
 <div id="confirmManutencaoModal" class="modal-overlay">
   <div class="modal-box" style="max-width:400px;">
