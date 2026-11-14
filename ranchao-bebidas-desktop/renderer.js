@@ -469,7 +469,7 @@ const BACKUP_TABELAS = [
   'fluxo_caixa_saldos','fluxo_caixa_lancamentos','caixa_diferencas','checklist_itens','checklist_execucoes','bh_registros',
   'bh_atestados','vendas_delivery','vendas_itens','metas_vendas_config','metas_vendas_dias','controle_estoque_mensal','estoque_inventarios','contagens_estoque',
   'contagens_estoque_itens','comb_pag_compras','comb_pag_pagamentos','pagamentos_caixa','pagamentos_caixa_memoria',
-  'recibos','contracheques','orcamentos','tabela_precos','tabela_precos_categorias','produtos_estoque','produtos_importacoes','clientes_vendas','vendas_produtos','vendas_produtos_itens','vendas_produtos_sequencias','agenda_lembretes','duvidas','manutencoes','leituras_comprovantes','ocorrencias_entregas','ocorrencias_entregas_itens','historico_alteracoes'
+  'recibos','contracheques','orcamentos','tabela_precos','tabela_precos_categorias','produtos_estoque','produtos_importacoes','clientes_vendas','vendas_produtos','vendas_produtos_itens','vendas_produtos_sequencias','agenda_lembretes','duvidas','manutencoes','manutencoes_arquivos','leituras_comprovantes','ocorrencias_entregas','ocorrencias_entregas_itens','historico_alteracoes'
 ];
 const BACKUP_ARQUIVOS = [
   {tabela:'comprovantes',campo:'caminho_storage',bucket:'comprovantes'},
@@ -477,6 +477,7 @@ const BACKUP_ARQUIVOS = [
   {tabela:'leituras_comprovantes',campo:'caminho_storage',bucket:'comprovantes'},
   {tabela:'leituras_comprovantes',campo:'caminho_nota',bucket:'comprovantes'},
   {tabela:'manutencoes',campo:'caminho_storage',bucket:'manutencoes'},
+  {tabela:'manutencoes_arquivos',campo:'caminho_storage',bucket:'manutencoes'},
   {tabela:'ocorrencias_entregas',campo:'caminho_storage',bucket:'ocorrencias-entregas'},
   {tabela:'compras_produtos',campo:'foto_caminho',bucket:'compras-produtos'}
 ];
@@ -3895,6 +3896,27 @@ function agendarPopupAniversario(){
   timerPopupAniversario = setTimeout(mostrarProximoAniversariante, 1800);
 }
 
+let timerCentralNotificacoes=null;
+let centralNotificacoesCache=[];
+function fecharCentralNotificacoes(){document.getElementById('centralNotificacoes')?.classList.remove('aberto');document.getElementById('centralNotificacoesOverlay')?.classList.remove('aberto');}
+async function abrirCentralNotificacoes(){await carregarCentralNotificacoes();document.getElementById('centralNotificacoes')?.classList.add('aberto');document.getElementById('centralNotificacoesOverlay')?.classList.add('aberto');}
+function abrirDestinoNotificacao(tipo,subtipo){fecharCentralNotificacoes();if(tipo==='agenda')mudarViewPrincipal('agenda');else if(tipo==='aniversario')mudarViewPrincipal('aniversarios');else if(tipo==='manutencao')abrirModuloManutencao(subtipo||'veiculo');}
+async function carregarCentralNotificacoes(){
+  if(!sb)return;const hoje=new Date();hoje.setHours(12,0,0,0);const limite=new Date(hoje);limite.setDate(limite.getDate()+7);const avisos=[];
+  const [rAgenda,rAniv,rMan]=await Promise.all([
+    sb.from('agenda_lembretes').select('*').eq('concluido',false).order('data_evento'),
+    sb.from('bh_funcionarios').select('nome,cargo,loja,data_nascimento').eq('ativo',true).not('data_nascimento','is',null),
+    sb.from('manutencoes').select('id,item,tipo,loja,proxima_data,status').not('proxima_data','is',null).neq('status','cancelada').lte('proxima_data',limite.toISOString().slice(0,10)).order('proxima_data')
+  ]);
+  (rAgenda.data||[]).forEach(x=>{const dias=diasAteAgenda(x.data_evento);if(dias<=Number(x.antecedencia_dias||0))avisos.push({tipo:'agenda',titulo:'Agenda: '+x.titulo,detalhe:`${fmtData(x.data_evento)} • ${rotuloDiasAgenda(dias)}${x.loja?' • '+(NOMES_LOJA[x.loja]||x.loja):''}`,dias});});
+  (rAniv.data||[]).map(f=>detalhesProximoAniversario(f,hoje)).filter(x=>x&&x.dias<=30).forEach(x=>avisos.push({tipo:'aniversario',titulo:'Aniversário: '+x.funcionario.nome,detalhe:`${x.proxima.toLocaleDateString('pt-BR',{day:'2-digit',month:'long'})} • ${x.dias===0?'Hoje':x.dias===1?'Amanhã':'Em '+x.dias+' dias'} • ${NOMES_LOJA[x.funcionario.loja]||x.funcionario.loja}`,dias:x.dias}));
+  (rMan.data||[]).forEach(x=>{const dias=diasAteAgenda(x.proxima_data);avisos.push({tipo:'manutencao',subtipo:x.tipo,titulo:'Próxima manutenção: '+x.item,detalhe:`${fmtData(x.proxima_data)} • ${rotuloDiasAgenda(dias)} • ${NOMES_LOJA[x.loja]||x.loja}`,dias});});
+  centralNotificacoesCache=avisos.sort((a,b)=>a.dias-b.dias);const contador=document.getElementById('notificacaoContador');if(contador){contador.textContent=String(avisos.length);contador.style.display=avisos.length?'block':'none';}
+  const lista=document.getElementById('notificacaoLista');if(lista)lista.innerHTML=avisos.length?avisos.map(x=>`<button class="notificacao-item ${x.dias<0?'atrasado':''}" onclick="abrirDestinoNotificacao('${x.tipo}','${x.subtipo||''}')"><strong>${x.tipo==='agenda'?'🗓️':x.tipo==='aniversario'?'🎂':'🛠️'} ${escapeHtml(x.titulo)}</strong><span>${escapeHtml(x.detalhe)}</span></button>`).join(''):'<div class="notificacao-vazio">Você não tem avisos próximos.</div>';
+  return avisos;
+}
+function agendarCentralNotificacoes(){clearTimeout(timerCentralNotificacoes);fecharCentralNotificacoes();timerCentralNotificacoes=setTimeout(async()=>{const avisos=await carregarCentralNotificacoes();if(avisos?.length){document.getElementById('centralNotificacoes')?.classList.add('aberto');document.getElementById('centralNotificacoesOverlay')?.classList.add('aberto');}},1800);}
+
 function renderAniversarios(){
   const listaEl = document.getElementById('anivLista');
   if(!listaEl) return;
@@ -4800,8 +4822,11 @@ function exportarPdfOcorrenciasEntregas(){const lista=ocorrenciasEntregasFiltrad
 let manutencaoTipoAtual='computador';
 let manutencaoTodoHistorico=false;
 let manutencoesCache=[];
+let manutencaoArquivosCache={};
 let manutencaoEditandoId=null;
 let manutencaoExcluindoId=null;
+let manutencaoArquivosAbertaId=null;
+let manutencaoArquivoSubstituirId=null;
 
 const MANUTENCAO_CONFIG={
   computador:{titulo:'🖥️ Manutenção de Computadores',subtitulo:'Controle de computadores, impressoras, rede e outros equipamentos.',item:'Equipamento / patrimônio'},
@@ -4835,7 +4860,15 @@ async function carregarManutencoes(){
   if(!manutencaoTodoHistorico){const periodo=intervaloMesManutencao();consulta=consulta.gte('data_manutencao',periodo.inicio).lt('data_manutencao',periodo.fim);}
   const {data,error}=await consulta.order('data_manutencao',{ascending:false}).order('id',{ascending:false});
   if(error){console.error('Erro ao carregar manutenções:',error);manutencoesCache=[];document.getElementById('manErr').textContent='Não foi possível carregar. Execute o SQL do módulo de Manutenção no Supabase.';document.getElementById('manErr').style.display='block';}
-  else{manutencoesCache=data||[];document.getElementById('manErr').style.display='none';}
+  else{
+    manutencoesCache=data||[];manutencaoArquivosCache={};
+    if(manutencoesCache.length){
+      const ids=manutencoesCache.map(x=>String(x.id));
+      const {data:arquivos,error:erroArquivos}=await sb.from('manutencoes_arquivos').select('*').in('manutencao_id',ids).order('id');
+      if(erroArquivos){document.getElementById('manErr').textContent='Execute o SQL da versão 1.2.62 para habilitar múltiplos comprovantes.';document.getElementById('manErr').style.display='block';}
+      else (arquivos||[]).forEach(a=>{(manutencaoArquivosCache[String(a.manutencao_id)]??=[]).push(a);});
+    }else document.getElementById('manErr').style.display='none';
+  }
   renderManutencoes();
 }
 
@@ -4849,7 +4882,7 @@ function renderManutencoes(){
   const status=document.getElementById('manFiltroStatus')?.value||'todos';
   const lista=manutencoesCache.filter(x=>(status==='todos'||x.status===status)&&(!busca||[x.item,x.descricao,x.fornecedor,x.observacoes].some(v=>String(v||'').toLowerCase().includes(busca))));
   document.getElementById('manEmpty').style.display=lista.length?'none':'block';
-  document.getElementById('manBody').innerHTML=lista.map(x=>`<tr><td>${fmtData(x.data_manutencao)}</td><td>${escapeHtml(x.item)}</td><td>${escapeHtml(x.descricao)}</td><td>${escapeHtml(x.fornecedor||'—')}</td><td>${escapeHtml(textoStatusManutencao(x.status))}</td><td>${x.proxima_data?fmtData(x.proxima_data):'—'}</td><td>${x.caminho_storage?`<button class="iconbtn" title="Abrir ${escapeHtml(x.arquivo_nome||'arquivo')}" data-caminho="${escapeHtml(x.caminho_storage)}" onclick="abrirArquivoManutencao(this.dataset.caminho)">📎</button>`:'—'}</td><td class="valor">${brl(x.valor||0)}</td><td><div class="rowactions"><button class="iconbtn" title="Editar" onclick="abrirEdicaoManutencao('${x.id}')">✎</button><button class="iconbtn del" title="Excluir" onclick="excluirManutencao('${x.id}')">✕</button></div></td></tr>`).join('');
+  document.getElementById('manBody').innerHTML=lista.map(x=>{const qtd=(manutencaoArquivosCache[String(x.id)]||[]).length;return `<tr><td>${fmtData(x.data_manutencao)}</td><td>${escapeHtml(x.item)}</td><td>${escapeHtml(x.descricao)}</td><td>${escapeHtml(x.fornecedor||'—')}</td><td>${escapeHtml(textoStatusManutencao(x.status))}</td><td>${x.proxima_data?fmtData(x.proxima_data):'—'}</td><td>${qtd?`<button class="filter-btn" onclick="abrirArquivosManutencao('${x.id}')">📎 ${qtd}</button>`:'—'}</td><td class="valor">${brl(x.valor||0)}</td><td><div class="rowactions"><button class="iconbtn" title="Editar" onclick="abrirEdicaoManutencao('${x.id}')">✎</button><button class="iconbtn del" title="Excluir" onclick="excluirManutencao('${x.id}')">✕</button></div></td></tr>`;}).join('');
 }
 
 function dadosArquivoManutencao(arquivo){
@@ -4867,25 +4900,32 @@ async function abrirArquivoManutencao(caminho){
   window.open(data.signedUrl,'_blank','noopener');
 }
 
+function validarArquivosManutencao(arquivos){for(const arquivo of arquivos){const v=dadosArquivoManutencao(arquivo);if(!v.ok)return {...v,arquivo};}return {ok:true};}
+async function enviarArquivosManutencao(manutencaoId,arquivos){
+  const enviados=[];
+  for(const arquivo of arquivos){const v=dadosArquivoManutencao(arquivo),caminho=lojaAtual+'/'+manutencaoTipoAtual+'/'+manutencaoId+'/'+Date.now()+'_'+Math.random().toString(36).slice(2,8)+'_'+nomeArquivoSeguro(arquivo.name);const {error}=await sb.storage.from('manutencoes').upload(caminho,arquivo,{contentType:v.tipo,upsert:false});if(error)throw new Error(error.message);const {data,error:erroDb}=await sb.from('manutencoes_arquivos').insert({manutencao_id:String(manutencaoId),loja:lojaAtual,caminho_storage:caminho,arquivo_nome:arquivo.name,arquivo_tipo:v.tipo,tamanho_bytes:arquivo.size}).select().single();if(erroDb){await sb.storage.from('manutencoes').remove([caminho]);throw new Error(erroDb.message);}enviados.push(data);}
+  manutencaoArquivosCache[String(manutencaoId)]=(manutencaoArquivosCache[String(manutencaoId)]||[]).concat(enviados);
+}
+
+function abrirArquivosManutencao(id){manutencaoArquivosAbertaId=String(id);renderArquivosManutencao();document.getElementById('manArquivosModal').style.display='flex';}
+function fecharArquivosManutencao(){document.getElementById('manArquivosModal').style.display='none';manutencaoArquivosAbertaId=null;}
+function renderArquivosManutencao(){const lista=manutencaoArquivosCache[String(manutencaoArquivosAbertaId)]||[],el=document.getElementById('manArquivosLista');el.innerHTML=lista.length?lista.map(a=>`<div style="display:flex;align-items:center;gap:8px;border:1px solid #d7e1ee;border-radius:9px;padding:10px 12px;"><span style="flex:1;overflow-wrap:anywhere;">📎 ${escapeHtml(a.arquivo_nome||'Arquivo')}</span><button class="filter-btn" data-caminho="${escapeHtml(a.caminho_storage)}" onclick="abrirArquivoManutencao(this.dataset.caminho)">Ver</button><button class="filter-btn" onclick="selecionarSubstituicaoArquivo('${a.id}')">Substituir</button><button class="iconbtn del" onclick="excluirArquivoManutencao('${a.id}')">✕</button></div>`).join(''):'<div class="notificacao-vazio">Nenhum comprovante anexado.</div>';}
+function selecionarSubstituicaoArquivo(id){manutencaoArquivoSubstituirId=String(id);const input=document.getElementById('manArquivoSubstituirInput');input.value='';input.click();}
+async function substituirArquivoManutencao(arquivo){if(!arquivo||!manutencaoArquivoSubstituirId)return;const lista=manutencaoArquivosCache[String(manutencaoArquivosAbertaId)]||[],atual=lista.find(a=>String(a.id)===manutencaoArquivoSubstituirId),v=dadosArquivoManutencao(arquivo);if(!atual||!v.ok){alert(v.mensagem||'Arquivo inválido.');return;}const caminho=lojaAtual+'/'+manutencaoTipoAtual+'/'+manutencaoArquivosAbertaId+'/'+Date.now()+'_'+nomeArquivoSeguro(arquivo.name),up=await sb.storage.from('manutencoes').upload(caminho,arquivo,{contentType:v.tipo,upsert:false});if(up.error){alert('Não foi possível enviar o arquivo.');return;}const {data,error}=await sb.from('manutencoes_arquivos').update({caminho_storage:caminho,arquivo_nome:arquivo.name,arquivo_tipo:v.tipo,tamanho_bytes:arquivo.size}).eq('id',atual.id).select().single();if(error){await sb.storage.from('manutencoes').remove([caminho]);alert('Não foi possível substituir o arquivo.');return;}await sb.storage.from('manutencoes').remove([atual.caminho_storage]);manutencaoArquivosCache[String(manutencaoArquivosAbertaId)]=lista.map(a=>String(a.id)===String(atual.id)?data:a);manutencaoArquivoSubstituirId=null;renderArquivosManutencao();}
+async function excluirArquivoManutencao(id){const lista=manutencaoArquivosCache[String(manutencaoArquivosAbertaId)]||[],atual=lista.find(a=>String(a.id)===String(id));if(!atual)return;const {error}=await sb.from('manutencoes_arquivos').delete().eq('id',atual.id);if(error){alert('Não foi possível excluir o arquivo.');return;}await sb.storage.from('manutencoes').remove([atual.caminho_storage]);manutencaoArquivosCache[String(manutencaoArquivosAbertaId)]=lista.filter(a=>String(a.id)!==String(id));renderArquivosManutencao();renderManutencoes();}
+
 async function salvarManutencao(){
   const payload={loja:lojaAtual,tipo:manutencaoTipoAtual,data_manutencao:document.getElementById('man_data').value,item:document.getElementById('man_item').value.trim(),descricao:document.getElementById('man_descricao').value.trim(),fornecedor:document.getElementById('man_fornecedor').value.trim()||null,valor:Math.max(0,Number(document.getElementById('man_valor').value)||0),status:document.getElementById('man_status').value,proxima_data:document.getElementById('man_proxima_data').value||null,observacoes:document.getElementById('man_observacoes').value.trim()||null};
   const err=document.getElementById('manErr');
   if(!payload.data_manutencao||!payload.item||!payload.descricao){err.textContent='Informe a data, o item e a descrição da manutenção.';err.style.display='block';return;}
-  const arquivo=document.getElementById('man_arquivo').files[0]||null;
-  const validacao=dadosArquivoManutencao(arquivo);
+  const arquivos=Array.from(document.getElementById('man_arquivo').files||[]);
+  const validacao=validarArquivosManutencao(arquivos);
   if(!validacao.ok){err.textContent=validacao.mensagem;err.style.display='block';return;}
-  const tipoArquivo=validacao.tipo;
   const btn=document.getElementById('manSalvarBtn');btn.disabled=true;btn.textContent='Salvando…';
-  let caminho=null;
-  if(arquivo){
-    caminho=lojaAtual+'/'+manutencaoTipoAtual+'/'+Date.now()+'_'+Math.random().toString(36).slice(2,8)+'_'+nomeArquivoSeguro(arquivo.name);
-    const {error:erroUpload}=await sb.storage.from('manutencoes').upload(caminho,arquivo,{contentType:tipoArquivo,upsert:false});
-    if(erroUpload){btn.disabled=false;btn.textContent='Adicionar manutenção';err.textContent='Não foi possível enviar o arquivo: '+erroUpload.message;err.style.display='block';return;}
-    payload.arquivo_nome=arquivo.name;payload.arquivo_tipo=tipoArquivo;payload.caminho_storage=caminho;
-  }
-  const {error}=await sb.from('manutencoes').insert(payload);
+  const {data:registro,error}=await sb.from('manutencoes').insert(payload).select().single();
   btn.disabled=false;btn.textContent='Adicionar manutenção';
-  if(error){if(caminho)await sb.storage.from('manutencoes').remove([caminho]);err.textContent='Não foi possível salvar. Execute o SQL atualizado do módulo de Manutenção no Supabase.';err.style.display='block';console.error(error);return;}
+  if(error){err.textContent='Não foi possível salvar. Execute o SQL atualizado do módulo de Manutenção no Supabase.';err.style.display='block';console.error(error);return;}
+  try{if(arquivos.length)await enviarArquivosManutencao(registro.id,arquivos);}catch(e){err.textContent='A manutenção foi salva, mas um anexo falhou: '+e.message;err.style.display='block';}
   limparFormularioManutencao();await carregarManutencoes();
 }
 
@@ -4897,7 +4937,7 @@ function limparFormularioManutencao(){
 async function excluirManutencao(id){
   manutencaoExcluindoId=id;
   const registro=manutencoesCache.find(x=>String(x.id)===String(id));
-  document.getElementById('confirmManutencaoTexto').innerHTML=registro?`Você está prestes a excluir <strong>${escapeHtml(registro.item)}</strong>. O registro${registro.caminho_storage?' e o arquivo anexado':''} será apagado e essa ação não pode ser desfeita.`:'O registro será apagado. Essa ação não pode ser desfeita.';
+  document.getElementById('confirmManutencaoTexto').innerHTML=registro?`Você está prestes a excluir <strong>${escapeHtml(registro.item)}</strong>. O registro e seus comprovantes serão apagados e essa ação não pode ser desfeita.`:'O registro será apagado. Essa ação não pode ser desfeita.';
   document.getElementById('confirmManutencaoModal').style.display='flex';
 }
 
@@ -4908,10 +4948,10 @@ async function confirmarExclusaoManutencaoOk(){
   const id=manutencaoExcluindoId;
   const registro=manutencoesCache.find(x=>String(x.id)===String(id));
   const btn=document.getElementById('manExcluirBtn');btn.disabled=true;btn.textContent='Excluindo…';
-  const {error}=await sb.from('manutencoes').delete().eq('id',id).eq('loja',lojaAtual);
+  const arquivos=manutencaoArquivosCache[String(id)]||[];const remArq=await sb.from('manutencoes_arquivos').delete().eq('manutencao_id',String(id));if(remArq.error){btn.disabled=false;btn.textContent='Excluir manutenção';alert('Não foi possível excluir os comprovantes.');return;}const {error}=await sb.from('manutencoes').delete().eq('id',id).eq('loja',lojaAtual);
   btn.disabled=false;btn.textContent='Excluir manutenção';
   if(error){alert('Não foi possível excluir o registro.');return;}
-  if(registro&&registro.caminho_storage)await sb.storage.from('manutencoes').remove([registro.caminho_storage]);
+  if(arquivos.length)await sb.storage.from('manutencoes').remove(arquivos.map(a=>a.caminho_storage));delete manutencaoArquivosCache[String(id)];
   manutencoesCache=manutencoesCache.filter(x=>String(x.id)!==String(id));
   fecharConfirmacaoManutencao();renderManutencoes();
 }
@@ -4928,9 +4968,7 @@ function abrirEdicaoManutencao(id){
   document.getElementById('eman_proxima_data').value=x.proxima_data||'';
   document.getElementById('eman_observacoes').value=x.observacoes||'';
   document.getElementById('eman_arquivo').value='';
-  document.getElementById('eman_remover_arquivo').checked=false;
-  document.getElementById('eman_remover_arquivo').disabled=!x.caminho_storage;
-  document.getElementById('emanArquivoAtual').textContent=x.caminho_storage?'Arquivo atual: '+(x.arquivo_nome||'comprovante'):'Nenhum arquivo anexado.';
+  const qtd=(manutencaoArquivosCache[String(id)]||[]).length;document.getElementById('emanArquivoAtual').innerHTML=qtd?`${qtd} arquivo(s) anexado(s). <button type="button" class="filter-btn" onclick="abrirArquivosManutencao('${id}')">Gerenciar</button>`:'Nenhum arquivo anexado.';
   document.getElementById('emanErr').style.display='none';
   document.getElementById('manEditModal').style.display='flex';
 }
@@ -4942,22 +4980,14 @@ async function salvarEdicaoManutencao(){
   const payload={data_manutencao:document.getElementById('eman_data').value,item:document.getElementById('eman_item').value.trim(),descricao:document.getElementById('eman_descricao').value.trim(),fornecedor:document.getElementById('eman_fornecedor').value.trim()||null,valor:Math.max(0,Number(document.getElementById('eman_valor').value)||0),status:document.getElementById('eman_status').value,proxima_data:document.getElementById('eman_proxima_data').value||null,observacoes:document.getElementById('eman_observacoes').value.trim()||null};
   const err=document.getElementById('emanErr');
   if(!payload.data_manutencao||!payload.item||!payload.descricao){err.textContent='Informe a data, o item e a descrição da manutenção.';err.style.display='block';return;}
-  const arquivo=document.getElementById('eman_arquivo').files[0]||null;
-  const remover=document.getElementById('eman_remover_arquivo').checked;
-  const validacao=dadosArquivoManutencao(arquivo);
+  const arquivos=Array.from(document.getElementById('eman_arquivo').files||[]);
+  const validacao=validarArquivosManutencao(arquivos);
   if(!validacao.ok){err.textContent=validacao.mensagem;err.style.display='block';return;}
   const btn=document.getElementById('emanSalvarBtn');btn.disabled=true;btn.textContent='Salvando…';
-  let novoCaminho=null;
-  if(arquivo){
-    novoCaminho=lojaAtual+'/'+manutencaoTipoAtual+'/'+Date.now()+'_'+Math.random().toString(36).slice(2,8)+'_'+nomeArquivoSeguro(arquivo.name);
-    const {error:erroUpload}=await sb.storage.from('manutencoes').upload(novoCaminho,arquivo,{contentType:validacao.tipo,upsert:false});
-    if(erroUpload){btn.disabled=false;btn.textContent='Salvar alterações';err.textContent='Não foi possível enviar o arquivo: '+erroUpload.message;err.style.display='block';return;}
-    payload.arquivo_nome=arquivo.name;payload.arquivo_tipo=validacao.tipo;payload.caminho_storage=novoCaminho;
-  }else if(remover){payload.arquivo_nome=null;payload.arquivo_tipo=null;payload.caminho_storage=null;}
   const {data,error}=await sb.from('manutencoes').update(payload).eq('id',atual.id).eq('loja',lojaAtual).select().single();
   btn.disabled=false;btn.textContent='Salvar alterações';
-  if(error){if(novoCaminho)await sb.storage.from('manutencoes').remove([novoCaminho]);err.textContent='Não foi possível salvar as alterações.';err.style.display='block';console.error(error);return;}
-  if(atual.caminho_storage&&(arquivo||remover)&&atual.caminho_storage!==novoCaminho)await sb.storage.from('manutencoes').remove([atual.caminho_storage]);
+  if(error){err.textContent='Não foi possível salvar as alterações.';err.style.display='block';console.error(error);return;}
+  try{if(arquivos.length)await enviarArquivosManutencao(atual.id,arquivos);}catch(e){err.textContent='Os dados foram salvos, mas um anexo falhou: '+e.message;err.style.display='block';btn.disabled=false;return;}
   manutencoesCache=manutencoesCache.map(x=>String(x.id)===String(atual.id)?data:x);
   fecharEdicaoManutencao();renderManutencoes();
 }
@@ -6625,6 +6655,7 @@ const CONTA_SEM_ID = '__sem_conta__';
 let fluxoContasCache = [];
 let fluxoContaAtivaId = CONTA_SEM_ID;
 let fluxoCache = [];
+let fluxoFiltroTipoPorConta = {};
 let fluxoExtratoAtual = [];
 let fluxoExtratoTodasContasAtual = []; // usado no Relatório único, que junta TODAS as contas, não só a aba aberta
 let fluxoDinheiroAtual = [];
@@ -6704,6 +6735,7 @@ function mudarSubAbaFluxo(aba){
   if(ehConta){
     fluxoContaAtivaId = aba;
     document.getElementById('fluxoContaAtivaTitulo').textContent = nomeDaContaFluxo(aba);
+    document.getElementById('fluxoFiltroTipoConta').value=fluxoFiltroTipoPorConta[String(aba)]||'todos';
     renderFluxoCaixa();
     carregarSaldoExtrato();
     atualizarUltimoDiaFluxo();
@@ -7591,6 +7623,8 @@ function filtrarDinheiroFluxo(){
   renderFluxoCaixa();
 }
 
+function alterarFiltroTipoFluxo(valor){fluxoFiltroTipoPorConta[String(fluxoContaAtivaId)]=valor||'todos';renderFluxoCaixa();}
+
 function renderFluxoCaixa(){
   const somenteExtrato = fluxoCache.filter(l=>{
     if(l.tipo==='Dinheiro') return false;
@@ -7667,6 +7701,9 @@ function renderFluxoCaixa(){
     if(l.tipo==='Dinheiro') return false;
     return fluxoContaAtivaId === CONTA_SEM_ID ? !l.conta_id : l.conta_id === fluxoContaAtivaId;
   });
+  const filtroTipoConta=fluxoFiltroTipoPorConta[String(fluxoContaAtivaId)]||'todos';
+  if(filtroTipoConta==='entrada')extrato=extrato.filter(l=>Number(l.valor)>0);
+  else if(filtroTipoConta==='saida')extrato=extrato.filter(l=>Number(l.valor)<0);
   const buscaExtrato = (document.getElementById('fluxoExtratoBusca').value || '').trim().toLowerCase();
   if(buscaExtrato){
     extrato = extrato.filter(l=>{
@@ -7680,7 +7717,7 @@ function renderFluxoCaixa(){
   if(extrato.length===0){
     bodyExtrato.innerHTML = '';
     emptyExtrato.style.display = 'block';
-    emptyExtrato.textContent = buscaExtrato ? 'Nenhum lançamento encontrado para essa busca.' : 'Nenhum lançamento do extrato importado ainda.';
+    emptyExtrato.textContent = (buscaExtrato||filtroTipoConta!=='todos') ? 'Nenhum lançamento encontrado para o filtro selecionado.' : 'Nenhum lançamento do extrato importado ainda.';
   }else{
     emptyExtrato.style.display = 'none';
     bodyExtrato.innerHTML = extrato.map(l=>`
@@ -13230,12 +13267,14 @@ async function aplicarSessao(session, opts){
     document.getElementById('app').classList.add('on');
     document.getElementById('loadingScreen').style.display = 'none';
     await abrirModuloInicialDaJanela();
-    if(!EH_JANELA_MODULO){agendarPopupAniversario();agendarPopupAgenda();}
+    if(!EH_JANELA_MODULO)agendarCentralNotificacoes();
   }else{
     clearTimeout(timerPopupAniversario);
     clearTimeout(timerPopupAgenda);
+    clearTimeout(timerCentralNotificacoes);
     fecharPopupAniversario();
     fecharPopupAgenda();
+    fecharCentralNotificacoes();
     document.getElementById('app').classList.remove('on');
     document.getElementById('loginScreen').style.display = 'flex';
     document.getElementById('loadingScreen').style.display = 'none';

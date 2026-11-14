@@ -1,0 +1,11 @@
+RANCHÃO BEBIDAS — VERSÃO 1.2.62
+
+1. Execute ATUALIZACAO_MANUTENCAO_NOTIFICACOES_1.2.62.sql no SQL Editor do Supabase.
+2. Copie todos os arquivos desta pasta para o repositório, substituindo os anteriores.
+3. Publique a versão 1.2.62 pelo workflow habitual.
+
+NOVIDADES
+- Filtro de entradas e saídas em cada banco do Fluxo de Caixa.
+- Vários comprovantes por manutenção, com visualização, substituição e exclusão individual.
+- Lembretes de próxima manutenção a partir de sete dias antes e enquanto estiver atrasada.
+- Central lateral de notificações com agenda, aniversários e manutenções.
