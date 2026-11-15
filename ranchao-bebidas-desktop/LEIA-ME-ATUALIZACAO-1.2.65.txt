@@ -1,0 +1,16 @@
+RANCHÃO BEBIDAS — VERSÃO 1.2.65
+
+1. Copie todos os arquivos desta pasta para o repositório, substituindo os anteriores.
+2. Publique a versão 1.2.65 pelo workflow habitual.
+
+NOVIDADES EM VENDAS COM CUSTO
+- Gráfico de desempenho diário do faturamento.
+- Destaques do dia com maior faturamento, maior lucro e melhor margem.
+- Média de faturamento por dia com vendas.
+- Análise por dia da semana.
+- Calendário de calor com dias sem importação identificados.
+- Clique em um dia para ver produtos, categorias, lucro e margem.
+- Comparação entre duas datas com variação de vendas, lucro e margem.
+- Exportações continuam disponíveis para as novas visões.
+
+Não é necessário executar novo SQL nesta versão.
