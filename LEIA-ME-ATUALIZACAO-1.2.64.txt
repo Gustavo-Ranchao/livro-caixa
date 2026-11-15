@@ -1,0 +1,16 @@
+RANCHÃO BEBIDAS — VERSÃO 1.2.64
+
+1. Copie todos os arquivos desta pasta para o repositório, substituindo os anteriores.
+2. Publique a versão 1.2.64 pelo workflow habitual.
+
+NOVIDADES EM VENDAS COM CUSTO
+- Central de análise gráfica em uma janela ampla.
+- Ranking de produtos e categorias por faturamento.
+- Ranking de produtos por lucro e por margem.
+- Período atual, mês específico, período personalizado ou todo o histórico.
+- Top 10, Top 20 ou todos.
+- Cards de faturamento, custo, lucro bruto e margem geral.
+- Gráfico interativo e tabela detalhada com participação nas vendas.
+- Exportação em imagem, Excel e PDF.
+
+Não é necessário executar novo SQL nesta versão.

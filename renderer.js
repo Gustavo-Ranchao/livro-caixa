@@ -5891,6 +5891,62 @@ function fecharHistoricoDelivery(){ document.getElementById('deliveryHistoricoMo
 
 let vendasCache = [];
 let vendasArquivosParsed = [];
+let vgaTipo='produto_vendas';
+let vgaDados=[];
+let vgaLinhas=[];
+let vgaPeriodoAtual='';
+let vgaMapaCanvas=[];
+
+const VGA_TITULOS={produto_vendas:'Produtos mais vendidos',categoria_vendas:'Categorias mais vendidas',produto_lucro:'Produtos com maior lucro',produto_margem:'Produtos com maior margem'};
+
+async function abrirAnaliseGraficaVendas(){
+  const mesOrigem=document.getElementById('vendasFiltroMes'),mes=document.getElementById('vgaMes');
+  mes.innerHTML=Array.from(mesOrigem.options).filter(o=>o.value!=='todos').map(o=>`<option value="${o.value}">${escapeHtml(o.textContent)}</option>`).join('');
+  const mesAtual=mesOrigem.value!=='todos'?mesOrigem.value:todayStr().slice(0,7);if(Array.from(mes.options).some(o=>o.value===mesAtual))mes.value=mesAtual;
+  document.getElementById('vgaPeriodoTipo').value='atual';document.getElementById('vgaLimite').value='10';vgaAlterarPeriodo();
+  document.getElementById('vendasGraficoModal').style.display='flex';await carregarAnaliseGraficaVendas();
+}
+function fecharAnaliseGraficaVendas(){document.getElementById('vendasGraficoModal').style.display='none';}
+function vgaAlterarPeriodo(){const tipo=document.getElementById('vgaPeriodoTipo').value;document.getElementById('vgaMesWrap').style.display=tipo==='mes'?'flex':'none';document.getElementById('vgaDeWrap').style.display=tipo==='personalizado'?'flex':'none';document.getElementById('vgaAteWrap').style.display=tipo==='personalizado'?'flex':'none';if(tipo==='personalizado'){document.getElementById('vgaDe').value=document.getElementById('vendasFiltroDe').value||todayStr();document.getElementById('vgaAte').value=document.getElementById('vendasFiltroAte').value||todayStr();}}
+function vgaIntervalo(){const tipo=document.getElementById('vgaPeriodoTipo').value;let de='',ate='',texto='Todo o histórico';if(tipo==='atual'){de=document.getElementById('vendasFiltroDe').value;ate=document.getElementById('vendasFiltroAte').value;texto=de||ate?`${de?fmtData(de):'início'} a ${ate?fmtData(ate):'hoje'}`:'Todo o histórico';}else if(tipo==='mes'){const m=document.getElementById('vgaMes').value;if(m){const [a,n]=m.split('-').map(Number);de=m+'-01';ate=m+'-'+String(new Date(a,n,0).getDate()).padStart(2,'0');texto=NOMES_MES[n-1]+' '+a;}}else if(tipo==='personalizado'){de=document.getElementById('vgaDe').value;ate=document.getElementById('vgaAte').value;texto=de&&ate?fmtData(de)+' a '+fmtData(ate):'Período personalizado';}return {de,ate,texto};}
+
+async function carregarAnaliseGraficaVendas(){
+  const periodo=vgaIntervalo();if(periodo.de&&periodo.ate&&periodo.de>periodo.ate){alert('A data inicial não pode ser maior que a data final.');return;}
+  const btn=document.getElementById('vgaAplicarBtn');btn.disabled=true;btn.textContent='Carregando…';
+  const resposta=await buscarTodasLinhas((from,to)=>{let q=sb.from('vendas_itens').select('produto,categoria,valor_venda,custo,data').eq('loja',lojaAtual);if(periodo.de)q=q.gte('data',periodo.de);if(periodo.ate)q=q.lte('data',periodo.ate);return q.order('data').range(from,to);});btn.disabled=false;btn.textContent='Aplicar';
+  if(resposta.error){alert('Não foi possível carregar a análise: '+resposta.error.message);return;}
+  vgaDados=resposta.data||[];vgaPeriodoAtual=periodo.texto;renderAnaliseGraficaVendas();
+}
+
+function selecionarTipoAnaliseVendas(tipo){vgaTipo=tipo;document.querySelectorAll('[data-vga-tipo]').forEach(b=>b.classList.toggle('active',b.dataset.vgaTipo===tipo));renderAnaliseGraficaVendas();}
+function vgaAgregar(chave){const mapa=new Map();vgaDados.forEach(v=>{const nome=String(chave==='categoria'?(v.categoria||'Sem categoria'):(v.produto||'Sem descrição'));if(!mapa.has(nome))mapa.set(nome,{nome,vendas:0,custo:0});const x=mapa.get(nome);x.vendas+=Number(v.valor_venda)||0;x.custo+=Number(v.custo)||0;});return Array.from(mapa.values()).map(x=>({...x,lucro:x.vendas-x.custo,margem:x.vendas>0?(x.vendas-x.custo)/x.vendas*100:0}));}
+function vgaValorGrafico(x){return vgaTipo==='produto_lucro'?x.lucro:vgaTipo==='produto_margem'?x.margem:x.vendas;}
+function vgaTextoValor(x){return vgaTipo==='produto_margem'?x.margem.toFixed(1).replace('.',',')+'%':brl(vgaValorGrafico(x));}
+
+function renderAnaliseGraficaVendas(){
+  const totalVendas=vgaDados.reduce((s,x)=>s+(Number(x.valor_venda)||0),0),totalCusto=vgaDados.reduce((s,x)=>s+(Number(x.custo)||0),0),lucro=totalVendas-totalCusto,margem=totalVendas>0?lucro/totalVendas*100:0;
+  document.getElementById('vgaTotalVendas').textContent=brl(totalVendas);document.getElementById('vgaTotalCusto').textContent=brl(totalCusto);document.getElementById('vgaTotalLucro').textContent=brl(lucro);document.getElementById('vgaMargem').textContent=margem.toFixed(1).replace('.',',')+'%';
+  const base=vgaAgregar(vgaTipo==='categoria_vendas'?'categoria':'produto').filter(x=>x.vendas>0);base.sort((a,b)=>vgaValorGrafico(b)-vgaValorGrafico(a)||b.vendas-a.vendas||a.nome.localeCompare(b.nome));
+  const limite=document.getElementById('vgaLimite').value;vgaLinhas=limite==='todos'?base:base.slice(0,Number(limite));vgaLinhas.forEach(x=>x.participacao=totalVendas>0?x.vendas/totalVendas*100:0);
+  const titulo=VGA_TITULOS[vgaTipo];document.getElementById('vgaTabelaTitulo').textContent=titulo;document.getElementById('vgaPeriodoTexto').textContent=vgaPeriodoAtual+' • '+(NOMES_LOJA[lojaAtual]||lojaAtual);
+  document.getElementById('vgaTabelaBody').innerHTML=vgaLinhas.length?vgaLinhas.map((x,i)=>`<tr id="vgaLinha${i}" onclick="vgaSelecionarLinha(${i})" style="cursor:pointer"><td>${i+1}</td><td><strong>${escapeHtml(x.nome)}</strong></td><td class="valor">${x.participacao.toFixed(1).replace('.',',')}%</td><td class="valor">${brl(x.vendas)}</td><td class="valor">${brl(x.custo)}</td><td class="valor" style="color:${x.lucro>=0?'var(--green)':'var(--rust)'}">${brl(x.lucro)}</td><td class="valor">${x.margem.toFixed(1).replace('.',',')}%</td></tr>`).join(''):'<tr><td colspan="7" style="text-align:center;padding:24px;color:var(--muted)">Nenhuma venda encontrada no período.</td></tr>';
+  desenharGraficoAnaliseVendas();
+}
+
+function arredondarRetanguloCanvas(ctx,x,y,w,h,r){const rr=Math.min(r,h/2,w/2);ctx.beginPath();ctx.moveTo(x+rr,y);ctx.arcTo(x+w,y,x+w,y+h,rr);ctx.arcTo(x+w,y+h,x,y+h,rr);ctx.arcTo(x,y+h,x,y,rr);ctx.arcTo(x,y,x+w,y,rr);ctx.closePath();}
+function desenharGraficoAnaliseVendas(){
+  const canvas=document.getElementById('vgaCanvas'),wrap=canvas.parentElement,dpr=Math.min(window.devicePixelRatio||1,2),w=Math.max(760,wrap.clientWidth-30),rowH=44,left=260,right=130,top=54,h=Math.max(190,top+vgaLinhas.length*rowH+24);canvas.style.height=h+'px';canvas.width=Math.round(w*dpr);canvas.height=Math.round(h*dpr);const ctx=canvas.getContext('2d');ctx.scale(dpr,dpr);ctx.fillStyle='#fff';ctx.fillRect(0,0,w,h);ctx.fillStyle='#17233c';ctx.font='700 16px IBM Plex Sans, Arial';ctx.fillText(VGA_TITULOS[vgaTipo],18,25);ctx.fillStyle='#64748b';ctx.font='12px IBM Plex Sans, Arial';ctx.fillText(vgaPeriodoAtual+' • '+(NOMES_LOJA[lojaAtual]||lojaAtual),18,44);vgaMapaCanvas=[];
+  if(!vgaLinhas.length){ctx.textAlign='center';ctx.fillText('Nenhum dado para exibir.',w/2,110);ctx.textAlign='left';return;}
+  const valores=vgaLinhas.map(v=>Math.max(0,vgaValorGrafico(v))),max=Math.max(...valores,1),barW=Math.max(180,w-left-right);vgaLinhas.forEach((x,i)=>{const y=top+i*rowH,bw=Math.max(2,barW*Math.max(0,vgaValorGrafico(x))/max);ctx.fillStyle=i%2?'#f8fafc':'#f1f5f9';ctx.fillRect(0,y-4,w,rowH);ctx.fillStyle='#334155';ctx.font='600 11px IBM Plex Sans, Arial';ctx.textAlign='right';const nome=x.nome.length>34?x.nome.slice(0,33)+'…':x.nome;ctx.fillText((i+1)+'. '+nome,left-12,y+20);const grad=ctx.createLinearGradient(left,0,left+barW,0);grad.addColorStop(0,'#2563eb');grad.addColorStop(1,vgaTipo==='produto_lucro'?'#16805f':'#60a5fa');ctx.fillStyle=grad;arredondarRetanguloCanvas(ctx,left,y+6,bw,22,6);ctx.fill();ctx.fillStyle='#17233c';ctx.font='700 11px IBM Plex Mono, monospace';ctx.textAlign='left';ctx.fillText(vgaTextoValor(x),Math.min(left+bw+8,w-right+10),y+21);vgaMapaCanvas.push({i,y:y-4,h:rowH});});ctx.textAlign='left';
+}
+function vgaSelecionarLinha(i){document.querySelectorAll('#vgaTabelaBody tr').forEach((r,n)=>r.classList.toggle('vga-linha-selecionada',n===i));document.getElementById('vgaLinha'+i)?.scrollIntoView({behavior:'smooth',block:'center'});}
+document.addEventListener('click',e=>{if(e.target?.id!=='vgaCanvas')return;const c=e.target,r=c.getBoundingClientRect(),y=(e.clientY-r.top)*(parseFloat(c.style.height)||c.height)/r.height,item=vgaMapaCanvas.find(x=>y>=x.y&&y<x.y+x.h);if(item)vgaSelecionarLinha(item.i);});
+
+function nomeArquivoVga(ext){return 'analise-vendas-'+vgaTipo+'-'+lojaAtual+'-'+todayStr()+'.'+ext;}
+function exportarImagemAnaliseVendas(){if(!vgaLinhas.length){alert('Não há dados para exportar.');return;}const a=document.createElement('a');a.download=nomeArquivoVga('png');a.href=document.getElementById('vgaCanvas').toDataURL('image/png');a.click();}
+function linhasExportacaoVga(){return vgaLinhas.map((x,i)=>({'Posição':i+1,'Produto / categoria':x.nome,'Participação (%)':Number(x.participacao.toFixed(2)),'Vendas':Number(x.vendas.toFixed(2)),'Custo':Number(x.custo.toFixed(2)),'Lucro':Number(x.lucro.toFixed(2)),'Margem (%)':Number(x.margem.toFixed(2))}));}
+function exportarExcelAnaliseVendas(){if(!vgaLinhas.length){alert('Não há dados para exportar.');return;}const ws=XLSX.utils.json_to_sheet(linhasExportacaoVga());ws['!cols']=[{wch:9},{wch:42},{wch:18},{wch:15},{wch:15},{wch:15},{wch:15}];for(let r=2;r<=vgaLinhas.length+1;r++){['D','E','F'].forEach(c=>{if(ws[c+r])ws[c+r].z='R$ #,##0.00';});['C','G'].forEach(c=>{if(ws[c+r])ws[c+r].z='0.00';});}const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'Análise de vendas');XLSX.writeFile(wb,nomeArquivoVga('xlsx'));}
+function exportarPdfAnaliseVendas(){if(!vgaLinhas.length){alert('Não há dados para exportar.');return;}const doc=new window.jspdf.jsPDF({orientation:'landscape',unit:'mm',format:'a4'});doc.setFont('helvetica','bold');doc.setFontSize(16);doc.text(VGA_TITULOS[vgaTipo],14,15);doc.setFont('helvetica','normal');doc.setFontSize(9);doc.setTextColor(100);doc.text(vgaPeriodoAtual+' • '+(NOMES_LOJA[lojaAtual]||lojaAtual),14,21);const img=document.getElementById('vgaCanvas').toDataURL('image/png');const proporcao=document.getElementById('vgaCanvas').height/document.getElementById('vgaCanvas').width,iw=269,ih=Math.min(92,iw*proporcao);doc.addImage(img,'PNG',14,27,iw,ih);doc.autoTable({startY:31+ih,head:[['#','Produto / categoria','Participação','Vendas','Custo','Lucro','Margem']],body:vgaLinhas.map((x,i)=>[i+1,x.nome,x.participacao.toFixed(1).replace('.',',')+'%',brl(x.vendas),brl(x.custo),brl(x.lucro),x.margem.toFixed(1).replace('.',',')+'%']),styles:{fontSize:7.5,cellPadding:2},headStyles:{fillColor:[30,58,102]},columnStyles:{2:{halign:'right'},3:{halign:'right'},4:{halign:'right'},5:{halign:'right'},6:{halign:'right'}}});doc.save(nomeArquivoVga('pdf'));}
 
 async function confirmarApagarTudoHoras(){
   if(!bhFuncionarioAtualId){
