@@ -134,7 +134,7 @@
   .lista-lojas-popup button:hover{background:var(--paper2);}
   .lista-lojas-popup .codigo{font-family:var(--font-mono);font-weight:700;color:var(--gold);}
 
-  .perfil{position:relative;margin-left:auto;flex-shrink:0;}
+  .perfil{position:relative;margin-left:auto;flex-shrink:0;display:flex;align-items:center;gap:2px;}
   .perfil-bar{display:flex;align-items:center;gap:10px;background:none;border:none;padding:7px 8px;cursor:pointer;border-radius:8px;transition:background .15s;}
   .perfil-bar:hover{background:#fff;}
   .avatar-circle{flex-shrink:0;display:flex;align-items:center;justify-content:center;width:32px;height:32px;border-radius:50%;background:var(--ink);color:var(--paper);font-family:var(--font-voice);font-weight:600;font-size:13px;}
@@ -638,13 +638,17 @@
   .aniv-popup-nome{font-size:22px;font-weight:800;color:var(--ink);margin-bottom:7px;}
   .aniv-popup-detalhes{font-size:13px;color:var(--muted);line-height:1.65;}
   .aniv-popup-contagem{display:inline-flex;margin-top:15px;padding:7px 12px;border-radius:999px;background:#eaf2ff;color:#1e4f91;font-size:12px;font-weight:800;}
-  .notificacao-btn{position:relative;width:40px;height:40px;border:1px solid #d7e1ee;border-radius:10px;background:#fff;color:#1e3a66;font-size:19px;cursor:pointer;margin-right:8px;}
-  .notificacao-contador{position:absolute;right:-5px;top:-6px;min-width:19px;height:19px;padding:0 4px;border-radius:999px;background:#c4374b;color:#fff;font:700 10px/19px var(--font-sans);display:none;}
+  .notificacao-btn{position:relative;display:flex;align-items:center;justify-content:center;width:34px;height:34px;border:0;border-radius:50%;background:transparent;color:#fff;font-size:18px;line-height:1;cursor:pointer;padding:0;transition:background .15s,transform .15s;}
+  .notificacao-btn:hover{background:rgba(255,255,255,.12);transform:translateY(-1px);}
+  .notificacao-btn:focus-visible{outline:2px solid #93c5fd;outline-offset:2px;}
+  .notificacao-contador{position:absolute;right:-3px;top:-4px;min-width:17px;height:17px;padding:0 4px;border:2px solid #20365e;border-radius:999px;background:#dc3545;color:#fff;font:700 9px/13px var(--font-sans);box-sizing:border-box;display:none;}
   .notificacao-overlay{position:fixed;inset:0;background:rgba(15,23,42,.18);z-index:1498;display:none;}
   .notificacao-painel{position:fixed;right:0;top:0;bottom:0;width:min(430px,92vw);background:#f8fafc;z-index:1499;box-shadow:-18px 0 50px rgba(15,23,42,.2);transform:translateX(105%);transition:transform .25s ease;display:flex;flex-direction:column;}
   .notificacao-painel.aberto{transform:translateX(0);}.notificacao-overlay.aberto{display:block;}
   .notificacao-cabecalho{display:flex;align-items:center;gap:12px;padding:20px;border-bottom:1px solid #d7e1ee;background:#1e3a66;color:#fff;}.notificacao-cabecalho h2{margin:0;flex:1;color:#fff;font-size:18px;}.notificacao-fechar{border:1px solid rgba(255,255,255,.35);background:transparent;color:#fff;border-radius:50%;width:34px;height:34px;font-size:19px;cursor:pointer;}
   .notificacao-lista{padding:16px;overflow:auto;display:flex;flex-direction:column;gap:10px;}.notificacao-item{border:1px solid #d7e1ee;border-left:4px solid #2b6cb0;border-radius:10px;background:#fff;padding:13px 14px;cursor:pointer;text-align:left;color:var(--ink);}.notificacao-item.atrasado{border-left-color:var(--rust);}.notificacao-item strong{display:block;margin-bottom:5px;}.notificacao-item span{font-size:12px;color:var(--muted);line-height:1.5;}.notificacao-vazio{text-align:center;color:var(--muted);padding:42px 20px;}
+  .vga-modal{width:min(1180px,96vw);max-width:1180px;height:min(880px,94vh);display:flex;flex-direction:column;padding:0;overflow:hidden;}
+  .vga-head{display:flex;align-items:center;gap:12px;padding:18px 22px;background:linear-gradient(135deg,#17233c,#264677);color:#fff;}.vga-head h2{color:#fff;margin:0;flex:1;font-size:20px;}.vga-head p{margin:3px 0 0;color:#dbeafe;font-size:12px;}.vga-body{padding:18px 20px 24px;overflow:auto;}.vga-filtros{display:flex;align-items:flex-end;gap:10px;flex-wrap:wrap;background:#fff;border:1px solid var(--paper3);border-radius:10px;padding:13px 14px;margin-bottom:14px;}.vga-filtro{display:flex;flex-direction:column;gap:5px;}.vga-filtro label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);}.vga-filtro input,.vga-filtro select{height:38px;border:1px solid var(--line);border-radius:7px;background:#fff;padding:7px 9px;color:var(--ink);}.vga-metricas{display:grid;grid-template-columns:repeat(4,minmax(150px,1fr));gap:10px;margin-bottom:14px;}.vga-card{background:#fff;border:1px solid var(--paper3);border-radius:10px;padding:12px 14px;}.vga-card span{display:block;color:var(--muted);font-size:10px;text-transform:uppercase;letter-spacing:.05em;margin-bottom:5px;}.vga-card strong{font-family:var(--font-mono);font-size:18px;}.vga-tipos{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:12px;}.vga-tipo{border:1px solid var(--line);border-radius:8px;background:#fff;color:var(--muted);padding:9px 12px;font-weight:600;cursor:pointer;}.vga-tipo.active{background:#1e3a66;color:#fff;border-color:#1e3a66;}.vga-grafico-wrap{background:#fff;border:1px solid var(--paper3);border-radius:11px;padding:14px;overflow-x:auto;margin-bottom:14px;}.vga-grafico-wrap canvas{display:block;width:100%;min-width:760px;}.vga-linha-selecionada{background:#eaf2ff!important;box-shadow:inset 4px 0 #2563eb;}@media(max-width:760px){.vga-metricas{grid-template-columns:1fr 1fr}.vga-modal{height:96vh;width:98vw}.vga-body{padding:12px}.vga-filtro{flex:1 1 130px}}
 
   /* ---------- Aproveitamento de tela em computadores ---------- */
   @media (min-width:1100px){
@@ -2028,6 +2032,7 @@
         <div class="panel-head">
           <h2>Por categoria</h2>
           <div class="filters">
+            <button class="filter-btn foto-btn" onclick="abrirAnaliseGraficaVendas()" title="Abrir análise gráfica">📊 Análise gráfica</button>
             <button class="filter-btn foto-btn" onclick="exportarExcelVendasCategoria()" title="Baixar como Excel">📊 Excel</button>
             <button class="filter-btn foto-btn" onclick="exportarPdfVendasCategoria()" title="Baixar como PDF">📄 PDF</button>
           </div>
@@ -3202,6 +3207,27 @@
     <div class="modal-actions" style="margin-top:14px;">
       <button class="addbtn" style="background:var(--rust);" onclick="confirmarApagarTudoVendasOk()">Apagar tudo</button>
       <button class="cancelbtn" onclick="fecharApagarVendasModal()">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<div id="vendasGraficoModal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="vgaTitulo">
+  <div class="modal-box vga-modal">
+    <div class="vga-head"><div><h2 id="vgaTitulo">📊 Análise gráfica de vendas</h2><p id="vgaSubtitulo">Os rankings de mais vendidos consideram o valor faturado no período.</p></div><button class="notificacao-fechar" onclick="fecharAnaliseGraficaVendas()" aria-label="Fechar">×</button></div>
+    <div class="vga-body">
+      <div class="vga-filtros">
+        <div class="vga-filtro"><label>Período</label><select id="vgaPeriodoTipo" onchange="vgaAlterarPeriodo()"><option value="atual">Período selecionado na tela</option><option value="mes">Mês específico</option><option value="personalizado">Período personalizado</option><option value="todos">Todo o histórico</option></select></div>
+        <div class="vga-filtro" id="vgaMesWrap" style="display:none"><label>Mês</label><select id="vgaMes"></select></div>
+        <div class="vga-filtro" id="vgaDeWrap" style="display:none"><label>De</label><input id="vgaDe" type="date"></div>
+        <div class="vga-filtro" id="vgaAteWrap" style="display:none"><label>Até</label><input id="vgaAte" type="date"></div>
+        <div class="vga-filtro"><label>Exibir</label><select id="vgaLimite"><option value="10">Top 10</option><option value="20">Top 20</option><option value="todos">Todos</option></select></div>
+        <button class="addbtn" id="vgaAplicarBtn" style="width:auto;height:38px" onclick="carregarAnaliseGraficaVendas()">Aplicar</button>
+        <div style="display:flex;gap:7px;margin-left:auto;flex-wrap:wrap"><button class="filter-btn" onclick="exportarImagemAnaliseVendas()">🖼️ Imagem</button><button class="filter-btn" onclick="exportarExcelAnaliseVendas()">📊 Excel</button><button class="filter-btn" onclick="exportarPdfAnaliseVendas()">📄 PDF</button></div>
+      </div>
+      <div class="vga-metricas"><div class="vga-card"><span>Faturamento</span><strong id="vgaTotalVendas">R$ 0,00</strong></div><div class="vga-card"><span>Custo</span><strong id="vgaTotalCusto">R$ 0,00</strong></div><div class="vga-card"><span>Lucro bruto</span><strong id="vgaTotalLucro" style="color:var(--green)">R$ 0,00</strong></div><div class="vga-card"><span>Margem geral</span><strong id="vgaMargem">0,0%</strong></div></div>
+      <div class="vga-tipos"><button class="vga-tipo active" data-vga-tipo="produto_vendas" onclick="selecionarTipoAnaliseVendas('produto_vendas')">Produtos mais vendidos</button><button class="vga-tipo" data-vga-tipo="categoria_vendas" onclick="selecionarTipoAnaliseVendas('categoria_vendas')">Categorias mais vendidas</button><button class="vga-tipo" data-vga-tipo="produto_lucro" onclick="selecionarTipoAnaliseVendas('produto_lucro')">Maior lucro</button><button class="vga-tipo" data-vga-tipo="produto_margem" onclick="selecionarTipoAnaliseVendas('produto_margem')">Maior margem</button></div>
+      <div class="vga-grafico-wrap"><canvas id="vgaCanvas" height="500"></canvas></div>
+      <div class="panel" style="margin:0"><div class="panel-head"><h2 id="vgaTabelaTitulo">Produtos mais vendidos</h2><span id="vgaPeriodoTexto" style="font-size:12px;color:var(--muted)">—</span></div><div class="tablewrap"><table class="ledger"><thead><tr><th>#</th><th>Produto / categoria</th><th style="text-align:right">Participação</th><th style="text-align:right">Vendas</th><th style="text-align:right">Custo</th><th style="text-align:right">Lucro</th><th style="text-align:right">Margem</th></tr></thead><tbody id="vgaTabelaBody"></tbody></table></div></div>
     </div>
   </div>
 </div>
