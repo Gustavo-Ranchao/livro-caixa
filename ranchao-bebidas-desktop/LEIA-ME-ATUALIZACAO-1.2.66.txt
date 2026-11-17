@@ -1,0 +1,14 @@
+RANCHÃO BEBIDAS — ATUALIZAÇÃO 1.2.66
+
+1. No Supabase, abra SQL Editor e execute ATUALIZACAO_VENDAS_1.2.66.sql uma única vez.
+2. Substitua os arquivos do projeto pelos arquivos desta pasta.
+3. Execute GERAR-INSTALADOR.bat para gerar o instalador.
+
+ALTERAÇÕES
+- Todos os produtos são carregados por paginação, sem o limite de 1.000 registros.
+- Produtos ativos da última importação aparecem mesmo com estoque ou preço zerado.
+- Pesquisa por código, descrição e categoria, ignorando acentos e maiúsculas.
+- Preço aplicado pode ser alterado apenas naquela venda.
+- Itens podem ser editados antes de salvar: produto, quantidade e preço.
+- Taxa de entrega separada, incluída no total, PDF e Excel.
+- A taxa de entrega não altera estoque, custo ou margem dos produtos.
