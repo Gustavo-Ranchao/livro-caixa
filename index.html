@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="referrer" content="strict-origin-when-cross-origin">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'self'; object-src 'none'; form-action 'self'; frame-ancestors 'none'; frame-src 'self' blob: https://qgpkswienjhfkbipiwio.supabase.co; script-src 'self'; script-src-elem 'self'; script-src-attr 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob: https://qgpkswienjhfkbipiwio.supabase.co; connect-src 'self' https://qgpkswienjhfkbipiwio.supabase.co wss://qgpkswienjhfkbipiwio.supabase.co https://brasilapi.com.br; worker-src 'self' blob:; manifest-src 'self'; upgrade-insecure-requests">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'self'; object-src 'none'; form-action 'self'; frame-ancestors 'none'; frame-src 'self' blob: https://qgpkswienjhfkbipiwio.supabase.co; script-src 'self'; script-src-elem 'self'; script-src-attr 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob: https://qgpkswienjhfkbipiwio.supabase.co https://tile.openstreetmap.org; connect-src 'self' https://qgpkswienjhfkbipiwio.supabase.co wss://qgpkswienjhfkbipiwio.supabase.co https://brasilapi.com.br https://nominatim.openstreetmap.org; worker-src 'self' blob:; manifest-src 'self'; upgrade-insecure-requests">
 <title>Ranchão Bebidas</title>
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#17233c">
@@ -307,7 +307,22 @@
   .delivery-historico-cabecalho{display:grid;grid-template-columns:repeat(4,minmax(120px,1fr));gap:10px;margin:14px 0 18px;}
   .delivery-historico-cabecalho div{padding:10px 12px;background:var(--paper);border:1px solid var(--paper3);border-radius:8px;}
   .delivery-historico-cabecalho span{display:block;font-size:10px;text-transform:uppercase;color:var(--muted);margin-bottom:3px;}
+  .delivery-mapa-grid{display:grid;grid-template-columns:minmax(0,1.7fr) minmax(310px,.8fr);gap:16px;align-items:start;}
+  .delivery-mapa{height:520px;position:relative;overflow:hidden;border:1px solid var(--paper3);border-radius:10px;background:#dce8ef;}
+  .delivery-mapa-tile{position:absolute;width:256px;height:256px;user-select:none;-webkit-user-drag:none;}
+  .delivery-mapa-bolha{position:absolute;transform:translate(-50%,-50%);border:3px solid #fff;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;background:#1d4ed8;box-shadow:0 2px 8px rgba(15,23,42,.35);font-size:11px;font-weight:800;cursor:pointer;z-index:5;}
+  .delivery-mapa-bolha:hover{background:#0f2e67;z-index:6;}
+  .delivery-mapa-controles{position:absolute;left:10px;top:10px;z-index:10;display:grid;gap:4px;}
+  .delivery-mapa-controles button{width:34px;height:34px;border:1px solid #cbd5e1;background:#fff;border-radius:6px;font-size:19px;cursor:pointer;box-shadow:0 1px 4px rgba(15,23,42,.18);}
+  .delivery-mapa-credito{position:absolute;right:4px;bottom:3px;z-index:10;background:rgba(255,255,255,.88);padding:2px 5px;border-radius:3px;font-size:9px;color:#334155;}
+  .delivery-mapa-credito a{color:#1d4ed8;}
+  .delivery-bairro-lista{max-height:520px;overflow:auto;border:1px solid var(--paper3);border-radius:10px;background:#fff;}
+  .delivery-bairro-item{padding:12px 14px;border-bottom:1px solid var(--paper3);}
+  .delivery-bairro-item:last-child{border-bottom:0;}.delivery-bairro-item strong{display:block;margin-bottom:5px;}.delivery-bairro-meta{font-size:11px;color:var(--muted);display:flex;gap:10px;flex-wrap:wrap;}
+  .delivery-mapa-resumo{display:grid;grid-template-columns:repeat(4,minmax(120px,1fr));gap:10px;margin:14px 0;}.delivery-mapa-resumo>div{padding:11px 13px;border:1px solid var(--paper3);border-radius:8px;background:var(--paper);}.delivery-mapa-resumo span{display:block;font-size:9px;text-transform:uppercase;color:var(--muted);margin-bottom:4px;}.delivery-mapa-resumo strong{font-family:var(--font-mono);font-size:16px;}
+  .delivery-revisao-linha{display:grid;grid-template-columns:minmax(180px,1fr) minmax(160px,240px) 90px;gap:8px;align-items:center;padding:9px 0;border-top:1px solid var(--paper3);font-size:12px;}.delivery-revisao-linha input{width:100%;padding:8px 9px;border:1px solid var(--line);border-radius:6px;}
   @media(max-width:760px){.delivery-import-resumo{grid-template-columns:repeat(2,1fr)}.delivery-historico-cabecalho{grid-template-columns:repeat(2,1fr)}}
+  @media(max-width:900px){.delivery-mapa-grid{grid-template-columns:1fr}.delivery-mapa{height:440px}.delivery-mapa-resumo{grid-template-columns:repeat(2,1fr)}}
   .comp-upload:hover, .comp-upload.arrastando{border-color:var(--gold);color:var(--gold);background:#fbf3e0;}
   .comp-upload input{display:none;}
   .comp-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:16px;}
@@ -2222,6 +2237,7 @@
         <div class="panel-head">
           <div><h2>Ranking de clientes delivery</h2><p style="font-size:12px;color:var(--muted);margin-top:4px;">Clique em um cliente para consultar todo o histórico.</p></div>
           <div class="filters">
+            <button class="filter-btn foto-btn" onclick="abrirMapaDelivery()" title="Mapa e ranking dos bairros atendidos">🗺️ Mapa de entregas</button>
             <button class="filter-btn foto-btn" onclick="exportarExcelDelivery()" title="Exportar resumo, ranking e vendas detalhadas">📊 Excel</button>
             <button class="filter-btn foto-btn" onclick="exportarPdfDelivery()" title="Exportar resumo e ranking">📄 PDF</button>
           </div>
@@ -3555,6 +3571,32 @@
       </table>
     </div>
     <div class="modal-actions"><button class="cancelbtn" onclick="fecharHistoricoDelivery()">Fechar</button></div>
+  </div>
+</div>
+
+<div id="deliveryMapaModal" class="modal-overlay">
+  <div class="modal-box" style="max-width:1280px;width:min(96vw,1280px);">
+    <button class="modal-close" onclick="fecharMapaDelivery()">✕</button>
+    <div class="panel-head" style="padding-right:36px;">
+      <div><h2 id="deliveryMapaTitulo">Mapa de entregas</h2><p class="modal-sub" id="deliveryMapaPeriodo" style="margin:4px 0 0;">—</p></div>
+      <div class="filters"><button class="filter-btn" id="deliveryLocalizarBtn" onclick="localizarEnderecosDelivery()">📍 Localizar ruas pendentes</button></div>
+    </div>
+    <div class="delivery-mapa-resumo">
+      <div><span>Bairros atendidos</span><strong id="deliveryMapaBairros">0</strong></div>
+      <div><span>Entregas localizadas</span><strong id="deliveryMapaLocalizadas">0</strong></div>
+      <div><span>Endereços aproximados</span><strong id="deliveryMapaAproximados">0</strong></div>
+      <div><span>Pendentes de revisão</span><strong id="deliveryMapaPendentes">0</strong></div>
+    </div>
+    <div class="delivery-mapa-grid">
+      <div id="deliveryMapaCanvas" class="delivery-mapa"><div class="delivery-mapa-controles"><button onclick="zoomMapaDelivery(1)" title="Aproximar">+</button><button onclick="zoomMapaDelivery(-1)" title="Afastar">−</button></div><div class="delivery-mapa-credito">© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors</div></div>
+      <div><h3 style="font-size:14px;margin:0 0 8px;">Ranking por bairro</h3><div id="deliveryBairrosLista" class="delivery-bairro-lista"></div></div>
+    </div>
+    <div class="panel" style="margin-top:16px;padding:16px 18px;">
+      <div class="panel-head"><div><h3 style="font-size:14px;">Endereços para revisar</h3><p class="modal-sub" style="margin:3px 0 0;">Corrija somente quando souber o bairro. A localização é aproximada quando a planilha não informa o número.</p></div></div>
+      <div id="deliveryRevisaoLista"></div>
+      <div id="deliveryRevisaoEmpty" class="empty">Nenhum endereço pendente.</div>
+    </div>
+    <div class="modal-actions" style="margin-top:16px;"><button class="cancelbtn" onclick="fecharMapaDelivery()">Fechar</button></div>
   </div>
 </div>
 

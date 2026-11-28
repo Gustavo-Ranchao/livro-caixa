@@ -470,7 +470,7 @@ const BACKUP_TABELAS = [
   'configuracoes','recibos_configuracoes','bh_funcionarios','compras_empresas','compras_marcas','fornecedores','compras_produtos',
   'pagamentos','pagamentos_caixa_tipos','despesas_fixas','despesas_fixas_puladas','lancamentos','comprovantes','fluxo_caixa_contas',
   'fluxo_caixa_saldos','fluxo_caixa_lancamentos','caixa_diferencas','checklist_itens','checklist_execucoes','bh_registros',
-  'bh_atestados','vendas_delivery','vendas_itens','metas_vendas_config','metas_vendas_dias','controle_estoque_mensal','estoque_inventarios','contagens_estoque',
+  'bh_atestados','vendas_delivery','delivery_localizacoes','vendas_itens','metas_vendas_config','metas_vendas_dias','controle_estoque_mensal','estoque_inventarios','contagens_estoque',
   'contagens_estoque_itens','comb_pag_compras','comb_pag_pagamentos','pagamentos_caixa','pagamentos_caixa_memoria',
   'recibos','contracheques','orcamentos','tabela_precos','tabela_precos_categorias','produtos_estoque','produtos_importacoes','clientes_vendas','vendas_produtos','vendas_produtos_itens','vendas_produtos_sequencias','agenda_lembretes','duvidas','manutencoes','manutencoes_arquivos','leituras_comprovantes','ocorrencias_entregas','ocorrencias_entregas_itens','historico_alteracoes'
 ];
@@ -5458,6 +5458,7 @@ async function onSelecionarArquivosDelivery(fileList){
         const idxNome = indice('NOME');
         const idxData = indice('DATA');
         const idxEndereco = indice('ENDERECO');
+        const idxBairro = indice('BAIRRO');
         const idxTelefone = indice('TELEFONE');
         const idxOrigem = indice('ORIGEM');
         const idxEntrega = indice('TIPO ENTREGA');
@@ -5479,6 +5480,7 @@ async function onSelecionarArquivosDelivery(fileList){
             nome:idxNome>=0 ? textoDelivery(linha[idxNome],300) || null : null,
             data_venda:dataVenda,
             endereco:idxEndereco>=0 ? textoDelivery(linha[idxEndereco],1000) || null : null,
+            bairro:idxBairro>=0 ? textoDelivery(linha[idxBairro],180) || null : null,
             telefone_original:telefone.original || null,
             telefone_normalizado:telefone.normalizado,
             telefone_valido:telefone.valido,
@@ -5971,6 +5973,155 @@ function abrirHistoricoDelivery(chave){
 }
 
 function fecharHistoricoDelivery(){ document.getElementById('deliveryHistoricoModal').style.display='none'; }
+
+let deliveryLocalizacoes=new Map();
+let deliveryMapaPontos=[];
+let deliveryMapaPendencias=[];
+let deliveryMapaZoom=13;
+
+const DELIVERY_CIDADES={
+  loja1:{nome:'Curvelo',uf:'MG',lat:-18.75583,lon:-44.43083},
+  loja2:{nome:'Inimutaba',uf:'MG',lat:-18.728999,lon:-44.361000}
+};
+
+function enderecoChaveDelivery(endereco){
+  return normalizarCabecalhoDelivery(endereco).replace(/^(ENDERECO|RUA|AVENIDA|AV|TRAVESSA|TRAV)\s*:\s*/,'').replace(/\s+/g,' ').trim();
+}
+
+function enderecoConsultaDelivery(endereco){
+  return String(endereco||'').replace(/^(ENDEREÇO|ENDERECO|RUA)\s*:\s*/i,'').replace(/\s+/g,' ').trim();
+}
+
+function coordenadaValidaDelivery(valor){return valor!==null&&valor!==undefined&&valor!==''&&Number.isFinite(Number(valor));}
+
+async function carregarLocalizacoesDelivery(){
+  const {data,error}=await buscarTodasLinhas((from,to)=>sb.from('delivery_localizacoes').select('*').eq('loja',lojaAtual).range(from,to));
+  if(error){
+    if(String(error.message||'').toLowerCase().includes('delivery_localizacoes')) throw new Error('Execute o SQL ATUALIZACAO_MAPA_DELIVERY_1.2.71.sql no Supabase.');
+    throw error;
+  }
+  deliveryLocalizacoes=new Map((data||[]).map(item=>[item.endereco_chave,item]));
+}
+
+async function abrirMapaDelivery(){
+  document.getElementById('deliveryMapaModal').style.display='flex';
+  const cidade=DELIVERY_CIDADES[lojaAtual]||DELIVERY_CIDADES.loja1;
+  document.getElementById('deliveryMapaTitulo').textContent='Mapa de entregas — '+cidade.nome+' - '+cidade.uf;
+  document.getElementById('deliveryMapaPeriodo').textContent='Período: '+periodoRelatorioDelivery(vendasDeliveryDoPeriodo())+' · cada círculo representa um bairro atendido.';
+  try{await carregarLocalizacoesDelivery();renderMapaDelivery();}
+  catch(erro){fecharMapaDelivery();alert(erro.message||erro);}
+}
+
+function fecharMapaDelivery(){document.getElementById('deliveryMapaModal').style.display='none';}
+
+function resumoGeograficoDelivery(){
+  const vendas=vendasDeliveryDoPeriodo();
+  const grupos=new Map();
+  const pendentes=new Map();
+  let localizadas=0,aproximadas=0;
+  vendas.forEach(v=>{
+    const chave=enderecoChaveDelivery(v.endereco);
+    if(!chave)return;
+    const loc=deliveryLocalizacoes.get(chave),bairroInformado=String(loc?.bairro||v.bairro||'').trim();
+    if(!bairroInformado||!coordenadaValidaDelivery(loc?.latitude)||!coordenadaValidaDelivery(loc?.longitude))if(!pendentes.has(chave))pendentes.set(chave,{chave,endereco:v.endereco||chave,bairroInformado,localizacao:loc||null});
+    if(!bairroInformado)return;
+    localizadas++;
+    if(loc?.precisao!=='exata')aproximadas++;
+    const bairro=bairroInformado;
+    const grupo=grupos.get(bairro)||{bairro,pedidos:0,total:0,clientes:new Set(),latitudes:[],longitudes:[]};
+    grupo.pedidos++;grupo.total+=Number(v.valor_venda)||0;
+    const cliente=chaveClienteDelivery(v);if(cliente)grupo.clientes.add(cliente);
+    if(coordenadaValidaDelivery(loc?.latitude)&&coordenadaValidaDelivery(loc?.longitude)){grupo.latitudes.push(Number(loc.latitude));grupo.longitudes.push(Number(loc.longitude));}
+    grupos.set(bairro,grupo);
+  });
+  const bairros=Array.from(grupos.values()).map(g=>({...g,clientesTotal:g.clientes.size,lat:g.latitudes.length?g.latitudes.reduce((s,n)=>s+n,0)/g.latitudes.length:null,lon:g.longitudes.length?g.longitudes.reduce((s,n)=>s+n,0)/g.longitudes.length:null})).sort((a,b)=>b.pedidos-a.pedidos||b.total-a.total);
+  return {vendas,bairros,pendentes:Array.from(pendentes.values()),localizadas,aproximadas};
+}
+
+function renderMapaDelivery(){
+  const resumo=resumoGeograficoDelivery();
+  deliveryMapaPontos=resumo.bairros.filter(b=>Number.isFinite(b.lat)&&Number.isFinite(b.lon));
+  deliveryMapaPendencias=resumo.pendentes;
+  document.getElementById('deliveryMapaBairros').textContent=resumo.bairros.length;
+  document.getElementById('deliveryMapaLocalizadas').textContent=resumo.localizadas;
+  document.getElementById('deliveryMapaAproximados').textContent=resumo.aproximadas;
+  document.getElementById('deliveryMapaPendentes').textContent=resumo.pendentes.length;
+  const lista=document.getElementById('deliveryBairrosLista');
+  lista.innerHTML=resumo.bairros.length?resumo.bairros.map((b,i)=>`<div class="delivery-bairro-item"><strong>${i+1}º ${escapeHtml(b.bairro)}</strong><div class="delivery-bairro-meta"><span>${b.pedidos} entrega(s)</span><span>${b.clientesTotal} cliente(s)</span><span>${brl(b.total)}</span></div></div>`).join(''):'<div class="empty">Localize ou revise os endereços para formar o ranking.</div>';
+  const revisao=document.getElementById('deliveryRevisaoLista');
+  revisao.innerHTML=resumo.pendentes.slice(0,100).map((p,i)=>`<div class="delivery-revisao-linha"><span>${escapeHtml(p.endereco)}</span><input id="deliveryBairroManual${i}" value="${escapeHtml(p.localizacao?.bairro||p.bairroInformado||'')}" placeholder="Informe o bairro"><button class="filter-btn" onclick="salvarBairroManualDelivery(${i})">Salvar</button></div>`).join('');
+  document.getElementById('deliveryRevisaoEmpty').style.display=resumo.pendentes.length?'none':'block';
+  desenharMapaDelivery();
+}
+
+function pixelMundoDelivery(lat,lon,zoom){
+  const escala=256*Math.pow(2,zoom),seno=Math.max(-.9999,Math.min(.9999,Math.sin(lat*Math.PI/180)));
+  return {x:(lon+180)/360*escala,y:(.5-Math.log((1+seno)/(1-seno))/(4*Math.PI))*escala};
+}
+
+function desenharMapaDelivery(){
+  const mapa=document.getElementById('deliveryMapaCanvas');if(!mapa||mapa.offsetWidth===0)return;
+  mapa.innerHTML='<div class="delivery-mapa-controles"><button onclick="zoomMapaDelivery(1)" title="Aproximar">+</button><button onclick="zoomMapaDelivery(-1)" title="Afastar">−</button></div><div class="delivery-mapa-credito">© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors</div>';
+  const cidade=DELIVERY_CIDADES[lojaAtual]||DELIVERY_CIDADES.loja1,centro=pixelMundoDelivery(cidade.lat,cidade.lon,deliveryMapaZoom);
+  const largura=mapa.clientWidth,altura=mapa.clientHeight,inicioX=centro.x-largura/2,inicioY=centro.y-altura/2;
+  const tx0=Math.floor(inicioX/256),tx1=Math.floor((inicioX+largura)/256),ty0=Math.floor(inicioY/256),ty1=Math.floor((inicioY+altura)/256),max=Math.pow(2,deliveryMapaZoom);
+  for(let y=ty0;y<=ty1;y++)for(let x=tx0;x<=tx1;x++){
+    if(y<0||y>=max)continue;const img=document.createElement('img');img.className='delivery-mapa-tile';img.alt='';img.draggable=false;img.src=`https://tile.openstreetmap.org/${deliveryMapaZoom}/${((x%max)+max)%max}/${y}.png`;img.style.left=(x*256-inicioX)+'px';img.style.top=(y*256-inicioY)+'px';mapa.appendChild(img);
+  }
+  const maior=Math.max(1,...deliveryMapaPontos.map(p=>p.pedidos));
+  deliveryMapaPontos.forEach(p=>{const pos=pixelMundoDelivery(p.lat,p.lon,deliveryMapaZoom),tam=32+Math.round(28*Math.sqrt(p.pedidos/maior));const bolha=document.createElement('button');bolha.type='button';bolha.className='delivery-mapa-bolha';bolha.style.left=(pos.x-inicioX)+'px';bolha.style.top=(pos.y-inicioY)+'px';bolha.style.width=tam+'px';bolha.style.height=tam+'px';bolha.textContent=String(p.pedidos);bolha.title=`${p.bairro}: ${p.pedidos} entrega(s), ${p.clientesTotal} cliente(s), ${brl(p.total)}`;mapa.appendChild(bolha);});
+}
+
+function zoomMapaDelivery(delta){deliveryMapaZoom=Math.max(11,Math.min(16,deliveryMapaZoom+delta));desenharMapaDelivery();}
+
+async function consultarLocalizacaoDelivery(consulta){
+  if(window.ranchaoDesktop?.geocodificarEndereco)return window.ranchaoDesktop.geocodificarEndereco(consulta);
+  const url='https://nominatim.openstreetmap.org/search?format=jsonv2&addressdetails=1&limit=1&countrycodes=br&accept-language=pt-BR&q='+encodeURIComponent(consulta);
+  const resposta=await fetch(url,{headers:{Accept:'application/json'}});if(!resposta.ok)return {ok:false,erro:'Serviço de localização indisponível.'};
+  const lista=await resposta.json();return {ok:true,resultado:Array.isArray(lista)&&lista.length?lista[0]:null};
+}
+
+function bairroResultadoDelivery(resultado){
+  const a=resultado?.address||{};return a.suburb||a.neighbourhood||a.quarter||a.city_district||'';
+}
+
+async function salvarLocalizacaoDelivery(registro){
+  const payload={...registro,loja:lojaAtual,updated_at:new Date().toISOString()};
+  const {data,error}=await sb.from('delivery_localizacoes').upsert(payload,{onConflict:'loja,endereco_chave'}).select().single();
+  if(error)throw error;deliveryLocalizacoes.set(data.endereco_chave,data);return data;
+}
+
+async function localizarEnderecosDelivery(){
+  const resumo=resumoGeograficoDelivery();
+  const faltantes=resumo.pendentes.filter(p=>!coordenadaValidaDelivery(p.localizacao?.latitude)||!coordenadaValidaDelivery(p.localizacao?.longitude)).slice(0,20);
+  if(!faltantes.length){alert(resumo.pendentes.length?'Os endereços restantes precisam de revisão manual.':'Todos os endereços do período já foram analisados.');return;}
+  const btn=document.getElementById('deliveryLocalizarBtn');btn.disabled=true;abrirProgresso('Localizando ruas…');
+  const cidade=DELIVERY_CIDADES[lojaAtual]||DELIVERY_CIDADES.loja1;let encontrados=0;
+  try{
+    for(let i=0;i<faltantes.length;i++){
+      const item=faltantes[i],consulta=`${enderecoConsultaDelivery(item.endereco)}, ${cidade.nome}, ${cidade.uf}, Brasil`;
+      const retorno=await consultarLocalizacaoDelivery(consulta);const r=retorno?.resultado||null;
+      if(r){const bairro=bairroResultadoDelivery(r)||item.bairroInformado||item.localizacao?.bairro||'',temNumero=/\d/.test(item.endereco||'');await salvarLocalizacaoDelivery({endereco_chave:item.chave,endereco_original:item.endereco,cidade:cidade.nome,bairro:bairro||null,latitude:Number(r.lat),longitude:Number(r.lon),precisao:temNumero?'exata':'aproximada',status:bairro?'localizado':'revisar',fonte:'OpenStreetMap'});if(bairro)encontrados++;}
+      else await salvarLocalizacaoDelivery({endereco_chave:item.chave,endereco_original:item.endereco,cidade:cidade.nome,bairro:null,latitude:null,longitude:null,precisao:'nao_localizado',status:'revisar',fonte:'OpenStreetMap'});
+      atualizarProgresso(((i+1)/faltantes.length)*100,'Localizando rua '+(i+1)+' de '+faltantes.length+'…');
+      if(i<faltantes.length-1)await new Promise(resolve=>setTimeout(resolve,1100));
+    }
+    fecharProgresso();renderMapaDelivery();alert(encontrados+' endereço(s) identificado(s).'+(resumo.pendentes.length>20?' Clique novamente para analisar o próximo grupo.':''));
+  }catch(erro){fecharProgresso();alert('Não foi possível concluir a localização: '+(erro.message||erro));}
+  finally{btn.disabled=false;}
+}
+
+async function salvarBairroManualDelivery(indice){
+  const item=deliveryMapaPendencias[indice],input=document.getElementById('deliveryBairroManual'+indice);if(!item||!input)return;
+  const bairro=input.value.trim();if(!bairro){input.focus();return;}
+  const cidade=DELIVERY_CIDADES[lojaAtual]||DELIVERY_CIDADES.loja1,anterior=item.localizacao||{};
+  try{
+    let latitude=anterior.latitude??null,longitude=anterior.longitude??null;
+    if(!coordenadaValidaDelivery(latitude)||!coordenadaValidaDelivery(longitude)){const retorno=await consultarLocalizacaoDelivery(`${bairro}, ${cidade.nome}, ${cidade.uf}, Brasil`),r=retorno?.resultado;if(r){latitude=Number(r.lat);longitude=Number(r.lon);}}
+    await salvarLocalizacaoDelivery({endereco_chave:item.chave,endereco_original:item.endereco,cidade:cidade.nome,bairro,latitude,longitude,precisao:'bairro_manual',status:'localizado',fonte:'Revisão manual'});renderMapaDelivery();
+  }
+  catch(erro){alert('Não foi possível salvar o bairro: '+(erro.message||erro));}
+}
 
 /* ================= VENDAS COM CUSTO ================= */
 

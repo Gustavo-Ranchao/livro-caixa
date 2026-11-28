@@ -5,9 +5,11 @@ const { pathToFileURL } = require('url');
 
 const PAGINA_INICIAL = path.join(__dirname, 'index.html');
 const URL_INICIAL = pathToFileURL(PAGINA_INICIAL).href;
+app.userAgentFallback = 'RanchaoBebidasERP/1.2.71 (mapa interno de entregas)';
 let janelaPrincipal = null;
 const janelasModulos = new Map();
 let estadoAtualizacao = { tipo: 'inicial', mensagem: 'Pronto para verificar atualizações.', versaoAtual: app.getVersion() };
+let ultimaConsultaGeografica = 0;
 
 const MODULOS_PERMITIDOS = new Set([
   'checklist','duvidas','manutencao','agenda','contasPagar','despesasFixas','comprovantes','leituraComprovantes',
@@ -111,6 +113,20 @@ app.whenReady().then(() => {
   configurarAtualizacoes();
   ipcMain.handle('janela:abrir-modulo',(_evento,dados={})=>abrirJanelaModulo(String(dados.view||''),String(dados.tipo||'')));
   ipcMain.handle('janela:focar-principal',()=>{if(janelaPrincipal&&!janelaPrincipal.isDestroyed()){if(janelaPrincipal.isMinimized())janelaPrincipal.restore();janelaPrincipal.show();janelaPrincipal.focus();return true;}criarJanela(true);return true;});
+  ipcMain.handle('mapa:geocodificar-endereco',async (_evento,dados={})=>{
+    const endereco=String(dados.endereco||'').trim().slice(0,300);
+    if(!endereco)return {ok:false,erro:'Endereço vazio.'};
+    const espera=Math.max(0,1100-(Date.now()-ultimaConsultaGeografica));
+    if(espera)await new Promise(resolve=>setTimeout(resolve,espera));
+    ultimaConsultaGeografica=Date.now();
+    try{
+      const url='https://nominatim.openstreetmap.org/search?format=jsonv2&addressdetails=1&limit=1&countrycodes=br&q='+encodeURIComponent(endereco);
+      const resposta=await fetch(url,{headers:{Accept:'application/json','User-Agent':'RanchaoBebidasERP/1.2.71 (consulta manual de enderecos delivery)'}});
+      if(!resposta.ok)return {ok:false,erro:'Serviço de localização indisponível.'};
+      const lista=await resposta.json();
+      return {ok:true,resultado:Array.isArray(lista)&&lista.length?lista[0]:null};
+    }catch(erro){return {ok:false,erro:erro&&erro.message?erro.message:'Falha na localização.'};}
+  });
   session.defaultSession.setPermissionRequestHandler((_webContents, _permission, callback) => callback(false));
   criarJanela();
   app.on('activate', () => {
