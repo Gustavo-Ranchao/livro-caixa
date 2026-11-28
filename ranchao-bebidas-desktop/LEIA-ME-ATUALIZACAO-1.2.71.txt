@@ -1,0 +1,20 @@
+RANCHÃO BEBIDAS — ATUALIZAÇÃO 1.2.71
+
+1. No Supabase, abra o SQL Editor.
+2. Execute ATUALIZACAO_MAPA_DELIVERY_1.2.71.sql uma única vez.
+3. Substitua o projeto anterior por esta pasta completa.
+4. Execute GERAR-INSTALADOR.bat e instale a versão gerada.
+
+MAPA DE ENTREGAS
+- Acesse Vendas → Vendas Delivery → Mapa de entregas.
+- Loja 01 utiliza Curvelo - MG; Loja 02 utiliza Inimutaba - MG.
+- Clique em “Localizar ruas pendentes” para analisar até 20 endereços por vez.
+- O sistema respeita o limite do serviço de mapas, consulta sequencialmente e salva o resultado no Supabase para não repetir consultas.
+- Endereços sem número são identificados como aproximados.
+- Use “Endereços para revisar” para informar manualmente um bairro quando necessário.
+- O mapa e o ranking acompanham o período selecionado no módulo.
+
+OBSERVAÇÕES
+- É necessário ter internet para carregar o mapa e localizar novos endereços.
+- Os dados do mapa são do OpenStreetMap e a atribuição aparece na própria tela.
+- O SQL ATUALIZACAO_EMPRESA_1.2.69.sql continua necessário somente para instalações que ainda não receberam a versão 1.2.69.
