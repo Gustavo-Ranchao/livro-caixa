@@ -143,6 +143,9 @@ function trocarLoja(l){
   if(viewAtual === 'contasBancarias'){
     carregarContasBancarias();
   }
+  if(viewAtual === 'empresa'){
+    abrirCadastroEmpresa();
+  }
   if(viewAtual === 'inventario'){
     abrirInventario();
   }
@@ -1723,6 +1726,88 @@ async function confirmarImport(){
 /* ================= CONTRATOS E RECIBOS ================= */
 
 let recibosConfig = null;
+let empresaCadastroCache = null;
+
+async function carregarDadosEmpresa(loja=lojaAtual){
+  const {data,error}=await sb.from('recibos_configuracoes').select('*').eq('loja',loja).maybeSingle();
+  if(error){console.error('Erro ao carregar dados da empresa:',error);return null;}
+  return data||null;
+}
+
+async function abrirCadastroEmpresa(){
+  empresaCadastroCache=await carregarDadosEmpresa(lojaAtual);
+  const c=empresaCadastroCache||{};
+  document.getElementById('empresaCadastroLoja').textContent=NOMES_LOJA[lojaAtual]||lojaAtual;
+  const mapa={emp_razao_social:'empresa_razao_social',emp_nome_fantasia:'empresa_nome_fantasia',emp_cnpj:'empresa_cnpj',emp_inscricao_estadual:'empresa_inscricao_estadual',emp_telefone:'empresa_telefone',emp_whatsapp:'empresa_whatsapp',emp_email:'empresa_email',emp_endereco:'empresa_endereco',emp_cep:'empresa_cep',emp_cidade:'cidade',emp_estado:'estado'};
+  Object.entries(mapa).forEach(([id,campo])=>{const el=document.getElementById(id);if(el)el.value=c[campo]||'';});
+  const pronto=!!(c.empresa_cnpj&&c.empresa_endereco);
+  const status=document.getElementById('empresaCadastroStatus');status.textContent=pronto?'✓ Dados prontos para serem usados nos documentos.':'Preencha CNPJ e endereço para que apareçam nos documentos.';status.style.color=pronto?'#17733b':'var(--muted)';
+  document.getElementById('empresaCadastroErro').style.display='none';
+}
+
+function cnpjValidoEmpresa(valor){
+  const cnpj=String(valor||'').replace(/\D/g,'');
+  if(cnpj.length!==14||/^(\d)\1{13}$/.test(cnpj))return false;
+  const digito=(tamanho)=>{
+    let soma=0,peso=tamanho-7;
+    for(let i=0;i<tamanho;i++){soma+=Number(cnpj[i])*peso--;if(peso===1)peso=9;}
+    const resto=soma%11;return resto<2?0:11-resto;
+  };
+  return digito(12)===Number(cnpj[12])&&digito(13)===Number(cnpj[13]);
+}
+
+function telefoneEmpresaApi(valor){
+  const n=String(valor||'').replace(/\D/g,'').slice(0,11);
+  if(n.length===11)return `(${n.slice(0,2)}) ${n.slice(2,7)}-${n.slice(7)}`;
+  if(n.length===10)return `(${n.slice(0,2)}) ${n.slice(2,6)}-${n.slice(6)}`;
+  return n;
+}
+
+async function buscarEmpresaPorCnpj(){
+  const entrada=document.getElementById('emp_cnpj');
+  const cnpj=String(entrada?.value||'').replace(/\D/g,'');
+  const erro=document.getElementById('empresaCadastroErro');
+  const status=document.getElementById('empresaCadastroStatus');
+  const btn=document.getElementById('empresaBuscarCnpj');
+  erro.style.display='none';
+  if(!cnpjValidoEmpresa(cnpj)){erro.textContent='Digite um CNPJ válido para realizar a consulta.';erro.style.display='block';entrada?.focus();return;}
+  btn.disabled=true;btn.textContent='Consultando…';status.textContent='Consultando dados públicos do CNPJ…';status.style.color='var(--muted)';
+  const controle=new AbortController();const tempo=setTimeout(()=>controle.abort(),12000);
+  try{
+    const resposta=await fetch(`https://brasilapi.com.br/api/cnpj/v1/${cnpj}`,{headers:{Accept:'application/json'},signal:controle.signal});
+    if(!resposta.ok){if(resposta.status===404||resposta.status===400)throw new Error('CNPJ não encontrado na base pública.');throw new Error('Consulta indisponível no momento. Tente novamente.');}
+    const d=await resposta.json();
+    const preencher=(id,valor)=>{const el=document.getElementById(id);if(el&&valor!==undefined&&valor!==null&&String(valor).trim())el.value=String(valor).trim();};
+    const endereco=[d.descricao_tipo_de_logradouro,d.logradouro,d.numero,d.complemento,d.bairro].filter(v=>v&&String(v).trim()).join(', ');
+    const cep=String(d.cep||'').replace(/\D/g,'').slice(0,8);
+    preencher('emp_razao_social',d.razao_social);
+    preencher('emp_nome_fantasia',d.nome_fantasia);
+    preencher('emp_cnpj',cnpj.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/,'$1.$2.$3/$4-$5'));
+    preencher('emp_telefone',telefoneEmpresaApi(d.ddd_telefone_1||d.ddd_telefone_2));
+    preencher('emp_email',String(d.email||'').toLowerCase());
+    preencher('emp_endereco',endereco);
+    preencher('emp_cep',cep.length===8?`${cep.slice(0,5)}-${cep.slice(5)}`:cep);
+    preencher('emp_cidade',d.municipio);
+    preencher('emp_estado',d.uf);
+    const situacao=d.descricao_situacao_cadastral?` Situação cadastral: ${d.descricao_situacao_cadastral}.`:'';
+    status.textContent=`✓ Dados encontrados.${situacao} Confira e clique em “Salvar dados da empresa”.`;status.style.color='#17733b';
+  }catch(e){
+    const mensagem=e?.name==='AbortError'?'A consulta demorou demais. Verifique a internet e tente novamente.':(e?.message||'Não foi possível consultar o CNPJ.');
+    erro.textContent=mensagem;erro.style.display='block';status.textContent='';
+  }finally{clearTimeout(tempo);btn.disabled=false;btn.textContent='🔎 Buscar dados';}
+}
+
+async function salvarCadastroEmpresa(){
+  const payload={loja:lojaAtual,empresa_razao_social:document.getElementById('emp_razao_social').value.trim()||null,empresa_nome_fantasia:document.getElementById('emp_nome_fantasia').value.trim()||'Ranchão Bebidas',empresa_cnpj:document.getElementById('emp_cnpj').value.trim()||null,empresa_inscricao_estadual:document.getElementById('emp_inscricao_estadual').value.trim()||null,empresa_telefone:document.getElementById('emp_telefone').value.trim()||null,empresa_whatsapp:document.getElementById('emp_whatsapp').value.trim()||null,empresa_email:document.getElementById('emp_email').value.trim().toLowerCase()||null,empresa_endereco:document.getElementById('emp_endereco').value.trim()||null,empresa_cep:document.getElementById('emp_cep').value.trim()||null,cidade:document.getElementById('emp_cidade').value.trim()||null,estado:document.getElementById('emp_estado').value.trim().toUpperCase()||null};
+  const erro=document.getElementById('empresaCadastroErro');erro.style.display='none';
+  if(!payload.empresa_cnpj||!payload.empresa_endereco||!payload.cidade||!payload.estado){erro.textContent='Preencha CNPJ, endereço, cidade e estado.';erro.style.display='block';return;}
+  const btn=document.getElementById('empresaCadastroSalvar');btn.disabled=true;btn.textContent='Salvando…';
+  let resposta;if(empresaCadastroCache)resposta=await sb.from('recibos_configuracoes').update(payload).eq('loja',lojaAtual).select().single();else resposta=await sb.from('recibos_configuracoes').insert(payload).select().single();
+  btn.disabled=false;btn.textContent='Salvar dados da empresa';
+  if(resposta.error){erro.textContent='Não foi possível salvar: '+resposta.error.message;erro.style.display='block';return;}
+  empresaCadastroCache=resposta.data;recibosConfig=resposta.data;
+  const status=document.getElementById('empresaCadastroStatus');status.textContent='✓ Dados salvos e disponíveis para todos os documentos.';status.style.color='#17733b';
+}
 let recibosCache = [];
 let reciboColaboradoresCache = [];
 let recibosSelecionados = new Set();
@@ -1882,11 +1967,10 @@ async function abrirContratos(){
 }
 
 async function carregarConfiguracaoRecibos(){
-  const {data,error}=await sb.from('recibos_configuracoes').select('*').eq('loja',lojaAtual).maybeSingle();
-  if(error){
-    console.error('Erro ao carregar configurações de recibos:',error);
+  const data=await carregarDadosEmpresa(lojaAtual);
+  if(!data){
     recibosConfig=null;
-    document.getElementById('recConfigStatus').textContent='⚠ Execute o SQL do módulo no Supabase';
+    document.getElementById('recConfigStatus').textContent='⚙ Cadastre a empresa em Cadastros → Empresa';
     document.getElementById('recConfigStatus').classList.remove('ok');
     return;
   }
@@ -2661,8 +2745,7 @@ function dataMaisDias(dias){const d=new Date(todayStr()+'T12:00:00');d.setDate(d
 
 async function abrirOrcamentos(){
   if(!document.getElementById('orc_data').value) novoOrcamento();
-  const {data}=await sb.from('recibos_configuracoes').select('empresa_razao_social,empresa_nome_fantasia,empresa_cnpj,empresa_endereco,cidade,estado').eq('loja',lojaAtual).maybeSingle();
-  orcamentoConfigEmpresa=data||null;
+  orcamentoConfigEmpresa=await carregarDadosEmpresa(lojaAtual);
   await carregarOrcamentos();
 }
 
@@ -2726,7 +2809,7 @@ function validarOrcamento(d){if(!d.data_emissao||!d.data_validade)return 'Preenc
 
 async function salvarOrcamento(gerarPdf){
   const d=dadosFormularioOrcamento(),erro=validarOrcamento(d),el=document.getElementById('orcErr'),lojaDestino=document.getElementById('orc_loja').value;if(erro){el.textContent=erro;el.style.display='block';return;}el.style.display='none';
-  const {data:configDestino}=await sb.from('recibos_configuracoes').select('empresa_razao_social,empresa_nome_fantasia,empresa_cnpj,empresa_endereco,cidade,estado').eq('loja',lojaDestino).maybeSingle();
+  const configDestino=await carregarDadosEmpresa(lojaDestino);
   if(configDestino){d.empresa_razao_social=configDestino.empresa_razao_social||null;d.empresa_nome_fantasia=configDestino.empresa_nome_fantasia||'Ranchão Bebidas';d.empresa_cnpj=configDestino.empresa_cnpj||null;d.empresa_endereco=configDestino.empresa_endereco||null;}
   let resposta;if(orcamentoEditandoId)resposta=await sb.from('orcamentos').update(Object.assign({loja:lojaDestino},d)).eq('id',orcamentoEditandoId).eq('loja',orcamentoEditandoLojaOriginal||lojaAtual).select().single();else resposta=await sb.from('orcamentos').insert(Object.assign({loja:lojaDestino},d)).select().single();
   if(resposta.error){el.textContent='Não foi possível salvar. Execute primeiro o SQL do módulo de orçamentos.';el.style.display='block';console.error(resposta.error);return;}
@@ -3165,7 +3248,7 @@ function exportarImagemMetaEquipe(){
   ctx.textAlign='center';ctx.fillStyle='#53647b';ctx.font='500 18px Arial';ctx.fillText('Vamos juntos alcançar nossa meta!',largura/2,1310);const link=document.createElement('a');link.href=canvas.toDataURL('image/png');link.download='meta-equipe-'+lojaAtual+'-'+mes+'.png';link.click();
 }
 
-const VIEWS = ['checklist','duvidas','manutencao','agenda','contasPagar','despesasFixas','comprovantes','leituraComprovantes','diferencaCaixa','fluxoCaixa','pagamentos','pagamentoCaixa','contratos','vendasComCusto','metasVendas','vendasDelivery','orcamentos','tabelaPrecos','novaVenda','produtosEstoque','bancoHoras','compras','ocorrenciasEntregas','colaboradores','aniversarios','fornecedores','contasBancarias','inventario','controleEstoque','contagensEstoque','combinacaoPagamentos'];
+const VIEWS = ['checklist','duvidas','manutencao','agenda','contasPagar','despesasFixas','comprovantes','leituraComprovantes','diferencaCaixa','fluxoCaixa','pagamentos','pagamentoCaixa','contratos','vendasComCusto','metasVendas','vendasDelivery','orcamentos','tabelaPrecos','novaVenda','produtosEstoque','bancoHoras','compras','ocorrenciasEntregas','colaboradores','aniversarios','empresa','fornecedores','contasBancarias','inventario','controleEstoque','contagensEstoque','combinacaoPagamentos'];
 let colabCarregado = false;
 const PARAMETROS_JANELA = new URLSearchParams(location.search);
 const EH_JANELA_MODULO = PARAMETROS_JANELA.get('janelaModulo')==='1';
@@ -3178,7 +3261,7 @@ const TITULOS_JANELAS = {
   pagamentos:'Pagamentos',pagamentoCaixa:'Pagamento no Caixa',combinacaoPagamentos:'Combinação de Pagamentos',contratos:'Contratos e Recibos',
   vendasComCusto:'Vendas com Custo',metasVendas:'Metas de Vendas',vendasDelivery:'Vendas Delivery',orcamentos:'Orçamentos',tabelaPrecos:'Tabela de Preços',novaVenda:'Cadastrar Venda',produtosEstoque:'Produtos e Estoque',compras:'Compras',
   inventario:'Inventário',controleEstoque:'Controle de Estoque',contagensEstoque:'Contagens de Estoque',ocorrenciasEntregas:'Ocorrências de Entregas',bancoHoras:'Banco de Horas',
-  colaboradores:'Colaboradores',aniversarios:'Aniversários',fornecedores:'Fornecedores',contasBancarias:'Contas Bancárias'
+  colaboradores:'Colaboradores',aniversarios:'Aniversários',empresa:'Empresa',fornecedores:'Fornecedores',contasBancarias:'Contas Bancárias'
 };
 
 async function abrirModuloEmJanela(view,tipo=''){
@@ -3213,10 +3296,10 @@ const CATEGORIA_POR_VIEW = {
   vendasComCusto:'vendas', metasVendas:'vendas', vendasDelivery:'vendas', orcamentos:'vendas', tabelaPrecos:'vendas', novaVenda:'vendas',
   compras:'comprasEstoque', produtosEstoque:'comprasEstoque', inventario:'comprasEstoque', controleEstoque:'comprasEstoque', contagensEstoque:'comprasEstoque', ocorrenciasEntregas:'comprasEstoque',
   bancoHoras:'equipe', colaboradores:'equipe', aniversarios:'equipe',
-  fornecedores:'cadastros', contasBancarias:'cadastros',
+  empresa:'cadastros', fornecedores:'cadastros', contasBancarias:'cadastros',
   checklist:'checklist', duvidas:'duvidas', manutencao:'manutencao', agenda:'agenda'
 };
-const VIEW_IDS = { checklist:'viewChecklist', duvidas:'viewDuvidas', manutencao:'viewManutencao', agenda:'viewAgenda', contasPagar:'viewContasPagar', despesasFixas:'viewDespesasFixas', comprovantes:'viewComprovantes', leituraComprovantes:'viewLeituraComprovantes', diferencaCaixa:'viewDiferencaCaixa', fluxoCaixa:'viewFluxoCaixa', pagamentos:'viewPagamentos', pagamentoCaixa:'viewPagamentoCaixa', contratos:'viewContratos', vendasComCusto:'viewVendasComCusto', metasVendas:'viewMetasVendas', vendasDelivery:'viewVendasDelivery', orcamentos:'viewOrcamentos', tabelaPrecos:'viewTabelaPrecos', novaVenda:'viewNovaVenda', produtosEstoque:'viewProdutosEstoque', bancoHoras:'viewBancoHoras', compras:'viewCompras', ocorrenciasEntregas:'viewOcorrenciasEntregas', colaboradores:'viewColaboradores', aniversarios:'viewAniversarios', fornecedores:'viewFornecedores', contasBancarias:'viewContasBancarias', inventario:'viewInventario', controleEstoque:'viewControleEstoque', contagensEstoque:'viewContagensEstoque', combinacaoPagamentos:'viewCombinacaoPagamentos' };
+const VIEW_IDS = { checklist:'viewChecklist', duvidas:'viewDuvidas', manutencao:'viewManutencao', agenda:'viewAgenda', contasPagar:'viewContasPagar', despesasFixas:'viewDespesasFixas', comprovantes:'viewComprovantes', leituraComprovantes:'viewLeituraComprovantes', diferencaCaixa:'viewDiferencaCaixa', fluxoCaixa:'viewFluxoCaixa', pagamentos:'viewPagamentos', pagamentoCaixa:'viewPagamentoCaixa', contratos:'viewContratos', vendasComCusto:'viewVendasComCusto', metasVendas:'viewMetasVendas', vendasDelivery:'viewVendasDelivery', orcamentos:'viewOrcamentos', tabelaPrecos:'viewTabelaPrecos', novaVenda:'viewNovaVenda', produtosEstoque:'viewProdutosEstoque', bancoHoras:'viewBancoHoras', compras:'viewCompras', ocorrenciasEntregas:'viewOcorrenciasEntregas', colaboradores:'viewColaboradores', aniversarios:'viewAniversarios', empresa:'viewEmpresa', fornecedores:'viewFornecedores', contasBancarias:'viewContasBancarias', inventario:'viewInventario', controleEstoque:'viewControleEstoque', contagensEstoque:'viewContagensEstoque', combinacaoPagamentos:'viewCombinacaoPagamentos' };
 
 let categoriaMenuAberta = null;
 
@@ -3333,6 +3416,8 @@ async function mudarViewPrincipal(view){
   }else if(view==='aniversarios'){
     await carregarColaboradores();
     renderAniversarios();
+  }else if(view==='empresa'){
+    await abrirCadastroEmpresa();
   }else if(view==='fornecedores'){
     await carregarFornecedores();
   }else if(view==='contasBancarias'){
