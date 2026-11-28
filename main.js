@@ -12,7 +12,7 @@ let estadoAtualizacao = { tipo: 'inicial', mensagem: 'Pronto para verificar atua
 const MODULOS_PERMITIDOS = new Set([
   'checklist','duvidas','manutencao','agenda','contasPagar','despesasFixas','comprovantes','leituraComprovantes',
   'diferencaCaixa','fluxoCaixa','pagamentos','pagamentoCaixa','contratos','vendasComCusto','metasVendas','vendasDelivery',
-  'orcamentos','tabelaPrecos','novaVenda','bancoHoras','compras','produtosEstoque','colaboradores','aniversarios','fornecedores','contasBancarias',
+  'orcamentos','tabelaPrecos','novaVenda','bancoHoras','compras','produtosEstoque','colaboradores','aniversarios','empresa','fornecedores','contasBancarias',
   'inventario','controleEstoque','contagensEstoque','ocorrenciasEntregas','combinacaoPagamentos'
 ]);
 const TITULOS_MODULOS = {
@@ -22,7 +22,7 @@ const TITULOS_MODULOS = {
   combinacaoPagamentos:'Combinação de Pagamentos',contratos:'Contratos e Recibos',vendasComCusto:'Vendas com Custo',metasVendas:'Metas de Vendas',
   vendasDelivery:'Vendas Delivery',orcamentos:'Orçamentos',tabelaPrecos:'Tabela de Preços',novaVenda:'Cadastrar Venda',produtosEstoque:'Produtos e Estoque',compras:'Compras',
   inventario:'Inventário',controleEstoque:'Controle de Estoque',contagensEstoque:'Contagens de Estoque',ocorrenciasEntregas:'Ocorrências de Entregas',
-  bancoHoras:'Banco de Horas',colaboradores:'Colaboradores',aniversarios:'Aniversários',fornecedores:'Fornecedores',
+  bancoHoras:'Banco de Horas',colaboradores:'Colaboradores',aniversarios:'Aniversários',empresa:'Empresa',fornecedores:'Fornecedores',
   contasBancarias:'Contas Bancárias'
 };
 

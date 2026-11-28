@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="referrer" content="strict-origin-when-cross-origin">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'self'; object-src 'none'; form-action 'self'; frame-ancestors 'none'; frame-src 'self' blob: https://qgpkswienjhfkbipiwio.supabase.co; script-src 'self'; script-src-elem 'self'; script-src-attr 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob: https://qgpkswienjhfkbipiwio.supabase.co; connect-src 'self' https://qgpkswienjhfkbipiwio.supabase.co wss://qgpkswienjhfkbipiwio.supabase.co; worker-src 'self' blob:; manifest-src 'self'; upgrade-insecure-requests">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'self'; object-src 'none'; form-action 'self'; frame-ancestors 'none'; frame-src 'self' blob: https://qgpkswienjhfkbipiwio.supabase.co; script-src 'self'; script-src-elem 'self'; script-src-attr 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob: https://qgpkswienjhfkbipiwio.supabase.co; connect-src 'self' https://qgpkswienjhfkbipiwio.supabase.co wss://qgpkswienjhfkbipiwio.supabase.co https://brasilapi.com.br; worker-src 'self' blob:; manifest-src 'self'; upgrade-insecure-requests">
 <title>Ranchão Bebidas</title>
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#17233c">
@@ -89,6 +89,13 @@
   .loginwrap .hint{margin-top:20px;font-size:11px;color:var(--muted);line-height:1.5;}
   .loadingScreen{position:fixed;top:0;left:0;width:100%;height:100vh;background:var(--paper);z-index:9999;display:flex;align-items:center;justify-content:center;color:var(--muted);font-family:var(--font-voice);font-style:italic;font-size:15px;}
   @keyframes spin{to{transform:rotate(360deg)}}
+  .vp-indicadores{display:grid;grid-template-columns:repeat(3,minmax(180px,1fr));gap:12px;padding:0 20px 18px;}
+  .vp-indicador{border:1px solid #dbe4f0;border-radius:12px;background:linear-gradient(145deg,#fff,#f6f9fd);padding:14px 16px;box-shadow:0 3px 12px rgba(30,53,91,.06);}
+  .vp-indicador .titulo{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:#52647d;}
+  .vp-indicador .valor{display:block;margin:6px 0 7px;font-size:23px;font-weight:800;color:#1e355b;}
+  .vp-indicador .formula{font-size:11px;line-height:1.45;color:var(--muted);}
+  .vp-indicador.negativo .valor{color:#b4233a;}.vp-indicador.positivo .valor{color:#17733b;}
+  @media(max-width:780px){.vp-indicadores{grid-template-columns:1fr;}}
 
   /* ---------- App shell ---------- */
   .shell{display:none;min-height:100vh;}
@@ -822,6 +829,7 @@
       <button class="top-module-btn" data-category="equipe" data-view="bancoHoras" onclick="mudarViewPrincipal('bancoHoras')"><span class="top-module-icon">🕐</span>Banco de Horas</button>
       <button class="top-module-btn" data-category="equipe" data-view="colaboradores" onclick="mudarViewPrincipal('colaboradores')"><span class="top-module-icon">👥</span>Colaboradores</button>
       <button class="top-module-btn" data-category="equipe" data-view="aniversarios" onclick="mudarViewPrincipal('aniversarios')"><span class="top-module-icon">🎂</span>Aniversários</button>
+      <button class="top-module-btn" data-category="cadastros" data-view="empresa" onclick="mudarViewPrincipal('empresa')"><span class="top-module-icon">🏢</span>Empresa</button>
       <button class="top-module-btn" data-category="cadastros" data-view="fornecedores" onclick="mudarViewPrincipal('fornecedores')"><span class="top-module-icon">🚚</span>Fornecedores</button>
       <button class="top-module-btn" data-category="cadastros" data-view="contasBancarias" onclick="mudarViewPrincipal('contasBancarias')"><span class="top-module-icon">🏦</span>Contas Bancárias</button>
       <button class="top-module-btn" data-category="checklist" data-view="checklist" onclick="mudarViewPrincipal('checklist')"><span class="top-module-icon">✅</span>Checklist de Fechamento</button>
@@ -1405,6 +1413,29 @@
         <div class="panel-head"><h2>Próximos aniversários</h2></div>
         <div class="aniv-list" id="anivLista"></div>
         <div class="empty" id="anivEmpty" style="display:none;">Nenhuma data de nascimento cadastrada para este filtro.</div>
+      </div>
+    </div>
+
+    <div id="viewEmpresa" style="display:none;">
+      <div class="rec-toolbar"><div><h2 style="margin:0 0 4px;">🏢 Cadastro da empresa</h2><div class="rec-config-status">Cadastro central utilizado nos PDFs, recibos, contracheques e orçamentos.</div></div><span id="empresaCadastroLoja" style="font-weight:700;color:var(--navy);"></span></div>
+      <div class="panel" style="margin-bottom:18px;">
+        <div class="panel-head"><div><h2>Dados empresariais</h2><p style="font-size:12px;color:var(--muted);margin-top:4px;">As informações são separadas por loja.</p></div></div>
+        <div class="rec-form-grid">
+          <div class="fld rec-span-2"><label>Razão social</label><input id="emp_razao_social" maxlength="180" placeholder="Razão social da empresa"></div>
+          <div class="fld rec-span-2"><label>Nome fantasia</label><input id="emp_nome_fantasia" maxlength="180" placeholder="Ranchão Bebidas"></div>
+          <div class="fld rec-span-2"><label>CNPJ</label><div style="display:flex;gap:8px;align-items:center;"><input id="emp_cnpj" inputmode="numeric" maxlength="18" data-mask="cnpj" placeholder="00.000.000/0000-00" onkeydown="if(event.key==='Enter'){event.preventDefault();buscarEmpresaPorCnpj();}"><button type="button" id="empresaBuscarCnpj" class="importbtn" style="width:auto;white-space:nowrap;margin:0;" onclick="buscarEmpresaPorCnpj()">🔎 Buscar dados</button></div><small style="color:var(--muted);">Consulta pública. Confira os dados antes de salvar.</small></div>
+          <div class="fld"><label>Inscrição estadual</label><input id="emp_inscricao_estadual" maxlength="30" placeholder="Opcional"></div>
+          <div class="fld"><label>Telefone</label><input id="emp_telefone" inputmode="tel" maxlength="15" data-mask="telefone" placeholder="(00) 0000-0000"></div>
+          <div class="fld"><label>WhatsApp</label><input id="emp_whatsapp" inputmode="tel" maxlength="15" data-mask="telefone" placeholder="(00) 00000-0000"></div>
+          <div class="fld rec-span-2"><label>E-mail</label><input id="emp_email" type="email" maxlength="180" class="sem-maiuscula" placeholder="contato@empresa.com"></div>
+          <div class="fld rec-span-3"><label>Endereço completo</label><input id="emp_endereco" maxlength="300" placeholder="Rua, número, bairro e complemento"></div>
+          <div class="fld"><label>CEP</label><input id="emp_cep" inputmode="numeric" maxlength="9" placeholder="00000-000"></div>
+          <div class="fld rec-span-2"><label>Cidade</label><input id="emp_cidade" maxlength="100" placeholder="Cidade"></div>
+          <div class="fld"><label>Estado</label><input id="emp_estado" maxlength="2" placeholder="MG"></div>
+        </div>
+        <div class="formerr" id="empresaCadastroErro" style="margin:0 20px 12px;"></div>
+        <div id="empresaCadastroStatus" style="margin:0 20px 12px;font-size:12px;color:var(--muted);"></div>
+        <div class="rec-actions"><button id="empresaCadastroSalvar" class="addbtn" style="width:auto" onclick="salvarCadastroEmpresa()">Salvar dados da empresa</button></div>
       </div>
     </div>
 
@@ -2085,7 +2116,7 @@
       <div class="rec-toolbar"><div><h2 style="margin:0 0 4px;">Cadastrar venda</h2><div class="rec-config-status">Consulta de produtos e preços. Esta venda não altera o saldo do estoque.</div></div><button class="filter-btn" onclick="vpAbrirClientes()">👥 Clientes e tabelas</button></div>
       <div class="panel" style="margin-bottom:18px;"><div class="panel-head"><h2 id="vpFormTitulo">Dados da venda</h2></div><div class="rec-form-grid"><div class="fld"><label>Data</label><input id="vpData" type="date"></div><div class="fld rec-span-2"><label>Cliente (opcional)</label><select id="vpCliente" onchange="vpClienteMudou()"><option value="">Consumidor não identificado — Padrão</option></select></div><div class="fld"><label>Tabela</label><input id="vpTabelaNome" value="Padrão" readonly></div><div class="fld"><label>Status</label><select id="vpStatus"><option value="cotacao">Cotação</option><option value="pendente">Pendente</option><option value="concluida" selected>Concluída</option><option value="cancelada">Cancelada</option></select></div></div></div>
       <div class="panel" style="margin-bottom:18px;"><div class="panel-head"><h2>Adicionar ou editar produto</h2></div><div class="rec-form-grid"><div class="fld rec-span-2"><label>Pesquisar por código, descrição ou categoria</label><input id="vpBuscaProduto" class="sem-maiuscula" autocomplete="off" placeholder="Digite para pesquisar" oninput="vpPesquisarProdutos()" onkeydown="vpBuscaTecla(event)"><div id="vpSugestoes" class="lista-lojas-popup" style="position:relative;top:4px;left:0;width:100%;max-height:260px;overflow:auto;"></div></div><div class="fld"><label>Quantidade</label><input id="vpQuantidade" type="number" min="0.001" step="0.001" value="1" onkeydown="if(event.key==='Enter'){event.preventDefault();document.getElementById('vpPreco').focus();}"></div><div class="fld"><label>Preço aplicado nesta venda</label><input id="vpPreco" type="number" min="0" step="0.01" onkeydown="if(event.key==='Enter'){event.preventDefault();vpAdicionarItem();}"></div></div><div class="rec-actions"><button id="vpAdicionarBtn" class="addbtn" style="width:auto" onclick="vpAdicionarItem()">Adicionar item</button><button id="vpCancelarEdicao" class="cancelbtn" style="display:none" onclick="vpCancelarEdicaoItem()">Cancelar edição</button></div></div>
-      <div class="panel" style="margin-bottom:18px;"><div class="panel-head"><h2>Itens</h2></div><div class="tablewrap"><table class="ledger"><thead><tr><th>Código</th><th>Descrição</th><th>Un.</th><th style="text-align:right">Quantidade</th><th style="text-align:right">Preço padrão</th><th style="text-align:right">Preço aplicado</th><th style="text-align:right">Economia</th><th style="text-align:right">Total</th><th></th></tr></thead><tbody id="vpItens"></tbody></table></div><div class="rec-form-grid"><div class="fld rec-span-2"><label>Observações</label><input id="vpObs" maxlength="500"></div><div class="fld"><label>Desconto (R$)</label><input id="vpDesconto" type="number" min="0" step="0.01" value="0" oninput="vpRenderItens()"></div><div class="fld"><label>Taxa de entrega (R$)</label><input id="vpEntrega" type="number" min="0" step="0.01" value="0" oninput="vpRenderItens()"></div><div class="fld"><label>Economia nos produtos</label><input id="vpEconomia" readonly value="R$ 0,00"></div><div class="fld"><label>Markup interno</label><input id="vpMarkup" readonly value="0,00%"><small style="color:var(--muted)">Ganho sobre o custo.</small></div><div class="fld"><label>Markdown interno</label><input id="vpMarkdown" readonly value="0,00%"><small style="color:var(--muted)">Redução sobre o preço padrão.</small></div><div class="fld"><label>Total com entrega</label><input id="vpTotal" readonly value="R$ 0,00"></div></div><div class="rec-actions"><button id="vpSalvar" class="addbtn" style="width:auto" onclick="vpSalvarVenda()">Salvar venda</button><button id="vpCancelarVendaEdicao" class="cancelbtn" style="display:none" onclick="vpLimparVenda()">Cancelar edição</button><button class="cancelbtn" onclick="vpLimparVenda()">Limpar</button></div></div>
+      <div class="panel" style="margin-bottom:18px;"><div class="panel-head"><h2>Itens</h2></div><div class="tablewrap"><table class="ledger"><thead><tr><th>Código</th><th>Descrição</th><th>Un.</th><th style="text-align:right">Quantidade</th><th style="text-align:right">Preço padrão</th><th style="text-align:right">Preço aplicado</th><th style="text-align:right">Economia</th><th style="text-align:right">Total</th><th></th></tr></thead><tbody id="vpItens"></tbody></table></div><div class="rec-form-grid"><div class="fld rec-span-2"><label>Observações</label><input id="vpObs" maxlength="500"></div><div class="fld"><label>Desconto (R$)</label><input id="vpDesconto" type="number" min="0" step="0.01" value="0" oninput="vpRenderItens()"></div><div class="fld"><label>Taxa de entrega (R$)</label><input id="vpEntrega" type="number" min="0" step="0.01" value="0" oninput="vpRenderItens()"></div><div class="fld"><label>Economia nos produtos</label><input id="vpEconomia" readonly value="R$ 0,00"></div><div class="fld"><label>Total com entrega</label><input id="vpTotal" readonly value="R$ 0,00"></div></div><div class="vp-indicadores"><div class="vp-indicador" id="vpMarkupCard"><div class="titulo">Markup</div><strong class="valor" id="vpMarkup">0,00%</strong><div class="formula">(Preço de venda − custo) ÷ custo × 100</div></div><div class="vp-indicador" id="vpMarkdownCard"><div class="titulo">Markdown</div><strong class="valor" id="vpMarkdown">0,00%</strong><div class="formula">(Preço padrão − preço de venda) ÷ preço padrão × 100</div></div><div class="vp-indicador" id="vpMargemBrutaCard"><div class="titulo">Margem bruta</div><strong class="valor" id="vpMargemBruta">0,00%</strong><div class="formula">(Preço de venda − custo) ÷ preço de venda × 100</div></div></div><div style="padding:0 20px 12px;font-size:11px;color:var(--muted);">Indicadores calculados sobre os produtos e preços aplicados, sem considerar taxa de entrega ou desconto geral.</div><div class="rec-actions"><button id="vpSalvar" class="addbtn" style="width:auto" onclick="vpSalvarVenda()">Salvar venda</button><button id="vpCancelarVendaEdicao" class="cancelbtn" style="display:none" onclick="vpLimparVenda()">Cancelar edição</button><button class="cancelbtn" onclick="vpLimparVenda()">Limpar</button></div></div>
       <div class="panel"><div class="panel-head"><h2>Histórico de vendas</h2><div class="filters"><input id="vpMes" type="month" onchange="vpCarregarHistorico()"></div></div><div class="tablewrap"><table class="ledger"><thead><tr><th>Número</th><th>Data</th><th>Cliente</th><th>Tabela</th><th style="text-align:right">Total</th><th>Status</th><th></th></tr></thead><tbody id="vpHistorico"></tbody></table></div></div>
     </div>
 
@@ -3555,10 +3586,11 @@
     <h2>Configurações de documentos</h2>
     <p class="modal-sub">Dados padrão exclusivos da <strong id="recConfigLojaNome">loja</strong>, utilizados nos recibos e contracheques.</p>
     <div class="rec-config-grid">
-      <div class="fld full"><label>Razão social</label><input id="rec_cfg_empresa_razao" placeholder="Razão social da empresa"></div>
-      <div class="fld"><label>Nome fantasia</label><input id="rec_cfg_empresa_fantasia" placeholder="Nome fantasia"></div>
-      <div class="fld"><label>CNPJ</label><input id="rec_cfg_empresa_cnpj" inputmode="numeric" maxlength="18" data-mask="cnpj" placeholder="CNPJ da empresa"></div>
-      <div class="fld full"><label>Endereço da empresa</label><input id="rec_cfg_empresa_endereco" placeholder="Endereço completo da empresa"></div>
+      <div class="fld full"><label>Razão social — gerenciada em Cadastros → Empresa</label><input id="rec_cfg_empresa_razao" readonly placeholder="Cadastre no módulo Empresa"></div>
+      <div class="fld"><label>Nome fantasia</label><input id="rec_cfg_empresa_fantasia" readonly placeholder="Cadastre no módulo Empresa"></div>
+      <div class="fld"><label>CNPJ</label><input id="rec_cfg_empresa_cnpj" readonly placeholder="Cadastre no módulo Empresa"></div>
+      <div class="fld full"><label>Endereço da empresa</label><input id="rec_cfg_empresa_endereco" readonly placeholder="Cadastre no módulo Empresa"></div>
+      <div class="fld full"><button type="button" class="filter-btn" onclick="fecharConfiguracaoRecibos();mudarViewPrincipal('empresa')">🏢 Abrir cadastro da empresa</button></div>
       <div class="fld"><label>Cidade</label><input id="rec_cfg_cidade" placeholder="Ex.: Inimutaba"></div>
       <div class="fld"><label>Estado</label><input id="rec_cfg_estado" maxlength="2" placeholder="MG"></div>
       <div class="fld"><label>Pagador padrão</label><input id="rec_cfg_pagador_nome" placeholder="Empresa ou pessoa mais utilizada"></div>
